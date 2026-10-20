@@ -2,7 +2,7 @@
 
 What we've verified or measured while building GhostCVE. Maintenance rules are in [CLAUDE.md](../CLAUDE.md#findings-report-docsfindingsmd).
 
-Last summarized: 2026-10-20 (Phase 0)
+Last summarized: 2026-10-20 (Phase 0, after popular-repo experiment)
 
 ## Summary
 
@@ -18,10 +18,14 @@ Current understanding, with entries linked:
 8. **NVD now defers new non-priority CVEs immediately** ([F-005](#f-005), [F-018](#f-018)). In NVD, CNA scores appear as `Secondary` metrics; NIST's own are `Primary`.
 9. **GitLab's native SARIF ingestion is Ultimate-only (GA 19.2)** and classifies findings without a CVE as SAST ([F-008](#f-008)). That affects how GHOST/NO_CVE findings show up in GitLab.
 10. **Multi-language support is feasible in layers.** Repo-keyed matching is language-agnostic. Package→repo mapping chains registry-native → deps.dev (7 systems, with provenance, [F-020](#f-020)) → ecosyste.ms (~100 registries, unverified, CC BY-SA, [F-021](#f-021)). univers covers every GHSA ecosystem except pub and swift ([F-022](#f-022)). Languages outside GHSA's enum are never reviewed, so repo matching is the only signal there ([F-023](#f-023)).
+11. **On real projects, ghosts are common.** Across the 3,246 upstreams of 5 popular projects, 18% of published advisories (350 of 1,928) are absent from the global DB. All 5 projects ship versions affected by ghost advisories: gitea 2, kubernetes 3, n8n 89, open-webui 95, langchain 122 findings ([F-026](#f-026), [F-027](#f-027)). The mapper chain reached 97.4% of packages ([F-025](#f-025)).
+12. **Raw ghost counts overstate the problem somewhat.** About 14% of ghost candidates look like duplicates reviewed under another GHSA ID ([F-028](#f-028)). 27% of maintainer-entered ranges aren't canonical GHSA syntax, and repo ranges often differ from reviewed ones ([F-030](#f-030)). Dedup and tolerant range parsing are core diff-engine work.
+13. **Reserved CVEs are observable.** Repo advisories expose CVE IDs that `cveawg /api/cve-id/` shows as `RESERVED`, sometimes for 100+ days ([F-029](#f-029)). About 40% of reviewed CVEs on real dependencies are still unenriched in NVD ([F-031](#f-031)).
 
 ## Open questions
 
-- Q1. While a CVE is reserved but not yet published, does the repo advisory API already expose `cve_id`? If so, "CVE reserved" is detectable in window A.
+- ~~Q1. While a CVE is reserved but not yet published, does the repo advisory API already expose `cve_id`?~~ **Answered 2026-10-20: yes. Detectable via `cveawg /api/cve-id/{id}` ([F-029](#f-029)).**
+- Q8. How do we reliably detect that a ghost candidate was reviewed under a different GHSA ID, and what's the true duplicate rate? ([F-028](#f-028))
 - Q2. Was the 55-day median a backlog being cleared on Oct 15–16, or the normal state? Needs repeated sampling over weeks.
 - Q3. What share of other-CNA CVEs affecting npm/PyPI/Go packages get package-level coverage in OSV through ecosystem DBs (Go vulndb, PyPA, RustSec)? Requires the CVE→package matching from Phase 2.
 - Q4. How far behind GHSA are the scanner DBs (Trivy DB, Grype DB, OSV-Scanner)? GitLab Advisory DB lag can't be measured because its terms forbid querying it.
@@ -181,6 +185,94 @@ Current understanding, with entries linked:
 - **Date:** 2026-10-20 · **Status:** confirmed (docs, from F-002 source)
 - **Result:** GHSA ecosystem enum: `rubygems`, `npm`, `pip`, `maven`, `nuget`, `composer`, `go`, `rust`, `erlang`, `actions`, `pub`, `other`, `swift`.
 - **Implication:** Anything else (C/C++, CPAN, CRAN, Hackage, vendored code, git submodules) falls into `other`/empty and is likely never reviewed (F-015). For those, matching by upstream repo is the only path, and GhostCVE may be the only tool that alerts at all.
+
+### F-024
+- **Date:** 2026-10-20 · **Status:** confirmed (observed)
+- **Question:** Is GitHub's dependency-graph SBOM (`GET /repos/{o}/{r}/dependency-graph/sbom`) a usable inventory for research?
+- **Result:** Mostly. Exact versions for about 99% of entries in gitea, kubernetes, open-webui and langchain; the rest are git SHAs or branch names. **n8n: 1,647 of 1,953 entries unresolved** (pnpm `catalog:` references and ranges), so GitHub's own dependency graph silently lacks versions there. n8n's `pnpm-lock.yaml` (lockfileVersion 9.0, pnpm 12) holds **two YAML documents**; the first lists only pnpm's own toolchain packages.
+- **Implication:** Lockfile parsers must handle multi-document pnpm locks and pnpm catalogs. A dependency graph without resolved versions is exactly the silent-skip failure GhostCVE reports as UNRESOLVED.
+
+### F-025
+- **Date:** 2026-10-20 · **Status:** confirmed (observed, n=6,426)
+- **Question:** How well does the mapper chain (Go module path / Actions path → deps.dev) cover real projects?
+- **Method:** Unique package-versions from 5 projects (gitea, kubernetes, n8n, open-webui, langchain): npm, PyPI, Go, Cargo, Actions.
+- **Result:**
+  - **97.4% mapped to a GitHub repo.** By method: deps.dev `UNVERIFIED_METADATA` 4,176, `SLSA_ATTESTATION` 1,222, `PYPI_PUBLISH_ATTESTATION` 313, `GO_ORIGIN` 78; Go `github.com/` path 468; Actions path 1.
+  - Unmapped: no repo 156, non-GitHub 8, deps.dev 404 4.
+  - 3,271 unique upstream repos; 25 returned 404 when polled.
+- **Implication:** deps.dev is strong enough to be the default second-tier mapper. About 24% of mappings carry attestation provenance.
+
+### F-026
+- **Date:** 2026-10-20 · **Status:** confirmed (observed)
+- **Question:** How common are ghost advisories among the upstreams of real, popular projects?
+- **Method:**
+  - Polled `GET /repos/{r}/security-advisories?state=published` for the 3,246 reachable upstreams from F-025.
+  - Checked every GHSA in OSV (`/v1/vulns/{ghsa}`).
+  - Confirmed global status (`/advisories/{ghsa}`) for every OSV-missing advisory plus every advisory matching a dependency.
+  - Checked CVE IDs with cveawg.
+- **Result:**
+  - 306 repos have ≥1 published advisory, **1,928 advisories in total**.
+  - **350 (18.2%) are absent from the global DB** (all confirmed 404): 249 without a CVE, 29 with a *reserved* CVE ID (F-029), and 72 with a published CVE (GHOST_CVE).
+  - Of the 1,578 reviewed advisories, 205 (13%) have no CVE.
+  - **OSV-by-GHSA presence matched global review status in 939 of 939 directly confirmed cases.**
+  - Pending ghosts by days since repo publication: median 9, p90 91, max 2,612. Buckets: <7 days 149, 7–30 days 120, 30–90 days 44, 90–365 days 29, >1 year 8.
+  - Ghost ecosystems: npm 160, pip 152, go 26, rust 9.
+- **Caveats:** This snapshot is censored: pending ages keep growing, so the median isn't comparable with F-010's completed-review lag. Some ghosts are duplicates of reviewed advisories under a different ID (F-028).
+- **Implication:** OSV-by-GHSA is a free, quota-free first filter for "reviewed?"; only misses need confirming against GitHub's API. Ghosts aren't rare: about 1 in 5 upstream advisories.
+
+### F-027
+- **Date:** 2026-10-20 · **Status:** tentative (repo-advisory ranges, dedup heuristic, F-028/F-030)
+- **Question:** Do popular projects actually ship ghost-affected versions?
+- **Method:** Matched advisory package (ecosystem + normalized name) **and** advisory repo = mapped repo, then evaluated the repo advisory's `vulnerable_version_range` against the resolved version (univers comparators).
+- **Result:** Version-affected ghost findings (advisory × package-version × project):
+
+  | Project | Version-affected | Needs review (range unknown / repo-only) |
+  |---|---|---|
+  | go-gitea/gitea | 2 | 0 |
+  | kubernetes/kubernetes | 3 | 0 |
+  | langchain-ai/langchain | 122 | 42 |
+  | n8n-io/n8n | 89 | 13 |
+  | open-webui/open-webui | 95 | 23 |
+
+  That's 167 unique ghost advisories affecting at least one used version. Examples:
+  - gitea: `github.com/getkin/kin-openapi@v0.149.0`, GHSA-g3f9-hcw7-r9w2 (no CVE, 6 days, fix 0.150.0)
+  - kubernetes: `github.com/go-jose/go-jose/v4@v4.1.5`, GHSA-mgcc-cww5-fp2q (high, no CVE, 5 days); `github.com/dlclark/regexp2/v2@v2.2.1`, GHSA-wq9v-j77v-qr26 (high, CVE reserved, 100 days)
+  - n8n and open-webui: `markdown-it`, GHSA-r7fv-28h4-cvq7 (high, CVE-2026-111759 published, 37 days)
+- **Implication:** Every sampled project had ghost-affected versions, including two lean Go projects. This supports the product premise on real inventories.
+
+### F-028
+- **Date:** 2026-10-20 · **Status:** tentative (heuristic)
+- **Question:** Is every global 404 a true ghost?
+- **Result:** No. GitHub sometimes publishes the reviewed record under a **different GHSA ID**. Examples:
+  - dompurify GHSA-4w3q-35jp-p934 ("IN_PLACE… cross-window") ≈ reviewed GHSA-hpcv-96wg-7vj8 ("Cross-realm IN_PLACE…")
+  - pyjwt GHSA-pxh4-856f-4h89 ≈ reviewed GHSA-9j54-fg26-wv3r
+
+  Comparing summaries against reviewed advisories for the same package, across the 167 version-affected ghosts: likely duplicate (similarity ≥0.6) 23; possible (0.4–0.6) 50, though spot checks of that band showed mostly *different* issues; no match 94.
+- **Implication:** Diff engine needs duplicate detection (same package, overlapping ranges, text similarity, shared CVE or references). Report suspected duplicates as "possibly covered by GHSA-…" instead of as a ghost. Rough estimate: about 14% of ghost candidates are duplicates.
+
+### F-029
+- **Date:** 2026-10-20 · **Status:** confirmed (observed). Answers Q1.
+- **Result:** Repo advisories expose `cve_id` while the CVE is still **RESERVED**. `GET https://cveawg.mitre.org/api/cve/{id}` returns 404 `CVE_RECORD_DNE`, but `GET https://cveawg.mitre.org/api/cve-id/{id}` returns 200 without auth: `{"state":"RESERVED","owning_cna":"[REDACTED]"}`. 29 of the 350 ghosts are in this state, some for 100–111 days (e.g. CVE-2026-77299, CVE-2026-63402).
+- **Implication:** Add a fact value `cve: reserved`. A ghost advisory with a reserved CVE is a distinct, detectable state, and CVE-keyed tools can't see it either.
+
+### F-030
+- **Date:** 2026-10-20 · **Status:** tentative
+- **Question:** Can repo-advisory version ranges be evaluated directly?
+- **Result:**
+  - **372 of 1,353 advisory×dependency hits (27%) had ranges a strict GHSA grammar can't parse.** Maintainers enter npm-style space-separated ranges (`>=5.0.0-beta.0 <7.1.0`), hyphen ranges (`8.0.0-alpha.0 - 8.0.0-rc.5`), typos (`=>0.31.1`) and prose (`>=1.3.3 and <= 1.4.1`). Another 214 hits are repo-only (no package data).
+  - Of 497 reviewed, version-affected hits (judged by repo ranges), **134 were not returned by OSV's package query** for that version. Examples have open-ended repo ranges such as aiohttp `>=3.10.6`. The repo advisory's range likely differs from the reviewed one.
+- **Implication:**
+  - The range parser must accept canonical GHSA syntax plus npm-semver and common sloppy forms; anything else becomes `UNRESOLVED(range_unparseable)`, never dropped.
+  - Once an advisory is reviewed, prefer the reviewed/OSV range.
+  - Disagreement between the repo range and the reviewed range is a frequent RANGE_DRIFT source and needs its own test cases.
+
+### F-031
+- **Date:** 2026-10-20 · **Status:** confirmed (observed, sampled)
+- **Method:** NVD API 2.0 for all 80 CVEs on ghost hits and 60 randomly sampled CVEs on reviewed hits.
+- **Result:**
+  - **Ghost CVEs:** 24 absent from NVD, 31 `Received`, 13 `Awaiting Analysis`, 2 `Deferred`, 10 enriched.
+  - **Reviewed CVEs:** 36 enriched (NIST CVSS or CPE); 24 not enriched (15 `Deferred`, 7 `Awaiting Analysis`, 1 `Undergoing Analysis`, 1 timeout).
+- **Implication:** About 40% of reviewed CVEs on real dependencies are unenriched in NVD, so CPE-based tools miss them even after GitHub review. NVD calls need generous timeouts and a resumable checkpoint, because one read timeout killed a full run.
 
 ## Archive
 
