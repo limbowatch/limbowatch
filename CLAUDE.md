@@ -1,6 +1,6 @@
 # GhostCVE
 
-Early-warning tool for "ghost" dependency vulnerabilities: public advisories that standard scanners miss because they haven't reached the databases those scanners read. Built for GitLab users.
+Early-warning tool for "ghost" dependency vulnerabilities: public advisories that standard scanners miss because they haven't reached the databases those scanners read. Open source. GitLab first; the end goal is any repo host and any language, so keep ecosystem- and host-specific code behind plugin interfaces.
 
 - [docs/SPEC.md](docs/SPEC.md): original spec (source of requirements)
 - [docs/PHASE0_PLAN.md](docs/PHASE0_PLAN.md): architecture plan (layout, module boundaries, DB schema, order of work)

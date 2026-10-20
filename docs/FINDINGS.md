@@ -26,7 +26,7 @@ Current understanding, with entries linked:
 - Q3. What share of other-CNA CVEs affecting npm/PyPI/Go packages get package-level coverage in OSV through ecosystem DBs (Go vulndb, PyPA, RustSec)? Requires the CVE→package matching from Phase 2.
 - Q4. How far behind GHSA are the scanner DBs (Trivy DB, Grype DB, OSV-Scanner)? GitLab Advisory DB lag can't be measured because its terms forbid querying it.
 - Q5. Is "Not Scheduled" ever an NVD API `vulnStatus` value, or always `Deferred`? ([F-005](#f-005))
-- Q6. Does ecosyste.ms's CC BY-SA 4.0 data license constrain a commercial GhostCVE that caches or redistributes mapping data? Use only at runtime, or buy a commercial license? ([F-021](#f-021))
+- Q6. Does ecosyste.ms's CC BY-SA 4.0 data license constrain GhostCVE? *Partly answered 2026-10-20: GhostCVE will be open source, so a commercial license isn't needed. Remaining constraint: share-alike applies to redistributed derived data. Plan §11: runtime use plus local cache only, with attribution, and never bundle derived datasets. Revisit before 1.0.* ([F-021](#f-021))
 - Q7. How do we reliably detect packaging/recipe repos (conan-center-index, homebrew-core, distro packaging) so they aren't treated as upstream? ([F-021](#f-021))
 
 ## Log

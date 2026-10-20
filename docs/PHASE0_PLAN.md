@@ -1,121 +1,250 @@
 # Phase 0 Plan
 
-Status: **proposed, awaiting approval** (2026-10-19). See [SPEC.md](SPEC.md) for the original spec.
+| Rev | Date | Status | Change |
+|---|---|---|---|
+| 1 | 2026-10-19 | superseded | Initial plan |
+| 2 | 2026-10-20 | **proposed, awaiting approval** | Fact-vector model and new classes; cvelistV5 feed and all-CNA CVE ingestion; ecosystem plugin tiers (goal: all languages); run-anywhere and org-wide mode; open-source licensing; Phases 6–7 |
 
-## 1. Verified API facts
+Inputs: [SPEC.md](SPEC.md) (requirements) and [FINDINGS.md](FINDINGS.md) (verified facts, cited as F-NNN).
 
-Checked against official docs and, where docs were silent, read-only probes of the live endpoints on 2026-10-19.
+## 1. Goal and scope
 
-| Claim | Finding |
-|---|---|
-| `GET /repos/{o}/{r}/security-advisories` works without auth on public repos | **Yes.** Live probe returned 200 with an `ETag`; anonymous limit is 60/hr. Docs: "Anyone can access any published security advisory on a public repository." Fields include `vulnerabilities[].package{ecosystem,name}`, `vulnerable_version_range`, `patched_versions`, `cve_id` (nullable), `cvss_severities`, `state` (incl. `withdrawn`). |
-| `GET /advisories` returns everything | **No.** "By default… will only return reviewed advisories that are not malware." `type=unreviewed` and `type=malware` must be requested explicitly. Pagination is cursor-based via the `Link` header, max 100 per page. |
-| 304s are free | Only for authenticated requests. A token is effectively required beyond ~60 repos. |
-| OSV `querybatch` returns full records | **No.** It returns only `id` + `modified`. Pagination is per query (`next_page_token`) once a query exceeds 1,000 results or a batch exceeds 3,000. Records are hydrated via `/v1/vulns/{id}`. |
-| NVD April 2026 change | Confirmed by secondary sources: from 2026-04-15, enrichment is prioritized to KEV, federal-use software and EO 14028 critical software, and the backlog moved to "Not Scheduled". Unconfirmed whether "Not Scheduled" is an API `vulnStatus` value (one blog maps it to `Deferred`), so `vulnStatus` is stored as a raw string. |
-| NVD "has CVSS" | Needs nuance. A live record had both `Primary` (NIST) and `Secondary` (CNA) metrics. A CVE NIST never enriched can still carry a CNA score in NVD. |
-| CVE record lookup | `https://cveawg.mitre.org/api/cve/{id}` returned 200 without auth (observed behavior; no official doc found). Preferred over cloning cvelistV5. |
-| Go vanity paths | `proxy.golang.org/{mod}/@v/{ver}.info` returns `Origin.URL` (for `golang.org/x/net` → `https://go.googlesource.com/net`). `?go-get=1` meta tag is the fallback. |
-| GitLab ingests SARIF | With caveats: `artifacts:reports:sarif` requires **Ultimate**; flag in 18.11, GA in 19.2. Only identifiers drive classification: a finding is dependency scanning only if it carries a CVE, otherwise SAST. |
+**End goal:** detect ghost vulnerabilities for **any repo** (GitLab, Gitea/Forgejo, GitHub, plain git) in **any language**.
 
-**Unverified core premise:** whether a published repo advisory stays absent from `/advisories/{ghsa_id}` until GitHub reviews it. No doc describes that pipeline. Phase 2 will test it against a recently published real advisory and record the result as the `REPO_ONLY` fixture. If the advisory appears immediately as `unreviewed`, `REPO_ONLY` is redefined as "not *reviewed* in the global DB". That definition is the useful one anyway, because Dependabot doesn't alert on unreviewed advisories.
+**MVP (Phases 1–5):** npm, PyPI and Go; GitLab first. Every interface is built for the end goal from the start, so adding an ecosystem or host means adding a plugin, not reworking the core.
 
-## 2. Proposed spec changes
+**Product principle:** never silently skip. If a dependency can't be fully checked, the specific check that couldn't run is reported with a reason.
 
-1. **Classifications are flags, not one exclusive value.** Each finding has a set of flags plus a `primary` (highest priority) for sorting and gating. Flags already implied by another are hidden (`REPO_ONLY` implies `OSV_MISSING`).
-2. **`UNRESOLVED` is per check, not per dependency.** A package with no repo mapping is still checked against GHSA and OSV. Only the repo-advisory check is skipped, and that gap is reported. Upstreams not on GitHub get a recorded reason.
-3. **`go.sum` is not an inventory.** It contains hashes for modules outside the build list.
-   - Use `go.mod` with `replace`/`exclude` applied. Since Go 1.17, graph pruning lists every needed dep as `// indirect`.
-   - Flag pre-1.17 modules as incomplete.
-   - Optionally use `go list -m all` when the toolchain is present.
-   - Use `go.sum` only to cross-check.
-4. **`NVD_UNENRICHED`** means "no NIST `Primary` metrics and/or no `configurations`". It defaults to informational, because language-package scanners don't match on NVD CPEs.
-5. **`RANGE_DRIFT`** compares only repo advisory, GHSA and OSV. NVD CPE ranges describe products, not packages, so they're shown as context only. OSV event ranges and GitHub range strings each get their own evaluator, on a shared per-ecosystem comparator.
-6. **`OSV_MISSING` checks aliases** (`GO-…` and `PYSEC-…` records carry GHSA aliases).
-7. **Registry metadata is fetched per version** (`registry.npmjs.org/{pkg}/{version}`, `pypi.org/pypi/{pkg}/{version}/json`). npm `repository` may be shorthand or an object with `directory`.
-8. **Monorepos:** repo advisories match on `vulnerabilities[].package`, not on the repo alone. Advisories with null or `other` package data become low-confidence findings rather than being dropped.
-9. **Severity order:** GHSA-reviewed, then repo advisory, then CNA, then NVD (curators sometimes correct scores after review), always recording the source. Unscored findings are `unknown`, and gating uses an explicit `--fail-on-unknown`.
-10. **CVE records** come from cveawg; cvelistV5 is an optional offline mode later.
-11. **Withdrawn advisories** are excluded and recorded as a finding change.
-12. **CI state:** use `scan --state <db>` with a GitLab cache or artifact; `watch` is for long-running hosts.
-13. **Small additions:** parse `package-lock` v1; mark marker- and extras-scoped Python deps; add Alembic migrations.
+## 2. Facts the design rests on
 
-## 3. Repo layout (uv workspace)
+- Advisories wait a median of **55 days** between repo publication and GitHub review (F-010). Until then they're absent from the global DB and OSV package data (F-012).
+- CVE publication is delayed too, but in every sampled case it came before review (F-011).
+- Events occur in any order. 11.7% of reviewed advisories have no CVE (F-016). Other-CNA CVEs are almost never reviewed, and their unreviewed records carry no package data (F-017).
+- The cvelistV5 delta log is a global feed of GitHub-CNA CVEs. `vendor`/`product` equal the repo `owner`/`repo` in 251 of 254 (F-013).
+- Package names in repo advisories can be wrong (F-014). Ecosystems outside GHSA's enum are never reviewed (F-015, F-023).
+- NVD now defers non-priority CVEs immediately (F-005, F-018). GitLab SARIF ingestion is Ultimate-only and treats findings without a CVE as SAST (F-008).
+
+## 3. Domain model: a fact vector per vulnerability
+
+Sources are merged into one **vulnerability** through an alias graph (union-find over GHSA ↔ CVE ↔ GO/PYSEC/RUSTSEC/OSV IDs). Each vulnerability carries independent facts. These are snapshots that can change in any order:
+
+```
+repo_advisory : none | published | withdrawn             (+ published_at, repo, packages, ranges)
+cve           : none | published(cna)                     (+ datePublished, CNA score)
+ghsa_global   : absent | unreviewed | reviewed | withdrawn (+ has_package_data, ranges)
+osv           : none | cve_only(GIT ranges) | ecosystem_record(source id)
+nvd           : absent | {vulnStatus, nist_primary_cvss?, cpe_configurations?}
+```
+
+### Classifications (flags derived from facts; a finding can carry several)
+
+| Class | Condition (for an affected dependency version) | Priority |
+|---|---|---|
+| `GHOST_ADVISORY` | repo advisory published, no public CVE, GHSA not reviewed | 1 |
+| `GHOST_CVE` | CVE published (repo advisory or GitHub CNA), GHSA not reviewed | 2 |
+| `ORPHAN_CVE` | CVE from another CNA, no repo advisory, GHSA not reviewed | 3 |
+| `NO_CVE` | GHSA reviewed, no CVE | 4 |
+| `OSV_MISSING` | GHSA reviewed, no OSV ecosystem record (usually brief) | 5 |
+| `RANGE_DRIFT` | repo advisory / GHSA / OSV disagree on whether this version is affected | 5 |
+| `NVD_UNENRICHED` | CVE exists, no NIST `Primary` CVSS and/or no CPE configurations | info |
+| `UNRESOLVED(check, reason)` | a specific check couldn't run (no resolved version, no repo mapping, upstream not on GitHub, no comparator…) | always shown |
+
+`primary_class` is the highest-priority flag and is used for sorting and gating. Flags implied by a higher one are hidden: a GHOST_* finding implies OSV_MISSING, so that flag isn't shown separately.
+
+### Visibility per scanner family (modeled, not measured)
+
+Each finding states who **can't** see it:
+
+| Family | Example tools | Sees the vuln when |
+|---|---|---|
+| `github_native` | Dependabot, npm audit | GHSA reviewed with package data |
+| `osv` | OSV-Scanner, pip-audit, govulncheck*, Trivy*/Grype* | OSV ecosystem record exists |
+| `gitlab_ds` | GitLab dependency scanning | Unknown. Its DB must not be queried; modeled as "no earlier than `github_native`" and labeled as modeled |
+| `nvd_cpe` | Dependency-Check, VM tools | NVD CPE configurations exist |
+| `cve_keyed` | compliance/SLA tracking | CVE published |
+
+\* These tools aggregate their own DBs, so the mapping is approximate and labeled that way.
+
+Config `scanners: [...]` (default `gitlab_ds`) sets how loud each class is. For example, `NO_CVE` is loud for `nvd_cpe`/`cve_keyed` shops and quiet for `osv` ones.
+
+### Lifecycle, age and permanence
+
+- **Events** are any change in a fact (hash diff of snapshots): CVE assigned, reviewed, reached OSV, range changed, withdrawn. Order doesn't matter.
+- **Ghost age** runs from the earliest public evidence (min of repo `published_at` and CVE `datePublished`) until the vulnerability becomes visible to the configured scanners.
+- **Permanence:** `likely_permanent` when the ecosystem isn't in GHSA's enum (F-023) or the class is `ORPHAN_CVE`; otherwise `pending`. Report text differs between the two ("probably never" vs. "not yet").
+
+### Severity
+
+Order: GHSA-reviewed → repo advisory → CNA score (CVE record) → NVD NIST `Primary`. The source is always recorded. If nothing is available, severity is `unknown`, gated by `--fail-on-unknown`.
+
+## 4. Data sources
+
+| Source | Used for | Access | License / terms |
+|---|---|---|---|
+| GitHub repo advisories `GET /repos/{o}/{r}/security-advisories` | GHOST_ADVISORY/GHOST_CVE (earliest signal) | token recommended; ETag (304 free only when authenticated, F-003) | GHSA: CC-BY 4.0, attribution in reports |
+| GitHub global `GET /advisories`, `/advisories/{ghsa}` | reviewed/unreviewed status | must pass `type` explicitly (F-002) | CC-BY 4.0 |
+| OSV `querybatch` + `/v1/vulns/{id}` | OSV coverage, ecosystem DB records, GIT ranges | no auth; per-query pagination (F-004) | per-source licenses, verify in Phase 2 |
+| NVD API 2.0 | enrichment status, NIST score | optional API key | verify terms in Phase 2 |
+| CVE Services `cveawg.mitre.org/api/cve/{id}` | CVE existence, CNA, CNA score | no auth (F-006) | CVE terms of use, verify in Phase 2 |
+| **cvelistV5 `deltaLog.json`** (new) | global feed of new and updated CVEs from all CNAs; triggers re-polls | raw.githubusercontent, not the API rate limit (F-013) | as CVE |
+| Registries (npm, PyPI, Go proxy Origin / go-get) | package→repo, first-tier | per registry | — |
+| **deps.dev v3** (new) | package→repo with provenance, 7 systems (F-020) | no auth; caching permitted | Google API ToS |
+| **ecosyste.ms** (new, Phase 6) | package→repo for ~100 registries (F-021) | 5,000/hr anonymous | data CC BY-SA 4.0, see §11 |
+| GitLab Advisory DB | — | **never used** | terms prohibit third-party tools |
+
+## 5. Matching an advisory to a dependency
+
+Ranked by confidence; every match records the method and evidence.
+
+1. **Package and repo agree:** advisory package (ecosystem + name) equals our purl **and** the advisory repo equals our mapped repo. High confidence.
+2. **Repo only:** the advisory's repo equals our mapped repo, but its package data is missing, wrong (F-014) or `other`. Medium confidence, shown with the advisory's package data quoted.
+3. **CVE record:** a GHSA link, a `repo` field or github.com/{owner}/{repo} reference equal to our mapped repo, or `packageName` + `collectionURL` matching our purl. Medium to high confidence. Fuzzy `vendor`/`product` matching is out of scope (too many false positives).
+4. **Package only:** the advisory package equals our purl, but the advisory repo differs from our mapping. Low confidence, flagged as a "mapping conflict" for review.
+
+Monorepos: one repo maps to many packages; within a repo, matching uses `vulnerabilities[].package`.
+
+## 6. Any language: ecosystem plugins and tiers
+
+An `EcosystemPlugin` declares its capabilities:
+- purl type, GHSA ecosystem ID, OSV ecosystem name
+- inventory parsers (file patterns)
+- version comparator
+- repo mappers
+
+A missing capability produces `UNRESOLVED(check, reason)` for that check only. Plugins register through Python entry points, so third parties can add ecosystems. `ghostcve ecosystems` prints the live coverage matrix, and the README embeds it.
+
+| Tier | Ecosystems | Inventory | Mapping chain | Versions |
+|---|---|---|---|---|
+| **1 Full** | npm, PyPI, Go (MVP) → **Maven/Gradle next**, then Cargo, RubyGems, Composer, NuGet | native lockfile parsers + SBOM | registry-native → deps.dev → overrides | univers (F-022) |
+| **2 SBOM** | Hex/Erlang, Pub, Swift, CocoaPods, Conan, … | CycloneDX/SPDX (syft, cdxgen), optional `--inventory-backend` | ecosyste.ms → overrides | univers; small custom comparators for pub and swift |
+| **3 Upstream-watch** | C/C++, git submodules, vendored code, CMake FetchContent, vcpkg, Bazel, CPAN, CRAN, Hackage | `.gitmodules`, `vcpkg.json`, `conan.lock`, `MODULE.bazel`, … | the repo URL itself | commit vs. OSV GIT ranges where known, else "version unknown" |
+
+**Mapping confidence by provenance:** SLSA / PyPI / RubyGems publish attestation and Go Origin, then registry metadata, then deps.dev `UNVERIFIED_METADATA`, then ecosyste.ms. Overrides win. A blocklist of packaging/recipe repos (e.g. `conan-center-index`, F-021, Q7) keeps those from being treated as upstream.
+
+**Maven/Gradle (first post-MVP ecosystem):**
+- Maven has no lockfile. `pom.xml` gives only declared versions, and real versions depend on property interpolation, parent POMs, BOM imports and mediation, so parsing `pom.xml` alone yields `UNRESOLVED(no_resolved_version)`.
+- Resolved inventory comes from, in order of preference: (a) CycloneDX SBOMs from `cyclonedx-maven-plugin` / `cyclonedx-gradle-plugin`; (b) `gradle.lockfile` when dependency locking is enabled; (c) optionally running `mvn dependency:list` / `gradle dependencies`.
+- Mapping uses the POM `<scm>`, following parent POMs, because deps.dev missed `commons-text` (F-020).
+
+## 7. Any repo: running anywhere
+
+- **Distribution:** PyPI (`uvx ghostcve`) plus an OCI image (with syft bundled from Phase 6).
+- **Per-repo CI:** GitLab CI/CD Catalog component (Phase 4), plus a Gitea/Forgejo/GitHub Action, all from one Actions-compatible definition. Jenkins, Woodpecker and cron run the container.
+- **Org-wide central mode (Phase 5):**
+  - `watch` reads a list of sources: GitLab groups, Gitea orgs, git URLs.
+  - Manifests are fetched through host APIs, or a shallow clone for plain git.
+  - **Each upstream repo is polled once for all projects**, so cost grows with unique upstreams, not with the number of repos.
+  - The cvelistV5 feed triggers immediate re-polls of matching upstreams.
+- **Trackers:** an `IssueTracker` protocol with GitLab first (Phase 4), then Gitea/Forgejo (Phase 5), GitHub and a generic webhook. Issues are deduplicated by finding key and receive event comments ("CVE assigned", "has now reached scanners").
+- **Output formats:** table, json, markdown, sarif (GitLab Ultimate ≥ 19.2), codequality (all GitLab tiers, MR widget).
+
+## 8. Repo layout and module boundaries
 
 ```
 GhostCVE/
-├─ pyproject.toml                 # workspace root; ruff, mypy --strict, pytest, import-linter
+├─ pyproject.toml                 # uv workspace root; ruff, mypy --strict, pytest, import-linter
 ├─ packages/
 │  ├─ core/src/ghostcve/
-│  │  ├─ models/                  # pydantic v2 domain models
-│  │  ├─ inventory/               # cyclonedx, npm_lock, requirements, poetry_lock, uv_lock, gomod
-│  │  ├─ mapping/                 # RepoMapper protocol + registry; npm, pypi, go; url_normalize; overrides
-│  │  ├─ http/                    # async client: limits, backoff, rate limits, ETag cache, token redaction
-│  │  ├─ sources/                 # github_repo, github_global, osv, nvd, cve_record → SourceRecord
-│  │  ├─ versions/                # per-ecosystem comparators; github_range + osv_events evaluators
-│  │  ├─ diff/                    # PURE: alias graph, evaluate, classify, severity
-│  │  ├─ report/                  # table, json, markdown, sarif (+ GHSA CC-BY attribution)
-│  │  ├─ integrations/gitlab/
+│  │  ├─ models/                  # pydantic v2: Dependency, PackageRef(purl), UpstreamRepo, SourceRecord,
+│  │  │                           #   Vulnerability, Facts, Finding, Visibility, Evidence, Severity
+│  │  ├─ ecosystems/              # EcosystemPlugin protocol, registry, capability model
+│  │  │  ├─ npm/ pypi/ golang/    # parsers + comparator + mappers per ecosystem (Tier 1)
+│  │  ├─ inventory/               # discovery (polyglot, monorepo), cyclonedx, spdx, backends (syft/cdxgen later)
+│  │  ├─ mapping/                 # chain runner, url_normalize, deps_dev, ecosystems_ms (Phase 6), overrides, blocklist
+│  │  ├─ http/                    # async client: limits, backoff, Retry-After/X-RateLimit, ETag cache, redaction
+│  │  ├─ sources/                 # github_repo, github_global, osv, nvd, cve_record, cve_feed → SourceRecord
+│  │  ├─ versions/                # comparator adapters; github_range + osv_events evaluators
+│  │  ├─ diff/                    # PURE: alias graph, facts, match, classify, visibility, severity, permanence
+│  │  ├─ report/                  # table, json, markdown, sarif, codequality (+ attribution)
+│  │  ├─ trackers/                # IssueTracker protocol; gitlab (Phase 4), gitea (Phase 5)
+│  │  ├─ hosts/                   # project sources for org-wide mode: gitlab, gitea, git (Phase 5)
 │  │  ├─ store/                   # SQLAlchemy 2.0 models, repositories, alembic/
 │  │  ├─ watch/
-│  │  ├─ config.py
-│  │  └─ pipeline.py              # scan(): public API surface
-│  └─ cli/src/ghostcve_cli/       # typer CLI, formats, exit codes, --verbose evidence
-├─ tests/{fixtures,scenarios}/
-├─ scripts/record_fixture.py      # only code touching the live network; run manually
-├─ templates/.gitlab-ci.yml
+│  │  ├─ config.py                # ghostcve.yml schema; secrets from env
+│  │  └─ pipeline.py              # scan(): public API surface a future FastAPI wraps
+│  └─ cli/src/ghostcve_cli/       # typer: scan, watch, ecosystems; formats; exit codes; --verbose evidence
+├─ tests/{fixtures,scenarios}/    # recorded real responses; one scenario per class
+├─ scripts/                       # record_fixture.py, measure_gap.py: the only code that touches the network
+├─ templates/                     # GitLab CI/CD component, Actions definition
 └─ README.md
 ```
 
-**Boundary rules, enforced with import-linter:**
+**Rules, enforced with import-linter:**
 - `diff/` and `versions/` do no I/O.
 - `sources/` never classifies.
-- core never imports cli.
-- Only `http/` builds requests.
+- Only `http/` builds requests (one place for token redaction).
+- Core never imports cli.
+- Ecosystem-specific code lives only in `ecosystems/`.
 
-## 4. DB schema
+## 9. DB schema (SQLite now; Postgres-safe)
 
 | Table | Key columns |
 |---|---|
 | `http_cache` | `key` (unique), `etag`, `last_modified`, `status`, `body`, `fetched_at`, `expires_at` |
-| `packages` | `id`, `ecosystem`, `name`, `purl` (unique) |
-| `repo_mappings` | `package_id`, `host`, `owner`, `repo`, `subdir`, `confidence`, `method`, `evidence`, `resolved_at` |
-| `projects` | `id`, `name`, `path_or_url`, `gitlab_base_url`, `gitlab_project_id` |
+| `upstream_repos` | `id`, `host`, `owner`, `name`, unique(`host`,`owner`,`name`), `on_github`, `last_polled_at`, `poll_etag`, `poll_status` (shared across projects) |
+| `packages` | `id`, `ecosystem`, `name`, `purl_base` (unique) |
+| `repo_mappings` | `package_id`, `upstream_repo_id`, `subdir`, `confidence`, `provenance`, `method`, `evidence`, `is_override`, `resolved_at` |
+| `projects` | `id`, `name`, `locator`, `host_kind`, `host_project_ref` |
 | `scans` | `id`, `project_id`, `started_at`, `finished_at`, `input_kind`, `input_ref`, `tool_version` |
-| `scan_dependencies` | `scan_id`, `package_id`, `version`, `declared_spec`, `resolution`, `direct`, `dev`, `source_file` |
-| `source_records` | unique(`source`, `source_id`), `modified_at`, `fetched_at`, `raw`, `normalized` |
+| `scan_dependencies` | `scan_id`, `package_id`, `version`, `declared_spec`, `resolution`, `direct`, `dev`, `source_file`, `inventory_backend` |
+| `source_records` | unique(`source`,`source_id`), `cna`, `modified_at`, `fetched_at`, `raw`, `normalized` |
 | `record_aliases` | `record_id`, `alias` (indexed) |
-| `record_affected` | `record_id`, `ecosystem`, `package_name`, `range_kind`, `range_data` |
-| `findings` | `finding_key` (unique: sha256(project, ecosystem, package, canonical_vuln_id)), `flags`, `primary_class`, `severity`, `severity_source`, `status`, `first_seen`, `last_seen`, `evidence` |
+| `record_affected` | `record_id`, `ecosystem`, `package_name`, `repo`, `range_kind` (github_range / osv_events / versions / git_commits / cpe), `range_data` |
+| `vulnerabilities` | `id` (UUID, stable when alias clusters merge: the older ID is kept), `display_id`, `first_seen` |
+| `vulnerability_records` | `vulnerability_id`, `record_id` |
+| `vuln_fact_snapshots` | `vulnerability_id`, `observed_at`, `facts`, `facts_hash` (change detection) |
+| `findings` | `finding_key` (unique: sha256(project, purl_base, vulnerability_id)), `version`, `flags`, `primary_class`, `visibility`, `permanence`, `ghost_since`, `severity`, `severity_source`, `match_confidence`, `status`, `first_seen`, `last_seen`, `evidence` |
 | `finding_events` | `finding_id`, `scan_id`, `event`, `diff`, `at` |
-| `gitlab_issues` | `finding_id`, `base_url`, `project_id`, `issue_iid`, `last_synced_at` |
+| `feed_cursors` | `feed`, `cursor`, `updated_at` (cvelistV5 position) |
+| `tracker_issues` | `finding_id`, `tracker`, `base_url`, `project_ref`, `issue_ref`, `last_synced_at` |
 
-The finding key leaves out the version on purpose: upgrading from one affected version to another updates the existing issue instead of opening a new one.
+The finding key uses the internal vulnerability UUID (not an alias string) and leaves out the version. When a GHSA appears later for a CVE-keyed finding, or the user upgrades between affected versions, the existing issue is updated instead of a new one being opened.
 
-## 5. Order of work
+## 10. Phases and order of work
 
-1. **Phase 1:** scaffold and CI for this repo, then models and version comparators, then parsers, URL normalizer, mappers with overrides, and the `http/` layer.
-2. **Phase 2:** the five collectors, the ETag cache, rate-limit handling, and the `REPO_ONLY` premise check.
-3. **Phase 3:** alias graph, both range evaluators, classification and severity, with table-driven and property-based tests.
-4. **Phase 4:** reporters, exit codes, CI template, GitLab issues.
-5. **Phase 5:** watch mode and change detection.
+Each phase ends with a review stop and a cleanup of the findings report.
 
-## 6. Open questions
+| Phase | Scope |
+|---|---|
+| **1 Inventory + mapping** | Scaffold (uv workspace, ruff, mypy --strict, pytest, import-linter, GitHub Actions CI for this repo). Models. `EcosystemPlugin` + capability → `UNRESOLVED`. npm/PyPI/Go parsers (package-lock v1–v3 incl. workspaces; requirements/poetry.lock/uv.lock; go.mod with replace/exclude, go.sum cross-check only). CycloneDX + SPDX input. URL normalizer, mapper chain (registry-native, Go proxy Origin → go-get, deps.dev), overrides, recipe-repo blocklist. Minimal `http/`. |
+| **2 Collectors** | GitHub repo + global, OSV, NVD, CVE record, **cvelistV5 delta feed**. ETag cache, rate limits, retries. Recorded fixtures, including real GHOST_ADVISORY/GHOST_CVE/ORPHAN_CVE cases. `scripts/measure_gap.py` (repeat measurements for Q1/Q2). Verify data-source licenses. |
+| **3 Diff engine** | Alias graph, GitHub-range + OSV-event evaluators (check univers against fixtures), matching rules, fact vector, classes, visibility, severity, permanence. Most thorough tests: table-driven scenarios, per-ecosystem edge cases (prereleases, Go pseudo-versions/`+incompatible`, PEP 440 epochs/local versions, npm build metadata), and hypothesis property tests on comparators. |
+| **4 Reporting + CI + GitLab** | table/json/markdown/sarif/codequality, exit codes (`--fail-on`, `--fail-on-unknown`), GitLab CI/CD component + Actions definition, GitLab issue tracker. |
+| **5 Watch + org-wide** | Fact-snapshot change detection, events, `scan --state` for CI. Multi-project sources (GitLab group, Gitea org, git URLs), shared upstream polling, feed-triggered re-polls, Gitea/Forgejo tracker. |
+| **6 Ecosystem expansion** | **Maven/Gradle first** (§6), then Cargo, RubyGems, Composer, NuGet. Tier 2 via SBOM + ecosyste.ms + pub/swift comparators. syft/cdxgen inventory backend, OCI image. |
+| **7 Upstream-watch** | Tier 3 detectors (submodules, vcpkg, conan, FetchContent, Bazel, vendored dirs); commit evaluation against OSV GIT ranges. |
 
-1. GitLab tier and version: add `--format codequality` (works on every tier) alongside SARIF?
-2. Malware advisories: defer past MVP?
-3. Should unscored `REPO_ONLY` findings fail CI by default (`--fail-on-unknown=true`)?
-4. Approve the deviations in §2, especially #2, #3 and #9?
+## 11. Licensing (open source)
 
-## Sources
+- **GhostCVE code:** Apache-2.0 proposed. It includes a patent grant, is common for security tooling, and matches univers. Other dependencies to check: python-gitlab is LGPL-3.0, which is fine as a dependency.
+- **Data obligations:**
+  - GHSA (CC-BY 4.0): attribution in every report.
+  - deps.dev: Google API ToS (caching permitted).
+  - OSV, NVD and CVE terms: verify in Phase 2.
+- **ecosyste.ms (CC BY-SA 4.0, Q6):** use it only at runtime with a local cache, credit it in output when a mapping came from it, and **never bundle or redistribute** datasets derived from it (for example, a shipped default mapping file). Shipped override files are written by hand or built from non-SA sources. This isn't legal advice; revisit it before 1.0.
 
-- [GitHub REST: global advisories](https://docs.github.com/en/rest/security-advisories/global-advisories)
-- [GitHub REST: repository advisories](https://docs.github.com/en/rest/security-advisories/repository-advisories)
-- [About the GitHub Advisory Database](https://docs.github.com/en/code-security/security-advisories/working-with-global-security-advisories-from-the-github-advisory-database/about-the-github-advisory-database)
-- [OSV querybatch](https://google.github.io/osv.dev/post-v1-querybatch/)
-- [GitLab SARIF reports](https://docs.gitlab.com/user/application_security/detect/sarif/)
-- [NVD vulnerability status](https://nvd.nist.gov/vuln/vulnerability-status)
-- [SecurityWeek: NIST prioritizes NVD enrichment](https://www.securityweek.com/nist-prioritizes-nvd-enrichment-for-cves-in-cisa-kev-critical-software/amp/)
-- [CSA research note on NVD enrichment](https://labs.cloudsecurityalliance.org/research/csa-research-note-nist-nvd-enrichment-changes-enterprise-vul/)
-- [lilting.ch on Deferred/Not Scheduled](https://lilting.ch/en/articles/nist-nvd-risk-based-cve-enrichment)
-- [Go `mod_list_issue61423` test script (Origin)](https://go.dev/src/cmd/go/testdata/script/mod_list_issue61423.txt)
+## 12. Deviations from SPEC
+
+1. Classifications are flags with a primary, derived from a fact vector. `REPO_ONLY` is split into `GHOST_ADVISORY`/`GHOST_CVE`; `ORPHAN_CVE` is new.
+2. `UNRESOLVED` applies per check, not per dependency.
+3. `go.sum` is not an inventory source (only a cross-check); `go.mod` is the source.
+4. `NVD_UNENRICHED` is based on NIST `Primary` metrics and/or CPE configurations, and is informational by default.
+5. `RANGE_DRIFT` compares repo advisory, GHSA and OSV; NVD CPE ranges are shown as context only.
+6. `OSV_MISSING` checks aliases.
+7. Registry metadata is fetched per version.
+8. Severity order puts GHSA-reviewed ahead of the repo advisory; `unknown` severity is gated explicitly.
+9. CVE records come from CVE Services plus the cvelistV5 delta, not a full clone.
+10. New sources: cvelistV5 feed, deps.dev, ecosyste.ms.
+11. Scope extends to all languages and hosts (Phases 6–7, Gitea, org-wide mode), with a `codequality` output.
+12. Added: SPDX input, package-lock v1, Alembic, withdrawn handling, `scan --state` for CI.
+
+## 13. Decisions needed for approval
+
+Recommended defaults are in bold.
+
+1. Code license: **Apache-2.0** / MIT / other?
+2. Add `codequality` output in Phase 4: **yes**.
+3. Malware advisories: **defer** past MVP.
+4. Unscored GHOST_* findings fail CI by default (`--fail-on-unknown=true`): **yes**.
+5. Default `scanners:` profile when unset: **`gitlab_ds`**.
+6. Approve this plan, including Phases 6–7 and the §12 deviations, so Phase 1 can start.
