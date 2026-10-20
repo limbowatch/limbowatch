@@ -21,6 +21,7 @@ Current understanding, with entries linked:
 11. **On real projects, ghosts are common.** Across the 3,246 upstreams of 5 popular projects, 18% of published advisories (350 of 1,928) are absent from the global DB. All 5 projects ship versions affected by ghost advisories: gitea 2, kubernetes 3, n8n 89, open-webui 95, langchain 122 findings ([F-026](#f-026), [F-027](#f-027)). The mapper chain reached 97.4% of packages ([F-025](#f-025)).
 12. **Raw ghost counts overstate the problem somewhat.** About 14% of ghost candidates look like duplicates reviewed under another GHSA ID ([F-028](#f-028)). 27% of maintainer-entered ranges aren't canonical GHSA syntax, and repo ranges often differ from reviewed ones ([F-030](#f-030)). Dedup and tolerant range parsing are core diff-engine work.
 13. **Reserved CVEs are observable.** Repo advisories expose CVE IDs that `cveawg /api/cve-id/` shows as `RESERVED`, sometimes for 100+ days ([F-029](#f-029)). About 40% of reviewed CVEs on real dependencies are still unenriched in NVD ([F-031](#f-031)).
+14. **Don't rebuild OSV.** OSV-Scanner (Apache-2.0) already extracts full inventories from about 25 lockfile types, Maven included (`--format json --all-packages`, [F-032](#f-032)), and matches reviewed vulnerabilities. GhostCVE's unique value is the delta: on n8n, 24 ghost-affected packages are reported clean by OSV-Scanner ([F-033](#f-033)).
 
 ## Open questions
 
@@ -273,6 +274,28 @@ Current understanding, with entries linked:
   - **Ghost CVEs:** 24 absent from NVD, 31 `Received`, 13 `Awaiting Analysis`, 2 `Deferred`, 10 enriched.
   - **Reviewed CVEs:** 36 enriched (NIST CVSS or CPE); 24 not enriched (15 `Deferred`, 7 `Awaiting Analysis`, 1 `Undergoing Analysis`, 1 timeout).
 - **Implication:** About 40% of reviewed CVEs on real dependencies are unenriched in NVD, so CPE-based tools miss them even after GitHub review. NVD calls need generous timeouts and a resumable checkpoint, because one read timeout killed a full run.
+
+### F-032
+- **Date:** 2026-10-20 · **Status:** confirmed (docs + observed)
+- **Question:** Can OSV-Scanner / OSV-Scalibr serve as GhostCVE's inventory backend instead of our own parsers?
+- **Method:** Docs (supported lockfiles, output formats). `go run github.com/google/osv-scanner/v2/cmd/osv-scanner@v2.7.0 scan source -L <lockfile>` on n8n `pnpm-lock.yaml` and gitea `go.mod`.
+- **Result:**
+  - OSV-Scanner v2.7.0 (2026-10-12) is **Apache-2.0**; extraction is implemented in the standalone **OSV-Scalibr** library.
+  - Supported lockfiles include bun/npm/pnpm/yarn, Pipfile/poetry/requirements/pdm/pylock/uv, go.mod, Cargo.lock, composer.lock, Gemfile.lock, mix.lock, pubspec.lock, conan.lock, renv.lock, cabal/stack, NuGet `packages.lock.json`/`deps.json`, Gradle lockfiles, and **pom.xml with transitive resolution via deps.dev's resolver** (on by default, off with `--no-resolve` / offline). Also container images.
+  - **n8n: 3,769 packages extracted in about 45 ms**, multi-document pnpm lock handled (F-024; GitHub's SBOM resolved only 306). gitea `go.mod`: 225.
+  - `--format cyclonedx-1-5` / `spdx-2-3` list **only vulnerable packages** (46 for n8n). **`--format json --all-packages`** gives the full inventory with `name`, `version`, `ecosystem`, `purl`.
+  - Exit code 1 when vulns are found; `--offline` and `--download-offline-databases` exist.
+- **Implication:** Writing and maintaining lockfile parsers for every language duplicates OSV-Scalibr. Use OSV-Scanner's `--all-packages` JSON as an inventory backend. Keep native Python parsers only where we need data it doesn't expose (e.g. dev/direct flags, unresolved-range reporting); that needs checking.
+- **Sources:** [OSV-Scanner output formats](https://google.github.io/osv-scanner/output/), [Supported languages and lockfiles](https://google.github.io/osv-scanner/supported-languages-and-lockfiles/)
+
+### F-033
+- **Date:** 2026-10-20 · **Status:** tentative (ranges from repo advisories, F-030)
+- **Question:** Does GhostCVE add anything beyond OSV-Scanner on the same inventory?
+- **Method:** Compared OSV-Scanner's vulnerable packages (F-032 run) with the ghost-affected packages from F-027.
+- **Result:**
+  - **n8n:** OSV-Scanner flags 46 vulnerable packages. 34 packages are affected by ghost advisories, and **24 of those are reported clean** by OSV-Scanner (e.g. `@bufbuild/protobuf@2.11.0`, `@modelcontextprotocol/sdk@1.31.0`).
+  - **gitea:** OSV-Scanner flags 1. Both ghost-affected packages (`kin-openapi@0.149.0`, `go-chi/chi/v5@5.3.2`) are reported clean.
+- **Implication:** GhostCVE's value is exactly the delta OSV can't contain yet (unreviewed repo advisories, F-012/F-026). Reviewed-vulnerability matching is OSV's job and should be consumed, not rebuilt.
 
 ## Archive
 
