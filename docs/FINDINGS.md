@@ -17,6 +17,7 @@ Current understanding, with entries linked:
 7. **Package names in repo advisories can't be trusted.** One named a PyPI project that doesn't exist ([F-014](#f-014)). Match through our own package→repo mapping.
 8. **NVD now defers new non-priority CVEs immediately** ([F-005](#f-005), [F-018](#f-018)). In NVD, CNA scores appear as `Secondary` metrics; NIST's own are `Primary`.
 9. **GitLab's native SARIF ingestion is Ultimate-only (GA 19.2)** and classifies findings without a CVE as SAST ([F-008](#f-008)). That affects how GHOST/NO_CVE findings show up in GitLab.
+10. **Multi-language support is feasible in layers.** Repo-keyed matching is language-agnostic. Package→repo mapping chains registry-native → deps.dev (7 systems, with provenance, [F-020](#f-020)) → ecosyste.ms (~100 registries, unverified, CC BY-SA, [F-021](#f-021)). univers covers every GHSA ecosystem except pub and swift ([F-022](#f-022)). Languages outside GHSA's enum are never reviewed, so repo matching is the only signal there ([F-023](#f-023)).
 
 ## Open questions
 
@@ -25,6 +26,8 @@ Current understanding, with entries linked:
 - Q3. What share of other-CNA CVEs affecting npm/PyPI/Go packages get package-level coverage in OSV through ecosystem DBs (Go vulndb, PyPA, RustSec)? Requires the CVE→package matching from Phase 2.
 - Q4. How far behind GHSA are the scanner DBs (Trivy DB, Grype DB, OSV-Scanner)? GitLab Advisory DB lag can't be measured because its terms forbid querying it.
 - Q5. Is "Not Scheduled" ever an NVD API `vulnStatus` value, or always `Deferred`? ([F-005](#f-005))
+- Q6. Does ecosyste.ms's CC BY-SA 4.0 data license constrain a commercial GhostCVE that caches or redistributes mapping data? Use only at runtime, or buy a commercial license? ([F-021](#f-021))
+- Q7. How do we reliably detect packaging/recipe repos (conan-center-index, homebrew-core, distro packaging) so they aren't treated as upstream? ([F-021](#f-021))
 
 ## Log
 
@@ -140,6 +143,44 @@ Current understanding, with entries linked:
 - **Result:** GitHub docs: requesting a CVE "doesn't make your security advisory public"; GitHub "usually reviews the request within 72 hours" and publishes the CVE after the advisory is public. After publication, "GitHub will review each published security advisory, add it to the GitHub Advisory Database"; review "can take up to 72 hours". Only ecosystems in the dependency graph are added.
 - **Implication:** Documented timelines don't match what we observed (F-010, F-011).
 - **Sources:** [About repository security advisories](https://docs.github.com/en/code-security/security-advisories/working-with-repository-security-advisories/about-repository-security-advisories)
+
+### F-020
+- **Date:** 2026-10-20 · **Status:** confirmed (docs + observed)
+- **Question:** Can deps.dev serve as a cross-ecosystem package→repo mapper?
+- **Method:** `GET https://api.deps.dev/v3/systems/{system}/packages/{name}/versions/{version}` for 7 packages; docs at docs.deps.dev/api/v3.
+- **Result:**
+  - Systems: `GO`, `RUBYGEMS`, `NPM`, `CARGO`, `MAVEN`, `PYPI`, `NUGET` only (Composer returns 404).
+  - `relatedProjects[]` has `relationType` (`SOURCE_REPO`, `ISSUE_TRACKER`) and `relationProvenance` (`SLSA_ATTESTATION`, `GO_ORIGIN`, `PYPI_PUBLISH_ATTESTATION`, `RUBYGEMS_PUBLISH_ATTESTATION`, `UNVERIFIED_METADATA`).
+  - Projects are limited to github.com, gitlab.com and bitbucket.org.
+  - Observed: express, serde, Newtonsoft.Json, rails, requests → SOURCE_REPO via `UNVERIFIED_METADATA`; npm `sigstore@3.0.0` also via `SLSA_ATTESTATION`; `golang.org/x/net` (googlesource) and Maven `commons-text` → none.
+  - No batch endpoint. Use is under the Google API Terms of Service; "Clients are expressly permitted to cache data served by the API."
+- **Implication:** A good second-tier mapper for 7 ecosystems, with provenance usable as a confidence signal. Not universal: it misses non-GitHub/GitLab/Bitbucket hosts and some Maven metadata.
+- **Sources:** [deps.dev API v3](https://docs.deps.dev/api/v3/)
+
+### F-021
+- **Date:** 2026-10-20 · **Status:** confirmed (observed); licensing implications open (Q6)
+- **Question:** Can ecosyste.ms cover registries that deps.dev doesn't?
+- **Method:** `GET https://packages.ecosyste.ms/api/v1/registries` and `/registries/{registry}/packages/{name}`; site footer for license.
+- **Result:**
+  - 100 registries on the first page, including packagist, pub, hex, cpan, cran, hackage, conan, vcpkg, cocoapods, swiftpm, julia, opam and conda.
+  - `repository_url` resolved for laravel/framework, dart `http`, phoenix, Moose, ggplot2 and aeson.
+  - **conan `openssl` → `conan-io/conan-center-index`, the recipe repo, not OpenSSL's upstream.**
+  - swiftpm lookup by URL-name returned 404 (name format unclear).
+  - Anonymous rate limit 5,000/hr (`x-ratelimit-tier: anonymous`). Data license **CC BY-SA 4.0**, with commercial licenses offered.
+- **Implication:** Widest mapping coverage, but lowest trust. Packaging/recipe repos must be detected and not treated as upstream. Share-alike terms may affect a commercial product that redistributes mapping data.
+- **Sources:** [ecosyste.ms](https://ecosyste.ms/)
+
+### F-022
+- **Date:** 2026-10-20 · **Status:** confirmed (source code); behavior untested
+- **Method:** `RANGE_CLASS_BY_SCHEMES` in `univers/src/univers/version_range.py` (main); PyPI latest version.
+- **Result:** univers 32.0.1 has range classes for npm, pypi, maven, nuget, composer, gem, golang, hex, cargo, conan, github, deb, rpm, apk, alpm, ebuild, nginx, openssl, mozilla, apache, mattermost, generic, intdot, datetime, lexicographic. It also has `GitHubVersionRange` and `from_osv_v1()`. **No** scheme for pub, swift, hackage, cran or cpan. The README's ecosystem list is out of date compared with the code.
+- **Implication:** Covers every GHSA ecosystem except pub and swift (both semver-like; small custom comparators needed). GitHub-range and OSV parsing exist but must be checked against real fixtures in Phase 3 before we rely on them.
+- **Sources:** [univers](https://github.com/aboutcode-org/univers)
+
+### F-023
+- **Date:** 2026-10-20 · **Status:** confirmed (docs, from F-002 source)
+- **Result:** GHSA ecosystem enum: `rubygems`, `npm`, `pip`, `maven`, `nuget`, `composer`, `go`, `rust`, `erlang`, `actions`, `pub`, `other`, `swift`.
+- **Implication:** Anything else (C/C++, CPAN, CRAN, Hackage, vendored code, git submodules) falls into `other`/empty and is likely never reviewed (F-015). For those, matching by upstream repo is the only path, and GhostCVE may be the only tool that alerts at all.
 
 ## Archive
 
