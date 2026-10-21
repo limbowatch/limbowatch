@@ -5,7 +5,8 @@
 | 1 | 2026-10-19 | superseded | Initial plan |
 | 2 | 2026-10-20 | superseded | Fact-vector model and new classes; cvelistV5 feed and all-CNA CVE ingestion; ecosystem plugin tiers (goal: all languages); run-anywhere and org-wide mode; open-source licensing; Phases 6–7 |
 | 3 | 2026-10-20 | superseded | Build-vs-reuse (§1a): OSV-Scanner is the inventory backend and OSV the source of reviewed matching; our own range evaluation only for repo-advisory ranges; Phase 1/3/6 scope reduced accordingly |
-| 4 | 2026-10-21 | **proposed, awaiting approval** | Renamed **Limbowatch** ("Ghost CVE" already means *reserved but public*, F-037); classes `GHOST_*` → `LIMBO_*`; `RBP` state added; **phase order changed for awareness: public report → live tracker → scanner** (§10); scanner phases renumbered 3–8 |
+| 4 | 2026-10-21 | superseded | Renamed **Limbowatch** ("Ghost CVE" already means *reserved but public*, F-037); classes `GHOST_*` → `LIMBO_*`; `RBP` state added; **phase order changed for awareness: public report → live tracker → scanner** (§10); scanner phases renumbered 3–8 |
+| 5 | 2026-10-21 | **proposed, awaiting approval** | No duplicate scanner: the npm/PyPI/Go scan-time CI check is blindspot's (F-036), so we **contribute** to it instead. The tracker also publishes an open **limbo feed** (OSV schema) others can consume. Tracker coverage defined (§7a). Phases: report → tracker + feed → upstream contributions → watcher → ecosystems → upstream-watch |
 
 Inputs: [SPEC.md](SPEC.md) (requirements) and [FINDINGS.md](FINDINGS.md) (verified facts, cited as F-NNN).
 
@@ -15,7 +16,7 @@ Inputs: [SPEC.md](SPEC.md) (requirements) and [FINDINGS.md](FINDINGS.md) (verifi
 
 **End goal:** detect advisories in limbo for **any repo** (GitLab, Gitea/Forgejo, GitHub, plain git) in **any language**.
 
-**Order:** a public report (Phase 1) and a live tracker (Phase 2) come first, to make the case. The scanner follows (Phases 3–6 MVP: npm, PyPI and Go; GitLab first). Every interface is built for the end goal from the start, so adding an ecosystem or host means adding a plugin, not reworking the core.
+**Order:** a public report (Phase 1) and a live tracker with an open limbo feed (Phase 2) come first, to make the case. Then upstream contributions (Phase 3), so existing tools benefit instead of being duplicated. Then the Limbowatch watcher (Phase 4): stateful GitLab/Gitea workflow that no tool provides. Every interface is built for the end goal from the start, so adding an ecosystem or host means adding a plugin, not reworking the core.
 
 **Product principle:** never silently skip. If a dependency can't be fully checked, the specific check that couldn't run is reported with a reason.
 
@@ -31,7 +32,9 @@ Limbowatch builds **only what no existing tool does**. Everything else is consum
 | Package→repo mapping | deps.dev (7 systems, provenance), ecosyste.ms | **Reuse** as mapper-chain tiers; build only the URL normalizer, overrides and recipe-repo blocklist |
 | Version comparators | univers | **Reuse;** custom only for pub and swift |
 | Measuring the gap for a list of repos | Safeguard `advisory_gap.py` (repo list → OSV check) | Prior art for research; credit its data |
-| **Joining a real inventory to unreviewed repo advisories with version matching** | nobody (F-034) | **Build:** the core |
+| Stateless scan-time CI check for npm/PyPI/Go (lockfile → repo advisories → OSV → SARIF/gate, GitHub Action) | blindspot (F-036) | **Contribute, don't rebuild:** GitLab CI template, Code Quality output, global-DB check, duplicate detection, RBP flag, reading the limbo feed |
+| Live, continuously updated measurement of the gap, plus an open machine-readable feed of advisories in limbo | nobody (F-034, F-036, F-037) | **Build** (Phase 2) |
+| Joining a real inventory to unreviewed repo advisories with version matching | blindspot for npm/PyPI/Go (F-036) | **Build only inside the stateful watcher** (Phase 4), using the feed and OSV-Scanner inventory, for hosts and ecosystems blindspot doesn't cover |
 | **Tolerant evaluation of maintainer-entered ranges, duplicate-GHSA detection, repo vs reviewed drift** | nobody | **Build** |
 | **Reserved / pre-review CVE detection; cvelistV5 feed matching by repo** | nobody | **Build** |
 | **Fact vector, scanner-family visibility, limbo age, permanence** | nobody | **Build** |
@@ -39,7 +42,7 @@ Limbowatch builds **only what no existing tool does**. Everything else is consum
 
 **Accepted risks of reuse:**
 - An external Go binary: bundled in the OCI image; for `pip`/`uvx` installs it must be on PATH, otherwise users fall back to SBOM input.
-- Its handling of unresolvable dependencies must be checked in Phase 3. If it silently drops them, Limbowatch adds its own `UNRESOLVED` detection for those manifests.
+- Its handling of unresolvable dependencies must be checked in Phase 4. If it silently drops them, Limbowatch adds its own `UNRESOLVED` detection for those manifests.
 
 ## 2. Facts the design rests on
 
@@ -149,20 +152,47 @@ A missing capability produces `UNRESOLVED(check, reason)` for that check only. P
 
 **Maven/Gradle (first post-MVP ecosystem):**
 - Maven has no lockfile. `pom.xml` gives only declared versions, and real versions depend on property interpolation, parent POMs, BOM imports and mediation, so parsing `pom.xml` alone yields `UNRESOLVED(no_resolved_version)`.
-- Resolved inventory: OSV-Scanner resolves `pom.xml` transitively via deps.dev's resolver and reads `gradle.lockfile` (F-032). Alternatives are CycloneDX SBOMs from `cyclonedx-maven-plugin` / `cyclonedx-gradle-plugin`. Phase 7 checks OSV-Scanner's resolution against the build tool's output on a real project.
+- Resolved inventory: OSV-Scanner resolves `pom.xml` transitively via deps.dev's resolver and reads `gradle.lockfile` (F-032). Alternatives are CycloneDX SBOMs from `cyclonedx-maven-plugin` / `cyclonedx-gradle-plugin`. Phase 5 checks OSV-Scanner's resolution against the build tool's output on a real project.
 - Mapping uses the POM `<scm>`, following parent POMs, because deps.dev missed `commons-text` (F-020).
 
 ## 7. Any repo: running anywhere
 
-- **Distribution:** PyPI (`uvx limbowatch`) plus an OCI image bundling osv-scanner (Phase 7).
-- **Per-repo CI:** GitLab CI/CD Catalog component (Phase 5), plus a Gitea/Forgejo/GitHub Action, all from one Actions-compatible definition. Jenkins, Woodpecker and cron run the container.
+- **Distribution:** PyPI (`uvx limbowatch`) plus an OCI image bundling osv-scanner (Phase 5).
+- **Per-repo CI:** GitLab CI/CD Catalog component (Phase 4), plus a Gitea/Forgejo/GitHub Action, all from one Actions-compatible definition. Jenkins, Woodpecker and cron run the container.
 - **Org-wide central mode (Phase 5):**
   - `watch` reads a list of sources: GitLab groups, Gitea orgs, git URLs.
   - Manifests are fetched through host APIs, or a shallow clone for plain git.
   - **Each upstream repo is polled once for all projects**, so cost grows with unique upstreams, not with the number of repos.
   - The cvelistV5 feed triggers immediate re-polls of matching upstreams.
-- **Trackers:** an `IssueTracker` protocol with GitLab first (Phase 5), then Gitea/Forgejo (Phase 6), GitHub and a generic webhook. Issues are deduplicated by finding key and receive event comments ("CVE assigned", "has now reached scanners").
+- **Trackers:** an `IssueTracker` protocol with GitLab first, then Gitea/Forgejo (both Phase 4), GitHub and a generic webhook. Issues are deduplicated by finding key and receive event comments ("CVE assigned", "has now reached scanners").
 - **Output formats:** table, json, markdown, sarif (GitLab Ultimate ≥ 19.2), codequality (all GitLab tiers, MR widget).
+
+## 7a. Live tracker: what it covers (and what it can't)
+
+GitHub has no global list of repository advisories (SPEC), so the tracker can't see *all* of them. It covers a defined, published watchlist and states its coverage. **Every number is a floor.**
+
+**Watchlist (repos polled daily, ETag-conditional so unchanged repos cost nothing, F-001/F-003):**
+1. Every repo that has had a reviewed advisory originate from it (`repository_advisory_url` in the global DB; 98.8% of recent reviews, F-016). These are the repos that use the feature.
+2. Upstream repos of the top-N packages per ecosystem (by dependents, via deps.dev / ecosyste.ms).
+3. Every repo referenced by a new GitHub-CNA CVE in the cvelistV5 delta feed (F-013).
+4. Snowball: any repo found publishing an advisory through sources 1–3 stays on the list.
+
+**Blind spot:** a repo whose *first* advisory has no CVE, isn't reviewed yet, and isn't a popular upstream. It appears once a CVE or review reveals it. Watchlist size is measured in Phase 2.
+
+**Tracked per advisory (fact snapshots, §3):** repo publication → CVE reserved (RBP) / published → GitHub review (or a duplicate under another ID) → in OSV → NVD status. Each transition is timestamped.
+
+**Published metrics:**
+- in limbo now, by ecosystem, severity, age bucket and CNA
+- completed review lag (median and p90)
+- likely-permanent limbo (unsupported ecosystems)
+- RBP count and age vs the 72-hour policy
+- suspected duplicates
+- NVD-unenriched share
+- popular packages currently in limbo, with fix version
+
+**Not covered:** commercial DBs, the GitLab Advisory DB (terms), silently fixed vulnerabilities without an advisory (Aikido's domain), and projects that don't use GitHub repository advisories.
+
+**Open data:** daily snapshots (CC BY 4.0) plus a **limbo feed** in OSV schema: IDs, packages, ranges, fixed versions, links and lifecycle timestamps. Full advisory text is excluded until its redistribution terms are verified (Phase 2). OSV-Scanner can't load custom DBs today (F-039), so we propose that upstream in Phase 3.
 
 ## 8. Repo layout and module boundaries
 
@@ -176,14 +206,14 @@ Limbowatch/
 │  │  ├─ ecosystems/              # EcosystemPlugin protocol, registry, capability model
 │  │  │  ├─ npm/ pypi/ golang/    # comparator + mappers + ID mappings per ecosystem (Tier 1); no lockfile parsers
 │  │  ├─ inventory/               # backends: osv_scanner (subprocess, pinned), cyclonedx, spdx; UNRESOLVED detection
-│  │  ├─ mapping/                 # chain runner, url_normalize, deps_dev, ecosystems_ms (Phase 7), overrides, blocklist
+│  │  ├─ mapping/                 # chain runner, url_normalize, deps_dev, ecosystems_ms (Phase 5), overrides, blocklist
 │  │  ├─ http/                    # async client: limits, backoff, Retry-After/X-RateLimit, ETag cache, redaction
 │  │  ├─ sources/                 # github_repo, github_global, osv, nvd, cve_record, cve_feed → SourceRecord
 │  │  ├─ versions/                # comparator adapters; github_range + osv_events evaluators
 │  │  ├─ diff/                    # PURE: alias graph, facts, match, classify, visibility, severity, permanence
 │  │  ├─ report/                  # table, json, markdown, sarif, codequality (+ attribution)
-│  │  ├─ trackers/                # IssueTracker protocol; gitlab (Phase 5), gitea (Phase 6)
-│  │  ├─ hosts/                   # project sources for org-wide mode: gitlab, gitea, git (Phase 6)
+│  │  ├─ trackers/                # IssueTracker protocol; gitlab, gitea (Phase 4)
+│  │  ├─ hosts/                   # project sources for org-wide mode: gitlab, gitea, git (Phase 4)
 │  │  ├─ store/                   # SQLAlchemy 2.0 models, repositories, alembic/
 │  │  ├─ watch/
 │  │  ├─ config.py                # limbowatch.yml schema; secrets from env
@@ -232,14 +262,12 @@ Each phase ends with a review stop and a cleanup of the findings report.
 
 | Phase | Scope |
 |---|---|
-| **1 "State of the Gap" report** | Public write-up from existing data (FINDINGS F-010 to F-038): review lag, share of upstream advisories in limbo, popular projects shipping affected versions that OSV-Scanner reports clean, RBP CVEs, NVD enrichment. Neutral framing; cites GitHub's own throughput statement (F-035); credits Safeguard, munim's census/blindspot and RogoLabs. Reproducible research scripts committed under `research/`, README v1 (problem, definitions, credits). |
-| **2 Live Limbo Tracker** | Scaffold (uv workspace, ruff, mypy --strict, pytest, import-linter, GitHub Actions CI). Core models, `http/` (ETag cache, rate limits, retries), `store/`. Mapper chain (registry-native, Go Origin → go-get, deps.dev, overrides, recipe-repo blocklist). Collectors: GitHub repo + global, OSV, NVD, CVE record + `cve-id` (RBP), **cvelistV5 delta feed**. Universe: upstreams of the top-N packages per ecosystem plus GitHub-CNA CVEs from the feed. Duplicate heuristic v1 (F-028). Daily scheduled run → static site (GitHub Pages) + open dataset (CC BY 4.0) with dated snapshots. Recorded fixtures for every source. Verify data-source licenses. |
-| **3 Scanner: inventory** | `EcosystemPlugin` + capability → `UNRESOLVED`. **Inventory backends: OSV-Scanner `--all-packages` adapter (pinned version) + CycloneDX + SPDX. No custom lockfile parsers.** Verify and test OSV-Scanner's behavior on unresolved/range-only deps, direct/dev flags and monorepos; add our own `UNRESOLVED` detection only where it falls short. Reuses Phase 2 mapping and collectors. |
-| **4 Diff engine** | Alias graph; **tolerant evaluator for repo-advisory ranges** (canonical GHSA, npm-semver, hyphen, common typos → else `UNRESOLVED(range_unparseable)`, F-030); reviewed matching taken from OSV; **duplicate-GHSA detection** hardened (F-028); repo-vs-reviewed drift; matching rules, fact vector, classes, visibility, severity, permanence. Most thorough tests: table-driven scenarios, per-ecosystem edge cases (prereleases, Go pseudo-versions/`+incompatible`, PEP 440 epochs/local versions, npm build metadata), and hypothesis property tests on comparators. |
-| **5 Reporting + CI + GitLab** | table/json/markdown/sarif/codequality, exit codes (`--fail-on`, `--fail-on-unknown`), GitLab CI/CD component + Actions definition, GitLab issue tracker. Offer upstream PRs to blindspot where a change fits there (F-036). |
-| **6 Watch + org-wide** | Fact-snapshot change detection, events, `scan --state` for CI. Multi-project sources (GitLab group, Gitea org, git URLs), shared upstream polling, feed-triggered re-polls, Gitea/Forgejo tracker. |
-| **7 Ecosystem expansion** | Inventory already comes from OSV-Scanner, so this phase covers mapping and comparators: **Maven/Gradle first** (POM `<scm>` with parents), then Cargo, RubyGems, Composer, NuGet. Tier 2 via ecosyste.ms + pub/swift comparators. OCI image bundling osv-scanner. |
-| **8 Upstream-watch** | Tier 3 detectors (submodules, vcpkg, conan, FetchContent, Bazel, vendored dirs); commit evaluation against OSV GIT ranges. |
+| **1 "State of the Gap" report** | Public write-up from existing data (FINDINGS F-010 to F-039). Framed as an independent replication of Safeguard and munim's census, plus new angles: popular projects shipping affected versions that OSV-Scanner reports clean, RBP CVEs, NVD enrichment, duplicate GHSA IDs. Neutral; cites GitHub's throughput statement (F-035); credits prior work. Reproducible research scripts under `research/`; README v1. |
+| **2 Live Limbo Tracker + feed** | Scaffold (uv workspace, ruff, mypy --strict, pytest, import-linter, GitHub Actions CI). Core models, `http/` (ETag cache, rate limits, retries), `store/`. Mapper chain (registry-native, Go Origin → go-get, deps.dev, overrides, recipe-repo blocklist). Collectors: GitHub repo + global, OSV, NVD, CVE record + `cve-id` (RBP), **cvelistV5 delta feed**. Watchlist and coverage per §7a. **Tolerant evaluator for repo-advisory ranges** (F-030) and **duplicate-GHSA detection** (F-028). Fact snapshots and transitions. Daily scheduled run → static site (GitHub Pages) + CC BY 4.0 snapshots + **limbo feed (OSV schema)**. Recorded fixtures for every source; most thorough tests on range evaluation and dedup. Verify data-source and advisory-text licenses. |
+| **3 Upstream contributions** | Re-check blindspot's scope first (it's evolving fast). Offer PRs: GitLab CI template, Code Quality output, global-DB check (not reviewed vs OSV lag), duplicate detection, RBP flag, consuming the limbo feed. OSV-Scanner: feature request for custom/extra local DBs (F-039). Coordinate with RogoLabs on RBP data rather than duplicating it. |
+| **4 Limbowatch watcher** | Stateful layer no tool provides. Inventory via OSV-Scanner `--all-packages` + CycloneDX/SPDX (`EcosystemPlugin` capability → `UNRESOLVED`; verify OSV-Scanner's unresolved handling). Matching against the feed, plus on-demand polling for long-tail upstreams. Fact-snapshot change detection, `scan --state` for CI. GitLab CI/CD component; GitLab and Gitea/Forgejo issues with lifecycle comments ("CVE assigned", "has now reached scanners"). Org-wide sources (GitLab group, Gitea org, git URLs) with shared polling. Outputs: table/json/markdown/sarif/codequality, `--fail-on`, `--fail-on-unknown`. |
+| **5 Ecosystem expansion** | Mapping and comparators (inventory already comes from OSV-Scanner): **Maven/Gradle first** (POM `<scm>` with parents), then Cargo, RubyGems, Composer, NuGet. Tier 2 via ecosyste.ms + pub/swift comparators. Tracker watchlist extended to the same ecosystems. OCI image bundling osv-scanner. |
+| **6 Upstream-watch** | Tier 3 detectors (submodules, vcpkg, conan, FetchContent, Bazel, vendored dirs); commit evaluation against OSV GIT ranges. |
 
 ## 11. Licensing (open source)
 
@@ -262,17 +290,18 @@ Each phase ends with a review stop and a cleanup of the findings report.
 8. Severity order puts GHSA-reviewed ahead of the repo advisory; `unknown` severity is gated explicitly.
 9. CVE records come from CVE Services plus the cvelistV5 delta, not a full clone.
 10. New sources: cvelistV5 feed, deps.dev, ecosyste.ms.
-11. Scope extends to all languages and hosts (Phases 7–8, Gitea, org-wide mode), with a `codequality` output.
+11. Scope extends to all languages and hosts (Phases 5–6, Gitea, org-wide mode), with a `codequality` output.
 12. Added: SPDX input, Alembic, withdrawn handling, `scan --state` for CI.
-13. Native lockfile parsers (`package-lock.json`, `requirements.txt`/`poetry.lock`/`uv.lock`, `go.mod`) are replaced by OSV-Scanner as the inventory backend (§1a). The SPEC's intent (resolved versions, never silently skip) is kept and verified in Phase 3.
+13. Native lockfile parsers (`package-lock.json`, `requirements.txt`/`poetry.lock`/`uv.lock`, `go.mod`) are replaced by OSV-Scanner as the inventory backend (§1a). The SPEC's intent (resolved versions, never silently skip) is kept and verified in Phase 4.
+14. No standalone scan-time CLI for npm/PyPI/Go: that's blindspot's job, and we contribute to it (§1a). The spec's CLI and CI requirements are met by the Phase 4 watcher, for GitLab/Gitea and other ecosystems.
 
 ## 13. Decisions needed for approval
 
 Recommended defaults are in bold.
 
 1. ~~Code license~~ **Decided: Apache-2.0** (2026-10-21).
-2. **Decided: yes.** Add `codequality` output in Phase 5 (2026-10-21).
+2. **Decided: yes.** Add `codequality` output (Phase 3 as a blindspot contribution; Phase 4 in the watcher) (2026-10-21).
 3. **Decided: defer** malware advisories past MVP (2026-10-21).
 4. **Decided: yes.** Unscored LIMBO_* findings fail CI by default (`--fail-on-unknown=true`) (2026-10-21).
 5. **Decided: `gitlab_ds`** is the default `scanners:` profile when unset (2026-10-21).
-6. Approve this plan (rev 4), including the phase order report → tracker → scanner (§10), Phases 7–8 and the §12 deviations, so Phase 1 can start.
+6. Approve this plan (rev 5), including the phase order (§10), tracker coverage (§7a), Phases 5–6 and the §12 deviations, so Phase 1 can start.

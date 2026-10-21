@@ -8,7 +8,7 @@ Makes the advisory review gap visible, then closes it: tracks published security
 
 ## Working in phases
 
-Work proceeds in the phases defined in [docs/PHASE0_PLAN.md §10](docs/PHASE0_PLAN.md) (report → tracker → scanner). **Stop at the end of each phase for the user's review.** Do not start the next phase without approval. Phase 0 = plan only, no product code.
+Work proceeds in the phases defined in [docs/PHASE0_PLAN.md §10](docs/PHASE0_PLAN.md) (report → tracker + limbo feed → upstream contributions → watcher). Don't rebuild what blindspot, OSV-Scanner or RogoLabs already do; contribute instead (FINDINGS F-036 to F-039). **Stop at the end of each phase for the user's review.** Do not start the next phase without approval. Phase 0 = plan only, no product code.
 
 ## Findings report (docs/FINDINGS.md)
 
