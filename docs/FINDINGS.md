@@ -22,11 +22,13 @@ Current understanding, with entries linked:
 12. **Raw ghost counts overstate the problem somewhat.** About 14% of ghost candidates look like duplicates reviewed under another GHSA ID ([F-028](#f-028)). 27% of maintainer-entered ranges aren't canonical GHSA syntax, and repo ranges often differ from reviewed ones ([F-030](#f-030)). Dedup and tolerant range parsing are core diff-engine work.
 13. **Reserved CVEs are observable.** Repo advisories expose CVE IDs that `cveawg /api/cve-id/` shows as `RESERVED`, sometimes for 100+ days ([F-029](#f-029)). About 40% of reviewed CVEs on real dependencies are still unenriched in NVD ([F-031](#f-031)).
 14. **Don't rebuild OSV.** OSV-Scanner (Apache-2.0) already extracts full inventories from about 25 lockfile types, Maven included (`--format json --all-packages`, [F-032](#f-032)), and matches reviewed vulnerabilities. GhostCVE's unique value is the delta: on n8n, 24 ghost-affected packages are reported clean by OSV-Scanner ([F-033](#f-033)).
-15. **No existing open tool does the full job, and GitHub won't close the gap soon.** Safeguard measured the same gap (30.7%) and ships a repo-list-only script with no inventory, mapping, version matching or workflow. Other trackers watch only the global DB ([F-034](#f-034)). GitHub cites throughput limits at more than 5,000 repo advisories a week and has no plan to alert before review ([F-035](#f-035)).
+15. **No existing open tool does the full job, and GitHub won't close the gap soon.** Safeguard measured the same gap (30.7%) and ships a repo-list-only script with no inventory, mapping, version matching or workflow. Other trackers watch only the global DB ([F-034](#f-034)). GitHub cites throughput limits at more than 5,000 repo advisories a week and has no plan to alert before review ([F-035](#f-035)). *Refined by item 16.*
+16. **An open tool for the core scan already exists, and the name is taken.** `blindspot.py` (Apache-2.0, since 2026-10-14) maps npm/PyPI/Go lockfiles to upstream repos, checks repo advisories against OSV, and ships SARIF plus a GitHub Action ([F-036](#f-036)). "Ghost CVE" is an established term (RogoLabs `GhostCVEs`, CIRCL) meaning *reserved but public CVE* ([F-037](#f-037)). Unique ground left: GitLab/Gitea workflow, watch/lifecycle, org-wide, global-DB and duplicate checks, dependency-scoped RBP, CVE feed, visibility model, any language ([F-038](#f-038)).
 
 ## Open questions
 
 - ~~Q1. While a CVE is reserved but not yet published, does the repo advisory API already expose `cve_id`?~~ **Answered 2026-10-20: yes. Detectable via `cveawg /api/cve-id/{id}` ([F-029](#f-029)).**
+- Q9. Given blindspot ([F-036](#f-036)): build GhostCVE separately, contribute upstream, or build only the layers blindspot lacks? And rename, given the "Ghost CVE" term collision ([F-037](#f-037))? *Decision for the user.*
 - Q8. How do we reliably detect that a ghost candidate was reviewed under a different GHSA ID, and what's the true duplicate rate? ([F-028](#f-028))
 - Q2. Was the 55-day median a backlog being cleared on Oct 15–16, or the normal state? Needs repeated sampling over weeks.
 - Q3. What share of other-CNA CVEs affecting npm/PyPI/Go packages get package-level coverage in OSV through ecosystem DBs (Go vulndb, PyPA, RustSec)? Requires the CVE→package matching from Phase 2.
@@ -324,6 +326,53 @@ Current understanding, with entries linked:
   - **No plan to alert from repo advisories before review.**
 - **Implication:** The gap is structural (volume, about 5,000/week) and unlikely to close soon, which matches F-010 and F-026. Source-side validation may improve repo-advisory data quality over time (F-014, F-030), so re-measure periodically.
 - **Sources:** [GitHub blog: Inside the Advisory Database](https://github.blog/security/supply-chain-security/inside-the-advisory-database-and-what-happens-when-vulnerability-volume-breaks-records/)
+
+### F-036
+- **Date:** 2026-10-21 · **Status:** confirmed (README + repo metadata; tool not executed). **Refines F-034:** an open tool for the core join *does* exist.
+- **Question:** Is there an existing open-source tool that joins a dependency inventory to unreviewed repo advisories?
+- **Result:** **Yes: `blindspot.py` in [munimtechnologies/advisory-import-census](https://github.com/munimtechnologies/advisory-import-census)** (Munim, Inc., "made with AI agents").
+  - **Activity:** Apache-2.0. Created 2026-10-14, 87 commits, v0.9.24, last push 2026-10-20, 0 stars.
+  - **Inputs:** PyPI (uv/poetry/pylock/Pipfile/requirements/pyproject), npm (package-lock v1–v3, yarn classic/Berry, pnpm v5/v6/v9), Go (go.mod/go.sum), and `--package` specs. Cargo and Composer lockfiles "are not read yet"; no SBOM input.
+  - **Mapping:** registry metadata, a built-in map, `--map`, Go path; unmapped are listed. No confidence score; go.mod `replace` isn't followed.
+  - **Check:** published repo advisories (one request per repo), version range covers your version ("range unclear" otherwise), then **OSV only** with the same package and version a scanner sends. No global-DB or NVD check.
+  - **Output:** text, JSON, SARIF 2.1.0 (stable fingerprints, placed on the lockfile line), Markdown job summary, `--fail-on-blind`, `--ignore`. Composite **GitHub Action**.
+  - **Not described:** GitLab, issues, watch/state/change detection, org-wide mode, caching/ETag, duplicate detection, reserved-CVE detection, CVE feed, classification beyond "blind spot".
+  - The author: "As far as I can find, no existing scanner does this."
+- **Implication:** GhostCVE's Phase 1–4 core (scan-time detection for npm/PyPI/Go, SARIF, CI gate) **substantially duplicates blindspot**. What remains unique to GhostCVE is listed in F-038.
+
+### F-037
+- **Date:** 2026-10-21 · **Status:** confirmed (READMEs, rbptracker.org)
+- **Question:** Is "Ghost CVE" an existing term or project?
+- **Result:** Yes, with a **different meaning**.
+  - **RogoLabs (Jerry Gamblin) [`RogoLabs/GhostCVEs`](https://github.com/RogoLabs/GhostCVEs)** ("Ghost Hunter"), Apache-2.0 repo (README badge says MIT), 22 stars, created 2026-01-11, active. It defines a Ghost CVE as an identifier that "appears in the wild… but remains RESERVED or NOT_FOUND in official CVE registries". Ecosystem-wide, from 23 sources (RSS, GitHub Security Advisories, ExploitDB, CVE.org); not dependency-scoped.
+  - **CIRCL Vulnerability-Lookup** uses the same definition.
+  - **RogoLabs [`RBP`](https://github.com/RogoLabs/RBP) / [rbptracker.org](https://rbptracker.org):** "Reserved but Public" IDs, the CVE Program's own glossary term. 945 IDs in the last 90 days (of 1,846 total) as of 2026-10-21, from 19 feeds every 6 h, covering about 50.6% of CNAs.
+  - **CVE Program RBP Policy v2.0.0** (CVE Board, 2026-08-13) "expects a record within 72 hours of disclosure".
+  - RogoLabs also runs [`consensus-engine`](https://github.com/RogoLabs/consensus-engine) (NVD vs GitHub CVSS divergence) and built an hourly repo-advisory tracker for OpenClaw ([Socket blog, 2026-03-10](https://socket.dev/blog/openclaw-advisory-surge-highlights-gaps-between-ghsa-and-cve-tracking)).
+- **Implication:**
+  - **Name collision.** "GhostCVE" closely matches an existing, better-known Apache-2.0 project whose established meaning (reserved-but-public CVE) differs from ours (an unreviewed advisory affecting your dependency).
+  - Our `cve: reserved` state (F-029) is the RBP concept. Reserved IDs held for 100+ days on repo advisories breach the 72-hour expectation. rbptracker.org is a possible cross-check, not something to rebuild.
+  - Severity divergence is already tracked by consensus-engine.
+
+### F-038
+- **Date:** 2026-10-21 · **Status:** confirmed for what was checked; commercial DBs still unverified
+- **Question:** What else exists, and what is still uncovered?
+- **Result:**
+  - **Aikido Intel:** open feed (AGPL, plus a commercial API) of malware and *undisclosed* vulns found by LLM analysis of changelogs; claims 67% "were never reported". A different signal (silent fixes) from ours (published but unreviewed advisories).
+  - **Apify "Dependency Advisory Monitor":** package list → OSV + global GHSA; paid; no repo advisories.
+  - **GitHub watch** only notifies on Dependabot alerts for repos you own; no documented feed of upstream repo advisories.
+  - **GitLab Advisory DB:** sources page not reachable (404); its community mirror is described as "time-delayed". Not measurable under its terms.
+  - Snyk, Socket, Endor Labs, Mend, JFrog, Sonatype: no public evidence either way about pre-review repo advisories.
+  - **Still uncovered by any open tool found** (vs blindspot F-036, RogoLabs F-037):
+    - GitLab/Gitea-native CI component and issues with lifecycle comments
+    - watch mode with state and transition alerts; org-wide shared polling
+    - global-DB check distinguishing "unreviewed" from "OSV lag"
+    - duplicate-GHSA detection (F-028)
+    - dependency-scoped reserved-CVE (RBP) state
+    - cvelistV5 feed matching by repo
+    - scanner-family visibility, ghost age, permanence
+    - any-language inventory via OSV-Scanner
+- **Sources:** [Aikido: external DBs](https://help.aikido.dev/code-scanning/scanning-practices/external-vulnerability-databases-used-in-our-sca-engine.md), [SC World: shadow patches](https://www.scworld.com/news/bsides-sf-using-ai-to-spot-shadow-patches-in-open-source-software), [Apify monitor](https://apify.com/nexgendata/dependency-advisory-monitor), [GitHub notifications docs](https://docs.github.com/en/subscriptions-and-notifications/how-tos/managing-security-notifications), [GitLab advisory DB README](https://gitlab.com/gitlab-org/security-products/gemnasium-db/-/blob/master/README.md), [dev.to: blindspot](https://dev.to/munimv2/the-critical-advisory-your-scanner-cant-see-find-it-in-one-ci-step-naa), [dev.to: AI-tools census](https://dev.to/munimv2/316-of-security-advisories-for-self-hosted-ai-tools-never-reach-the-database-your-scanner-reads-4cfh), [CIRCL Vulnerability-Lookup](https://vulnerability.circl.lu/)
 
 ## Archive
 
