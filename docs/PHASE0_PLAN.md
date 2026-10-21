@@ -239,7 +239,7 @@ Each phase ends with a review stop and a cleanup of the findings report.
 
 ## 11. Licensing (open source)
 
-- **GhostCVE code:** Apache-2.0 proposed. It includes a patent grant, is common for security tooling, and matches univers. Other dependencies to check: python-gitlab is LGPL-3.0, which is fine as a dependency.
+- **GhostCVE code:** **Apache-2.0 (decided 2026-10-21; see [LICENSE](../LICENSE)).** It includes a patent grant, is common for security tooling, and matches univers and OSV-Scanner. Other dependencies to check: python-gitlab is LGPL-3.0, which is fine as a dependency.
 - **Data obligations:**
   - GHSA (CC-BY 4.0): attribution in every report.
   - deps.dev: Google API ToS (caching permitted).
@@ -266,7 +266,7 @@ Each phase ends with a review stop and a cleanup of the findings report.
 
 Recommended defaults are in bold.
 
-1. Code license: **Apache-2.0** / MIT / other?
+1. ~~Code license~~ **Decided: Apache-2.0** (2026-10-21).
 2. Add `codequality` output in Phase 4: **yes**.
 3. Malware advisories: **defer** past MVP.
 4. Unscored GHOST_* findings fail CI by default (`--fail-on-unknown=true`): **yes**.
