@@ -3,7 +3,8 @@
 | Rev | Date | Status | Change |
 |---|---|---|---|
 | 1 | 2026-10-19 | superseded | Initial plan |
-| 2 | 2026-10-20 | **proposed, awaiting approval** | Fact-vector model and new classes; cvelistV5 feed and all-CNA CVE ingestion; ecosystem plugin tiers (goal: all languages); run-anywhere and org-wide mode; open-source licensing; Phases 6–7 |
+| 2 | 2026-10-20 | superseded | Fact-vector model and new classes; cvelistV5 feed and all-CNA CVE ingestion; ecosystem plugin tiers (goal: all languages); run-anywhere and org-wide mode; open-source licensing; Phases 6–7 |
+| 3 | 2026-10-20 | **proposed, awaiting approval** | Build-vs-reuse (§1a): OSV-Scanner is the inventory backend and OSV the source of reviewed matching; our own range evaluation only for repo-advisory ranges; Phase 1/3/6 scope reduced accordingly |
 
 Inputs: [SPEC.md](SPEC.md) (requirements) and [FINDINGS.md](FINDINGS.md) (verified facts, cited as F-NNN).
 
@@ -14,6 +15,28 @@ Inputs: [SPEC.md](SPEC.md) (requirements) and [FINDINGS.md](FINDINGS.md) (verifi
 **MVP (Phases 1–5):** npm, PyPI and Go; GitLab first. Every interface is built for the end goal from the start, so adding an ecosystem or host means adding a plugin, not reworking the core.
 
 **Product principle:** never silently skip. If a dependency can't be fully checked, the specific check that couldn't run is reported with a reason.
+
+## 1a. Build vs reuse (verified 2026-10-20)
+
+GhostCVE builds **only what no existing tool does**. Everything else is consumed (F-032 to F-035).
+
+| Capability | Who already does it | Decision |
+|---|---|---|
+| Lockfile/manifest inventory, about 25 formats incl. pnpm, uv, Gradle, Maven `pom.xml` with transitive resolution | OSV-Scanner / OSV-Scalibr (Apache-2.0) | **Reuse:** `osv-scanner scan source --format json --all-packages` as the default backend; CycloneDX/SPDX input as the alternative |
+| Matching *reviewed* advisories to versions | OSV API (querybatch) | **Reuse:** OSV results are the `osv` fact; no re-implementation |
+| Aggregating reviewed GHSA plus ecosystem DBs | OSV | **Reuse;** GitHub global API only for states OSV lacks (unreviewed / absent) |
+| Package→repo mapping | deps.dev (7 systems, provenance), ecosyste.ms | **Reuse** as mapper-chain tiers; build only the URL normalizer, overrides and recipe-repo blocklist |
+| Version comparators | univers | **Reuse;** custom only for pub and swift |
+| Measuring the gap for a list of repos | Safeguard `advisory_gap.py` (repo list → OSV check) | Prior art for research; credit its data |
+| **Joining a real inventory to unreviewed repo advisories with version matching** | nobody (F-034) | **Build:** the core |
+| **Tolerant evaluation of maintainer-entered ranges, duplicate-GHSA detection, repo vs reviewed drift** | nobody | **Build** |
+| **Reserved / pre-review CVE detection; cvelistV5 feed matching by repo** | nobody | **Build** |
+| **Fact vector, scanner-family visibility, ghost age, permanence** | nobody | **Build** |
+| **GitLab/Gitea workflow: CI component, issues with lifecycle comments, org-wide watch** | nobody for ghosts | **Build** |
+
+**Accepted risks of reuse:**
+- An external Go binary: bundled in the OCI image; for `pip`/`uvx` installs it must be on PATH, otherwise users fall back to SBOM input.
+- Its handling of unresolvable dependencies must be checked in Phase 1. If it silently drops them, GhostCVE adds its own `UNRESOLVED` detection for those manifests.
 
 ## 2. Facts the design rests on
 
@@ -115,15 +138,15 @@ A missing capability produces `UNRESOLVED(check, reason)` for that check only. P
 
 | Tier | Ecosystems | Inventory | Mapping chain | Versions |
 |---|---|---|---|---|
-| **1 Full** | npm, PyPI, Go (MVP) → **Maven/Gradle next**, then Cargo, RubyGems, Composer, NuGet | native lockfile parsers + SBOM | registry-native → deps.dev → overrides | univers (F-022) |
-| **2 SBOM** | Hex/Erlang, Pub, Swift, CocoaPods, Conan, … | CycloneDX/SPDX (syft, cdxgen), optional `--inventory-backend` | ecosyste.ms → overrides | univers; small custom comparators for pub and swift |
+| **1 Full** | npm, PyPI, Go (MVP) → **Maven/Gradle next**, then Cargo, RubyGems, Composer, NuGet | OSV-Scanner `--all-packages` (§1a) or SBOM | registry-native → deps.dev → overrides | univers (F-022) |
+| **2 Extended** | Hex/Erlang, Pub, Swift, CocoaPods, Conan, R, Haskell, … | OSV-Scanner where supported (mix.lock, pubspec.lock, conan.lock, renv.lock, cabal/stack) or CycloneDX/SPDX | ecosyste.ms → overrides | univers; small custom comparators for pub and swift |
 | **3 Upstream-watch** | C/C++, git submodules, vendored code, CMake FetchContent, vcpkg, Bazel, CPAN, CRAN, Hackage | `.gitmodules`, `vcpkg.json`, `conan.lock`, `MODULE.bazel`, … | the repo URL itself | commit vs. OSV GIT ranges where known, else "version unknown" |
 
 **Mapping confidence by provenance:** SLSA / PyPI / RubyGems publish attestation and Go Origin, then registry metadata, then deps.dev `UNVERIFIED_METADATA`, then ecosyste.ms. Overrides win. A blocklist of packaging/recipe repos (e.g. `conan-center-index`, F-021, Q7) keeps those from being treated as upstream.
 
 **Maven/Gradle (first post-MVP ecosystem):**
 - Maven has no lockfile. `pom.xml` gives only declared versions, and real versions depend on property interpolation, parent POMs, BOM imports and mediation, so parsing `pom.xml` alone yields `UNRESOLVED(no_resolved_version)`.
-- Resolved inventory comes from, in order of preference: (a) CycloneDX SBOMs from `cyclonedx-maven-plugin` / `cyclonedx-gradle-plugin`; (b) `gradle.lockfile` when dependency locking is enabled; (c) optionally running `mvn dependency:list` / `gradle dependencies`.
+- Resolved inventory: OSV-Scanner resolves `pom.xml` transitively via deps.dev's resolver and reads `gradle.lockfile` (F-032). Alternatives are CycloneDX SBOMs from `cyclonedx-maven-plugin` / `cyclonedx-gradle-plugin`. Phase 6 checks OSV-Scanner's resolution against the build tool's output on a real project.
 - Mapping uses the POM `<scm>`, following parent POMs, because deps.dev missed `commons-text` (F-020).
 
 ## 7. Any repo: running anywhere
@@ -148,8 +171,8 @@ GhostCVE/
 │  │  ├─ models/                  # pydantic v2: Dependency, PackageRef(purl), UpstreamRepo, SourceRecord,
 │  │  │                           #   Vulnerability, Facts, Finding, Visibility, Evidence, Severity
 │  │  ├─ ecosystems/              # EcosystemPlugin protocol, registry, capability model
-│  │  │  ├─ npm/ pypi/ golang/    # parsers + comparator + mappers per ecosystem (Tier 1)
-│  │  ├─ inventory/               # discovery (polyglot, monorepo), cyclonedx, spdx, backends (syft/cdxgen later)
+│  │  │  ├─ npm/ pypi/ golang/    # comparator + mappers + ID mappings per ecosystem (Tier 1); no lockfile parsers
+│  │  ├─ inventory/               # backends: osv_scanner (subprocess, pinned), cyclonedx, spdx; UNRESOLVED detection
 │  │  ├─ mapping/                 # chain runner, url_normalize, deps_dev, ecosystems_ms (Phase 6), overrides, blocklist
 │  │  ├─ http/                    # async client: limits, backoff, Retry-After/X-RateLimit, ETag cache, redaction
 │  │  ├─ sources/                 # github_repo, github_global, osv, nvd, cve_record, cve_feed → SourceRecord
@@ -206,12 +229,12 @@ Each phase ends with a review stop and a cleanup of the findings report.
 
 | Phase | Scope |
 |---|---|
-| **1 Inventory + mapping** | Scaffold (uv workspace, ruff, mypy --strict, pytest, import-linter, GitHub Actions CI for this repo). Models. `EcosystemPlugin` + capability → `UNRESOLVED`. npm/PyPI/Go parsers (package-lock v1–v3 incl. workspaces; requirements/poetry.lock/uv.lock; go.mod with replace/exclude, go.sum cross-check only). CycloneDX + SPDX input. URL normalizer, mapper chain (registry-native, Go proxy Origin → go-get, deps.dev), overrides, recipe-repo blocklist. Minimal `http/`. |
+| **1 Inventory + mapping** | Scaffold (uv workspace, ruff, mypy --strict, pytest, import-linter, GitHub Actions CI for this repo). Models. `EcosystemPlugin` + capability → `UNRESOLVED`. **Inventory backends: OSV-Scanner `--all-packages` adapter (pinned version) + CycloneDX + SPDX. No custom lockfile parsers.** Verify and test OSV-Scanner's behavior on unresolved/range-only deps, direct/dev flags, monorepos; add our own `UNRESOLVED` detection only where it falls short. URL normalizer, mapper chain (registry-native, Go proxy Origin → go-get, deps.dev), overrides, recipe-repo blocklist. Minimal `http/`. |
 | **2 Collectors** | GitHub repo + global, OSV, NVD, CVE record, **cvelistV5 delta feed**. ETag cache, rate limits, retries. Recorded fixtures, including real GHOST_ADVISORY/GHOST_CVE/ORPHAN_CVE cases. `scripts/measure_gap.py` (repeat measurements for Q1/Q2). Verify data-source licenses. |
-| **3 Diff engine** | Alias graph, GitHub-range + OSV-event evaluators (check univers against fixtures), matching rules, fact vector, classes, visibility, severity, permanence. Most thorough tests: table-driven scenarios, per-ecosystem edge cases (prereleases, Go pseudo-versions/`+incompatible`, PEP 440 epochs/local versions, npm build metadata), and hypothesis property tests on comparators. |
+| **3 Diff engine** | Alias graph; **tolerant evaluator for repo-advisory ranges** (canonical GHSA, npm-semver, hyphen, common typos → else `UNRESOLVED(range_unparseable)`, F-030); reviewed matching taken from OSV; **duplicate-GHSA detection** (F-028); repo-vs-reviewed drift; matching rules, fact vector, classes, visibility, severity, permanence. Most thorough tests: table-driven scenarios, per-ecosystem edge cases (prereleases, Go pseudo-versions/`+incompatible`, PEP 440 epochs/local versions, npm build metadata), and hypothesis property tests on comparators. |
 | **4 Reporting + CI + GitLab** | table/json/markdown/sarif/codequality, exit codes (`--fail-on`, `--fail-on-unknown`), GitLab CI/CD component + Actions definition, GitLab issue tracker. |
 | **5 Watch + org-wide** | Fact-snapshot change detection, events, `scan --state` for CI. Multi-project sources (GitLab group, Gitea org, git URLs), shared upstream polling, feed-triggered re-polls, Gitea/Forgejo tracker. |
-| **6 Ecosystem expansion** | **Maven/Gradle first** (§6), then Cargo, RubyGems, Composer, NuGet. Tier 2 via SBOM + ecosyste.ms + pub/swift comparators. syft/cdxgen inventory backend, OCI image. |
+| **6 Ecosystem expansion** | Inventory already comes from OSV-Scanner, so this phase covers mapping and comparators: **Maven/Gradle first** (POM `<scm>` with parents), then Cargo, RubyGems, Composer, NuGet. Tier 2 via ecosyste.ms + pub/swift comparators. OCI image bundling osv-scanner. |
 | **7 Upstream-watch** | Tier 3 detectors (submodules, vcpkg, conan, FetchContent, Bazel, vendored dirs); commit evaluation against OSV GIT ranges. |
 
 ## 11. Licensing (open source)
@@ -236,7 +259,8 @@ Each phase ends with a review stop and a cleanup of the findings report.
 9. CVE records come from CVE Services plus the cvelistV5 delta, not a full clone.
 10. New sources: cvelistV5 feed, deps.dev, ecosyste.ms.
 11. Scope extends to all languages and hosts (Phases 6–7, Gitea, org-wide mode), with a `codequality` output.
-12. Added: SPDX input, package-lock v1, Alembic, withdrawn handling, `scan --state` for CI.
+12. Added: SPDX input, Alembic, withdrawn handling, `scan --state` for CI.
+13. Native lockfile parsers (`package-lock.json`, `requirements.txt`/`poetry.lock`/`uv.lock`, `go.mod`) are replaced by OSV-Scanner as the inventory backend (§1a). The SPEC's intent (resolved versions, never silently skip) is kept and verified in Phase 1.
 
 ## 13. Decisions needed for approval
 

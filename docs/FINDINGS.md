@@ -22,6 +22,7 @@ Current understanding, with entries linked:
 12. **Raw ghost counts overstate the problem somewhat.** About 14% of ghost candidates look like duplicates reviewed under another GHSA ID ([F-028](#f-028)). 27% of maintainer-entered ranges aren't canonical GHSA syntax, and repo ranges often differ from reviewed ones ([F-030](#f-030)). Dedup and tolerant range parsing are core diff-engine work.
 13. **Reserved CVEs are observable.** Repo advisories expose CVE IDs that `cveawg /api/cve-id/` shows as `RESERVED`, sometimes for 100+ days ([F-029](#f-029)). About 40% of reviewed CVEs on real dependencies are still unenriched in NVD ([F-031](#f-031)).
 14. **Don't rebuild OSV.** OSV-Scanner (Apache-2.0) already extracts full inventories from about 25 lockfile types, Maven included (`--format json --all-packages`, [F-032](#f-032)), and matches reviewed vulnerabilities. GhostCVE's unique value is the delta: on n8n, 24 ghost-affected packages are reported clean by OSV-Scanner ([F-033](#f-033)).
+15. **No existing open tool does the full job, and GitHub won't close the gap soon.** Safeguard measured the same gap (30.7%) and ships a repo-list-only script with no inventory, mapping, version matching or workflow. Other trackers watch only the global DB ([F-034](#f-034)). GitHub cites throughput limits at more than 5,000 repo advisories a week and has no plan to alert before review ([F-035](#f-035)).
 
 ## Open questions
 
@@ -296,6 +297,33 @@ Current understanding, with entries linked:
   - **n8n:** OSV-Scanner flags 46 vulnerable packages. 34 packages are affected by ghost advisories, and **24 of those are reported clean** by OSV-Scanner (e.g. `@bufbuild/protobuf@2.11.0`, `@modelcontextprotocol/sdk@1.31.0`).
   - **gitea:** OSV-Scanner flags 1. Both ghost-affected packages (`kin-openapi@0.149.0`, `go-chi/chi/v5@5.3.2`) are reported clean.
 - **Implication:** GhostCVE's value is exactly the delta OSV can't contain yet (unreviewed repo advisories, F-012/F-026). Reviewed-vulnerability matching is OSV's job and should be consumed, not rebuilt.
+
+### F-034
+- **Date:** 2026-10-20 · **Status:** confirmed for what was checked; commercial DBs unverified
+- **Question:** Does an existing tool already detect ghost advisories for a project's dependencies?
+- **Result:**
+  - **Safeguard** blog (2026-10-18), on 45 active Go/npm/PyPI projects:
+    - 764 of 2,486 2026 repo advisories (30.7%) were not in the reviewed DB or OSV.
+    - 77% of advisories without a CVE were missing, vs 11% with a CVE.
+    - Arrivals had a median delay of 5.4 days, and about 1 in 6 took more than 30 days.
+    - It ships a free stdlib script, `advisory_gap.py OWNER/REPO…`: one page of repo advisories, checked against OSV `/v1/vulns/{ghsa}`, exit 1 if any are missing. **No lockfile/SBOM input, no package→repo mapping, no version matching, no global-API check, no CI/issue integration, license not stated.** No Safeguard product is described as doing this.
+  - **Apify scrapers and `timmKal01/github-security-advisory-tracker`** watch the *global* DB (reviewed/unreviewed), not repo advisories.
+  - **ecosyste.ms advisories** mirrors the global DB (`source_kind: github`, UUID = GitHub node ID). It had none of 3 ghost GHSAs tested for kin-openapi, pyjwt and markdown-it.
+  - **Academic work** (ACM paper on the GHSA review pipeline; Help Net Security 2026-02-16) is research, not tooling.
+  - **Not verified:** commercial curated DBs (Snyk, Socket, Aikido Intel, Endor Labs, VulnCheck) may cover some ghosts through their own research. They need accounts, and their DBs can't be redistributed.
+- **Implication:** The measurement itself has been done by others, and our data matches Safeguard's independently. **No open tool joins a real inventory to repo advisories with version matching, classification and GitLab workflow.** That join is GhostCVE's scope. Credit Safeguard's data in the README.
+- **Sources:** [Safeguard blog](https://safeguard.sh/resources/blog/github-repository-advisories-missing-from-advisory-database-2026-data), [timmKal01 tracker](https://github.com/timmKal01/github-security-advisory-tracker), [Apify GHSA scraper](https://apify.com/parseforge/github-security-advisories-scraper), [ACM paper](https://dl.acm.org/doi/10.1145/3793302.3793360), [Help Net Security](https://www.helpnetsecurity.com/2026/02/16/github-security-advisorie-review-timelines-study/)
+
+### F-035
+- **Date:** 2026-10-20 · **Status:** confirmed (GitHub blog, 2026-06-29, updated 2026-07-01)
+- **Question:** Is GitHub about to close the gap itself?
+- **Result:**
+  - GitHub: "since mid-April… we have not consistently met our internal goals for publication." Processing grew "to about a week, then to multiple weeks for a meaningful share." "The issue is throughput."
+  - Repository advisories rose "to more than 5,000/week." Critical issues are prioritized; more risk signals are being explored.
+  - Planned: "increased repository GitHub Security Advisory and Private Vulnerability Reporting data validation" at the source.
+  - **No plan to alert from repo advisories before review.**
+- **Implication:** The gap is structural (volume, about 5,000/week) and unlikely to close soon, which matches F-010 and F-026. Source-side validation may improve repo-advisory data quality over time (F-014, F-030), so re-measure periodically.
+- **Sources:** [GitHub blog: Inside the Advisory Database](https://github.blog/security/supply-chain-security/inside-the-advisory-database-and-what-happens-when-vulnerability-volume-breaks-records/)
 
 ## Archive
 
