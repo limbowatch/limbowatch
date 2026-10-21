@@ -1,6 +1,6 @@
-# GhostCVE
+# Limbowatch
 
-Early-warning tool for "ghost" dependency vulnerabilities: public advisories that standard scanners miss because they haven't reached the databases those scanners read. Open source. GitLab first; the end goal is any repo host and any language, so keep ecosystem- and host-specific code behind plugin interfaces.
+Makes the advisory review gap visible, then closes it: tracks published security advisories stuck **in limbo** (published by maintainers, not yet reviewed into the databases scanners read), and alerts teams whose dependencies are affected. Formerly "GhostCVE"; renamed 2026-10-21 because "Ghost CVE" already means *reserved but public CVE* (FINDINGS F-037). Use the term "limbo", not "ghost". Open source. GitLab first; the end goal is any repo host and any language, so keep ecosystem- and host-specific code behind plugin interfaces.
 
 - [docs/SPEC.md](docs/SPEC.md): original spec (source of requirements)
 - [docs/PHASE0_PLAN.md](docs/PHASE0_PLAN.md): architecture plan (layout, module boundaries, DB schema, order of work)
@@ -8,7 +8,7 @@ Early-warning tool for "ghost" dependency vulnerabilities: public advisories tha
 
 ## Working in phases
 
-Work proceeds in phases 0–5 (see SPEC). **Stop at the end of each phase for the user's review.** Do not start the next phase without approval. Phase 0 = plan only, no product code.
+Work proceeds in the phases defined in [docs/PHASE0_PLAN.md §10](docs/PHASE0_PLAN.md) (report → tracker → scanner). **Stop at the end of each phase for the user's review.** Do not start the next phase without approval. Phase 0 = plan only, no product code.
 
 ## Findings report (docs/FINDINGS.md)
 
@@ -44,8 +44,8 @@ Mention in chat when you add entries, and cite IDs (e.g. "see F-012").
 
 ## Git
 
-Private repo `git@github.com:blueandhack/GhostCVE.git`. The user has authorized committing and pushing to it.
+Private repo `git@github.com:blueandhack/Limbowatch.git` (renamed from GhostCVE; the local checkout directory may still be named GhostCVE). The user has authorized committing and pushing to it.
 
 ## Commands
 
-None yet. Phase 1 scaffolds uv/ruff/mypy/pytest. Add the exact commands here then.
+None yet. Phase 2 scaffolds uv/ruff/mypy/pytest. Add the exact commands here then.

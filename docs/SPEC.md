@@ -1,5 +1,7 @@
 # GhostCVE — Project Spec
 
+> **Note (2026-10-21):** the project has been renamed **Limbowatch**, and the classes `REPO_ONLY`/ghost terminology became `LIMBO_*` (see [PHASE0_PLAN.md](PHASE0_PLAN.md) rev 4 and [FINDINGS.md](FINDINGS.md) F-037). The spec below is kept verbatim as the original requirements.
+
 ## What we're building
 GhostCVE is an early-warning tool for dependency vulnerabilities. It is built for teams whose code lives on GitLab (SaaS or self-managed), Gitea, or a plain Git server. It finds "ghost" vulnerabilities: real, public security advisories that standard scanners miss because the advisory hasn't reached the databases those scanners read.
 

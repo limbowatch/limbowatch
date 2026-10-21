@@ -1,6 +1,8 @@
-# GhostCVE Findings Report
+# Limbowatch Findings Report
 
-What we've verified or measured while building GhostCVE. Maintenance rules are in [CLAUDE.md](../CLAUDE.md#findings-report-docsfindingsmd).
+> Formerly *GhostCVE*; renamed 2026-10-21 (see [F-037](#f-037)). Log entries before that date use the old name and the term "ghost" for what is now called **limbo** (published, not yet reviewed). Their results are unchanged.
+
+What we've verified or measured while building Limbowatch. Maintenance rules are in [CLAUDE.md](../CLAUDE.md#findings-report-docsfindingsmd).
 
 Last summarized: 2026-10-20 (Phase 0, after popular-repo experiment)
 
@@ -28,7 +30,7 @@ Current understanding, with entries linked:
 ## Open questions
 
 - ~~Q1. While a CVE is reserved but not yet published, does the repo advisory API already expose `cve_id`?~~ **Answered 2026-10-20: yes. Detectable via `cveawg /api/cve-id/{id}` ([F-029](#f-029)).**
-- Q9. Given blindspot ([F-036](#f-036)): build GhostCVE separately, contribute upstream, or build only the layers blindspot lacks? And rename, given the "Ghost CVE" term collision ([F-037](#f-037))? *Decision for the user.*
+- Q9. Given blindspot ([F-036](#f-036)): build separately, contribute upstream, or build only the layers blindspot lacks? *Partly answered 2026-10-21: renamed to **Limbowatch**. Proposed order: public report → live tracker → scanner with only the layers blindspot lacks, plus upstream PRs (plan rev 4); awaiting approval.*
 - Q8. How do we reliably detect that a ghost candidate was reviewed under a different GHSA ID, and what's the true duplicate rate? ([F-028](#f-028))
 - Q2. Was the 55-day median a backlog being cleared on Oct 15–16, or the normal state? Needs repeated sampling over weeks.
 - Q3. What share of other-CNA CVEs affecting npm/PyPI/Go packages get package-level coverage in OSV through ecosystem DBs (Go vulndb, PyPA, RustSec)? Requires the CVE→package matching from Phase 2.
