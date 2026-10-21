@@ -267,8 +267,8 @@ Each phase ends with a review stop and a cleanup of the findings report.
 Recommended defaults are in bold.
 
 1. ~~Code license~~ **Decided: Apache-2.0** (2026-10-21).
-2. Add `codequality` output in Phase 4: **yes**.
-3. Malware advisories: **defer** past MVP.
-4. Unscored GHOST_* findings fail CI by default (`--fail-on-unknown=true`): **yes**.
-5. Default `scanners:` profile when unset: **`gitlab_ds`**.
+2. **Decided: yes.** Add `codequality` output in Phase 4 (2026-10-21).
+3. **Decided: defer** malware advisories past MVP (2026-10-21).
+4. **Decided: yes.** Unscored GHOST_* findings fail CI by default (`--fail-on-unknown=true`) (2026-10-21).
+5. **Decided: `gitlab_ds`** is the default `scanners:` profile when unset (2026-10-21).
 6. Approve this plan, including Phases 6–7 and the §12 deviations, so Phase 1 can start.
