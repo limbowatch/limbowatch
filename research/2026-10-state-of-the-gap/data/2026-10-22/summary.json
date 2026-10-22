@@ -1,0 +1,262 @@
+{
+ "classes": {
+  "LIMBO_ADVISORY": 178,
+  "LIMBO_ADVISORY_RBP": 15,
+  "LIMBO_CVE": 75,
+  "REVIEWED_NO_CVE": 205,
+  "REVIEWED_WITH_CVE": 1403
+ },
+ "inventory": {
+  "map_methods": {
+   "depsdev:PYPI_PUBLISH_ATTESTATION": 320,
+   "depsdev:SLSA_ATTESTATION": 1471,
+   "depsdev:UNVERIFIED_METADATA": 4286,
+   "depsdev_404": 133,
+   "depsdev_no_repo": 129,
+   "go_module_path": 465,
+   "non_github:gitlab.com": 2
+  },
+  "mapped_to_github": 6542,
+  "package_entries": 11823,
+  "projects": 5,
+  "unique_package_versions": 6806,
+  "unresolved_entries": 427
+ },
+ "limbo": {
+  "age_buckets": {
+   "1\u20132 months": 26,
+   "1\u20132 weeks": 40,
+   "2\u20133 months": 15,
+   "2\u20134 weeks": 54,
+   "3\u20137 days": 52,
+   "< 3 days": 46,
+   "> 3 months": 35
+  },
+  "age_days": {
+   "max": 2615.4,
+   "median": 12.8,
+   "min": -0.2,
+   "n": 268,
+   "p25": 4.8,
+   "p75": 40.9,
+   "p90": 102.7
+  },
+  "by_ecosystem": {
+   "c++": 1,
+   "c++, python, ruby, objective-c, php": 1,
+   "go": 28,
+   "maven": 2,
+   "none": 4,
+   "npm": 121,
+   "nuget": 1,
+   "php": 1,
+   "pip": 107,
+   "rust": 11
+  },
+  "by_severity": {
+   "critical": 11,
+   "high": 104,
+   "low": 30,
+   "medium": 123
+  },
+  "count": 268,
+  "count_excluding_likely_duplicates": 263,
+  "count_excluding_possible_duplicates": 260,
+  "duplicate_signals": {
+   "not_checked": 162,
+   "summary_similarity": 106
+  },
+  "likely_duplicates": 5,
+  "possible_duplicates": 3,
+  "share": 0.1429,
+  "unsupported_ecosystem_likely_permanent": 5
+ },
+ "matching": {
+  "eval": {
+   "None": 401,
+   "True": 1131
+  },
+  "eval_unknown_reasons": {
+   "go_major_version_module_mismatch": 2,
+   "no_package_data": 116,
+   "range_contradicts_fixed_version": 222,
+   "range_unparseable": 61
+  },
+  "hits": 1532
+ },
+ "nvd": {
+  "limbo": {
+   "absent": 10,
+   "enriched (NIST CVSS or CPE)": 17,
+   "not enriched: Awaiting Analysis": 12,
+   "not enriched: Deferred": 3,
+   "not enriched: Undergoing Analysis": 2
+  },
+  "reviewed": {
+   "absent": 2,
+   "enriched (NIST CVSS or CPE)": 37,
+   "not enriched: Awaiting Analysis": 8,
+   "not enriched: Deferred": 5,
+   "not enriched: Rejected": 5,
+   "not enriched: Undergoing Analysis": 3
+  }
+ },
+ "osv_proxy": {
+  "limbo_confirmed_by_global_api": {
+   "404": 268
+  },
+  "osv_present_sample": 200,
+  "osv_present_sample_reviewed": 200
+ },
+ "osv_scanner": "v2.7.0",
+ "per_project": {
+  "go-gitea/gitea": {
+   "affected_packages": 6,
+   "affected_packages_osv_scanner_reports_clean": 4,
+   "commit": "facc0f2b15460a545151dfb324aa1ef66ccae695",
+   "high_or_critical": 9,
+   "limbo_advisories_affecting": 16,
+   "limbo_findings_excluding_likely_duplicates": 16,
+   "limbo_findings_needing_review": 1,
+   "limbo_findings_version_affected": 16,
+   "lockfiles": 3,
+   "packages": 1197
+  },
+  "kubernetes/kubernetes": {
+   "affected_packages": 3,
+   "affected_packages_osv_scanner_reports_clean": 3,
+   "commit": "8f5bbad3e20a347aaae13afd78cc955e642c68e4",
+   "high_or_critical": 3,
+   "limbo_advisories_affecting": 4,
+   "limbo_findings_excluding_likely_duplicates": 6,
+   "limbo_findings_needing_review": 1,
+   "limbo_findings_version_affected": 6,
+   "lockfiles": 40,
+   "packages": 2042
+  },
+  "langchain-ai/langchain": {
+   "affected_packages": 23,
+   "affected_packages_osv_scanner_reports_clean": 21,
+   "commit": "f4e6cde98d85910cef5d1f43e26e7a497ae861f3",
+   "high_or_critical": 18,
+   "limbo_advisories_affecting": 53,
+   "limbo_findings_excluding_likely_duplicates": 127,
+   "limbo_findings_needing_review": 9,
+   "limbo_findings_version_affected": 127,
+   "lockfiles": 22,
+   "packages": 2513
+  },
+  "n8n-io/n8n": {
+   "affected_packages": 33,
+   "affected_packages_osv_scanner_reports_clean": 26,
+   "commit": "7d2e3588db96b0421ff6abf63c21af8ded44efb6",
+   "high_or_critical": 24,
+   "limbo_advisories_affecting": 50,
+   "limbo_findings_excluding_likely_duplicates": 84,
+   "limbo_findings_needing_review": 10,
+   "limbo_findings_version_affected": 84,
+   "lockfiles": 4,
+   "packages": 3988
+  },
+  "open-webui/open-webui": {
+   "affected_packages": 18,
+   "affected_packages_osv_scanner_reports_clean": 10,
+   "commit": "91ea4e3421d1d8069f13d4a463fcb5986d94ea60",
+   "high_or_critical": 18,
+   "limbo_advisories_affecting": 58,
+   "limbo_findings_excluding_likely_duplicates": 96,
+   "limbo_findings_needing_review": 5,
+   "limbo_findings_version_affected": 96,
+   "lockfiles": 5,
+   "packages": 2083
+  }
+ },
+ "rbp": {
+  "age_days": {
+   "max": 113.7,
+   "median": 8.5,
+   "min": 3.0,
+   "n": 15,
+   "p25": 4.8,
+   "p75": 92.6,
+   "p90": 102.7
+  },
+  "count": 15,
+  "over_72h": 13
+ },
+ "review_lag": {
+  "cve_lead_days": {
+   "max": 155.34,
+   "median": 0.97,
+   "min": -15.73,
+   "n": 858,
+   "p25": 0.07,
+   "p75": 3.0,
+   "p90": 25.06
+  },
+  "cve_published_before_review": 793,
+  "cve_with_dates": 858,
+  "from_repo_advisories": 990,
+  "lag_buckets": {
+   "1\u20132 months": 240,
+   "1\u20132 weeks": 129,
+   "2\u20133 months": 107,
+   "2\u20134 weeks": 250,
+   "3\u20137 days": 120,
+   "< 3 days": 58,
+   "> 3 months": 86
+  },
+  "lag_days": {
+   "max": 2272.7,
+   "median": 22.95,
+   "min": 0.05,
+   "n": 990,
+   "p25": 11.64,
+   "p75": 50.37,
+   "p90": 86.52
+  },
+  "over_30d": 0.4374,
+  "over_72h": 0.9414,
+  "repo_published_window": [
+   "2020-07-16T22:36:46Z",
+   "2026-10-20T16:48:48Z"
+  ],
+  "repo_to_cve_days": {
+   "max": 107.47,
+   "median": 17.29,
+   "min": -98.13,
+   "n": 858,
+   "p25": 6.19,
+   "p75": 37.79,
+   "p90": 69.14
+  },
+  "reviewed_window": [
+   "2026-09-24T19:29:27Z",
+   "2026-10-22T17:03:12Z"
+  ],
+  "reviewed_without_cve": 120,
+  "sample_reviewed": 1000
+ },
+ "snapshot": "2026-10-22",
+ "upstreams": {
+  "advisories": 1876,
+  "poll_status": {
+   "http_404": 23,
+   "ok": 3270
+  },
+  "repos_polled": 3293,
+  "repos_with_advisories": 308
+ },
+ "verification": {
+  "checked_at": "2026-10-22T17:59:50Z",
+  "cve_list_release": "cve_2026-10-22_0800Z",
+  "cve_records_scanned": 412863,
+  "verdicts": {
+   "DUPLICATE_SAME_CVE_REVIEWED": 5,
+   "IN_LIMBO_CITED_CVE_CONFLICT": 1,
+   "IN_LIMBO_CVE_FOUND_IN_CVE_LIST": 22,
+   "IN_LIMBO_POSSIBLE_DUPLICATE": 2,
+   "VERIFIED_IN_LIMBO": 238
+  }
+ }
+}

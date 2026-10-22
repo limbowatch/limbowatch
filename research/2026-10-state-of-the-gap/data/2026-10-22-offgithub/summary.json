@@ -1,0 +1,270 @@
+{
+ "classes": {
+  "LIMBO_ADVISORY": 158,
+  "LIMBO_ADVISORY_RBP": 16,
+  "LIMBO_CVE": 43,
+  "REVIEWED_NO_CVE": 111,
+  "REVIEWED_WITH_CVE": 940
+ },
+ "inventory": {
+  "map_methods": {
+   "depsdev:PYPI_PUBLISH_ATTESTATION": 2,
+   "depsdev:RUBYGEMS_PUBLISH_ATTESTATION": 134,
+   "depsdev:SLSA_ATTESTATION": 942,
+   "depsdev:UNVERIFIED_METADATA": 6758,
+   "depsdev_404": 378,
+   "depsdev_no_repo": 660,
+   "go_module_path": 861,
+   "non_github:bitbucket.org": 1,
+   "non_github:gitlab.com": 59
+  },
+  "mapped_to_github": 8697,
+  "package_entries": 16051,
+  "projects": 10,
+  "unique_package_versions": 9795,
+  "unresolved_entries": 1099
+ },
+ "limbo": {
+  "age_buckets": {
+   "1\u20132 months": 62,
+   "1\u20132 weeks": 26,
+   "2\u20133 months": 18,
+   "2\u20134 weeks": 37,
+   "3\u20137 days": 11,
+   "< 3 days": 23,
+   "> 3 months": 40
+  },
+  "age_days": {
+   "max": 2615.4,
+   "median": 37.0,
+   "min": 0.0,
+   "n": 217,
+   "p25": 13.0,
+   "p75": 64.8,
+   "p90": 106.5
+  },
+  "by_ecosystem": {
+   "actions": 1,
+   "c++": 1,
+   "go": 52,
+   "linux": 1,
+   "none": 5,
+   "npm": 72,
+   "rubygems": 24,
+   "rust": 61,
+   "vs code extension": 1,
+   "web": 1
+  },
+  "by_severity": {
+   "critical": 12,
+   "high": 97,
+   "low": 37,
+   "medium": 71
+  },
+  "count": 217,
+  "count_excluding_likely_duplicates": 204,
+  "count_excluding_possible_duplicates": 202,
+  "duplicate_signals": {
+   "not_checked": 141,
+   "same_cve": 7,
+   "summary_similarity": 69
+  },
+  "likely_duplicates": 13,
+  "possible_duplicates": 2,
+  "share": 0.1711,
+  "unsupported_ecosystem_likely_permanent": 7
+ },
+ "matching": {
+  "eval": {
+   "None": 491,
+   "True": 1809
+  },
+  "eval_unknown_reasons": {
+   "go_major_version_module_mismatch": 27,
+   "no_package_data": 198,
+   "range_contradicts_fixed_version": 132,
+   "range_unparseable": 134
+  },
+  "hits": 2300
+ },
+ "nvd": {
+  "limbo": {
+   "absent": 8,
+   "enriched (NIST CVSS or CPE)": 11,
+   "not enriched: Awaiting Analysis": 8,
+   "not enriched: Undergoing Analysis": 1
+  },
+  "reviewed": {
+   "absent": 1,
+   "enriched (NIST CVSS or CPE)": 37,
+   "not enriched: Awaiting Analysis": 8,
+   "not enriched: Deferred": 12,
+   "not enriched: Rejected": 2
+  }
+ },
+ "osv_proxy": {
+  "limbo_confirmed_by_global_api": {
+   "404": 217
+  },
+  "osv_present_sample": 200,
+  "osv_present_sample_reviewed": 200
+ },
+ "osv_scanner": "v2.7.0",
+ "per_project": {
+  "codeberg.org/forgejo/forgejo": {
+   "affected_packages": 9,
+   "affected_packages_osv_scanner_reports_clean": 7,
+   "commit": "42a83c357cbd5551e0cd99c12da1acf8298619c9",
+   "high_or_critical": 11,
+   "limbo_advisories_affecting": 22,
+   "limbo_findings_excluding_likely_duplicates": 22,
+   "limbo_findings_needing_review": 1,
+   "limbo_findings_version_affected": 29,
+   "lockfiles": 3,
+   "packages": 2123
+  },
+  "codeberg.org/superseriousbusiness/gotosocial": {
+   "affected_packages": 8,
+   "affected_packages_osv_scanner_reports_clean": 5,
+   "commit": "311cecaeb6e302509c847d20e21185a7ec41d28d",
+   "high_or_critical": 9,
+   "limbo_advisories_affecting": 14,
+   "limbo_findings_excluding_likely_duplicates": 15,
+   "limbo_findings_needing_review": 3,
+   "limbo_findings_version_affected": 15,
+   "lockfiles": 2,
+   "packages": 1196
+  },
+  "framagit.org/framasoft/mobilizon": {
+   "affected_packages": 6,
+   "affected_packages_osv_scanner_reports_clean": 6,
+   "commit": "f2590486f6ee056f01fa05412a16f9a08c65357e",
+   "high_or_critical": 7,
+   "limbo_advisories_affecting": 16,
+   "limbo_findings_excluding_likely_duplicates": 19,
+   "limbo_findings_needing_review": 1,
+   "limbo_findings_version_affected": 19,
+   "lockfiles": 1,
+   "packages": 898
+  },
+  "git.sr.ht/~rjarry/aerc": {
+   "affected_packages": 0,
+   "affected_packages_osv_scanner_reports_clean": 0,
+   "commit": "0a43480356a0d846917e505fed2e381289561b89",
+   "high_or_critical": 0,
+   "limbo_advisories_affecting": 0,
+   "limbo_findings_excluding_likely_duplicates": 0,
+   "limbo_findings_needing_review": 0,
+   "limbo_findings_version_affected": 0,
+   "lockfiles": 1,
+   "packages": 46
+  },
+  "gitlab.com/fdroid/fdroidserver": {
+   "affected_packages": 0,
+   "affected_packages_osv_scanner_reports_clean": 0,
+   "commit": "784d3deee7ca3d6596a19c473a4590b9cdb7b1ec",
+   "high_or_critical": 0,
+   "limbo_advisories_affecting": 0,
+   "limbo_findings_excluding_likely_duplicates": 0,
+   "limbo_findings_needing_review": 0,
+   "limbo_findings_version_affected": 0,
+   "lockfiles": 0,
+   "packages": 0
+  },
+  "gitlab.com/gitlab-org/gitaly": {
+   "affected_packages": 2,
+   "affected_packages_osv_scanner_reports_clean": 2,
+   "commit": "ed17192bcb91863d473bcb228e95a39301e5932a",
+   "high_or_critical": 1,
+   "limbo_advisories_affecting": 4,
+   "limbo_findings_excluding_likely_duplicates": 75,
+   "limbo_findings_needing_review": 3,
+   "limbo_findings_version_affected": 75,
+   "lockfiles": 16,
+   "packages": 590
+  },
+  "gitlab.com/gitlab-org/gitlab": {
+   "affected_packages": 32,
+   "affected_packages_osv_scanner_reports_clean": 14,
+   "commit": "4804960013a0601101e4b35632b513c5e4d307e0",
+   "high_or_critical": 16,
+   "limbo_advisories_affecting": 35,
+   "limbo_findings_excluding_likely_duplicates": 160,
+   "limbo_findings_needing_review": 38,
+   "limbo_findings_version_affected": 160,
+   "lockfiles": 40,
+   "packages": 7932
+  },
+  "gitlab.com/gitlab-org/gitlab-runner": {
+   "affected_packages": 4,
+   "affected_packages_osv_scanner_reports_clean": 4,
+   "commit": "2da30fb50e305e118b1b00ac6aee9decbaf41b06",
+   "high_or_critical": 2,
+   "limbo_advisories_affecting": 7,
+   "limbo_findings_excluding_likely_duplicates": 78,
+   "limbo_findings_needing_review": 1,
+   "limbo_findings_version_affected": 78,
+   "lockfiles": 3,
+   "packages": 316
+  },
+  "gitlab.gnome.org/World/fractal": {
+   "affected_packages": 1,
+   "affected_packages_osv_scanner_reports_clean": 1,
+   "commit": "f5b0ee1170d3eabd3bb1ea8a4c2600849100feef",
+   "high_or_critical": 0,
+   "limbo_advisories_affecting": 1,
+   "limbo_findings_excluding_likely_duplicates": 1,
+   "limbo_findings_needing_review": 3,
+   "limbo_findings_version_affected": 1,
+   "lockfiles": 2,
+   "packages": 561
+  },
+  "gitlab.torproject.org/tpo/core/arti": {
+   "affected_packages": 7,
+   "affected_packages_osv_scanner_reports_clean": 2,
+   "commit": "c68519ebf32bb2d176e48c0facfb0bf88ffac73d",
+   "high_or_critical": 2,
+   "limbo_advisories_affecting": 10,
+   "limbo_findings_excluding_likely_duplicates": 10,
+   "limbo_findings_needing_review": 39,
+   "limbo_findings_version_affected": 17,
+   "lockfiles": 4,
+   "packages": 2389
+  }
+ },
+ "rbp": {
+  "age_days": {
+   "max": 118.8,
+   "median": 82.7,
+   "min": 13.8,
+   "n": 16,
+   "p25": 28.7,
+   "p75": 109.9,
+   "p90": 118.8
+  },
+  "count": 16,
+  "over_72h": 16
+ },
+ "review_lag": null,
+ "snapshot": "2026-10-22-offgithub",
+ "upstreams": {
+  "advisories": 1268,
+  "poll_status": {
+   "http_404": 37,
+   "ok": 4024
+  },
+  "repos_polled": 4061,
+  "repos_with_advisories": 278
+ },
+ "verification": {
+  "checked_at": "2026-10-22T17:26:56Z",
+  "cve_list_release": "cve_2026-10-22_0800Z",
+  "cve_records_scanned": 412863,
+  "verdicts": {
+   "DUPLICATE_SAME_CVE_REVIEWED": 13,
+   "IN_LIMBO_CVE_FOUND_IN_CVE_LIST": 5,
+   "IN_LIMBO_POSSIBLE_DUPLICATE": 1,
+   "VERIFIED_IN_LIMBO": 198
+  }
+ }
+}

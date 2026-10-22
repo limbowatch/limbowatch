@@ -15,12 +15,12 @@ When a maintainer publishes a security advisory in their GitHub repository, Depe
 
 ## The October 2026 report
 
-📊 **[State of the Gap (October 2026)](research/2026-10-state-of-the-gap/README.md)**, *draft*. Main findings (snapshot 2026-10-21):
+📊 **[State of the Gap (October 2026)](research/2026-10-state-of-the-gap/README.md)**, *draft*. Main findings (snapshot 2026-10-22, 15 projects on GitHub, GitLab, Codeberg, Tor, GNOME, Framagit and SourceHut):
 
-- **About 1 in 7 upstream advisories is in limbo.** That's 294 of 1,949 advisories (15.1%) in the upstream repos of five popular projects, or 14.7–15.1% after automated duplicate checks. All 294 were verified automatically against primary sources.
-- **The median wait for GitHub review is 27 days.** 94% of advisories wait longer than GitHub's 72-hour target, and 48% longer than 30 days.
-- **Every project checked ships affected versions that a scanner reports as clean.** That's 62 package-versions across gitea, kubernetes, n8n, open-webui and langchain that OSV-Scanner reports as having no known vulnerabilities.
-- **CVEs lag too.** 17 CVE IDs are reserved but public, the oldest for 113 days. Many CVEs on these advisories also aren't enriched in NVD.
+- **About 1 in 6 upstream advisories is in limbo.** That's 415 of 2,517 unique advisories (16.5%) in the upstream repos of fifteen popular projects, each verified automatically against primary sources.
+- **The median wait for GitHub review is 23 days.** 94% of advisories wait longer than GitHub's 72-hour target, and 44% longer than 30 days.
+- **13 of 14 readable projects ship affected versions that a scanner reports as clean.** That's 105 package-versions that OSV-Scanner reports as having no known vulnerabilities, including in GitLab, Forgejo, Gitea and Kubernetes. Hosting your code off GitHub doesn't help: your dependencies' advisories are still stuck there.
+- **CVE data is out of sync too.** 27 CVE IDs are reserved but public, the oldest for 119 days. 23 advisories have a VulnCheck- or Tenable-assigned CVE they don't cite. Many CVEs aren't enriched in NVD.
 
 The methods, open dataset (CC BY 4.0) and scripts to reproduce it are in the [report folder](research/2026-10-state-of-the-gap/).
 

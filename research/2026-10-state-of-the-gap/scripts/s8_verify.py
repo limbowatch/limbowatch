@@ -48,9 +48,31 @@ def cvelist_zip() -> Path:
     return inner
 
 
+def summarize(rec: dict, hit_g: set[str], hit_r: set[str]) -> dict:
+    md = rec.get("cveMetadata", {})
+    cna = (rec.get("containers") or {}).get("cna") or {}
+    desc = next((x.get("value", "") for x in cna.get("descriptions") or [] if x.get("lang", "").startswith("en")), "")
+    text = json.dumps(cna)
+    all_repos = sorted({f"{o}/{r}".lower().removesuffix(".git") for o, r in GH_REPO_RE.findall(text)})
+    products = " ".join(f"{a.get('vendor', '')} {a.get('product', '')} {a.get('packageName', '')}" for a in cna.get("affected") or [])
+    return {"state": md.get("state"), "published": md.get("datePublished"), "cna": md.get("assignerShortName"),
+            "title": cna.get("title") or desc[:200], "ghsas": sorted(hit_g), "repos": sorted(hit_r),
+            "all_github_repos": all_repos, "products": products}
+
+
+WORD = re.compile(r"[a-z0-9]{3,}")
+GENERIC = {"the", "for", "and", "lib", "library", "js", "node", "nodejs", "core", "github", "com", "org", "inc", "project"}
+
+
+def tokens(s: str) -> set[str]:
+    return {w for w in WORD.findall(s.lower().replace("-", " ").replace("_", " ")) if w not in GENERIC} | \
+           {w for w in WORD.findall(s.lower()) if w not in GENERIC}
+
+
 def build_index(repos: set[str], ghsas: set[str]) -> dict:
     """Scan every CVE record once; keep only what touches our repos or GHSA IDs."""
-    cache = CACHE / "cvelist" / f"index-{CVELIST_RELEASE}-{len(repos)}-{len(ghsas)}.json"
+    ghsas = {g.upper() for g in ghsas}  # GHSA IDs are case-insensitive; CVE records vary
+    cache = CACHE / "cvelist" / f"index-v2-{CVELIST_RELEASE}-{len(repos)}-{len(ghsas)}.json"
     if cache.exists():
         return load_json(cache)
     by_ghsa: dict[str, list[str]] = defaultdict(list)
@@ -77,9 +99,7 @@ def build_index(repos: set[str], ghsas: set[str]) -> dict:
             if not (hit_g or hit_r):
                 continue
             cid = md.get("cveId")
-            desc = next((x.get("value", "") for x in cna.get("descriptions") or [] if x.get("lang", "").startswith("en")), "")
-            records[cid] = {"state": md.get("state"), "published": md.get("datePublished"), "cna": md.get("assignerShortName"),
-                            "title": cna.get("title") or desc[:200], "ghsas": sorted(hit_g), "repos": sorted(hit_r)}
+            records[cid] = summarize(rec, hit_g, hit_r)
             for g in hit_g:
                 by_ghsa[g].append(cid)
             for r in hit_r:
@@ -114,12 +134,20 @@ async def main() -> None:
             links: dict[str, str] = {}
             if a.get("cve_id"):
                 links[a["cve_id"]] = "cited"
-            for c in idx["by_ghsa"].get(g, []):
+            for c in idx["by_ghsa"].get(g.upper(), []):
                 links.setdefault(c, "cve_list_references_ghsa")
             for c in idx["by_repo"].get(a["repo"], []):
                 if c not in links and similarity(a.get("summary") or "", recs[c]["title"] or "") >= TITLE_SIM:
                     links[c] = "same_repo_similar_title"
             linked[g] = links
+        missing = sorted({advs[g]["cve_id"] for g in limbo if advs[g].get("cve_id") and advs[g]["cve_id"] not in recs
+                          and stt["cve_state"].get(advs[g]["cve_id"], {}).get("state") == "PUBLISHED"})
+        lr = await asyncio.gather(*(http.get(f"https://cveawg.mitre.org/api/cve/{c}") for c in missing))
+        for c, (s, b, _) in zip(missing, lr):
+            if s == 200 and isinstance(b, dict):
+                txt = json.dumps(b)
+                recs[c] = {**summarize(b, {x.upper() for x in GHSA_RE.findall(txt)}, set()), "source": "cve_services_live"}
+        log(f"cited CVEs newer than the bulk snapshot, fetched live: {len(missing)}")
         all_cves = sorted({c for v in linked.values() for c in v})
         gc_res = await asyncio.gather(*(http.get(f"https://api.github.com/advisories?cve_id={c}&per_page=100") for c in all_cves))
         global_by_cve = {c: [(x["ghsa_id"], x["type"]) for x in (b if s == 200 and isinstance(b, list) else [])] for c, (s, b, _) in zip(all_cves, gc_res)}
@@ -143,15 +171,22 @@ async def main() -> None:
             verdict = "REVIEWED_SINCE_SNAPSHOT"
         elif live_repo_state != "published":
             verdict = "NO_LONGER_PUBLISHED"
-        conflict = False
+        conflict, cited_link = False, ""
         if cited and cited in recs:
             r = recs[cited]
-            if g not in r["ghsas"] and a["repo"] not in r["repos"]:
-                conflict = True
-                notes.append(f"cited {cited} record references neither {g} nor {a['repo']}")
+            ours = tokens(a["repo"] + " " + " ".join((v.get("package") or {}).get("name") or "" for v in a.get("vulnerabilities") or []))
+            if g.upper() in r["ghsas"] or a["repo"] in r["all_github_repos"]:
+                cited_link = "links_back"
+            elif r["all_github_repos"]:
+                conflict, cited_link = True, "points_to_other_repo"
+                notes.append(f"cited {cited} references {', '.join(r['all_github_repos'][:3])}, not {a['repo']}")
+            elif not (tokens(r["products"] + " " + r["title"]) & ours):
+                conflict, cited_link = True, "names_other_product"
+                notes.append(f"cited {cited} is about '{r['products'].strip() or r['title'][:60]}', which shares no name with {a['repo']}")
+            else:
+                cited_link = "unlinked_same_product"
         elif cited and cited_state == "PUBLISHED":
-            conflict = True
-            notes.append(f"cited {cited} is published but its record doesn't mention {g} or {a['repo']}")
+            cited_link = "record_unavailable"
         strong = {c for c, how in linked[g].items() if how in ("cited", "cve_list_references_ghsa")}
         weak = {c for c, how in linked[g].items() if how == "same_repo_similar_title"}
         dup_of = sorted({og for c in strong for og, typ in global_by_cve.get(c, []) if og != g and typ == "reviewed"})
@@ -169,7 +204,7 @@ async def main() -> None:
                 verdict = "IN_LIMBO_POSSIBLE_DUPLICATE"
         row = {"ghsa_id": g, "repo": a["repo"], "checked_at": checked_at, "verdict": verdict,
                "live_repo_advisory": live_repo_state, "live_global_db": live_global, "live_in_osv": live_osv, "cited_cve": cited or "",
-               "cited_cve_state": cited_state or "", "cited_cve_record_consistent": "" if not cited or cited not in recs else not conflict,
+               "cited_cve_state": cited_state or "", "cited_cve_link": cited_link,
                "other_cves": ";".join(other_cves),
                "link_methods": ";".join(f"{c}:{how}" for c, how in sorted(linked[g].items())),
                "reviewed_under_other_ghsa": ";".join(dup_of), "possible_duplicate_of": ";".join(maybe_dup),

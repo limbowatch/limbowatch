@@ -25,7 +25,7 @@ from matplotlib.path import Path as MplPath  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 SNAPSHOT = os.environ.get("SNAPSHOT_DATE", time.strftime("%Y-%m-%d"))
-OUT = ROOT / "charts"
+OUT = ROOT / "charts" / os.environ["CHARTS_SUBDIR"] if os.environ.get("CHARTS_SUBDIR") else ROOT / "charts"
 
 THEMES = {
     "light": {"surface": "#fcfcfb", "ink": "#0b0b0b", "ink2": "#52514e", "muted": "#898781", "grid": "#e1e0d9",
@@ -172,6 +172,9 @@ def main() -> None:
              ("LIMBO_CVE", "In limbo, CVE published"), ("REVIEWED_NO_CVE", "Reviewed, no CVE"), ("REVIEWED_WITH_CVE", "Reviewed, with CVE")]
     total = sum(cls.values())
     lag = s["review_lag"]
+    def short(key: str) -> str:
+        return key.rstrip("/").split("/")[-1]
+
     for theme in THEMES:
         hbars("fig1-advisory-states", theme,
               f"{s['limbo']['count']:,} of {total:,} upstream advisories are in limbo",
@@ -180,8 +183,9 @@ def main() -> None:
               [lbl for _, lbl in order], [cls.get(k, 0) for k, _ in order],
               ["s1", "s1", "s1", "neutral", "neutral"],
               lambda v, i: f"{v:,}  ({v / total:.0%})", note)
-        b = lag["lag_buckets"]
-        columns("fig2-review-lag", theme,
+        b = lag["lag_buckets"] if lag else None
+        if lag:
+            columns("fig2-review-lag", theme,
                 f"Median wait for GitHub review: {lag['lag_days']['median']:.0f} days",
                 f"Time from repo advisory publication to GitHub review, {lag['from_repo_advisories']:,} advisories reviewed "
                 f"{lag['reviewed_window'][0][:10]} → {lag['reviewed_window'][1][:10]} · gray: within GitHub's 72-hour target",
@@ -192,11 +196,12 @@ def main() -> None:
                 f"{s['limbo']['count']:,} advisories not yet in GitHub's reviewed database or OSV, by days since repo publication",
                 BUCKETS, [ab.get(k, 0) for k in BUCKETS], lambda v: f"{v:,}", note)
         pp = s["per_project"]
-        names = list(pp)
+        # projects with no readable lockfile aren't "clean" - they're inventory gaps, reported in the text
+        names = sorted((k for k in pp if pp[k]["packages"] > 0), key=lambda k: (-pp[k]["affected_packages"], k))
         grouped_hbars("fig4-projects", theme,
                       "Packages with advisories in limbo, which scanners can't see",
                       "Per project: affected package-versions (likely duplicates excluded), and how many OSV-Scanner reports fully clean",
-                      [n.split("/")[1] for n in names],
+                      [short(n) for n in names],
                       [pp[n]["affected_packages"] for n in names], [pp[n]["affected_packages_osv_scanner_reports_clean"] for n in names],
                       "Affected by an advisory in limbo", "…of which OSV-Scanner reports the package clean", note)
     print("charts written to", OUT)

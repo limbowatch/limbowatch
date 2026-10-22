@@ -11,14 +11,35 @@ and the vulnerability IDs OSV-Scanner reports for it (the "what a scanner sees" 
 from __future__ import annotations
 
 import json
+import os
+import fnmatch
 import shutil
 import subprocess
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from collections import Counter
 from pathlib import Path
 
-from common import CACHE, DATA, SNAPSHOT, log, save_json
+from common import CACHE, DATA, SNAPSHOT, UA, log, save_json
 
-PROJECTS = ["go-gitea/gitea", "kubernetes/kubernetes", "n8n-io/n8n", "open-webui/open-webui", "langchain-ai/langchain"]
+GITHUB = ["go-gitea/gitea", "kubernetes/kubernetes", "n8n-io/n8n", "open-webui/open-webui", "langchain-ai/langchain"]
+# Popular projects hosted off GitHub (GitLab, Codeberg/Forgejo, GNOME, Tor, Framagit, SourceHut).
+OFF_GITHUB = {
+    "gitlab.com/gitlab-org/gitlab": "https://gitlab.com/gitlab-org/gitlab.git",
+    "gitlab.com/gitlab-org/gitlab-runner": "https://gitlab.com/gitlab-org/gitlab-runner.git",
+    "gitlab.com/gitlab-org/gitaly": "https://gitlab.com/gitlab-org/gitaly.git",
+    "codeberg.org/forgejo/forgejo": "https://codeberg.org/forgejo/forgejo.git",
+    "codeberg.org/superseriousbusiness/gotosocial": "https://codeberg.org/superseriousbusiness/gotosocial.git",
+    "gitlab.torproject.org/tpo/core/arti": "https://gitlab.torproject.org/tpo/core/arti.git",
+    "gitlab.gnome.org/World/fractal": "https://gitlab.gnome.org/World/fractal.git",
+    "gitlab.com/fdroid/fdroidserver": "https://gitlab.com/fdroid/fdroidserver.git",
+    "framagit.org/framasoft/mobilizon": "https://framagit.org/framasoft/mobilizon.git",
+    "git.sr.ht/~rjarry/aerc": "https://git.sr.ht/~rjarry/aerc",
+}
+PROJECT_SETS = {"github": {s: f"https://github.com/{s}.git" for s in GITHUB}, "offgithub": OFF_GITHUB}
+PROJECTS = PROJECT_SETS[os.environ.get("PROJECT_SET", "github")]
 OSV_SCANNER_VERSION = "v2.7.0"
 LOCKFILES = [
     "package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml", "yarn.lock", "bun.lock",
@@ -39,44 +60,103 @@ def osv_scanner() -> Path:
         log(f"building osv-scanner {OSV_SCANNER_VERSION} into {bindir}")
         bindir.mkdir(parents=True, exist_ok=True)
         r = run(["go", "install", f"github.com/google/osv-scanner/v2/cmd/osv-scanner@{OSV_SCANNER_VERSION}"],
-                env={**__import__("os").environ, "GOBIN": str(bindir)})
+                env={**os.environ, "GOBIN": str(bindir)})
         if r.returncode != 0:
             raise SystemExit(f"go install failed: {r.stderr[-500:]}")
     return exe
 
 
-def sparse_clone(slug: str) -> tuple[Path, str]:
-    dest = CACHE / "repos" / slug.replace("/", "__")
-    if dest.exists():
-        shutil.rmtree(dest)
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    r = run(["git", "clone", "--quiet", "--depth", "1", "--filter=blob:none", "--no-checkout",
-             f"https://github.com/{slug}.git", str(dest)])
-    if r.returncode != 0:
-        raise SystemExit(f"clone {slug} failed: {r.stderr[-300:]}")
+def sparse_clone(slug: str, url: str) -> tuple[Path, str]:
+    """Sparse, blob-less clone of only the lockfiles. Reuses an existing clone (hosts like gitlab.com
+    shed load on repeated full-tree clones of large repos); retries with backoff when a host is busy."""
+    dest = CACHE / "repos" / slug.replace("/", "__").replace("~", "")
+    if not (dest / ".git").exists():
+        if dest.exists():
+            shutil.rmtree(dest)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        for attempt, wait in enumerate((60, 180, 300, None)):
+            r = run(["git", "clone", "--quiet", "--depth", "1", "--filter=blob:none", "--no-checkout", url, str(dest)])
+            if r.returncode == 0:
+                break
+            log(f"  clone attempt {attempt + 1} failed: {r.stderr.strip()[-160:]}")
+            if wait is None:
+                raise SystemExit(f"clone {slug} failed")
+            shutil.rmtree(dest, ignore_errors=True)
+            time.sleep(wait)
+    else:
+        log(f"  reusing existing clone {dest.name}")
     run(["git", "-C", str(dest), "sparse-checkout", "set", "--no-cone", *[f"**/{p}" for p in LOCKFILES]], check=True)
-    run(["git", "-C", str(dest), "checkout", "--quiet"], check=True)
     sha = run(["git", "-C", str(dest), "rev-parse", "HEAD"], check=True).stdout.strip()
-    removed = 0
-    for f in list(dest.rglob("*")):
-        if f.is_file() and ".git" not in f.parts and EXCLUDE_DIRS & set(f.relative_to(dest).parts[:-1]):
-            f.unlink()
-            removed += 1
-    shutil.rmtree(dest / ".git")  # osv-scanner only needs the files; also avoids git-based scanning
-    log(f"  {slug}@{sha[:10]}: excluded {removed} fixture/vendor lockfiles")
+    marker = dest / ".raw-fetched"
+    if marker.exists() and marker.read_text().strip() == sha:
+        log(f"  lockfiles already fetched over HTTPS at {sha[:10]}")
+        return dest, sha
+    for attempt in range(3):  # partial clones fetch blobs lazily; hosts can drop that fetch
+        r = run(["git", "-C", str(dest), "checkout", "--quiet"])
+        if r.returncode == 0:
+            break
+        log(f"  checkout attempt {attempt + 1} failed: {r.stderr.strip()[-200:]}")
+        time.sleep(30 * (attempt + 1))
+    else:
+        raw_fetch(slug, url, dest, sha)  # the tree is local; fetch only the lockfile blobs over HTTPS
     return dest, sha
+
+
+def raw_url(url: str, sha: str, path: str) -> str:
+    base = url.removesuffix(".git")
+    q = urllib.parse.quote(path)
+    if "git.sr.ht" in base:
+        return f"{base}/blob/{sha}/{q}"
+    if "codeberg.org" in base:  # Forgejo / Gitea
+        return f"{base}/raw/commit/{sha}/{q}"
+    return f"{base}/-/raw/{sha}/{q}"  # GitLab (gitlab.com, self-managed, framagit, gnome, torproject)
+
+
+def raw_fetch(slug: str, url: str, dest: Path, sha: str) -> None:
+    names = run(["git", "-C", str(dest), "ls-tree", "-r", "--name-only", sha], check=True).stdout.split()
+    wanted = [n for n in names if any(fnmatch.fnmatch(n.rsplit("/", 1)[-1], pat) for pat in LOCKFILES)]
+    log(f"  git checkout refused by host; fetching {len(wanted)} lockfiles over HTTPS at {sha[:10]}")
+    for path in wanted:
+        target = dest / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        for attempt, wait in enumerate((20, 60, 120, None)):
+            try:
+                req = urllib.request.Request(raw_url(url, sha, path), headers={"User-Agent": UA})
+                with urllib.request.urlopen(req, timeout=60) as resp:
+                    target.write_bytes(resp.read())
+                break
+            except (urllib.error.URLError, TimeoutError) as e:
+                if wait is None:
+                    raise SystemExit(f"raw fetch of {slug}:{path} failed: {e}") from e
+                time.sleep(wait)
+        time.sleep(0.5)  # be polite to the host
+    (dest / ".raw-fetched").write_text(sha)
+
+
+def lockfiles_in(dest: Path) -> list[Path]:
+    """Checked-out lockfiles, minus fixture/vendor copies (counted and logged)."""
+    keep, removed = [], 0
+    for f in sorted(p for p in dest.rglob("*") if p.is_file() and ".git" not in p.relative_to(dest).parts and p.name != ".raw-fetched"):
+        if EXCLUDE_DIRS & set(f.relative_to(dest).parts[:-1]):
+            removed += 1
+        else:
+            keep.append(f)
+    log(f"  {len(keep)} lockfiles; excluded {removed} fixture/vendor lockfiles")
+    return keep
 
 
 def scan(exe: Path, src: Path, out: Path) -> dict:
     # Explicit -L per lockfile: `scan source --recursive DIR` silently finds nothing when DIR
     # sits under a hidden directory such as .cache (FINDINGS F-040).
     args: list[str] = []
-    for f in sorted(p for p in src.rglob("*") if p.is_file()):
+    for f in lockfiles_in(src):
         is_req = f.name.startswith("requirements") and f.name.endswith(".txt")
         args += ["-L", f"requirements.txt:{f}" if is_req and f.name != "requirements.txt" else str(f)]
     if out.exists():
         out.unlink()
     r = run([str(exe), "scan", "source", "--all-packages", "--format", "json", "--output-file", str(out), *args])
+    if r.returncode == 128 and "No package sources found" in r.stderr:
+        return {"results": [], "no_package_sources": True}  # recorded by the caller, not treated as clean
     if r.returncode not in (0, 1) or not out.exists():  # 1 = vulnerabilities found
         raise SystemExit(f"osv-scanner failed ({r.returncode}): {r.stderr[-800:]}")
     return json.loads(out.read_text())
@@ -85,10 +165,19 @@ def scan(exe: Path, src: Path, out: Path) -> dict:
 def main() -> None:
     exe = osv_scanner()
     inventory: dict[str, dict] = {}
-    for slug in PROJECTS:
+    failed: dict[str, str] = {}
+    for slug, url in PROJECTS.items():
         log(f"inventory {slug}")
-        src, sha = sparse_clone(slug)
-        res = scan(exe, src, CACHE / f"osv-{slug.replace('/', '__')}.json")
+        try:
+            src, sha = sparse_clone(slug, url)
+        except SystemExit as e:  # record and continue: a project we couldn't read is reported, not dropped
+            failed[slug] = str(e)
+            log(f"  SKIPPED {slug}: {e}")
+            continue
+        res = scan(exe, src, CACHE / f"osv-{slug.replace('/', '__').replace('~', '')}.json")
+        if res.get("no_package_sources"):
+            failed[slug] = "no package sources: OSV-Scanner found no readable lockfile (only fixtures / undeclared lockfile)"
+            log(f"  NO PACKAGE SOURCES for {slug}; recorded as inventory gap")
         pkgs, lockfiles = [], Counter()
         for result in res.get("results", []):
             path = str(Path(result["source"]["path"]).relative_to(src))
@@ -99,11 +188,12 @@ def main() -> None:
                 pkgs.append({"ecosystem": pk.get("ecosystem", ""), "name": pk["name"], "version": pk.get("version", ""),
                              "lockfile": path, "osv_ids": ids})
                 lockfiles[path] += 1
-        inventory[slug] = {"commit": sha, "lockfiles": dict(lockfiles), "packages": pkgs}
+        inventory[slug] = {"commit": sha, "clone_url": url, "lockfiles": dict(lockfiles), "packages": pkgs}
         eco = Counter(p["ecosystem"] for p in pkgs)
         nover = sum(1 for p in pkgs if not p["version"])
         log(f"  {len(lockfiles)} lockfiles, {len(pkgs)} package entries, {nover} without version, {dict(eco)}")
-    save_json(DATA / SNAPSHOT / "inventory.json", {"snapshot": SNAPSHOT, "osv_scanner": OSV_SCANNER_VERSION, "projects": inventory})
+    save_json(DATA / SNAPSHOT / "inventory.json", {"snapshot": SNAPSHOT, "osv_scanner": OSV_SCANNER_VERSION, "projects": inventory,
+                                                   "inventory_failed": failed})
     log("wrote inventory.json")
 
 

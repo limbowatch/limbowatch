@@ -25,7 +25,7 @@ import re
 from collections import Counter
 from urllib.parse import quote
 
-from common import DATA, ECOSYSTEMS, SNAPSHOT, Http, affected, load_json, log, name_matches, save_json
+from common import DATA, ECOSYSTEMS, SNAPSHOT, Http, affected, already_fixed, load_json, log, name_matches, save_json
 
 OSV_PROXY_SAMPLE = 200
 NVD_REVIEWED_SAMPLE = 60
@@ -55,14 +55,22 @@ def match_hits(inv: dict, mapping: dict, repo_adv: dict) -> list[dict]:
                 base = {"project": project, "ecosystem": p["ecosystem"], "name": p["name"], "version": p["version"],
                         "lockfile": p["lockfile"], "repo": m["repo"], "map_method": m["method"], "ghsa": a["ghsa_id"]}
                 if not pkg_entries:
-                    hits.append({**base, "match": "repo_only", "eval": None, "range": None, "patched": None})
+                    hits.append({**base, "match": "repo_only", "eval": None, "eval_note": "no_package_data", "range": None, "patched": None})
                     continue
                 for v in pkg_entries:
-                    if v["package"]["ecosystem"] != eco or not name_matches(eco, v["package"]["name"], p["name"]):
+                    rel = name_matches(eco, v["package"]["name"], p["name"]) if v["package"]["ecosystem"] == eco else False
+                    if not rel:
                         continue
                     res = affected(eco, p["version"], v.get("vulnerable_version_range"))
+                    note = ""
+                    if rel == "major_version_variant":
+                        res, note = None, "go_major_version_module_mismatch"
+                    elif res is True and already_fixed(eco, p["version"], v.get("patched_versions")):
+                        res, note = None, "range_contradicts_fixed_version"  # maintainer range vs fix disagree (F-051)
+                    elif res is None:
+                        note = "range_unparseable"
                     if res is not False:
-                        hits.append({**base, "match": "package_and_repo", "eval": res,
+                        hits.append({**base, "match": "package_and_repo", "eval": res, "eval_note": note,
                                      "range": v.get("vulnerable_version_range"), "patched": v.get("patched_versions")})
     # osv-scanner verdict for the exact package entry
     flagged = {(proj, p["ecosystem"], p["name"], p["version"]): set(p["osv_ids"])
@@ -162,7 +170,7 @@ async def main() -> None:
         log(f"NVD: {len(limbo_cves)} limbo + {min(NVD_REVIEWED_SAMPLE, len(rev_cves))} reviewed-sample CVEs, {delay}s spacing")
         nvd_http = Http(concurrency=1)
         for i, c in enumerate(nvd_list):
-            cached = nvd_http._cache_path("GET", f"https://services.nvd.nist.gov/rest/json/cves/2.0?cveId={c}", None).exists()
+            cached = nvd_http._cache_path("GET", f"https://services.nvd.nist.gov/rest/json/cves/2.0?cveId={c}", None).exists() and not nvd_http.refresh
             s, b, _ = await nvd_http.get(f"https://services.nvd.nist.gov/rest/json/cves/2.0?cveId={c}")
             if s == 200 and isinstance(b, dict) and b.get("vulnerabilities"):
                 cv = b["vulnerabilities"][0]["cve"]

@@ -4,18 +4,23 @@
 
 What we've verified or measured while building Limbowatch. Maintenance rules are in [CLAUDE.md](../CLAUDE.md#findings-report-docsfindingsmd).
 
-Last summarized: 2026-10-22 (Phase 1, after automated verification)
+Last summarized: 2026-10-22 (Phase 1, after the same-day re-measurement and off-GitHub scan)
 
 ## Summary
 
 Current understanding (Phase 1, 2026-10-21), with entries linked:
 
-1. **About 1 in 7 upstream advisories is in limbo.** In the 3,357 upstreams of 5 popular projects, 294 of 1,949 published repo advisories (15.1%; 14.7–15.1% after duplicate checks) are in neither GitHub's reviewed DB nor OSV, all confirmed by the global API ([F-041](#f-041), [F-048](#f-048)). 68% of them have no CVE, and no CVE List record references them ([F-049](#f-049)).
-2. **The median wait for GitHub review is about 4 weeks.** 26.6 days on 992 recent reviews; 94% over the documented 72 hours, 48% over 30 days ([F-042](#f-042), [F-019](#f-019)). GitHub attributes this to throughput, more than 5,000 repo advisories a week, with no plan to alert before review ([F-035](#f-035)).
-3. **Real projects ship affected versions that scanners report clean.** Across gitea, kubernetes, n8n, open-webui and langchain, 62 package-versions affected by advisories in limbo have no known vulnerability according to OSV-Scanner ([F-043](#f-043)).
+1. **About 1 in 6 upstream advisories is in limbo.** Across the upstreams of 15 popular projects (5 on GitHub, 10 on GitLab/Codeberg/Tor/GNOME/Framagit/SourceHut), 415 of 2,517 unique published repo advisories (16.5%) are in neither GitHub's reviewed DB nor OSV: 14.3% for the GitHub-hosted set, 17.1% off-GitHub. All confirmed by the global API and verified automatically ([F-055](#f-055), [F-053](#f-053), [F-050](#f-050)).
+2. **The median wait for GitHub review is about 3 weeks.** 23 days on 990 reviews (Sep 24 → Oct 22); 94% over the documented 72 hours, 44% over 30 days ([F-055](#f-055), [F-042](#f-042), [F-019](#f-019)). Review comes in bursts: 37 of one day's limbo set were reviewed within 30 hours ([F-050](#f-050)). GitHub attributes the delay to throughput, more than 5,000 repo advisories a week ([F-035](#f-035)).
+3. **Real projects ship affected versions that scanners report clean.** 105 package-versions across 13 of 14 readable projects, including GitLab (14), Forgejo (7), Gitea (4) and Kubernetes (3), are affected by advisories in limbo that OSV-Scanner reports with no known vulnerability. Hosting off GitHub doesn't help ([F-055](#f-055), [F-053](#f-053)).
 4. **Before review, an advisory is invisible everywhere scanners look.** It's not in the global DB, not even as `unreviewed`; at most OSV has a `CVE-*` record with GIT ranges and no package ([F-012](#f-012)). CVE records mostly appear about a day before review, 18 days after repo publication ([F-042](#f-042)).
-5. **The lifecycle is not linear.** 11% of reviewed advisories never get a CVE ([F-016](#f-016), [F-042](#f-042)). Some CVE IDs stay *reserved but public* (17 in limbo, up to 113 days; [F-029](#f-029), [F-041](#f-041)). Other-CNA CVEs are almost never reviewed and their unreviewed records have no package data ([F-017](#f-017)). Model facts independently.
-6. **Repo-advisory data is noisy.** Duplicates under another GHSA ID (4 proven by a shared CVE, 4 possible, [F-048](#f-048)); CVE IDs of other products cited ([F-049](#f-049)); free-form ranges (4.7% unparseable after tolerant parsing, [F-044](#f-044)); wrong package names ([F-014](#f-014)); unsupported ecosystems that will likely never be reviewed ([F-015](#f-015)).
+5. **The lifecycle is not linear.** About 11% of reviewed advisories never get a CVE ([F-016](#f-016), [F-055](#f-055)). 27 CVE IDs stay *reserved but public* (up to 119 days, [F-029](#f-029)). 23 limbo advisories have a CVE assigned by VulnCheck/Tenable that they don't cite, so CVE-keyed tools see them first ([F-050](#f-050)). Other-CNA CVEs are almost never reviewed ([F-017](#f-017)). Model facts independently.
+6. **Repo-advisory data is noisy.**
+   - 16% of in-range matches contradict the advisory's own fixed version ([F-051](#f-051)).
+   - Go advisories confuse `module` and `module/v2` ([F-052](#f-052)).
+   - Duplicates are proven only by a shared CVE (5 + 13), with title overlap only a flag ([F-048](#f-048)).
+   - Free-form ranges: about 4% unparseable after tolerant parsing ([F-044](#f-044)).
+   - Wrong package names ([F-014](#f-014)); a CVE of another product cited ([F-050](#f-050)).
 7. **NVD lags as well.** New non-priority CVEs are `Deferred` at once ([F-005](#f-005), [F-018](#f-018)). About 45% of reviewed CVEs on real dependencies are unenriched ([F-046](#f-046)).
 8. **Global signals exist for part of the window.** The cvelistV5 delta log gives GitHub-CNA CVEs with GHSA links and owner/repo ([F-013](#f-013)). `cveawg /api/cve-id/` exposes RBP state ([F-029](#f-029)). OSV-by-GHSA is a free, validated proxy for "reviewed" ([F-041](#f-041)).
 9. **Reuse, don't rebuild.** OSV-Scanner provides inventory for about 25 lockfile types ([F-032](#f-032)), but needs explicit lockfiles to avoid a silent empty scan ([F-040](#f-040)). deps.dev maps 96% of packages to repos ([F-020](#f-020), [F-041](#f-041)); univers compares versions ([F-022](#f-022)). OSV-Scanner can't load custom DBs ([F-039](#f-039)).
@@ -23,7 +28,7 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
 11. **Repo advisories contain personal data** (author, credits): never redistribute raw objects ([F-047](#f-047)).
 12. **GitLab specifics:** SARIF ingestion is Ultimate-only (GA 19.2) and treats CVE-less findings as SAST ([F-008](#f-008)). GitLab's advisory DB can't be queried ([F-038](#f-038)).
 13. **More languages are feasible in layers:** deps.dev (7 systems), then ecosyste.ms (~100 registries, CC BY-SA), then repo-only matching for languages GitHub doesn't review ([F-020](#f-020), [F-021](#f-021), [F-023](#f-023)).
-14. **Verify automatically, from primary sources only.** Search results and AI summaries mis-pair advisory and CVE IDs. Stage 8 verifies every advisory in limbo (live re-check, cited-CVE consistency, full CVE List reverse lookup, cross-ID review) and records the verdicts ([F-049](#f-049)).
+14. **Verify automatically, from primary sources only.** Search results and AI summaries mis-pair advisory and CVE IDs. Stage 8 verifies every advisory in limbo (live re-check, cited-CVE consistency with live fetch, case-insensitive full CVE List reverse lookup, cross-ID review) and records the verdicts ([F-049](#f-049), [F-050](#f-050)). Time-varying data must be stored per snapshot ([F-054](#f-054)).
 
 ## Open questions
 
@@ -385,23 +390,6 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
   - In kubernetes, 161 of 2,042 `go.mod` entries have no version: local `replace` modules.
 - **Implication:** The Phase 4 inventory adapter must pass explicit lockfiles (or check for exit 128 / zero sources) and report "no package sources" as `UNRESOLVED`, never as clean. That's the silent-skip failure the SPEC exists to prevent.
 
-### F-041
-- **Date:** 2026-10-21 · **Status:** confirmed (observed). Refines F-026 with the Phase 1 pipeline.
-- **Question:** How many upstream advisories are in limbo, re-measured with OSV-Scanner inventory?
-- **Method:** Phase 1 pipeline (research/2026-10-state-of-the-gap):
-  - 5 projects; inventory from OSV-Scanner v2.7.0 across all lockfiles (11,959 entries);
-  - deps.dev / Go-path mapping;
-  - repo advisories polled for 3,357 upstreams;
-  - OSV check for every GHSA, and GitHub global API for every OSV miss plus 200 random OSV hits.
-- **Result:**
-  - **294 of 1,949 advisories (15.1%) in limbo**: 199 without a CVE, 17 with a reserved CVE (RBP), 78 with a published CVE.
-  - **All 294 confirmed 404** in the global DB; the OSV-present sample was reviewed in 200 of 200.
-  - Reviewed: 1,455 with a CVE, 200 without (10.3%).
-  - Limbo age: median 10.3 days, p90 97.5, 37 over 90 days, max 2,614.
-  - Severity: critical 12, high 116, medium 134, low 32.
-  - Mapping: 96.2% of 6,922 unique package-versions (attested provenance for 1,832).
-- **Implication:** F-026's 18.2% came from a different inventory method and date. The current measure is 13.9–15.1% (F-045). OSV-by-GHSA presence is now validated on 494 directly confirmed cases.
-
 ### F-042
 - **Date:** 2026-10-21 · **Status:** confirmed (observed). **Supersedes F-010 and F-011.** Answers Q2.
 - **Question:** How long does GitHub review take, on a large sample?
@@ -412,22 +400,6 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
   - Repo publication to CVE publication: median 18.1 days.
   - 114 of 1,000 (11.4%) reviewed without a CVE.
 - **Implication:** F-010's 55-day median (n=40) was one backlog batch (that was Q2's suspicion). The typical wait is about 4 weeks, still far above the documented 72 hours (F-019). CVE publication mostly happens just before review, so the repo advisory is the only early signal for most of the window.
-
-### F-043
-- **Date:** 2026-10-21 · **Status:** confirmed (observed; examples re-verified live the same day). Refines F-027 and F-033.
-- **Question:** Do popular projects ship versions affected by advisories in limbo that a scanner reports clean?
-- **Result:**
-
-  | Project | Affected package-versions | Reported clean by OSV-Scanner |
-  |---|---|---|
-  | gitea | 6 | 4 |
-  | kubernetes | 3 | 3 |
-  | langchain | 22 | 20 |
-  | n8n | 29 | 23 |
-  | open-webui | 18 | 9 |
-
-  Likely duplicates are excluded; total reported clean: 59. "Reported clean" means OSV-Scanner reports no vulnerability at all for the package-version. Fifteen high/critical examples were re-checked on 2026-10-21: global 404, not reported by OSV-Scanner, not a likely duplicate. For example kubernetes `github.com/dlclark/regexp2/v2@2.2.1` (GHSA-wq9v-j77v-qr26, CVE reserved, 102 days) and langchain/open-webui `authlib@1.7.2` (GHSA-6v38-4h7w-rj9h, critical, CVE published).
-- **Implication:** This is the report's core claim, measured on real lockfiles at pinned commits.
 
 ### F-044
 - **Date:** 2026-10-21 · **Status:** confirmed (observed). Refines F-030.
@@ -470,7 +442,7 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
 - **Implication:** For dedup, use shared CVE IDs (and the CVE List reverse lookup, F-049) as proof and title overlap only as a flag. Never subtract text-only matches from headline counts.
 
 ### F-049
-- **Date:** 2026-10-22 · **Status:** confirmed (observed)
+- **Date:** 2026-10-22 · **Status:** partly refuted by [F-050](#f-050) (GHSA case bug in the reverse lookup; the MSAL "conflict" was wrong)
 - **Question:** Can every claim about an advisory in limbo be verified automatically, without manual checking?
 - **Trigger:** The user searched a limbo advisory's title (GHSA-wq9v-j77v-qr26, regexp2) on Google and was shown **CVE-2026-102274**. That is PyJWT's CVE (GitHub CNA, linked to GHSA-w6j9-cwv2-h6wq). The advisory itself cites CVE-2026-77299, still `RESERVED`. An independent page (delphix/ollama PR #29) confirms CVE-2026-77299. Search results and AI summaries can mis-pair IDs.
 - **Method:** Stage 8 (`s8_verify.py`) checks all 294 limbo advisories against primary sources only:
@@ -490,9 +462,127 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
   - "Cited CVE belongs to another product" is a distinct, detectable data-quality state worth reporting to maintainers.
   - The CVE List reverse index is also the matching engine for the cvelistV5 feed (F-013).
 
+### F-050
+- **Date:** 2026-10-22 · **Status:** confirmed (observed). **Partly refutes F-049.**
+- **Question:** Was the stage-8 verification of F-049 correct?
+- **Result:** It had two bugs:
+  - **GHSA IDs from the CVE List were upper-cased** before comparing with our mixed-case IDs, so the reverse lookup never matched. F-049's "no CVE List record references the 199 without a CVE" was untested. With the fix (re-verified 2026-10-22 17:25 UTC):
+    - **22 limbo advisories have a published CVE the advisory doesn't cite**, all assigned by **VulnCheck** (plus one by Tenable). Example: CVE-2026-110858 for GitPython GHSA-f9j4-qggq-h239, published 2026-10-14.
+    - For these, CVE-keyed tools can see the vulnerability while GHSA/OSV-based scanners can't, inverting the usual gap.
+  - **"Cited CVE belongs to another product" was too strict.** Records newer than the bulk export, or from vendor CNAs, often don't link back.
+    - Now a conflict only if the record references a *different* GitHub repo, or its affected product shares no name tokens with ours.
+    - The **MSAL** case (Microsoft CNA, "Microsoft Identity Client for NodeJS") is **not** a conflict; F-049 was wrong.
+    - **cdxgen citing Node.js CVE-2025-27210** remains one.
+    - Body-parser/webpack-dev-server CVEs (OpenJS CNA) were newer than the export; they're now fetched live and link back correctly.
+  - **37 of the 294 Oct-21 limbo advisories were reviewed within ~30 hours** (Pillow ×10, Electron ×6, pypdf, toml-node, …). Review comes in bursts.
+- **Implication:** Reverse lookups must normalize IDs. Uncited CVEs from other CNAs (VulnCheck) are a distinct, reportable state. Verification verdicts are time-stamped, and examples must be in limbo at verification time.
+
+### F-051
+- **Date:** 2026-10-22 · **Status:** confirmed (observed)
+- **Question:** Do maintainer-entered ranges agree with the advisory's own fixed version?
+- **Result:**
+  - **Often not.** In the Oct-21 matches, **222 of 1,397 (16%)** are "in range" yet at or after the advisory's fixed version for that release line. Off-GitHub snapshot: 132.
+  - Examples:
+    - quinn-proto GHSA-qfwj-vfxf-92j2: range `>= 0.11.15` (no upper bound), fixed `0.11.17`.
+    - go-jose GHSA-6mp9-8xrw-74r4: range `< v4.1.5`, fixed `v4.1.4`.
+    - icu_normalizer GHSA-3jjw-63vg-v3hh: range `>= 2.0.0`, fixed `<= 2.3.0`.
+  - Per-branch fix lists (typebox: `0.24.52 … 0.27.12 … 0.34.52`) need the fix on the same major.minor line.
+- **Implication:** Evaluate the range *and* cross-check the fixed version. A contradiction becomes `UNRESOLVED(range_contradicts_fixed_version)`, never "affected". Implemented as `common.already_fixed()` with self-check cases.
+
+### F-052
+- **Date:** 2026-10-22 · **Status:** confirmed (observed)
+- **Question:** How should Go advisories match Go modules?
+- **Result:**
+  - Prefix matching was wrong. A `/vN` suffix is a different module under Go's major-version rule.
+  - GHSA-frc4-6h9q-39fq lists only `github.com/pelletier/go-toml/v2`, yet it had matched Gitaly's `github.com/pelletier/go-toml@1.9.5` (v1).
+  - Conversely, GHSA-wq9v-j77v-qr26 names the base module `github.com/dlclark/regexp2` with a range in v2 numbering (`< 2.3.0`). Forgejo's `regexp2@1.11.5` matches strictly. Kubernetes' `regexp2/v2@2.2.1` matches only if one assumes the module was mislabeled.
+  - Strict matching moved 2 findings (Oct-21 set) and 27 (off-GitHub set) to unknown.
+- **Implication:** For Go, match only equal paths or a package inside the module. Report `/vN` variants as `UNRESOLVED(go_major_version_module_mismatch)` (`common.go_relation()`).
+
+### F-053
+- **Date:** 2026-10-22 · **Status:** confirmed (observed)
+- **Question:** Does the gap look different for popular projects hosted off GitHub?
+- **Method:** Same pipeline (with F-050 to F-052 applied), snapshot `2026-10-22-offgithub`.
+  - Projects: GitLab, GitLab Runner, Gitaly (gitlab.com); Forgejo, GoToSocial (codeberg.org); Arti (gitlab.torproject.org); Fractal (gitlab.gnome.org); F-Droid server (gitlab.com); Mobilizon (framagit.org); aerc (git.sr.ht).
+  - Popularity: gitlab-org/gitlab 6,176 stars, Forgejo 5,695 (self-hosted instances undercount stars).
+- **Result:**
+  - Inventory: 16,051 entries (GitLab alone 7,932, incl. 3,441 RubyGems).
+  - Mapping: 8,697 of 9,795 unique package-versions mapped to GitHub repos (88.8%; 1,099 unresolved, mostly RubyGems and Go).
+  - Polling: 4,061 upstreams, 278 with advisories, **1,268 advisories, 217 (17.1%) in limbo**, 202–204 after duplicates (13 strong).
+  - Limbo age: median 37 days, p90 107, 40 older than 3 months.
+  - RBP: 16, all past 72 hours, median 83 days.
+  - **8 of 9 readable projects ship affected versions**, 69 package-versions in total, **41 reported clean by OSV-Scanner**. GitLab: 32 affected (14 clean, 35 advisories, 16 high/critical); Forgejo 9/7; GoToSocial 8/5; Arti 7/2; Mobilizon 6/6; GitLab Runner 4/4; Gitaly 2/2; Fractal 1/1; aerc 0.
+  - F-Droid server: no lockfile-based dependencies; recorded as an inventory gap.
+  - Mobilizon's `mix.lock` (Elixir) is inventoried but unmappable (deps.dev has no Hex).
+- **Implication:** The gap is the same or larger for the GitLab/Gitea ecosystem Limbowatch targets. Their dependencies' advisories live on GitHub regardless of where the project is hosted.
+
+### F-054
+- **Date:** 2026-10-22 · **Status:** confirmed (observed)
+- **Question:** What broke when running the pipeline against other hosts and multiple snapshots?
+- **Result:**
+  1. **gitlab.com shed load** on our repeated blob-less clones and lazy blob fetches of gitlab-org/gitlab ("GitLab is currently unable to handle this request due to load"). Its raw endpoint `/-/raw/<sha>/<path>` kept working. Fallback: reuse the local tree, fetch only lockfiles over HTTPS at the recorded commit. Also seen: Forgejo `/raw/commit/<sha>/<path>`, SourceHut `/blob/<sha>/<path>`.
+  2. **OSV-Scanner exits 128 "No package sources found"** when a repo's only lockfiles are test fixtures (F-Droid server). Recorded as an inventory gap, not clean (F-040).
+  3. **The shared HTTP cache let a newer snapshot contaminate an older one.** Refreshing OSV/GitHub data for Oct 22 changed the Oct-21 limbo count from 294 to 288 on recompute. Fix: time-varying sources (GitHub, OSV, CVE Services, NVD) are cached per snapshot; deps.dev stays shared. The committed Oct-21 data files were restored from git.
+- **Implication:** For the product:
+  - The tracker needs per-snapshot storage of time-varying facts (the plan's `vuln_fact_snapshots`).
+  - Host adapters need a raw-file fallback.
+  - "No package sources" must surface as UNRESOLVED.
+
+### F-055
+- **Date:** 2026-10-22 · **Status:** confirmed (observed). **Supersedes F-041 and F-043** (pre-correction methods, Oct-21 commits); refines F-042 with a newer window.
+- **Question:** With all corrections (F-050 to F-054), what does a same-day snapshot of both project sets show?
+- **Method:** Pipeline rerun on 2026-10-22 for the five GitHub-hosted projects at new commits (gitea `facc0f2`, kubernetes `8f5bbad`, n8n `7d2e358`, open-webui `91ea4e3`, langchain `f4e6cde`), plus F-053's off-GitHub set. Per-snapshot cache.
+- **Result:**
+  - **GitHub-hosted set:**
+    - 11,823 entries → 6,806 unique package-versions, 96.1% mapped → 3,293 upstreams (308 with advisories) → **1,876 advisories, 268 (14.3%) in limbo**; 260–263 after duplicates (5 strong, 3 possible).
+    - Classes: 178 no CVE, 15 RBP, 75 CVE (22 of them uncited VulnCheck/Tenable CVEs found in the CVE List), 205 reviewed without CVE, 1,403 reviewed with CVE.
+    - Verification (17:59 UTC): 238 verified, 22 CVE in CVE List, 5 duplicates, 2 possible, 1 conflict (cdxgen).
+    - Limbo age: median 12.8 days, 35 older than 3 months.
+    - Per project (affected / reported clean by OSV-Scanner): n8n 33/26, langchain 23/21, open-webui 18/10, gitea 6/4, kubernetes 3/3; **64 reported clean**.
+  - **Review lag** (990 of 1,000 reviewed 2026-09-24 → 2026-10-22): median 23.0 days, p90 86.5; 94.1% over 72 h, 43.7% over 30 days. 92% of CVEs published before review (median 1 day earlier); repo → CVE median 17 days; 12% reviewed without a CVE.
+  - **Both sets, de-duplicated:**
+    - **2,517 unique advisories, 415 (16.5%) in limbo** (627 advisories appear in both sets).
+    - 27 unique RBP (25 past 72 h, oldest 119 days).
+    - 23 unique advisories with an uncited CVE (22 VulnCheck, 1 Tenable).
+    - **105 package-versions reported clean by OSV-Scanner** across 13 of 14 readable projects.
+- **Implication:** These are the numbers the State of the Gap report uses. Cross-set totals must be de-duplicated by GHSA ID, because the sets share upstreams.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
+
+### F-043
+- **Date:** 2026-10-21 · **Status:** superseded by [F-055](#f-055) (pre-correction methods; Oct-21 commits)
+- **Question:** Do popular projects ship versions affected by advisories in limbo that a scanner reports clean?
+- **Result:**
+
+  | Project | Affected package-versions | Reported clean by OSV-Scanner |
+  |---|---|---|
+  | gitea | 6 | 4 |
+  | kubernetes | 3 | 3 |
+  | langchain | 22 | 20 |
+  | n8n | 29 | 23 |
+  | open-webui | 18 | 9 |
+
+  Likely duplicates are excluded; total reported clean: 59. "Reported clean" means OSV-Scanner reports no vulnerability at all for the package-version. Fifteen high/critical examples were re-checked on 2026-10-21: global 404, not reported by OSV-Scanner, not a likely duplicate. For example kubernetes `github.com/dlclark/regexp2/v2@2.2.1` (GHSA-wq9v-j77v-qr26, CVE reserved, 102 days) and langchain/open-webui `authlib@1.7.2` (GHSA-6v38-4h7w-rj9h, critical, CVE published).
+- **Implication:** This is the report's core claim, measured on real lockfiles at pinned commits.
+
+### F-041
+- **Date:** 2026-10-21 · **Status:** superseded by [F-055](#f-055) (pre-correction methods; Oct-21 commits)
+- **Question:** How many upstream advisories are in limbo, re-measured with OSV-Scanner inventory?
+- **Method:** Phase 1 pipeline (research/2026-10-state-of-the-gap):
+  - 5 projects; inventory from OSV-Scanner v2.7.0 across all lockfiles (11,959 entries);
+  - deps.dev / Go-path mapping;
+  - repo advisories polled for 3,357 upstreams;
+  - OSV check for every GHSA, and GitHub global API for every OSV miss plus 200 random OSV hits.
+- **Result:**
+  - **294 of 1,949 advisories (15.1%) in limbo**: 199 without a CVE, 17 with a reserved CVE (RBP), 78 with a published CVE.
+  - **All 294 confirmed 404** in the global DB; the OSV-present sample was reviewed in 200 of 200.
+  - Reviewed: 1,455 with a CVE, 200 without (10.3%).
+  - Limbo age: median 10.3 days, p90 97.5, 37 over 90 days, max 2,614.
+  - Severity: critical 12, high 116, medium 134, low 32.
+  - Mapping: 96.2% of 6,922 unique package-versions (attested provenance for 1,832).
+- **Implication:** F-026's 18.2% came from a different inventory method and date. The current measure is 13.9–15.1% (F-045). OSV-by-GHSA presence is now validated on 494 directly confirmed cases.
 
 ### F-045
 - **Date:** 2026-10-21 · **Status:** superseded by [F-048](#f-048) (character-level similarity over-matched; strong duplicates are 4, not 23)

@@ -53,7 +53,8 @@ def dist(xs: list[float]) -> dict:
 
 
 def buckets(xs: list[float]) -> dict:
-    return {name: sum(1 for x in xs if lo <= x < hi) for name, lo, hi in AGE_BUCKETS}
+    # advisories published after the snapshot's reference time have slightly negative ages: count them as newest
+    return {name: sum(1 for x in xs if lo <= max(x, 0) < hi) for name, lo, hi in AGE_BUCKETS}
 
 
 def write_csv(path: Path, rows: list[dict]) -> None:
@@ -67,18 +68,20 @@ def write_csv(path: Path, rows: list[dict]) -> None:
 
 def main() -> None:
     d = DATA / SNAPSHOT
-    now = ts(f"{SNAPSHOT}T12:00:00Z")
+    now = ts(f"{SNAPSHOT[:10]}T12:00:00Z")  # snapshot names may carry a suffix (e.g. 2026-10-22-offgithub)
     inv = load_json(d / "inventory.json")
     mp = load_json(d / "mapping.json")
     ra = load_json(d / "repo_advisories.json")
     stt = load_json(d / "status.json")
-    lag = load_json(d / "review_lag.json")
+    lag = load_json(d / "review_lag.json") if (d / "review_lag.json").exists() else {"rows": [], "sample_size": 0, "from_repo": 0, "no_cve_reviewed": 0}
     advs = {a["ghsa_id"]: {"repo": r, **a} for r, lst in ra["advisories"].items() for a in lst}
     limbo = set(stt["in_limbo"])
     dup = stt["duplicates"]
     ver_path = d / "verification.json"
     ver = load_json(ver_path) if ver_path.exists() else {"advisories": {}, "checked_at": None}
     verdict = {g: v["verdict"] for g, v in ver["advisories"].items()}
+    # CVEs that reference the advisory in the CVE List although the advisory itself doesn't cite one (F-050)
+    cve_list_cve = {g: v["other_cves"] for g, v in ver["advisories"].items() if v["verdict"] == "IN_LIMBO_CVE_FOUND_IN_CVE_LIST"}
 
     def likely_dup(g: str) -> bool:
         # Strong evidence only: the same CVE is reviewed under another GHSA ID (s8), or a shared
@@ -98,6 +101,8 @@ def main() -> None:
     def adv_class(g: str) -> str:
         if g not in limbo:
             return "REVIEWED_NO_CVE" if not advs[g].get("cve_id") else "REVIEWED_WITH_CVE"
+        if g in cve_list_cve:
+            return "LIMBO_CVE"  # published CVE exists (CVE List), even though the advisory doesn't cite it
         cs = cve_state(g)
         if cs == "PUBLISHED":
             return "LIMBO_CVE"
@@ -119,6 +124,7 @@ def main() -> None:
             "duplicate_signal": (dup.get(g) or {}).get("signal") or "", "duplicate_score": (dup.get(g) or {}).get("score") or "",
             "duplicate_candidate": (dup.get(g) or {}).get("candidate") or "", "likely_duplicate": likely_dup(g),
             "possible_duplicate": possible_dup(g) if g in limbo else "", "verification": verdict.get(g, ""),
+            "cve_found_in_cve_list": cve_list_cve.get(g, ""),
             "advisory_url": a.get("html_url"),
         })
     write_csv(d / "advisories.csv", adv_rows)
@@ -133,7 +139,8 @@ def main() -> None:
             "project": h["project"], "ecosystem": h["ecosystem"], "package": h["name"], "version": h["version"], "lockfile": h["lockfile"],
             "upstream_repo": h["repo"], "map_method": h["map_method"], "ghsa_id": g, "cve_id": a.get("cve_id") or "",
             "class": adv_class(g), "severity": a.get("severity"), "match": h["match"],
-            "version_affected": {True: "yes", None: "unknown"}[h["eval"]], "range": h["range"] or "", "patched": h["patched"] or "",
+            "version_affected": {True: "yes", None: "unknown"}[h["eval"]], "unknown_reason": h.get("eval_note", ""),
+            "range": h["range"] or "", "patched": h["patched"] or "",
             "osv_scanner_reports_this_advisory": seen, "osv_scanner_reports_package_clean": not h["osv_scanner_ids"],
             "likely_duplicate": likely_dup(g) if g in limbo else "", "possible_duplicate": possible_dup(g) if g in limbo else "",
             "verification": verdict.get(g, ""),
@@ -183,7 +190,7 @@ def main() -> None:
             "affected_packages": len(pk), "affected_packages_osv_scanner_reports_clean": len(pk_clean),
             "high_or_critical": len({r["ghsa_id"] for r in sure_nodup if r["severity"] in ("high", "critical")}),
         }
-    eval_reasons = Counter(("repo_only" if h["match"] == "repo_only" else "range_unparseable") for h in stt["hits"] if h["eval"] is None)
+    eval_reasons = Counter(h.get("eval_note") or ("repo_only" if h["match"] == "repo_only" else "range_unparseable") for h in stt["hits"] if h["eval"] is None)
     proxy = stt["osv_proxy_sample"]
     nvd_groups = defaultdict(Counter)
     for c, v in stt["nvd"].items():
@@ -218,7 +225,7 @@ def main() -> None:
         "osv_proxy": {"limbo_confirmed_by_global_api": Counter(str((stt["global"].get(g) or {}).get("type") or (stt["global"].get(g) or {}).get("status")) for g in stt["in_limbo"]),
                       "osv_present_sample": len(proxy),
                       "osv_present_sample_reviewed": sum(1 for g in proxy if (stt["global"].get(g) or {}).get("type") == "reviewed")},
-        "review_lag": {"sample_reviewed": lag["sample_size"], "from_repo_advisories": lag["from_repo"],
+        "review_lag": None if not lag["rows"] else {"sample_reviewed": lag["sample_size"], "from_repo_advisories": lag["from_repo"],
                        "reviewed_without_cve": lag["no_cve_reviewed"],
                        "reviewed_window": [min(r["github_reviewed_at"] for r in lag["rows"]), max(r["github_reviewed_at"] for r in lag["rows"])],
                        "repo_published_window": [min(r["repo_published_at"] for r in lag["rows"] if r["repo_published_at"]),
@@ -237,7 +244,8 @@ def main() -> None:
     save_json(d / "summary.json", summary)
     log(f"limbo {summary['limbo']['count']}/{len(adv_rows)} ({summary['limbo']['share']:.1%}); "
         f"excl. likely dups {summary['limbo']['count_excluding_likely_duplicates']}; RBP {len(rbp)}")
-    log(f"review lag {summary['review_lag']['lag_days']}")
+    if summary["review_lag"]:
+        log(f"review lag {summary['review_lag']['lag_days']}")
     for p, v in per_project.items():
         log(f"  {p}: {v}")
 

@@ -31,6 +31,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / ".cache"
 DATA = ROOT / "data"
 SNAPSHOT = os.environ.get("SNAPSHOT_DATE", time.strftime("%Y-%m-%d"))
+TIME_VARYING_HOSTS = ("api.github.com", "api.osv.dev", "cveawg.mitre.org", "services.nvd.nist.gov")
 UA = "limbowatch-research (+https://github.com/limbowatch/limbowatch)"
 
 # osv-scanner ecosystem name -> (GHSA ecosystem, deps.dev system, OSV ecosystem)
@@ -83,9 +84,9 @@ def load_json(path: Path) -> Any:
 class Http:
     """Async client with an on-disk response cache (body + status + selected headers)."""
 
-    def __init__(self, concurrency: int = 16, refresh: bool = False) -> None:
+    def __init__(self, concurrency: int = 16, refresh: bool | None = None) -> None:
         self.sem = asyncio.Semaphore(concurrency)
-        self.refresh = refresh
+        self.refresh = os.environ.get("REFRESH") == "1" if refresh is None else refresh
         self.client = httpx.AsyncClient(timeout=60, follow_redirects=True, headers={"User-Agent": UA})
         self.token = github_token()
         self.stats: dict[str, int] = {}
@@ -95,8 +96,11 @@ class Http:
         await self.client.aclose()
 
     def _cache_path(self, method: str, url: str, body: Any) -> Path:
+        # Time-varying sources are cached per snapshot so snapshots can't contaminate each other
+        # (an Oct 22 refresh must never leak into an Oct 21 snapshot). deps.dev mappings are stable.
         key = hashlib.sha256(json.dumps([method, url, body], sort_keys=True).encode()).hexdigest()
-        return CACHE / "http" / key[:2] / f"{key}.json"
+        ns = SNAPSHOT if any(h in url for h in TIME_VARYING_HOSTS) else "shared"
+        return CACHE / "http" / ns / key[:2] / f"{key}.json"
 
     async def request(self, method: str, url: str, json_body: Any = None, use_cache: bool = True) -> tuple[int, Any, dict[str, str]]:
         cp = self._cache_path(method, url, json_body)
@@ -274,6 +278,39 @@ def affected(ghsa_ecosystem: str, version: str, rng: str | None) -> bool | None:
         return None
 
 
+def already_fixed(ghsa_ecosystem: str, version: str, patched: str | None) -> bool | None:
+    """Cross-check against the advisory's fixed version(s) (F-051).
+
+    True if `version` is at or after the applicable fix: the fix on the same release line
+    (major.minor) when several branch fixes are listed, else the single fix. None when the
+    fixed-version text can't be read as plain versions (e.g. '<= 2.3.0').
+    """
+    cls = VERSION_CLASS.get(ghsa_ecosystem)
+    if not cls or not patched:
+        return None
+    text = patched.strip()
+    m = re.fullmatch(rf">=\s*({_VER})", text)
+    if m:
+        text = m.group(1)
+    fixes = re.split(r"[\s,;]+", text)
+    if not fixes or not all(re.fullmatch(_VER, f) for f in fixes):
+        return None
+    try:
+        v = _mk(cls, version)
+
+        def line(s: str) -> str:
+            return ".".join(s.lstrip("v").split(".")[:2])
+
+        same = [f for f in fixes if line(f) == line(version)]
+        if same:
+            return v >= _mk(cls, same[0])
+        if len(fixes) == 1:
+            return v >= _mk(cls, fixes[0])
+        return None
+    except Exception:
+        return None
+
+
 def _satisfiable(cls: type, cons: list[tuple[str, str]]) -> bool:
     lows = [_mk(cls, b) for op, b in cons if op in (">", ">=")]
     highs = [_mk(cls, b) for op, b in cons if op in ("<", "<=")]
@@ -288,12 +325,31 @@ def norm_name(ghsa_ecosystem: str, name: str) -> str:
     return name
 
 
-def name_matches(ghsa_ecosystem: str, advisory_name: str, dep_name: str) -> bool:
-    a, d = norm_name(ghsa_ecosystem, advisory_name), norm_name(ghsa_ecosystem, dep_name)
+def go_relation(advisory_path: str, module: str) -> str | None:
+    """How a Go advisory's package path relates to a dependency module (strict module semantics).
+
+    "same" / "package_in_module" match. A "/vN" suffix is a different module (Go major-version
+    rule): "major_version_variant" means the paths differ only by that, which maintainers often
+    mislabel - reported as unknown, never as affected (F-052).
+    """
+    a, d = advisory_path, module
     if a == d:
-        return True
-    # Go advisories may name a package path inside the module, or the module itself.
-    return ghsa_ecosystem == "go" and (a.startswith(d + "/") or d.startswith(a + "/"))
+        return "same"
+    for longer, shorter in ((a, d), (d, a)):
+        if longer.startswith(shorter + "/"):
+            first = longer[len(shorter) + 1:].split("/")[0]
+            if re.fullmatch(r"v\d+", first):
+                return "major_version_variant"
+            return "package_in_module" if longer is a else None  # nested module of a different path
+    return None
+
+
+def name_matches(ghsa_ecosystem: str, advisory_name: str, dep_name: str) -> bool | str:
+    """True for a match; for Go, the go_relation() string; False otherwise."""
+    a, d = norm_name(ghsa_ecosystem, advisory_name), norm_name(ghsa_ecosystem, dep_name)
+    if ghsa_ecosystem == "go":
+        return go_relation(a, d) or False
+    return a == d
 
 
 if __name__ == "__main__":  # quick self-check of the range parser
@@ -320,4 +376,13 @@ if __name__ == "__main__":  # quick self-check of the range parser
         ("pip", "2.13.4", "all", None),
     ]
     bad = [(c, affected(*c[:3])) for c in cases if affected(*c[:3]) is not c[3]]
+    fixes = [("rust", "0.11.19", "0.11.17", True), ("go", "v4.1.4", "v4.1.4", True), ("rust", "2.3.0", "<= 2.3.0", None),
+             ("npm", "0.27.10", "0.24.52 0.25.25 0.26.9 0.27.12 0.28.22", False), ("npm", "0.27.13", "0.26.9 0.27.12", True),
+             ("pip", "3.1.50", ">= 3.2.0", False), ("npm", "1.0.0", None, None)]
+    bad += [(c, already_fixed(*c[:3])) for c in fixes if already_fixed(*c[:3]) is not c[3]]
+    go = [("github.com/pelletier/go-toml/v2", "github.com/pelletier/go-toml", "major_version_variant"),
+          ("github.com/dlclark/regexp2", "github.com/dlclark/regexp2/v2", "major_version_variant"),
+          ("github.com/foo/bar/pkg/x", "github.com/foo/bar", "package_in_module"),
+          ("github.com/foo/bar", "github.com/foo/bar", "same"), ("github.com/foo/bar", "github.com/foo/bar/sdk", None)]
+    bad += [(c, go_relation(c[0], c[1])) for c in go if go_relation(c[0], c[1]) != c[2]]
     print("range parser self-check:", "OK" if not bad else f"FAIL {bad}")

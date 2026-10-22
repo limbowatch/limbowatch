@@ -54,7 +54,7 @@ Product code doesn't exist yet; Phase 2 scaffolds uv/ruff/mypy/pytest. Add those
 Research pipeline (Phase 1 report), from `research/2026-10-state-of-the-gap/scripts/`. It needs uv, go and git, plus a GitHub token via `gh auth token` or `GITHUB_TOKEN`; `NVD_API_KEY` is optional.
 
 ```sh
-export SNAPSHOT_DATE=2026-10-21   # or $(date +%F) for a new snapshot
+export SNAPSHOT_DATE=2026-10-22   # or $(date +%F); add PROJECT_SET=offgithub for the off-GitHub projects (snapshot name e.g. 2026-10-22-offgithub, CHARTS_SUBDIR=<name> for s7)
 uv run s1_inventory.py && uv run s2_map.py && uv run s3_poll.py && uv run s4_status.py \
   && uv run s5_review_lag.py && uv run s8_verify.py && uv run s6_analyze.py && uv run s7_charts.py
 # s8 needs the CVE List bulk export at research/2026-10-state-of-the-gap/.cache/cvelist/all.zip.zip (cvelistV5 releases)

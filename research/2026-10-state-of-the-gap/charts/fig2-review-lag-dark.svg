@@ -6,7 +6,7 @@
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2026-10-22T01:55:10.761467</dc:date>
+    <dc:date>2026-10-22T11:01:43.249791</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -86,7 +86,7 @@ z
      <g id="line2d_8">
       <path d="M 38.304 229.824 
 L 530.784 229.824 
-" clip-path="url(#p16889f129e)" style="fill: none; stroke: #2c2c2a; stroke-linecap: square"/>
+" clip-path="url(#pcb301bfa30)" style="fill: none; stroke: #2c2c2a; stroke-linecap: square"/>
      </g>
      <g id="line2d_9"/>
      <g id="text_8">
@@ -95,89 +95,100 @@ L 530.784 229.824
     </g>
     <g id="ytick_2">
      <g id="line2d_10">
-      <path d="M 38.304 202.35412 
-L 530.784 202.35412 
-" clip-path="url(#p16889f129e)" style="fill: none; stroke: #2c2c2a; stroke-linecap: square"/>
+      <path d="M 38.304 202.464 
+L 530.784 202.464 
+" clip-path="url(#pcb301bfa30)" style="fill: none; stroke: #2c2c2a; stroke-linecap: square"/>
      </g>
      <g id="line2d_11"/>
      <g id="text_9">
-      <text style="font-size: 10px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: end; fill: #898781" x="34.804" y="206.10412" transform="rotate(-0 34.804 206.10412)">50</text>
+      <text style="font-size: 10px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: end; fill: #898781" x="34.804" y="206.214" transform="rotate(-0 34.804 206.214)">50</text>
      </g>
     </g>
     <g id="ytick_3">
      <g id="line2d_12">
-      <path d="M 38.304 174.884241 
-L 530.784 174.884241 
-" clip-path="url(#p16889f129e)" style="fill: none; stroke: #2c2c2a; stroke-linecap: square"/>
+      <path d="M 38.304 175.104 
+L 530.784 175.104 
+" clip-path="url(#pcb301bfa30)" style="fill: none; stroke: #2c2c2a; stroke-linecap: square"/>
      </g>
      <g id="line2d_13"/>
      <g id="text_10">
-      <text style="font-size: 10px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: end; fill: #898781" x="34.804" y="178.634241" transform="rotate(-0 34.804 178.634241)">100</text>
+      <text style="font-size: 10px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: end; fill: #898781" x="34.804" y="178.854" transform="rotate(-0 34.804 178.854)">100</text>
      </g>
     </g>
     <g id="ytick_4">
      <g id="line2d_14">
-      <path d="M 38.304 147.414361 
-L 530.784 147.414361 
-" clip-path="url(#p16889f129e)" style="fill: none; stroke: #2c2c2a; stroke-linecap: square"/>
+      <path d="M 38.304 147.744 
+L 530.784 147.744 
+" clip-path="url(#pcb301bfa30)" style="fill: none; stroke: #2c2c2a; stroke-linecap: square"/>
      </g>
      <g id="line2d_15"/>
      <g id="text_11">
-      <text style="font-size: 10px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: end; fill: #898781" x="34.804" y="151.164361" transform="rotate(-0 34.804 151.164361)">150</text>
+      <text style="font-size: 10px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: end; fill: #898781" x="34.804" y="151.494" transform="rotate(-0 34.804 151.494)">150</text>
      </g>
     </g>
     <g id="ytick_5">
      <g id="line2d_16">
-      <path d="M 38.304 119.944482 
-L 530.784 119.944482 
-" clip-path="url(#p16889f129e)" style="fill: none; stroke: #2c2c2a; stroke-linecap: square"/>
+      <path d="M 38.304 120.384 
+L 530.784 120.384 
+" clip-path="url(#pcb301bfa30)" style="fill: none; stroke: #2c2c2a; stroke-linecap: square"/>
      </g>
      <g id="line2d_17"/>
      <g id="text_12">
-      <text style="font-size: 10px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: end; fill: #898781" x="34.804" y="123.694482" transform="rotate(-0 34.804 123.694482)">200</text>
+      <text style="font-size: 10px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: end; fill: #898781" x="34.804" y="124.134" transform="rotate(-0 34.804 124.134)">200</text>
      </g>
     </g>
     <g id="ytick_6">
      <g id="line2d_18">
-      <path d="M 38.304 92.474602 
-L 530.784 92.474602 
-" clip-path="url(#p16889f129e)" style="fill: none; stroke: #2c2c2a; stroke-linecap: square"/>
+      <path d="M 38.304 93.024 
+L 530.784 93.024 
+" clip-path="url(#pcb301bfa30)" style="fill: none; stroke: #2c2c2a; stroke-linecap: square"/>
      </g>
      <g id="line2d_19"/>
      <g id="text_13">
-      <text style="font-size: 10px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: end; fill: #898781" x="34.804" y="96.224602" transform="rotate(-0 34.804 96.224602)">250</text>
+      <text style="font-size: 10px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: end; fill: #898781" x="34.804" y="96.774" transform="rotate(-0 34.804 96.774)">250</text>
+     </g>
+    </g>
+    <g id="ytick_7">
+     <g id="line2d_20">
+      <path d="M 38.304 65.664 
+L 530.784 65.664 
+" clip-path="url(#pcb301bfa30)" style="fill: none; stroke: #2c2c2a; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_21"/>
+     <g id="text_14">
+      <text style="font-size: 10px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: end; fill: #898781" x="34.804" y="69.414" transform="rotate(-0 34.804 69.414)">300</text>
      </g>
     </g>
    </g>
    <g id="patch_3">
     <path d="M 70.944 229.824 
-L 70.944 201.95894 
-Q 70.944 197.95894 74.944 197.95894 
-L 83.744 197.95894 
-Q 87.744 197.95894 87.744 201.95894 
+L 70.944 202.0864 
+Q 70.944 198.0864 74.944 198.0864 
+L 83.744 198.0864 
+Q 87.744 198.0864 87.744 202.0864 
 L 87.744 229.824 
 z
-" clip-path="url(#p16889f129e)" style="fill: #52514e"/>
+" clip-path="url(#pcb301bfa30)" style="fill: #52514e"/>
    </g>
    <g id="patch_4">
     <path d="M 139.344 229.824 
-L 139.344 179.983036 
-Q 139.344 175.983036 143.344 175.983036 
-L 152.144 175.983036 
-Q 156.144 175.983036 156.144 179.983036 
+L 139.344 168.16 
+Q 139.344 164.16 143.344 164.16 
+L 152.144 164.16 
+Q 156.144 164.16 156.144 168.16 
 L 156.144 229.824 
 z
-" clip-path="url(#p16889f129e)" style="fill: #3987e5"/>
+" clip-path="url(#pcb301bfa30)" style="fill: #3987e5"/>
    </g>
    <g id="patch_5">
     <path d="M 207.744 229.824 
-L 207.744 172.29147 
-Q 207.744 168.29147 211.744 168.29147 
-L 220.544 168.29147 
-Q 224.544 168.29147 224.544 172.29147 
+L 207.744 163.2352 
+Q 207.744 159.2352 211.744 159.2352 
+L 220.544 159.2352 
+Q 224.544 159.2352 224.544 163.2352 
 L 224.544 229.824 
 z
-" clip-path="url(#p16889f129e)" style="fill: #3987e5"/>
+" clip-path="url(#pcb301bfa30)" style="fill: #3987e5"/>
    </g>
    <g id="patch_6">
     <path d="M 276.144 229.824 
@@ -187,77 +198,77 @@ L 288.944 93.024
 Q 292.944 93.024 292.944 97.024 
 L 292.944 229.824 
 z
-" clip-path="url(#p16889f129e)" style="fill: #3987e5"/>
+" clip-path="url(#pcb301bfa30)" style="fill: #3987e5"/>
    </g>
    <g id="patch_7">
     <path d="M 344.544 229.824 
-L 344.544 101.419181 
-Q 344.544 97.419181 348.544 97.419181 
-L 357.344 97.419181 
-Q 361.344 97.419181 361.344 101.419181 
+L 344.544 102.496 
+Q 344.544 98.496 348.544 98.496 
+L 357.344 98.496 
+Q 361.344 98.496 361.344 102.496 
 L 361.344 229.824 
 z
-" clip-path="url(#p16889f129e)" style="fill: #3987e5"/>
+" clip-path="url(#pcb301bfa30)" style="fill: #3987e5"/>
    </g>
    <g id="patch_8">
     <path d="M 412.944 229.824 
-L 412.944 160.75412 
-Q 412.944 156.75412 416.944 156.75412 
-L 425.744 156.75412 
-Q 429.744 156.75412 429.744 160.75412 
+L 412.944 175.2736 
+Q 412.944 171.2736 416.944 171.2736 
+L 425.744 171.2736 
+Q 429.744 171.2736 429.744 175.2736 
 L 429.744 229.824 
 z
-" clip-path="url(#p16889f129e)" style="fill: #3987e5"/>
+" clip-path="url(#pcb301bfa30)" style="fill: #3987e5"/>
    </g>
    <g id="patch_9">
     <path d="M 481.344 229.824 
-L 481.344 178.334843 
-Q 481.344 174.334843 485.344 174.334843 
-L 494.144 174.334843 
-Q 498.144 174.334843 498.144 178.334843 
+L 481.344 186.7648 
+Q 481.344 182.7648 485.344 182.7648 
+L 494.144 182.7648 
+Q 498.144 182.7648 498.144 186.7648 
 L 498.144 229.824 
 z
-" clip-path="url(#p16889f129e)" style="fill: #3987e5"/>
+" clip-path="url(#pcb301bfa30)" style="fill: #3987e5"/>
    </g>
    <g id="patch_10">
     <path d="M 38.304 229.824 
 L 530.784 229.824 
 " style="fill: none; stroke: #383835; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
    </g>
-   <g id="text_14">
-    <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: middle; fill: #f0efec" x="79.344" y="192.89156" transform="rotate(-0 79.344 192.89156)">58</text>
-   </g>
    <g id="text_15">
-    <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: middle; fill: #f0efec" x="147.744" y="170.915656" transform="rotate(-0 147.744 170.915656)">98</text>
+    <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: middle; fill: #f0efec" x="79.344" y="193.01902" transform="rotate(-0 79.344 193.01902)">58</text>
    </g>
    <g id="text_16">
-    <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: middle; fill: #f0efec" x="216.144" y="163.22409" transform="rotate(-0 216.144 163.22409)">112</text>
+    <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: middle; fill: #f0efec" x="147.744" y="159.09262" transform="rotate(-0 147.744 159.09262)">120</text>
    </g>
    <g id="text_17">
-    <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: middle; fill: #f0efec" x="284.544" y="87.95662" transform="rotate(-0 284.544 87.95662)">249</text>
+    <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: middle; fill: #f0efec" x="216.144" y="154.16782" transform="rotate(-0 216.144 154.16782)">129</text>
    </g>
    <g id="text_18">
-    <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: middle; fill: #f0efec" x="352.944" y="92.351801" transform="rotate(-0 352.944 92.351801)">241</text>
+    <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: middle; fill: #f0efec" x="284.544" y="87.95662" transform="rotate(-0 284.544 87.95662)">250</text>
    </g>
    <g id="text_19">
-    <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: middle; fill: #f0efec" x="421.344" y="151.686741" transform="rotate(-0 421.344 151.686741)">133</text>
+    <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: middle; fill: #f0efec" x="352.944" y="93.42862" transform="rotate(-0 352.944 93.42862)">240</text>
    </g>
    <g id="text_20">
-    <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: middle; fill: #f0efec" x="489.744" y="169.267464" transform="rotate(-0 489.744 169.267464)">101</text>
+    <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: middle; fill: #f0efec" x="421.344" y="166.20622" transform="rotate(-0 421.344 166.20622)">107</text>
+   </g>
+   <g id="text_21">
+    <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: middle; fill: #f0efec" x="489.744" y="177.69742" transform="rotate(-0 489.744 177.69742)">86</text>
    </g>
   </g>
-  <g id="text_21">
-   <text style="font-weight: 600; font-size: 14px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: start; fill: #f0efec" x="6.5664" y="17.34" transform="rotate(-0 6.5664 17.34)">Median wait for GitHub review: 27 days</text>
-  </g>
   <g id="text_22">
-   <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: start; fill: #c3c2b7" x="6.5664" y="33.435" transform="rotate(-0 6.5664 33.435)">Time from repo advisory publication to GitHub review, 992 advisories reviewed 2026-09-22 → 2026-10-21 · gray: within GitHub's 72-hour target</text>
+   <text style="font-weight: 600; font-size: 14px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: start; fill: #f0efec" x="6.5664" y="17.34" transform="rotate(-0 6.5664 17.34)">Median wait for GitHub review: 23 days</text>
   </g>
   <g id="text_23">
-   <text style="font-size: 9px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: start; fill: #898781" x="6.5664" y="268.387425" transform="rotate(-0 6.5664 268.387425)">Snapshot 2026-10-21 · Limbowatch research · data CC BY 4.0 · advisory data: GitHub Advisory Database (CC BY 4.0), OSV</text>
+   <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: start; fill: #c3c2b7" x="6.5664" y="33.435" transform="rotate(-0 6.5664 33.435)">Time from repo advisory publication to GitHub review, 990 advisories reviewed 2026-09-24 → 2026-10-22 · gray: within GitHub's 72-hour target</text>
+  </g>
+  <g id="text_24">
+   <text style="font-size: 9px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: start; fill: #898781" x="6.5664" y="268.387425" transform="rotate(-0 6.5664 268.387425)">Snapshot 2026-10-22 · Limbowatch research · data CC BY 4.0 · advisory data: GitHub Advisory Database (CC BY 4.0), OSV</text>
   </g>
  </g>
  <defs>
-  <clipPath id="p16889f129e">
+  <clipPath id="pcb301bfa30">
    <rect x="38.304" y="65.664" width="492.48" height="164.16"/>
   </clipPath>
  </defs>

@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="547.2pt" height="224.64pt" viewBox="0 0 547.2 224.64" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-10-22T11:01:43.555852</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.11.2, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 224.64 
+L 547.2 224.64 
+L 547.2 0 
+L 0 0 
+z
+" style="fill: #fcfcfb"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 164.16 195.84 
+L 492.48 195.84 
+L 492.48 66.24 
+L 164.16 66.24 
+z
+" style="fill: #fcfcfb"/>
+   </g>
+   <g id="matplotlib.axis_1">
+    <g id="xtick_1">
+     <g id="line2d_1">
+      <path d="M 164.16 195.84 
+L 164.16 66.24 
+" clip-path="url(#p00c74f114f)" style="fill: none; stroke: #e1e0d9; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_2"/>
+     <g id="text_1">
+      <text style="font-size: 10px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: middle; fill: #898781" x="164.16" y="206.84" transform="rotate(-0 164.16 206.84)">0</text>
+     </g>
+    </g>
+    <g id="xtick_2">
+     <g id="line2d_3">
+      <path d="M 223.359423 195.84 
+L 223.359423 66.24 
+" clip-path="url(#p00c74f114f)" style="fill: none; stroke: #e1e0d9; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_4"/>
+     <g id="text_2">
+      <text style="font-size: 10px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: middle; fill: #898781" x="223.359423" y="206.84" transform="rotate(-0 223.359423 206.84)">200</text>
+     </g>
+    </g>
+    <g id="xtick_3">
+     <g id="line2d_5">
+      <path d="M 282.558846 195.84 
+L 282.558846 66.24 
+" clip-path="url(#p00c74f114f)" style="fill: none; stroke: #e1e0d9; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_6"/>
+     <g id="text_3">
+      <text style="font-size: 10px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: middle; fill: #898781" x="282.558846" y="206.84" transform="rotate(-0 282.558846 206.84)">400</text>
+     </g>
+    </g>
+    <g id="xtick_4">
+     <g id="line2d_7">
+      <path d="M 341.758269 195.84 
+L 341.758269 66.24 
+" clip-path="url(#p00c74f114f)" style="fill: none; stroke: #e1e0d9; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_8"/>
+     <g id="text_4">
+      <text style="font-size: 10px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: middle; fill: #898781" x="341.758269" y="206.84" transform="rotate(-0 341.758269 206.84)">600</text>
+     </g>
+    </g>
+    <g id="xtick_5">
+     <g id="line2d_9">
+      <path d="M 400.957692 195.84 
+L 400.957692 66.24 
+" clip-path="url(#p00c74f114f)" style="fill: none; stroke: #e1e0d9; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_10"/>
+     <g id="text_5">
+      <text style="font-size: 10px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: middle; fill: #898781" x="400.957692" y="206.84" transform="rotate(-0 400.957692 206.84)">800</text>
+     </g>
+    </g>
+    <g id="xtick_6">
+     <g id="line2d_11">
+      <path d="M 460.157115 195.84 
+L 460.157115 66.24 
+" clip-path="url(#p00c74f114f)" style="fill: none; stroke: #e1e0d9; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_12"/>
+     <g id="text_6">
+      <text style="font-size: 10px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: middle; fill: #898781" x="460.157115" y="206.84" transform="rotate(-0 460.157115 206.84)">1,000</text>
+     </g>
+    </g>
+   </g>
+   <g id="matplotlib.axis_2">
+    <g id="ytick_1">
+     <g id="line2d_13"/>
+     <g id="text_7">
+      <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: end; fill: #52514e" x="160.66" y="83.1375" transform="rotate(-0 160.66 83.1375)">In limbo, no CVE</text>
+     </g>
+    </g>
+    <g id="ytick_2">
+     <g id="line2d_14"/>
+     <g id="text_8">
+      <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: end; fill: #52514e" x="160.66" y="109.0575" transform="rotate(-0 160.66 109.0575)">In limbo, CVE reserved (RBP)</text>
+     </g>
+    </g>
+    <g id="ytick_3">
+     <g id="line2d_15"/>
+     <g id="text_9">
+      <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: end; fill: #52514e" x="160.66" y="134.9775" transform="rotate(-0 160.66 134.9775)">In limbo, CVE published</text>
+     </g>
+    </g>
+    <g id="ytick_4">
+     <g id="line2d_16"/>
+     <g id="text_10">
+      <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: end; fill: #52514e" x="160.66" y="160.8975" transform="rotate(-0 160.66 160.8975)">Reviewed, no CVE</text>
+     </g>
+    </g>
+    <g id="ytick_5">
+     <g id="line2d_17"/>
+     <g id="text_11">
+      <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: end; fill: #52514e" x="160.66" y="186.8175" transform="rotate(-0 160.66 186.8175)">Reviewed, with CVE</text>
+     </g>
+    </g>
+   </g>
+   <g id="patch_3">
+    <path d="M 164.16 86.4 
+L 206.927544 86.4 
+Q 210.927544 86.4 210.927544 82.4 
+L 210.927544 76 
+Q 210.927544 72 206.927544 72 
+L 164.16 72 
+z
+" clip-path="url(#p00c74f114f)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 164.16 112.32 
+L 164.895954 112.32 
+Q 168.895954 112.32 168.895954 108.32 
+L 168.895954 101.92 
+Q 168.895954 97.92 164.895954 97.92 
+L 164.16 97.92 
+z
+" clip-path="url(#p00c74f114f)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 164.16 138.24 
+L 172.887876 138.24 
+Q 176.887876 138.24 176.887876 134.24 
+L 176.887876 127.84 
+Q 176.887876 123.84 172.887876 123.84 
+L 164.16 123.84 
+z
+" clip-path="url(#p00c74f114f)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 164.16 164.16 
+L 193.01568 164.16 
+Q 197.01568 164.16 197.01568 160.16 
+L 197.01568 153.76 
+Q 197.01568 149.76 193.01568 149.76 
+L 164.16 149.76 
+z
+" clip-path="url(#p00c74f114f)" style="fill: #c3c2b7"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 164.16 190.08 
+L 438.397288 190.08 
+Q 442.397288 190.08 442.397288 186.08 
+L 442.397288 179.68 
+Q 442.397288 175.68 438.397288 175.68 
+L 164.16 175.68 
+z
+" clip-path="url(#p00c74f114f)" style="fill: #c3c2b7"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 164.16 195.84 
+L 164.16 66.24 
+" style="fill: none; stroke: #c3c2b7; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="text_12">
+    <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="214.867384" y="82.066172" transform="rotate(-0 214.867384 82.066172)">158  (12%)</text>
+   </g>
+   <g id="text_13">
+    <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="172.835794" y="107.986172" transform="rotate(-0 172.835794 107.986172)">16  (1%)</text>
+   </g>
+   <g id="text_14">
+    <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="180.827716" y="133.906172" transform="rotate(-0 180.827716 133.906172)">43  (3%)</text>
+   </g>
+   <g id="text_15">
+    <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="200.95552" y="159.826172" transform="rotate(-0 200.95552 159.826172)">111  (9%)</text>
+   </g>
+   <g id="text_16">
+    <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="446.337128" y="185.746172" transform="rotate(-0 446.337128 185.746172)">940  (74%)</text>
+   </g>
+  </g>
+  <g id="text_17">
+   <text style="font-weight: 600; font-size: 14px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="6.5664" y="16.116" transform="rotate(-0 6.5664 16.116)">217 of 1,268 upstream advisories are in limbo</text>
+  </g>
+  <g id="text_18">
+   <text style="font-size: 10.5px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="6.5664" y="32.211" transform="rotate(-0 6.5664 32.211)">Published repository advisories of the 278 upstream repos (of 4,061) behind 10 popular projects</text>
+  </g>
+  <g id="text_19">
+   <text style="font-size: 9px; font-family: 'Helvetica', 'Arial', 'DejaVu Sans'; text-anchor: start; fill: #898781" x="6.5664" y="219.95307" transform="rotate(-0 6.5664 219.95307)">Snapshot 2026-10-22-offgithub · Limbowatch research · data CC BY 4.0 · advisory data: GitHub Advisory Database (CC BY 4.0), OSV</text>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p00c74f114f">
+   <rect x="164.16" y="66.24" width="328.32" height="129.6"/>
+  </clipPath>
+ </defs>
+</svg>
