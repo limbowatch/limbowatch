@@ -31,7 +31,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / ".cache"
 DATA = ROOT / "data"
 SNAPSHOT = os.environ.get("SNAPSHOT_DATE", time.strftime("%Y-%m-%d"))
-UA = "limbowatch-research (+https://github.com/blueandhack/Limbowatch)"
+UA = "limbowatch-research (+https://github.com/limbowatch/limbowatch)"
 
 # osv-scanner ecosystem name -> (GHSA ecosystem, deps.dev system, OSV ecosystem)
 ECOSYSTEMS: dict[str, tuple[str, str | None, str]] = {
