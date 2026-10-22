@@ -1,0 +1,17 @@
+Limbowatch research data — "State of the Gap" (snapshot 2026-10-21)
+
+The data files in this directory (summary.json and *.csv) are licensed under the
+Creative Commons Attribution 4.0 International License (CC BY 4.0):
+https://creativecommons.org/licenses/by/4.0/
+
+Attribution: "Limbowatch, State of the Gap (2026-10-21), https://github.com/blueandhack/Limbowatch"
+
+The files contain identifiers, states, dates, version ranges and links only — no advisory
+text. They are derived from these sources, whose terms also apply:
+- GitHub Advisory Database and published GitHub repository security advisories
+  (GitHub Advisory Database content is CC BY 4.0): https://github.com/advisories
+- OSV.dev: https://osv.dev
+- CVE Services / CVE List (CVE Program terms of use): https://www.cve.org
+- NVD API: https://nvd.nist.gov — this product uses the NVD API but is not endorsed or
+  certified by the NVD.
+- deps.dev (Google API Terms of Service): https://deps.dev

@@ -6,7 +6,7 @@
 | 2 | 2026-10-20 | superseded | Fact-vector model and new classes; cvelistV5 feed and all-CNA CVE ingestion; ecosystem plugin tiers (goal: all languages); run-anywhere and org-wide mode; open-source licensing; Phases 6–7 |
 | 3 | 2026-10-20 | superseded | Build-vs-reuse (§1a): OSV-Scanner is the inventory backend and OSV the source of reviewed matching; our own range evaluation only for repo-advisory ranges; Phase 1/3/6 scope reduced accordingly |
 | 4 | 2026-10-21 | superseded | Renamed **Limbowatch** ("Ghost CVE" already means *reserved but public*, F-037); classes `GHOST_*` → `LIMBO_*`; `RBP` state added; **phase order changed for awareness: public report → live tracker → scanner** (§10); scanner phases renumbered 3–8 |
-| 5 | 2026-10-21 | **proposed, awaiting approval** | No duplicate scanner: the npm/PyPI/Go scan-time CI check is blindspot's (F-036), so we **contribute** to it instead. The tracker also publishes an open **limbo feed** (OSV schema) others can consume. Tracker coverage defined (§7a). Phases: report → tracker + feed → upstream contributions → watcher → ecosystems → upstream-watch |
+| 5 | 2026-10-21 | **approved 2026-10-21**; Phase 1 draft complete, awaiting review | No duplicate scanner: the npm/PyPI/Go scan-time CI check is blindspot's (F-036), so we **contribute** to it instead. The tracker also publishes an open **limbo feed** (OSV schema) others can consume. Tracker coverage defined (§7a). Phases: report → tracker + feed → upstream contributions → watcher → ecosystems → upstream-watch |
 
 Inputs: [SPEC.md](SPEC.md) (requirements) and [FINDINGS.md](FINDINGS.md) (verified facts, cited as F-NNN).
 
@@ -304,4 +304,4 @@ Recommended defaults are in bold.
 3. **Decided: defer** malware advisories past MVP (2026-10-21).
 4. **Decided: yes.** Unscored LIMBO_* findings fail CI by default (`--fail-on-unknown=true`) (2026-10-21).
 5. **Decided: `gitlab_ds`** is the default `scanners:` profile when unset (2026-10-21).
-6. Approve this plan (rev 5), including the phase order (§10), tracker coverage (§7a), Phases 5–6 and the §12 deviations, so Phase 1 can start.
+6. **Approved 2026-10-21.** Plan rev 5, including the phase order (§10), tracker coverage (§7a), Phases 5–6 and the §12 deviations, so Phase 1 can start.

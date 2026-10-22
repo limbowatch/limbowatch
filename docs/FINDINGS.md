@@ -4,40 +4,38 @@
 
 What we've verified or measured while building Limbowatch. Maintenance rules are in [CLAUDE.md](../CLAUDE.md#findings-report-docsfindingsmd).
 
-Last summarized: 2026-10-20 (Phase 0, after popular-repo experiment)
+Last summarized: 2026-10-21 (end of Phase 1)
 
 ## Summary
 
-Current understanding, with entries linked:
+Current understanding (Phase 1, 2026-10-21), with entries linked:
 
-1. **The ghost window is real and large.** In a sample of 40 advisories GitHub reviewed on Oct 15–16, 2026, the time from repo publication to GitHub review was at least 3 days, **median 55 days**, and up to 114 days ([F-010](#f-010)). GitHub's docs say review takes up to 72 hours ([F-019](#f-019)).
-2. **Before review, the advisory is absent from the global DB.** It doesn't appear even as `unreviewed` ([F-012](#f-012)). OSV has at most a `CVE-*` record with GIT ranges and no package ([F-012](#f-012)), so lockfile-based scanners can't match it.
-3. **The CVE record is also delayed.** It is published before review in 38 of 38 cases, but a median of about 47 days after the repo advisory ([F-011](#f-011)). The repo advisory API is often the *only* early signal.
-4. **The lifecycle is not linear.** Events happen in any order: published with no CVE then reviewed (11.7% of reviewed advisories have no CVE, [F-016](#f-016)); CVE before repo advisory ([F-011](#f-011)); other-CNA CVEs that almost never get reviewed ([F-017](#f-017)). Model each vulnerability as a vector of independent facts, not a pipeline stage.
-5. **Other-CNA CVEs are near-permanent ghosts for GitHub-native tools.** Only 4 of 1,000 advisories reviewed in a month carried another CNA's CVE. Unreviewed advisories carry **no package info** (0 of 500, [F-017](#f-017)).
-6. **The cvelistV5 delta log is a usable global feed** for GitHub-CNA CVEs. 254 GitHub_M CVEs in 5 days; all link the GHSA; `vendor`/`product` equal repo `owner`/`repo` in 251 of 254 ([F-013](#f-013)).
-7. **Package names in repo advisories can't be trusted.** One named a PyPI project that doesn't exist ([F-014](#f-014)). Match through our own package→repo mapping.
-8. **NVD now defers new non-priority CVEs immediately** ([F-005](#f-005), [F-018](#f-018)). In NVD, CNA scores appear as `Secondary` metrics; NIST's own are `Primary`.
-9. **GitLab's native SARIF ingestion is Ultimate-only (GA 19.2)** and classifies findings without a CVE as SAST ([F-008](#f-008)). That affects how GHOST/NO_CVE findings show up in GitLab.
-10. **Multi-language support is feasible in layers.** Repo-keyed matching is language-agnostic. Package→repo mapping chains registry-native → deps.dev (7 systems, with provenance, [F-020](#f-020)) → ecosyste.ms (~100 registries, unverified, CC BY-SA, [F-021](#f-021)). univers covers every GHSA ecosystem except pub and swift ([F-022](#f-022)). Languages outside GHSA's enum are never reviewed, so repo matching is the only signal there ([F-023](#f-023)).
-11. **On real projects, ghosts are common.** Across the 3,246 upstreams of 5 popular projects, 18% of published advisories (350 of 1,928) are absent from the global DB. All 5 projects ship versions affected by ghost advisories: gitea 2, kubernetes 3, n8n 89, open-webui 95, langchain 122 findings ([F-026](#f-026), [F-027](#f-027)). The mapper chain reached 97.4% of packages ([F-025](#f-025)).
-12. **Raw ghost counts overstate the problem somewhat.** About 14% of ghost candidates look like duplicates reviewed under another GHSA ID ([F-028](#f-028)). 27% of maintainer-entered ranges aren't canonical GHSA syntax, and repo ranges often differ from reviewed ones ([F-030](#f-030)). Dedup and tolerant range parsing are core diff-engine work.
-13. **Reserved CVEs are observable.** Repo advisories expose CVE IDs that `cveawg /api/cve-id/` shows as `RESERVED`, sometimes for 100+ days ([F-029](#f-029)). About 40% of reviewed CVEs on real dependencies are still unenriched in NVD ([F-031](#f-031)).
-14. **Don't rebuild OSV.** OSV-Scanner (Apache-2.0) already extracts full inventories from about 25 lockfile types, Maven included (`--format json --all-packages`, [F-032](#f-032)), and matches reviewed vulnerabilities. GhostCVE's unique value is the delta: on n8n, 24 ghost-affected packages are reported clean by OSV-Scanner ([F-033](#f-033)).
-15. **No existing open tool does the full job, and GitHub won't close the gap soon.** Safeguard measured the same gap (30.7%) and ships a repo-list-only script with no inventory, mapping, version matching or workflow. Other trackers watch only the global DB ([F-034](#f-034)). GitHub cites throughput limits at more than 5,000 repo advisories a week and has no plan to alert before review ([F-035](#f-035)). *Refined by item 16.*
-16. **An open tool for the core scan already exists, and the name is taken.** `blindspot.py` (Apache-2.0, since 2026-10-14) maps npm/PyPI/Go lockfiles to upstream repos, checks repo advisories against OSV, and ships SARIF plus a GitHub Action ([F-036](#f-036)). "Ghost CVE" is an established term (RogoLabs `GhostCVEs`, CIRCL) meaning *reserved but public CVE* ([F-037](#f-037)). Unique ground left: GitLab/Gitea workflow, watch/lifecycle, org-wide, global-DB and duplicate checks, dependency-scoped RBP, CVE feed, visibility model, any language ([F-038](#f-038)).
+1. **About 1 in 7 upstream advisories is in limbo.** In the 3,357 upstreams of 5 popular projects, 294 of 1,949 published repo advisories (15.1%; 13.9% without likely duplicates) are in neither GitHub's reviewed DB nor OSV, all confirmed by the global API ([F-041](#f-041), [F-045](#f-045)). 68% of them have no CVE.
+2. **The median wait for GitHub review is about 4 weeks.** 26.6 days on 992 recent reviews; 94% over the documented 72 hours, 48% over 30 days ([F-042](#f-042), [F-019](#f-019)). GitHub attributes this to throughput, more than 5,000 repo advisories a week, with no plan to alert before review ([F-035](#f-035)).
+3. **Real projects ship affected versions that scanners report clean.** Across gitea, kubernetes, n8n, open-webui and langchain, 59 package-versions affected by advisories in limbo have no known vulnerability according to OSV-Scanner ([F-043](#f-043)).
+4. **Before review, an advisory is invisible everywhere scanners look.** It's not in the global DB, not even as `unreviewed`; at most OSV has a `CVE-*` record with GIT ranges and no package ([F-012](#f-012)). CVE records mostly appear about a day before review, 18 days after repo publication ([F-042](#f-042)).
+5. **The lifecycle is not linear.** 11% of reviewed advisories never get a CVE ([F-016](#f-016), [F-042](#f-042)). Some CVE IDs stay *reserved but public* (17 in limbo, up to 113 days; [F-029](#f-029), [F-041](#f-041)). Other-CNA CVEs are almost never reviewed and their unreviewed records have no package data ([F-017](#f-017)). Model facts independently.
+6. **Repo-advisory data is noisy.** Duplicates under another GHSA ID (~14%, [F-045](#f-045)); free-form ranges (4.7% unparseable after tolerant parsing, [F-044](#f-044)); wrong package names ([F-014](#f-014)); unsupported ecosystems that will likely never be reviewed ([F-015](#f-015)).
+7. **NVD lags as well.** New non-priority CVEs are `Deferred` at once ([F-005](#f-005), [F-018](#f-018)). About 45% of reviewed CVEs on real dependencies are unenriched ([F-046](#f-046)).
+8. **Global signals exist for part of the window.** The cvelistV5 delta log gives GitHub-CNA CVEs with GHSA links and owner/repo ([F-013](#f-013)). `cveawg /api/cve-id/` exposes RBP state ([F-029](#f-029)). OSV-by-GHSA is a free, validated proxy for "reviewed" ([F-041](#f-041)).
+9. **Reuse, don't rebuild.** OSV-Scanner provides inventory for about 25 lockfile types ([F-032](#f-032)), but needs explicit lockfiles to avoid a silent empty scan ([F-040](#f-040)). deps.dev maps 96% of packages to repos ([F-020](#f-020), [F-041](#f-041)); univers compares versions ([F-022](#f-022)). OSV-Scanner can't load custom DBs ([F-039](#f-039)).
+10. **The core scan already exists; the lifecycle layer doesn't.** blindspot does lockfile → repo advisories → OSV for npm/PyPI/Go ([F-036](#f-036)). Nobody runs a live tracker, an open limbo feed, GitLab/Gitea workflow or watch mode ([F-038](#f-038)). "Ghost CVE" already means reserved-but-public, hence the name Limbowatch ([F-037](#f-037)).
+11. **Repo advisories contain personal data** (author, credits): never redistribute raw objects ([F-047](#f-047)).
+12. **GitLab specifics:** SARIF ingestion is Ultimate-only (GA 19.2) and treats CVE-less findings as SAST ([F-008](#f-008)). GitLab's advisory DB can't be queried ([F-038](#f-038)).
+13. **More languages are feasible in layers:** deps.dev (7 systems), then ecosyste.ms (~100 registries, CC BY-SA), then repo-only matching for languages GitHub doesn't review ([F-020](#f-020), [F-021](#f-021), [F-023](#f-023)).
 
 ## Open questions
 
 - ~~Q1. While a CVE is reserved but not yet published, does the repo advisory API already expose `cve_id`?~~ **Answered 2026-10-20: yes. Detectable via `cveawg /api/cve-id/{id}` ([F-029](#f-029)).**
-- Q9. Given blindspot ([F-036](#f-036)): build separately, contribute upstream, or build only the layers blindspot lacks? *Partly answered 2026-10-21: renamed to **Limbowatch**. Proposed order: public report → live tracker → scanner with only the layers blindspot lacks, plus upstream PRs (plan rev 4); awaiting approval.*
-- Q8. How do we reliably detect that a ghost candidate was reviewed under a different GHSA ID, and what's the true duplicate rate? ([F-028](#f-028))
-- Q2. Was the 55-day median a backlog being cleared on Oct 15–16, or the normal state? Needs repeated sampling over weeks.
+- ~~Q2. Was the 55-day median a backlog being cleared on Oct 15–16, or the normal state?~~ **Answered 2026-10-21: a backlog batch. On 992 reviews the median is 26.6 days ([F-042](#f-042)). Keep re-measuring monthly (Phase 2 tracker).**
 - Q3. What share of other-CNA CVEs affecting npm/PyPI/Go packages get package-level coverage in OSV through ecosystem DBs (Go vulndb, PyPA, RustSec)? Requires the CVE→package matching from Phase 2.
 - Q4. How far behind GHSA are the scanner DBs (Trivy DB, Grype DB, OSV-Scanner)? GitLab Advisory DB lag can't be measured because its terms forbid querying it.
 - Q5. Is "Not Scheduled" ever an NVD API `vulnStatus` value, or always `Deferred`? ([F-005](#f-005))
-- Q6. Does ecosyste.ms's CC BY-SA 4.0 data license constrain GhostCVE? *Partly answered 2026-10-20: GhostCVE will be open source, so a commercial license isn't needed. Remaining constraint: share-alike applies to redistributed derived data. Plan §11: runtime use plus local cache only, with attribution, and never bundle derived datasets. Revisit before 1.0.* ([F-021](#f-021))
+- Q6. Does ecosyste.ms's CC BY-SA 4.0 data license constrain Limbowatch? *Partly answered 2026-10-20: open source, so no commercial license is needed. Share-alike applies to redistributed derived data; use at runtime with a local cache only, with attribution. Revisit before 1.0.* ([F-021](#f-021))
 - Q7. How do we reliably detect packaging/recipe repos (conan-center-index, homebrew-core, distro packaging) so they aren't treated as upstream? ([F-021](#f-021))
+- Q8. How do we reliably detect that a limbo advisory was reviewed under a different GHSA ID, and what's the true duplicate rate? Text similarity only so far ([F-028](#f-028), [F-045](#f-045)).
+- ~~Q9. Build separately, contribute upstream, or build only the layers blindspot lacks?~~ **Answered 2026-10-21: plan rev 5 approved. Report → tracker + limbo feed → upstream contributions → watcher. Renamed to Limbowatch ([F-036](#f-036), [F-037](#f-037)).**
+- Q10. Under what terms may repository advisory content be redistributed? This decides whether the limbo feed can include summaries or descriptions, or only IDs and links ([F-047](#f-047)). Needed for Phase 2.
 
 ## Log
 
@@ -93,18 +91,6 @@ Current understanding, with entries linked:
 - **Method:** `GET /advisories?type=reviewed&per_page=100&sort=published`, latest 100.
 - **Result:** `published_at == github_reviewed_at` for 100 of 100. The global `published_at` is the review time, **not** the maintainer's publication time.
 - **Implication:** To measure ghost windows, use the repo advisory's `published_at` (via `repository_advisory_url`).
-
-### F-010
-- **Date:** 2026-10-19 · **Status:** tentative (one batch; possible backlog bias, see Q2)
-- **Method:** The 40 most recently reviewed advisories with `repository_advisory_url`. Compared the repo advisory's `published_at` with the global `github_reviewed_at`.
-- **Result:** Repo publication to review: min 73 h, p25 24 days, **median 55 days**, p75 80 days, max 114 days. All 40 were over 72 h. All were reviewed between 2026-10-15 20:15 and 2026-10-16 21:15 UTC, though published between 2026-06-24 and 2026-10-13, which suggests batch review. Manual check: `GHSA-pw5q-rjx4-7f7p` (getarcaneapp/arcane) was published in the repo on 2026-07-29 and reviewed on 2026-10-16. Ecosystems: go 21, pip 8, npm 6, rust 2, maven, erlang, pub.
-- **Implication:** Core product premise holds, with a much larger window than GitHub's documented 72 hours.
-
-### F-011
-- **Date:** 2026-10-19 · **Status:** tentative (n=38)
-- **Method:** Same sample as F-010; CVE `datePublished` from cveawg.
-- **Result:** The CVE was published **before** review in 38 of 38 cases (median 39 h earlier, up to about 100 days earlier). Repo publication to CVE publication: median about 47 days (min −153 h: one CVE was published *before* the repo advisory). CNAs: GitHub_M 36, JFROG 1, EEF 1.
-- **Implication:** Window A (repo only, no public CVE) is usually the longest. Window B (CVE public, not reviewed) is shorter but can be long.
 
 ### F-012
 - **Date:** 2026-10-19 · **Status:** confirmed (observed, n=30)
@@ -387,6 +373,114 @@ Current understanding, with entries linked:
   - Direct OSV-Scanner use needs an upstream feature request (custom local DB / extra source), not a hack into its cache.
 - **Sources:** [OSV-Scanner offline mode](https://google.github.io/osv-scanner/usage/offline-mode/)
 
+### F-040
+- **Date:** 2026-10-21 · **Status:** confirmed (observed)
+- **Question:** Does OSV-Scanner's recursive directory scan work as an inventory backend?
+- **Result:**
+  - `osv-scanner scan source --recursive DIR` **silently finds nothing** when `DIR` is under a hidden directory (here `.cache/`): it walks "1 dirs visited", says "No package sources found", and exits **128**.
+  - The same files scanned with explicit `-L <lockfile>` (or from a non-hidden path) give the full inventory.
+  - Non-standard requirements names need `-L requirements.txt:<path>`.
+  - Against GitHub's dependency-graph SBOM, OSV-Scanner found **1,197 packages for gitea vs 256** (the SBOM had no npm entries; F-024).
+  - In kubernetes, 161 of 2,042 `go.mod` entries have no version: local `replace` modules.
+- **Implication:** The Phase 4 inventory adapter must pass explicit lockfiles (or check for exit 128 / zero sources) and report "no package sources" as `UNRESOLVED`, never as clean. That's the silent-skip failure the SPEC exists to prevent.
+
+### F-041
+- **Date:** 2026-10-21 · **Status:** confirmed (observed). Refines F-026 with the Phase 1 pipeline.
+- **Question:** How many upstream advisories are in limbo, re-measured with OSV-Scanner inventory?
+- **Method:** Phase 1 pipeline (research/2026-10-state-of-the-gap):
+  - 5 projects; inventory from OSV-Scanner v2.7.0 across all lockfiles (11,959 entries);
+  - deps.dev / Go-path mapping;
+  - repo advisories polled for 3,357 upstreams;
+  - OSV check for every GHSA, and GitHub global API for every OSV miss plus 200 random OSV hits.
+- **Result:**
+  - **294 of 1,949 advisories (15.1%) in limbo**: 199 without a CVE, 17 with a reserved CVE (RBP), 78 with a published CVE.
+  - **All 294 confirmed 404** in the global DB; the OSV-present sample was reviewed in 200 of 200.
+  - Reviewed: 1,455 with a CVE, 200 without (10.3%).
+  - Limbo age: median 10.3 days, p90 97.5, 37 over 90 days, max 2,614.
+  - Severity: critical 12, high 116, medium 134, low 32.
+  - Mapping: 96.2% of 6,922 unique package-versions (attested provenance for 1,832).
+- **Implication:** F-026's 18.2% came from a different inventory method and date. The current measure is 13.9–15.1% (F-045). OSV-by-GHSA presence is now validated on 494 directly confirmed cases.
+
+### F-042
+- **Date:** 2026-10-21 · **Status:** confirmed (observed). **Supersedes F-010 and F-011.** Answers Q2.
+- **Question:** How long does GitHub review take, on a large sample?
+- **Method:** The 1,000 most recently reviewed advisories (reviewed 2026-09-22 → 2026-10-21); 992 originated as repo advisories. Repo advisory `published_at` vs global `github_reviewed_at`; CVE `datePublished` via CVE Services.
+- **Result:**
+  - Review lag: **median 26.6 days**, p25 13.3, p75 58.6, p90 90.7, max 2,272.7. **94.2% over 72 hours; 47.9% over 30 days.**
+  - Of 866 with CVE dates, 780 (90%) had the CVE published before review, a median of 0.97 days earlier.
+  - Repo publication to CVE publication: median 18.1 days.
+  - 114 of 1,000 (11.4%) reviewed without a CVE.
+- **Implication:** F-010's 55-day median (n=40) was one backlog batch (that was Q2's suspicion). The typical wait is about 4 weeks, still far above the documented 72 hours (F-019). CVE publication mostly happens just before review, so the repo advisory is the only early signal for most of the window.
+
+### F-043
+- **Date:** 2026-10-21 · **Status:** confirmed (observed; examples re-verified live the same day). Refines F-027 and F-033.
+- **Question:** Do popular projects ship versions affected by advisories in limbo that a scanner reports clean?
+- **Result:**
+
+  | Project | Affected package-versions | Reported clean by OSV-Scanner |
+  |---|---|---|
+  | gitea | 6 | 4 |
+  | kubernetes | 3 | 3 |
+  | langchain | 22 | 20 |
+  | n8n | 29 | 23 |
+  | open-webui | 18 | 9 |
+
+  Likely duplicates are excluded; total reported clean: 59. "Reported clean" means OSV-Scanner reports no vulnerability at all for the package-version. Fifteen high/critical examples were re-checked on 2026-10-21: global 404, not reported by OSV-Scanner, not a likely duplicate. For example kubernetes `github.com/dlclark/regexp2/v2@2.2.1` (GHSA-wq9v-j77v-qr26, CVE reserved, 102 days) and langchain/open-webui `authlib@1.7.2` (GHSA-6v38-4h7w-rj9h, critical, CVE published).
+- **Implication:** This is the report's core claim, measured on real lockfiles at pinned commits.
+
+### F-044
+- **Date:** 2026-10-21 · **Status:** confirmed (observed). Refines F-030.
+- **Question:** Which range forms do maintainers write, and how far can tolerant parsing go?
+- **Result:**
+  - Beyond F-030's forms, the data contains:
+    - Unicode `≤`/`≥`;
+    - `;` as OR (`< 6.24.0; 7.0.0 < 7.24.0`);
+    - bare-lower-then-upper (`7.0.0 < 7.29.0` meaning `>= 7.0.0, < 7.29.0`);
+    - `0.15.0 and earlier`;
+    - commas used as OR (`<1.1.17, >= 2.0.0 < 2.1.3, 4.0.0 - 5.0.7`), detected because the AND reading is contradictory.
+  - With these handled, unparseable ranges fell from 278 to **65 of 1,397 package matches (4.7%)**. The rest are prose (`all`, `All version prior and including to 8.0.0, 7.31.0, 5.10`), deliberately left `unknown`.
+  - 116 advisory matches carry no package data at all (repo-only).
+  - 10 advisories cite CVE IDs whose state is `REJECTED`.
+- **Implication:** The Phase 2 evaluator should start from this parser (`research/.../scripts/common.py`, 20 self-check cases) and keep prose as `UNRESOLVED(range_unparseable)`.
+
+### F-045
+- **Date:** 2026-10-21 · **Status:** tentative (heuristic). Refines F-028.
+- **Question:** With stronger signals, how many limbo advisories are duplicates of reviewed ones?
+- **Method:** For each of 163 limbo advisories matching project dependencies, compared against reviewed advisories of the same package (`/advisories?type=reviewed&ecosystem=&affects=`): same CVE ID, shared fix commit or PR reference, summary similarity.
+- **Result:**
+  - **23 (14%) likely duplicates** (similarity ≥ 0.6); 115 below 0.6; 25 had no reviewed advisories to compare.
+  - **No same-CVE or shared-fix-reference matches**: repo advisories have no `references` field, so only URLs in descriptions are usable.
+  - The other 131 limbo advisories (not matching our dependencies) were not checked.
+- **Implication:** Duplicate detection stays text-based for now. Q8 remains open. Report limbo as a range (13.9–15.1%).
+
+### F-046
+- **Date:** 2026-10-21 · **Status:** confirmed (observed, sampled). Refines F-031.
+- **Result:**
+  - **Published CVEs on advisories in limbo (n=65):** absent from NVD 10; not enriched 38 (Received 25, Awaiting Analysis 9, Undergoing 2, Deferred 2); enriched 17.
+  - **Random sample on reviewed advisories (n=60):** enriched 32; not enriched 27 (Deferred 10, Awaiting 6, Undergoing 6, Received 2, Rejected 3); absent 1.
+- **Implication:** About 45% of reviewed CVEs on real dependencies are unenriched in NVD, consistent with F-031.
+
+### F-047
+- **Date:** 2026-10-21 · **Status:** confirmed (observed)
+- **Question:** What personal data do repository advisory API objects carry?
+- **Result:** Each object includes `author` and `publisher` (when present), `credits`, `credits_detailed`, `collaborating_users` and `collaborating_teams` (GitHub accounts of real people), plus the full `description`.
+- **Implication:**
+  - Raw advisory objects must not be redistributed. The Phase 1 dataset keeps only IDs, states, dates, ranges and links; `.gitignore` excludes the intermediate JSON.
+  - The Phase 2 limbo feed and site must apply the same rule.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
+
+### F-010
+- **Date:** 2026-10-19 · **Status:** superseded by [F-042](#f-042) (n=40 single batch; backlog bias confirmed)
+- **Method:** The 40 most recently reviewed advisories with `repository_advisory_url`. Compared the repo advisory's `published_at` with the global `github_reviewed_at`.
+- **Result:** Repo publication to review: min 73 h, p25 24 days, **median 55 days**, p75 80 days, max 114 days. All 40 were over 72 h. All were reviewed between 2026-10-15 20:15 and 2026-10-16 21:15 UTC, though published between 2026-06-24 and 2026-10-13, which suggests batch review. Manual check: `GHSA-pw5q-rjx4-7f7p` (getarcaneapp/arcane) was published in the repo on 2026-07-29 and reviewed on 2026-10-16. Ecosystems: go 21, pip 8, npm 6, rust 2, maven, erlang, pub.
+- **Implication:** Core product premise holds, with a much larger window than GitHub's documented 72 hours.
+
+### F-011
+- **Date:** 2026-10-19 · **Status:** superseded by [F-042](#f-042) (n=38). CVE-before-review held; repo→CVE is 18 days at scale, not 47
+- **Method:** Same sample as F-010; CVE `datePublished` from cveawg.
+- **Result:** The CVE was published **before** review in 38 of 38 cases (median 39 h earlier, up to about 100 days earlier). Repo publication to CVE publication: median about 47 days (min −153 h: one CVE was published *before* the repo advisory). CNAs: GitHub_M 36, JFROG 1, EEF 1.
+- **Implication:** Window A (repo only, no public CVE) is usually the longest. Window B (CVE public, not reviewed) is shorter but can be long.
+

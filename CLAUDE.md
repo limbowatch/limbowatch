@@ -48,4 +48,16 @@ Private repo `git@github.com:blueandhack/Limbowatch.git` (renamed from GhostCVE;
 
 ## Commands
 
-None yet. Phase 2 scaffolds uv/ruff/mypy/pytest. Add the exact commands here then.
+Product code doesn't exist yet; Phase 2 scaffolds uv/ruff/mypy/pytest. Add those commands here then.
+
+Research pipeline (Phase 1 report), from `research/2026-10-state-of-the-gap/scripts/`. It needs uv, go and git, plus a GitHub token via `gh auth token` or `GITHUB_TOKEN`; `NVD_API_KEY` is optional.
+
+```sh
+export SNAPSHOT_DATE=2026-10-21   # or $(date +%F) for a new snapshot
+uv run s1_inventory.py && uv run s2_map.py && uv run s3_poll.py && uv run s4_status.py \
+  && uv run s5_review_lag.py && uv run s6_analyze.py && uv run s7_charts.py
+uv run --with httpx --with univers python common.py   # range-parser self-check
+uvx ruff check --line-length 140 --select E,F,W,B --ignore E501,B905,B007 .
+```
+
+HTTP responses are cached in `research/**/.cache/` (gitignored). Intermediate `data/**/*.json` (except `summary.json`) holds advisory text and personal data (F-047). It's gitignored and must never be committed.

@@ -1,0 +1,126 @@
+cve_id,cna_cvss,cpe_configs,group,nist_cvss,status
+CVE-2020-15257,True,True,reviewed,True,Modified
+CVE-2020-26232,True,True,reviewed,True,Modified
+CVE-2020-7660,False,True,reviewed,True,Modified
+CVE-2023-25153,True,True,reviewed,True,Modified
+CVE-2023-4807,True,True,reviewed,True,Modified
+CVE-2024-26130,True,True,reviewed,True,Analyzed
+CVE-2024-47764,True,False,reviewed,False,Deferred
+CVE-2025-27210,True,False,limbo,False,Deferred
+CVE-2025-66418,True,True,reviewed,True,Analyzed
+CVE-2025-66471,True,True,reviewed,True,Analyzed
+CVE-2025-68480,True,False,reviewed,False,Deferred
+CVE-2025-69224,True,True,reviewed,True,Analyzed
+CVE-2026-101899,True,False,reviewed,False,Awaiting Analysis
+CVE-2026-101900,True,False,reviewed,False,Undergoing Analysis
+CVE-2026-101909,True,False,reviewed,False,Undergoing Analysis
+CVE-2026-101911,True,False,reviewed,False,Deferred
+CVE-2026-101917,True,True,reviewed,True,Analyzed
+CVE-2026-102272,True,True,reviewed,False,Analyzed
+CVE-2026-102521,True,False,limbo,False,Awaiting Analysis
+CVE-2026-102995,True,True,reviewed,True,Analyzed
+CVE-2026-103001,True,True,reviewed,False,Analyzed
+CVE-2026-103923,True,False,reviewed,False,Awaiting Analysis
+CVE-2026-109383,True,True,limbo,True,Analyzed
+CVE-2026-109461,True,False,limbo,False,Awaiting Analysis
+CVE-2026-109527,True,False,limbo,False,Awaiting Analysis
+CVE-2026-109829,True,True,limbo,True,Analyzed
+CVE-2026-109841,True,True,limbo,True,Analyzed
+CVE-2026-109869,True,True,limbo,False,Analyzed
+CVE-2026-109924,True,True,limbo,True,Analyzed
+CVE-2026-109932,True,True,limbo,True,Analyzed
+CVE-2026-110095,True,False,limbo,False,Awaiting Analysis
+CVE-2026-110180,True,False,limbo,False,Awaiting Analysis
+CVE-2026-110306,True,False,limbo,False,Awaiting Analysis
+CVE-2026-110725,True,False,limbo,False,Awaiting Analysis
+CVE-2026-110816,True,False,limbo,False,Awaiting Analysis
+CVE-2026-111064,True,False,reviewed,False,Undergoing Analysis
+CVE-2026-111758,True,False,reviewed,False,Received
+CVE-2026-111767,True,False,reviewed,False,Deferred
+CVE-2026-112398,True,False,limbo,False,Undergoing Analysis
+CVE-2026-112892,True,False,reviewed,False,Undergoing Analysis
+CVE-2026-112894,True,False,reviewed,False,Undergoing Analysis
+CVE-2026-112899,,,reviewed,,absent
+CVE-2026-112907,,,limbo,,absent
+CVE-2026-112908,,,limbo,,absent
+CVE-2026-112909,True,False,limbo,False,Undergoing Analysis
+CVE-2026-112910,,,limbo,,absent
+CVE-2026-112911,True,True,limbo,False,Analyzed
+CVE-2026-112912,True,True,limbo,False,Analyzed
+CVE-2026-112913,,,limbo,,absent
+CVE-2026-112915,True,True,limbo,False,Analyzed
+CVE-2026-112934,True,True,limbo,False,Analyzed
+CVE-2026-112935,True,True,limbo,False,Analyzed
+CVE-2026-112936,True,True,limbo,False,Analyzed
+CVE-2026-112938,,,limbo,,absent
+CVE-2026-112939,True,True,limbo,False,Analyzed
+CVE-2026-112940,True,True,limbo,False,Analyzed
+CVE-2026-113789,True,False,limbo,False,Received
+CVE-2026-113790,True,False,limbo,False,Received
+CVE-2026-113791,True,False,limbo,False,Received
+CVE-2026-113792,True,False,reviewed,False,Received
+CVE-2026-113796,True,False,limbo,False,Received
+CVE-2026-113797,True,False,limbo,False,Received
+CVE-2026-113798,True,False,limbo,False,Received
+CVE-2026-114121,True,False,limbo,False,Received
+CVE-2026-114122,True,False,limbo,False,Received
+CVE-2026-114124,True,False,limbo,False,Received
+CVE-2026-114126,True,False,limbo,False,Received
+CVE-2026-114141,True,False,limbo,False,Received
+CVE-2026-114143,True,False,limbo,False,Received
+CVE-2026-114144,True,False,limbo,False,Received
+CVE-2026-114145,True,False,limbo,False,Received
+CVE-2026-114501,True,False,limbo,False,Received
+CVE-2026-13697,True,True,reviewed,True,Analyzed
+CVE-2026-14257,True,True,reviewed,False,Analyzed
+CVE-2026-16728,True,True,reviewed,True,Analyzed
+CVE-2026-26278,True,True,reviewed,False,Modified
+CVE-2026-34180,True,True,reviewed,False,Analyzed
+CVE-2026-34452,True,True,reviewed,True,Analyzed
+CVE-2026-34518,True,True,reviewed,True,Analyzed
+CVE-2026-39865,True,True,reviewed,False,Modified
+CVE-2026-39892,True,True,reviewed,True,Modified
+CVE-2026-42338,True,True,reviewed,True,Modified
+CVE-2026-44495,True,True,reviewed,True,Modified
+CVE-2026-46508,True,True,limbo,True,Analyzed
+CVE-2026-49265,True,False,reviewed,False,Deferred
+CVE-2026-53571,True,True,reviewed,True,Analyzed
+CVE-2026-54275,True,True,reviewed,True,Analyzed
+CVE-2026-54278,True,True,reviewed,True,Analyzed
+CVE-2026-59890,True,True,reviewed,False,Analyzed
+CVE-2026-59935,True,True,reviewed,True,Analyzed
+CVE-2026-59936,True,True,reviewed,True,Analyzed
+CVE-2026-59980,True,False,reviewed,False,Deferred
+CVE-2026-63325,True,False,limbo,False,Deferred
+CVE-2026-63349,True,False,reviewed,False,Awaiting Analysis
+CVE-2026-63402,,,limbo,,absent
+CVE-2026-68943,False,False,reviewed,False,Rejected
+CVE-2026-68944,False,False,reviewed,False,Rejected
+CVE-2026-69125,False,False,reviewed,False,Rejected
+CVE-2026-69153,True,True,reviewed,True,Analyzed
+CVE-2026-69243,True,False,reviewed,False,Undergoing Analysis
+CVE-2026-76219,True,True,reviewed,False,Analyzed
+CVE-2026-77299,,,limbo,,absent
+CVE-2026-77354,True,False,reviewed,False,Deferred
+CVE-2026-77356,,,limbo,,absent
+CVE-2026-77415,True,False,reviewed,False,Deferred
+CVE-2026-82417,True,False,reviewed,False,Awaiting Analysis
+CVE-2026-82562,True,False,reviewed,False,Awaiting Analysis
+CVE-2026-83615,True,False,reviewed,False,Deferred
+CVE-2026-85730,True,False,reviewed,False,Deferred
+CVE-2026-87018,True,True,limbo,False,Analyzed
+CVE-2026-87029,True,True,limbo,True,Analyzed
+CVE-2026-8723,True,False,reviewed,False,Awaiting Analysis
+CVE-2026-96636,True,False,limbo,False,Received
+CVE-2026-96637,True,False,limbo,False,Received
+CVE-2026-96638,True,False,limbo,False,Received
+CVE-2026-96639,True,False,limbo,False,Received
+CVE-2026-96640,True,False,limbo,False,Received
+CVE-2026-96641,True,False,limbo,False,Received
+CVE-2026-96642,True,False,limbo,False,Received
+CVE-2026-96643,True,False,limbo,False,Received
+CVE-2026-96644,True,False,limbo,False,Received
+CVE-2026-96760,True,False,limbo,False,Awaiting Analysis
+CVE-2026-96778,True,False,limbo,False,Received
+CVE-2026-97698,,,limbo,,absent
+CVE-2026-97699,,,limbo,,absent
