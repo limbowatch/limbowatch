@@ -33,6 +33,7 @@ Mention in chat when you add entries, and cite IDs (e.g. "see F-012").
 - When an API's behavior or schema is uncertain, check the official docs. If they are silent, probe the live API with read-only requests and record what you found. Don't guess.
 - Live probes are for research only. Tests never hit the network; they use recorded fixtures.
 - Use `gh api` for authenticated GitHub calls. Never print, log or commit tokens.
+- Verify claims automatically from primary sources (GitHub, OSV, CVE Services/CVE List, NVD), never from web search or AI summaries, which mis-pair IDs (F-049). Don't ask people to verify by hand.
 - Keep raw probe output in the session scratchpad. Commit only the summarized results, or small fixtures once the test suite exists.
 
 ## Hard rules (from SPEC)
@@ -55,7 +56,8 @@ Research pipeline (Phase 1 report), from `research/2026-10-state-of-the-gap/scri
 ```sh
 export SNAPSHOT_DATE=2026-10-21   # or $(date +%F) for a new snapshot
 uv run s1_inventory.py && uv run s2_map.py && uv run s3_poll.py && uv run s4_status.py \
-  && uv run s5_review_lag.py && uv run s6_analyze.py && uv run s7_charts.py
+  && uv run s5_review_lag.py && uv run s8_verify.py && uv run s6_analyze.py && uv run s7_charts.py
+# s8 needs the CVE List bulk export at research/2026-10-state-of-the-gap/.cache/cvelist/all.zip.zip (cvelistV5 releases)
 uv run --with httpx --with univers python common.py   # range-parser self-check
 uvx ruff check --line-length 140 --select E,F,W,B --ignore E501,B905,B007 .
 ```

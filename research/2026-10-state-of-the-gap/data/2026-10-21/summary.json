@@ -61,12 +61,14 @@
    "medium": 134
   },
   "count": 294,
-  "count_excluding_likely_duplicates": 271,
+  "count_excluding_likely_duplicates": 290,
+  "count_excluding_possible_duplicates": 286,
   "duplicate_signals": {
-   "not_checked": 156,
-   "summary_similarity": 138
+   "not_checked": 168,
+   "summary_similarity": 126
   },
-  "likely_duplicates": 23,
+  "likely_duplicates": 4,
+  "possible_duplicates": 4,
   "share": 0.1508,
   "unsupported_ecosystem_likely_permanent": 5
  },
@@ -110,12 +112,12 @@
  "osv_scanner": "v2.7.0",
  "per_project": {
   "go-gitea/gitea": {
-   "affected_packages": 6,
+   "affected_packages": 7,
    "affected_packages_osv_scanner_reports_clean": 4,
    "commit": "7e164fe61a65ba6320fbb84069d422fed6d44e0d",
    "high_or_critical": 9,
-   "limbo_advisories_affecting": 15,
-   "limbo_findings_excluding_likely_duplicates": 15,
+   "limbo_advisories_affecting": 19,
+   "limbo_findings_excluding_likely_duplicates": 19,
    "limbo_findings_needing_review": 0,
    "limbo_findings_version_affected": 19,
    "lockfiles": 3,
@@ -146,24 +148,24 @@
    "packages": 2513
   },
   "n8n-io/n8n": {
-   "affected_packages": 29,
-   "affected_packages_osv_scanner_reports_clean": 23,
+   "affected_packages": 36,
+   "affected_packages_osv_scanner_reports_clean": 26,
    "commit": "58f11bf0cf5e384efa7f6818fc940ff5ed8200a9",
-   "high_or_critical": 20,
-   "limbo_advisories_affecting": 43,
-   "limbo_findings_excluding_likely_duplicates": 55,
+   "high_or_critical": 25,
+   "limbo_advisories_affecting": 59,
+   "limbo_findings_excluding_likely_duplicates": 94,
    "limbo_findings_needing_review": 9,
    "limbo_findings_version_affected": 94,
    "lockfiles": 4,
    "packages": 4124
   },
   "open-webui/open-webui": {
-   "affected_packages": 18,
+   "affected_packages": 19,
    "affected_packages_osv_scanner_reports_clean": 9,
    "commit": "91ea4e3421d1d8069f13d4a463fcb5986d94ea60",
-   "high_or_critical": 23,
-   "limbo_advisories_affecting": 61,
-   "limbo_findings_excluding_likely_duplicates": 122,
+   "high_or_critical": 27,
+   "limbo_advisories_affecting": 75,
+   "limbo_findings_excluding_likely_duplicates": 142,
    "limbo_findings_needing_review": 5,
    "limbo_findings_version_affected": 142,
    "lockfiles": 5,
@@ -245,5 +247,16 @@
   },
   "repos_polled": 3357,
   "repos_with_advisories": 310
+ },
+ "verification": {
+  "checked_at": "2026-10-22T08:54:24Z",
+  "cve_list_release": "cve_2026-10-22_0800Z",
+  "cve_records_scanned": 412863,
+  "verdicts": {
+   "DUPLICATE_SAME_CVE_REVIEWED": 4,
+   "IN_LIMBO_CITED_CVE_CONFLICT": 2,
+   "IN_LIMBO_POSSIBLE_DUPLICATE": 2,
+   "VERIFIED_IN_LIMBO": 286
+  }
  }
 }

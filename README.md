@@ -10,9 +10,9 @@ When a maintainer publishes a security advisory in their GitHub repository, Depe
 
 📊 **[State of the Gap (October 2026)](research/2026-10-state-of-the-gap/README.md)**, *draft*. Main findings (snapshot 2026-10-21):
 
-- **About 1 in 7 upstream advisories is in limbo.** That's 294 of 1,949 advisories (15.1%) in the upstream repos of five popular projects (271, or 13.9%, excluding likely duplicates).
+- **About 1 in 7 upstream advisories is in limbo.** That's 294 of 1,949 advisories (15.1%) in the upstream repos of five popular projects, or 14.7–15.1% after automated duplicate checks. All 294 were verified automatically against primary sources.
 - **The median wait for GitHub review is 27 days.** 94% of advisories wait longer than GitHub's 72-hour target, and 48% longer than 30 days.
-- **Every project checked ships affected versions that a scanner reports as clean.** That's 59 package-versions across gitea, kubernetes, n8n, open-webui and langchain that OSV-Scanner reports as having no known vulnerabilities.
+- **Every project checked ships affected versions that a scanner reports as clean.** That's 62 package-versions across gitea, kubernetes, n8n, open-webui and langchain that OSV-Scanner reports as having no known vulnerabilities.
 - **CVEs lag too.** 17 CVE IDs are reserved but public, the oldest for 113 days. Many CVEs on these advisories also aren't enriched in NVD.
 
 The methods, open dataset (CC BY 4.0) and scripts to reproduce it are in the [report folder](research/2026-10-state-of-the-gap/).

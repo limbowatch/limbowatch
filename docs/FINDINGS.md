@@ -4,18 +4,18 @@
 
 What we've verified or measured while building Limbowatch. Maintenance rules are in [CLAUDE.md](../CLAUDE.md#findings-report-docsfindingsmd).
 
-Last summarized: 2026-10-21 (end of Phase 1)
+Last summarized: 2026-10-22 (Phase 1, after automated verification)
 
 ## Summary
 
 Current understanding (Phase 1, 2026-10-21), with entries linked:
 
-1. **About 1 in 7 upstream advisories is in limbo.** In the 3,357 upstreams of 5 popular projects, 294 of 1,949 published repo advisories (15.1%; 13.9% without likely duplicates) are in neither GitHub's reviewed DB nor OSV, all confirmed by the global API ([F-041](#f-041), [F-045](#f-045)). 68% of them have no CVE.
+1. **About 1 in 7 upstream advisories is in limbo.** In the 3,357 upstreams of 5 popular projects, 294 of 1,949 published repo advisories (15.1%; 14.7–15.1% after duplicate checks) are in neither GitHub's reviewed DB nor OSV, all confirmed by the global API ([F-041](#f-041), [F-048](#f-048)). 68% of them have no CVE, and no CVE List record references them ([F-049](#f-049)).
 2. **The median wait for GitHub review is about 4 weeks.** 26.6 days on 992 recent reviews; 94% over the documented 72 hours, 48% over 30 days ([F-042](#f-042), [F-019](#f-019)). GitHub attributes this to throughput, more than 5,000 repo advisories a week, with no plan to alert before review ([F-035](#f-035)).
-3. **Real projects ship affected versions that scanners report clean.** Across gitea, kubernetes, n8n, open-webui and langchain, 59 package-versions affected by advisories in limbo have no known vulnerability according to OSV-Scanner ([F-043](#f-043)).
+3. **Real projects ship affected versions that scanners report clean.** Across gitea, kubernetes, n8n, open-webui and langchain, 62 package-versions affected by advisories in limbo have no known vulnerability according to OSV-Scanner ([F-043](#f-043)).
 4. **Before review, an advisory is invisible everywhere scanners look.** It's not in the global DB, not even as `unreviewed`; at most OSV has a `CVE-*` record with GIT ranges and no package ([F-012](#f-012)). CVE records mostly appear about a day before review, 18 days after repo publication ([F-042](#f-042)).
 5. **The lifecycle is not linear.** 11% of reviewed advisories never get a CVE ([F-016](#f-016), [F-042](#f-042)). Some CVE IDs stay *reserved but public* (17 in limbo, up to 113 days; [F-029](#f-029), [F-041](#f-041)). Other-CNA CVEs are almost never reviewed and their unreviewed records have no package data ([F-017](#f-017)). Model facts independently.
-6. **Repo-advisory data is noisy.** Duplicates under another GHSA ID (~14%, [F-045](#f-045)); free-form ranges (4.7% unparseable after tolerant parsing, [F-044](#f-044)); wrong package names ([F-014](#f-014)); unsupported ecosystems that will likely never be reviewed ([F-015](#f-015)).
+6. **Repo-advisory data is noisy.** Duplicates under another GHSA ID (4 proven by a shared CVE, 4 possible, [F-048](#f-048)); CVE IDs of other products cited ([F-049](#f-049)); free-form ranges (4.7% unparseable after tolerant parsing, [F-044](#f-044)); wrong package names ([F-014](#f-014)); unsupported ecosystems that will likely never be reviewed ([F-015](#f-015)).
 7. **NVD lags as well.** New non-priority CVEs are `Deferred` at once ([F-005](#f-005), [F-018](#f-018)). About 45% of reviewed CVEs on real dependencies are unenriched ([F-046](#f-046)).
 8. **Global signals exist for part of the window.** The cvelistV5 delta log gives GitHub-CNA CVEs with GHSA links and owner/repo ([F-013](#f-013)). `cveawg /api/cve-id/` exposes RBP state ([F-029](#f-029)). OSV-by-GHSA is a free, validated proxy for "reviewed" ([F-041](#f-041)).
 9. **Reuse, don't rebuild.** OSV-Scanner provides inventory for about 25 lockfile types ([F-032](#f-032)), but needs explicit lockfiles to avoid a silent empty scan ([F-040](#f-040)). deps.dev maps 96% of packages to repos ([F-020](#f-020), [F-041](#f-041)); univers compares versions ([F-022](#f-022)). OSV-Scanner can't load custom DBs ([F-039](#f-039)).
@@ -23,6 +23,7 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
 11. **Repo advisories contain personal data** (author, credits): never redistribute raw objects ([F-047](#f-047)).
 12. **GitLab specifics:** SARIF ingestion is Ultimate-only (GA 19.2) and treats CVE-less findings as SAST ([F-008](#f-008)). GitLab's advisory DB can't be queried ([F-038](#f-038)).
 13. **More languages are feasible in layers:** deps.dev (7 systems), then ecosyste.ms (~100 registries, CC BY-SA), then repo-only matching for languages GitHub doesn't review ([F-020](#f-020), [F-021](#f-021), [F-023](#f-023)).
+14. **Verify automatically, from primary sources only.** Search results and AI summaries mis-pair advisory and CVE IDs. Stage 8 verifies every advisory in limbo (live re-check, cited-CVE consistency, full CVE List reverse lookup, cross-ID review) and records the verdicts ([F-049](#f-049)).
 
 ## Open questions
 
@@ -33,7 +34,7 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
 - Q5. Is "Not Scheduled" ever an NVD API `vulnStatus` value, or always `Deferred`? ([F-005](#f-005))
 - Q6. Does ecosyste.ms's CC BY-SA 4.0 data license constrain Limbowatch? *Partly answered 2026-10-20: open source, so no commercial license is needed. Share-alike applies to redistributed derived data; use at runtime with a local cache only, with attribution. Revisit before 1.0.* ([F-021](#f-021))
 - Q7. How do we reliably detect packaging/recipe repos (conan-center-index, homebrew-core, distro packaging) so they aren't treated as upstream? ([F-021](#f-021))
-- Q8. How do we reliably detect that a limbo advisory was reviewed under a different GHSA ID, and what's the true duplicate rate? Text similarity only so far ([F-028](#f-028), [F-045](#f-045)).
+- Q8. How do we reliably detect that a limbo advisory was reviewed under a different GHSA ID when no CVE is shared? Shared CVEs prove 4; title overlap flags 4 more ([F-048](#f-048)). Advisories without a CVE remain undecidable by text alone.
 - ~~Q9. Build separately, contribute upstream, or build only the layers blindspot lacks?~~ **Answered 2026-10-21: plan rev 5 approved. Report → tracker + limbo feed → upstream contributions → watcher. Renamed to Limbowatch ([F-036](#f-036), [F-037](#f-037)).**
 - Q10. Under what terms may repository advisory content be redistributed? This decides whether the limbo feed can include summaries or descriptions, or only IDs and links ([F-047](#f-047)). Needed for Phase 2.
 
@@ -443,16 +444,6 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
   - 10 advisories cite CVE IDs whose state is `REJECTED`.
 - **Implication:** The Phase 2 evaluator should start from this parser (`research/.../scripts/common.py`, 20 self-check cases) and keep prose as `UNRESOLVED(range_unparseable)`.
 
-### F-045
-- **Date:** 2026-10-21 · **Status:** tentative (heuristic). Refines F-028.
-- **Question:** With stronger signals, how many limbo advisories are duplicates of reviewed ones?
-- **Method:** For each of 163 limbo advisories matching project dependencies, compared against reviewed advisories of the same package (`/advisories?type=reviewed&ecosystem=&affects=`): same CVE ID, shared fix commit or PR reference, summary similarity.
-- **Result:**
-  - **23 (14%) likely duplicates** (similarity ≥ 0.6); 115 below 0.6; 25 had no reviewed advisories to compare.
-  - **No same-CVE or shared-fix-reference matches**: repo advisories have no `references` field, so only URLs in descriptions are usable.
-  - The other 131 limbo advisories (not matching our dependencies) were not checked.
-- **Implication:** Duplicate detection stays text-based for now. Q8 remains open. Report limbo as a range (13.9–15.1%).
-
 ### F-046
 - **Date:** 2026-10-21 · **Status:** confirmed (observed, sampled). Refines F-031.
 - **Result:**
@@ -468,9 +459,50 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
   - Raw advisory objects must not be redistributed. The Phase 1 dataset keeps only IDs, states, dates, ranges and links; `.gitignore` excludes the intermediate JSON.
   - The Phase 2 limbo feed and site must apply the same rule.
 
+### F-048
+- **Date:** 2026-10-22 · **Status:** confirmed (observed). **Supersedes F-045.**
+- **Question:** Is summary similarity a reliable duplicate signal?
+- **Result:**
+  - **No, not character-level similarity.** Same-repo titles share boilerplate (`undici vulnerable to Denial of Service via …`, `fast-uri vulnerable to … via …`, `pypdf: Possible long runtimes …`). `difflib` ratios of 0.6–0.8 linked one undici advisory to 12 unrelated CVEs.
+  - **Strong evidence:** the advisory's own CVE is attached to a *different, reviewed* GHSA. This found **4 duplicates**: adm-zip GHSA-679w (CVE-2026-102282 → GHSA-j5f4), two prism advisories (CVE-2021-3801, CVE-2021-23341), MCP TS SDK GHSA-cqwc (CVE-2026-0621 → GHSA-8r9q).
+  - **Word-set Jaccard ≥ 0.6/0.7** gives 4 possible duplicates.
+  - F-045's 23 "likely duplicates" used the character ratio and overstated the correction. The limbo share is **14.7–15.1%**, not 13.9–15.1%.
+- **Implication:** For dedup, use shared CVE IDs (and the CVE List reverse lookup, F-049) as proof and title overlap only as a flag. Never subtract text-only matches from headline counts.
+
+### F-049
+- **Date:** 2026-10-22 · **Status:** confirmed (observed)
+- **Question:** Can every claim about an advisory in limbo be verified automatically, without manual checking?
+- **Trigger:** The user searched a limbo advisory's title (GHSA-wq9v-j77v-qr26, regexp2) on Google and was shown **CVE-2026-102274**. That is PyJWT's CVE (GitHub CNA, linked to GHSA-w6j9-cwv2-h6wq). The advisory itself cites CVE-2026-77299, still `RESERVED`. An independent page (delphix/ollama PR #29) confirms CVE-2026-77299. Search results and AI summaries can mis-pair IDs.
+- **Method:** Stage 8 (`s8_verify.py`) checks all 294 limbo advisories against primary sources only:
+  1. Live re-check of the repo advisory, global DB and OSV.
+  2. Cited-CVE consistency against the CVE List record.
+  3. Reverse lookup across the full CVE List bulk export (`cve_2026-10-22_0800Z`, 412,863 records, of which 991 touch our repos or GHSAs).
+  4. GitHub global DB by every linked CVE.
+- **Result** (2026-10-22 08:54 UTC):
+  - 286 verified in limbo; 4 duplicates (same CVE reviewed under another GHSA, F-048); 2 possible duplicates.
+  - **2 cite a CVE belonging to another product.** cdxgen GHSA-j59w-7c4x-4xgw cites Node.js CVE-2025-27210 (HackerOne CNA). MSAL GHSA-xcx6-jx8p-x3h5 cites Microsoft's CVE-2026-109461, whose record doesn't reference it.
+  - For the 199 without a CVE, no CVE List record references their GHSA ID.
+  - All 10 report examples verified.
+  - GitHub's single repo-advisory endpoint `GET /repos/{o}/{r}/security-advisories/{ghsa}` works authenticated and unauthenticated (an apparent 404 was a zsh word-splitting bug in our shell loop, not GitHub).
+- **Implication:**
+  - Verification is a pipeline stage, not a reader task.
+  - The tracker (Phase 2) should run it on every refresh and publish verdicts with timestamps.
+  - "Cited CVE belongs to another product" is a distinct, detectable data-quality state worth reporting to maintainers.
+  - The CVE List reverse index is also the matching engine for the cvelistV5 feed (F-013).
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
+
+### F-045
+- **Date:** 2026-10-21 · **Status:** superseded by [F-048](#f-048) (character-level similarity over-matched; strong duplicates are 4, not 23)
+- **Question:** With stronger signals, how many limbo advisories are duplicates of reviewed ones?
+- **Method:** For each of 163 limbo advisories matching project dependencies, compared against reviewed advisories of the same package (`/advisories?type=reviewed&ecosystem=&affects=`): same CVE ID, shared fix commit or PR reference, summary similarity.
+- **Result:**
+  - **23 (14%) likely duplicates** (similarity ≥ 0.6); 115 below 0.6; 25 had no reviewed advisories to compare.
+  - **No same-CVE or shared-fix-reference matches**: repo advisories have no `references` field, so only URLs in descriptions are usable.
+  - The other 131 limbo advisories (not matching our dependencies) were not checked.
+- **Implication:** Duplicate detection stays text-based for now. Q8 remains open. Report limbo as a range (13.9–15.1%).
 
 ### F-010
 - **Date:** 2026-10-19 · **Status:** superseded by [F-042](#f-042) (n=40 single batch; backlog bias confirmed)

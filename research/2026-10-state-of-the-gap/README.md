@@ -6,9 +6,9 @@
 
 ## Key numbers
 
-- **1 in 7 upstream advisories is in limbo.** Of 1,949 published advisories in the 310 upstream repos (of 3,357 polled) behind five popular projects, **294 (15.1%)** are in neither GitHub's reviewed database nor OSV. Excluding likely duplicates gives **271 (13.9%)**.
+- **1 in 7 upstream advisories is in limbo.** Of 1,949 published advisories in the 310 upstream repos (of 3,357 polled) behind five popular projects, **294 (15.1%)** are in neither GitHub's reviewed database nor OSV. After automated duplicate checks, it's **286–290 (14.7–15.1%)**.
 - **The median wait for review is 27 days.** For 992 advisories GitHub reviewed between 2026-09-22 and 2026-10-21, **94% waited longer than 72 hours and 48% longer than 30 days.**
-- **Every project we checked ships affected versions that a scanner reports as clean.** Across the five projects, **59 package-versions** are affected by advisories in limbo that OSV-Scanner reports as **clean** (no known vulnerability at all). That includes three in Kubernetes and four in Gitea.
+- **Every project we checked ships affected versions that a scanner reports as clean.** Across the five projects, **62 package-versions** are affected by advisories in limbo that OSV-Scanner reports as **clean** (no known vulnerability at all). That includes three in Kubernetes and four in Gitea.
 - **17 CVE IDs are "reserved but public".** The advisory is published, but the CVE record isn't. 15 of them are past the CVE Program's 72-hour expectation, and the oldest has waited 113 days.
 
 ## What "limbo" means
@@ -43,7 +43,7 @@ These events don't happen in a fixed order. Some advisories get a CVE first and 
 | Reviewed, with CVE | 1,455 | 74.7% |
 | **Total** | **1,949** | |
 
-- **Confirmed directly.** Each of the 294 advisories missing from OSV also returned *not found* from GitHub's global advisory API, so none of them is merely an OSV sync delay. In a random sample of 200 advisories present in OSV, all 200 were reviewed.
+- **Confirmed directly.** Each of the 294 advisories missing from OSV also returned *not found* from GitHub's global advisory API, so none of them is merely an OSV sync delay. In a random sample of 200 advisories present in OSV, all 200 were reviewed. Automated verification (below) then found that 4 are duplicates of an already-reviewed advisory with the same CVE, and 4 more are possible duplicates.
 - **No CVE yet, for most.** 199 of the 294 (68%) have no CVE ID at all. Tools keyed on CVE IDs can't track them either.
 - **A long tail.** 37 have been in limbo for more than three months, and one for over seven years. Five list an ecosystem GitHub doesn't review (e.g. C++), so they will likely never be reviewed.
 - **Mostly high or medium severity.** By the maintainers' own rating: 12 critical, 116 high, 134 medium, 32 low. Ecosystems: npm 138, pip 120, Go 25, Rust 9, plus a few in other or unspecified ecosystems (one advisory can list several).
@@ -99,15 +99,15 @@ We read every lockfile of five popular projects with OSV-Scanner v2.7.0 (11,959 
 
 | Project (commit) | Package entries | Affected package-versions | …reported clean by OSV-Scanner | Advisories in limbo affecting it | of which high/critical |
 |---|---:|---:|---:|---:|---:|
-| [go-gitea/gitea](https://github.com/go-gitea/gitea) (`7e164fe`) | 1,197 | 6 | 4 | 15 | 9 |
+| [go-gitea/gitea](https://github.com/go-gitea/gitea) (`7e164fe`) | 1,197 | 7 | 4 | 19 | 9 |
 | [kubernetes/kubernetes](https://github.com/kubernetes/kubernetes) (`006cdf8`) | 2,042 | 3 | 3 | 3 | 3 |
 | [langchain-ai/langchain](https://github.com/langchain-ai/langchain) (`45dae8c`) | 2,513 | 22 | 20 | 59 | 25 |
-| [n8n-io/n8n](https://github.com/n8n-io/n8n) (`58f11bf`) | 4,124 | 29 | 23 | 43 | 20 |
-| [open-webui/open-webui](https://github.com/open-webui/open-webui) (`91ea4e3`) | 2,083 | 18 | 9 | 61 | 23 |
+| [n8n-io/n8n](https://github.com/n8n-io/n8n) (`58f11bf`) | 4,124 | 36 | 26 | 59 | 25 |
+| [open-webui/open-webui](https://github.com/open-webui/open-webui) (`91ea4e3`) | 2,083 | 19 | 9 | 75 | 27 |
 
-Likely duplicates are excluded. "Reported clean" means OSV-Scanner reports *no* vulnerability at all for that package-version. A package can also have other, known vulnerabilities and still miss the advisory in limbo.
+Advisories already reviewed under another GHSA ID with the same CVE are excluded. "Reported clean" means OSV-Scanner reports *no* vulnerability at all for that package-version. A package can also have other, known vulnerabilities and still miss the advisory in limbo.
 
-**Examples, each re-checked on 2026-10-21:** still absent from GitHub's global database, not reported by OSV-Scanner for that version, and not a likely duplicate.
+**Examples.** Each one was automatically verified on 2026-10-22 at 08:54 UTC (`verification.csv`): the repo advisory is still published, it's absent from GitHub's global database and from OSV, OSV-Scanner doesn't report it for that version, and it isn't a duplicate. Any cited CVE matches the CVE List. For those without a CVE, no CVE record anywhere references them.
 
 | Package@version (ecosystem) | Used by | Advisory | Severity | CVE status | Days in limbo | Fixed in |
 |---|---|---|---|---|---:|---|
@@ -128,6 +128,24 @@ Likely duplicates are excluded. "Reported clean" means OSV-Scanner reports *no* 
 
 - **Reserved but public (RBP).** 17 advisories in limbo cite a CVE ID whose record is still `RESERVED`, which you can check with CVE Services' public `cve-id` endpoint. The median wait is 11 days, 15 are past the 72 hours the CVE Program's RBP policy expects (see [rbptracker.org](https://rbptracker.org)), and the oldest has waited 113 days.
 - **NVD.** NVD has no record for 10 of the 65 published CVEs on advisories in limbo, and 38 more aren't enriched (Received, Awaiting/Undergoing Analysis or Deferred). Even after GitHub review, 27 of a random 60 CVEs on reviewed advisories have neither NIST CVSS nor CPE data (3 of them are rejected CVEs). Tools that match on NVD CPEs miss them too.
+
+## Automated verification
+
+Nobody should have to check these claims by hand. Web search results and AI summaries can pair an advisory with the wrong CVE, so every advisory in limbo is checked automatically against primary sources only:
+
+1. **Live re-check** (no cache) of the repository advisory, GitHub's global database and OSV.
+2. **Cited-CVE consistency.** CVE Services state, and whether the CVE List record for the cited CVE references this advisory or its repository.
+3. **Reverse lookup** across all 412,863 records of the CVE List (release `cve_2026-10-22_0800Z`). Any CVE that references the advisory's GHSA ID, or covers the same repository with a near-identical title.
+4. **Cross-ID review.** GitHub's global database for every linked CVE. A reviewed advisory under another GHSA ID with the same CVE is a duplicate.
+
+| Verdict (2026-10-22 08:54 UTC) | Advisories |
+|---|---:|
+| Verified in limbo | 286 |
+| Possible duplicate (similar title, same repo, reviewed under another ID) | 2 |
+| In limbo, but the cited CVE belongs to another product | 2 |
+| Duplicate: the same CVE is already reviewed under another GHSA ID | 4 |
+
+The two conflicting citations: a [cdxgen advisory](https://github.com/cdxgen/cdxgen/security/advisories/GHSA-j59w-7c4x-4xgw) cites the Node.js CVE-2025-27210, and an [MSAL advisory](https://github.com/AzureAD/microsoft-authentication-library-for-js/security/advisories/GHSA-xcx6-jx8p-x3h5) cites CVE-2026-109461, whose record doesn't reference it. Tools that key on CVE IDs can attach these advisories to the wrong vulnerability. For the 199 advisories in limbo without a CVE, no CVE record in the CVE List references them.
 
 ## What to do about it
 
@@ -156,14 +174,15 @@ Likely duplicates are excluded. "Reported clean" means OSV-Scanner reports *no* 
 | Advisories | `GET /repos/{owner}/{repo}/security-advisories?state=published` for every repo. 3,332 answered; 25 returned 404. |
 | Status | OSV `GET /v1/vulns/{GHSA}` for every advisory. GitHub `GET /advisories/{GHSA}` for every one missing from OSV, plus 200 random present ones. CVE Services `cve` and `cve-id`. NVD API 2.0 for every published CVE on an advisory in limbo, plus a random 60 on reviewed ones. |
 | Matching | Advisory package (ecosystem + normalized name) and the advisory's repo had to equal our mapped repo. The maintainer's range was evaluated against the exact version with [univers](https://github.com/aboutcode-org/univers) comparators. The parser accepts GHSA, npm-semver, hyphen, `;`/`\|\|` alternatives and common typos; anything else is "unknown" (65 of 1,397 package matches, plus 116 advisories without package data). |
-| Duplicates | For advisories in limbo that match our dependencies (163), we compared each against reviewed advisories of the same package: same CVE, same fix commit/PR, or summary similarity ≥ 0.6. That flagged 23 (14%) as likely duplicates reviewed under another GHSA ID. |
+| Duplicates | *Strong* (removed): the advisory's CVE is already reviewed under another GHSA ID (4). *Possible* (kept, flagged): word-overlap ≥ 0.6 with a reviewed advisory of the same package, or ≥ 0.7 with a CVE of the same repo that's reviewed under another ID (4). Character-level similarity was rejected, because same-repo titles share boilerplate. |
+| Verification | Stage 8, described in [Automated verification](#automated-verification): live re-check, cited-CVE consistency, CVE List reverse lookup and cross-ID review for all 294. |
 | Review lag | The 1,000 most recently reviewed advisories. Repo advisory `published_at` vs global `github_reviewed_at` (the global `published_at` equals the review time). |
 
 ## Limitations
 
 - **Small sample.** Five projects and their upstream repos are a sample, not a census. Repos that never publish advisories contribute nothing.
 - **Maintainer data can be wrong.** Ranges and package names in unreviewed advisories are entered by maintainers. Fixing that is part of what GitHub's review does.
-- **Duplicates are estimated.** Duplicate detection is heuristic, and we checked only the 163 advisories matching our dependencies, so the true limbo share is somewhere between 13.9% and 15.1%.
+- **Duplicates without a shared CVE can't be proven.** Two advisories about the same bug that share no CVE (most limbo advisories have none) can only be flagged by title. We report 14.7–15.1% to cover that.
 - **OSV-Scanner stands in for "scanners".** Other tools have their own databases and may cover some of these (Snyk, Socket and GitLab's advisory database were not tested; GitLab's terms don't allow automated querying).
 - **NVD figures are sampled.** NVD numbers come from the CVEs we sampled. Every number is as of 2026-10-21 and will drift.
 
@@ -186,6 +205,7 @@ Everything is in [`data/2026-10-21/`](data/2026-10-21/). It has IDs, states, dat
 | `review_lag.csv` | 992 reviewed advisories: publication, review, CVE dates |
 | `nvd.csv` | NVD status of sampled CVEs |
 | `unresolved.csv` | entries we couldn't check, with the reason |
+| `verification.csv` | the automated verification of all 294 advisories in limbo: every check, linked CVEs and verdict, with a timestamp |
 
 To rerun (needs `uv`, `go` and `git`; a GitHub token from `gh auth token` or `GITHUB_TOKEN`; optional `NVD_API_KEY`):
 
@@ -193,8 +213,10 @@ To rerun (needs `uv`, `go` and `git`; a GitHub token from `gh auth token` or `GI
 cd research/2026-10-state-of-the-gap/scripts
 export SNAPSHOT_DATE=$(date +%F)
 uv run s1_inventory.py && uv run s2_map.py && uv run s3_poll.py && \
-uv run s4_status.py && uv run s5_review_lag.py && uv run s6_analyze.py && uv run s7_charts.py
+uv run s4_status.py && uv run s5_review_lag.py && uv run s8_verify.py && uv run s6_analyze.py && uv run s7_charts.py
 ```
+
+`s8_verify.py` needs the CVE List bulk export (about 610 MB, [cvelistV5 releases](https://github.com/CVEProject/cvelistV5/releases)) saved as `.cache/cvelist/all.zip.zip`.
 
 A full run takes about 5,000 GitHub API requests and roughly 30 minutes (NVD without a key is the slow part). Raw responses are cached in `.cache/` and aren't committed.
 

@@ -76,10 +76,20 @@ def main() -> None:
     advs = {a["ghsa_id"]: {"repo": r, **a} for r, lst in ra["advisories"].items() for a in lst}
     limbo = set(stt["in_limbo"])
     dup = stt["duplicates"]
+    ver_path = d / "verification.json"
+    ver = load_json(ver_path) if ver_path.exists() else {"advisories": {}, "checked_at": None}
+    verdict = {g: v["verdict"] for g, v in ver["advisories"].items()}
 
     def likely_dup(g: str) -> bool:
+        # Strong evidence only: the same CVE is reviewed under another GHSA ID (s8), or a shared
+        # CVE / fix reference with a reviewed advisory of the same package (s4). Text-only = possible.
         v = dup.get(g) or {}
-        return v.get("signal") in ("same_cve", "same_fix_reference") or (v.get("signal") == "summary_similarity" and v.get("score", 0) >= 0.6)
+        return verdict.get(g) == "DUPLICATE_SAME_CVE_REVIEWED" or v.get("signal") in ("same_cve", "same_fix_reference")
+
+    def possible_dup(g: str) -> bool:
+        v = dup.get(g) or {}
+        return not likely_dup(g) and (verdict.get(g) == "IN_LIMBO_POSSIBLE_DUPLICATE"
+                                      or (v.get("signal") == "summary_similarity" and v.get("score", 0) >= 0.6))
 
     def cve_state(g: str) -> str:
         c = advs[g].get("cve_id")
@@ -108,6 +118,7 @@ def main() -> None:
             "supported_ecosystem": any(e in GHSA_SUPPORTED for e in ecos),
             "duplicate_signal": (dup.get(g) or {}).get("signal") or "", "duplicate_score": (dup.get(g) or {}).get("score") or "",
             "duplicate_candidate": (dup.get(g) or {}).get("candidate") or "", "likely_duplicate": likely_dup(g),
+            "possible_duplicate": possible_dup(g) if g in limbo else "", "verification": verdict.get(g, ""),
             "advisory_url": a.get("html_url"),
         })
     write_csv(d / "advisories.csv", adv_rows)
@@ -124,7 +135,8 @@ def main() -> None:
             "class": adv_class(g), "severity": a.get("severity"), "match": h["match"],
             "version_affected": {True: "yes", None: "unknown"}[h["eval"]], "range": h["range"] or "", "patched": h["patched"] or "",
             "osv_scanner_reports_this_advisory": seen, "osv_scanner_reports_package_clean": not h["osv_scanner_ids"],
-            "likely_duplicate": likely_dup(g) if g in limbo else "",
+            "likely_duplicate": likely_dup(g) if g in limbo else "", "possible_duplicate": possible_dup(g) if g in limbo else "",
+            "verification": verdict.get(g, ""),
             "days_since_repo_publication": round(days(ts(a.get("published_at")), now) or 0, 1),
         })
     write_csv(d / "findings.csv", find_rows)
@@ -191,12 +203,16 @@ def main() -> None:
         "classes": Counter(r["class"] for r in adv_rows),
         "limbo": {"count": len(limbo_rows), "share": round(len(limbo_rows) / len(adv_rows), 4),
                   "likely_duplicates": sum(1 for r in limbo_rows if r["likely_duplicate"]),
+                  "possible_duplicates": sum(1 for r in limbo_rows if r["possible_duplicate"]),
                   "count_excluding_likely_duplicates": sum(1 for r in limbo_rows if not r["likely_duplicate"]),
+                  "count_excluding_possible_duplicates": sum(1 for r in limbo_rows if not r["likely_duplicate"] and not r["possible_duplicate"]),
                   "unsupported_ecosystem_likely_permanent": sum(1 for r in limbo_rows if not r["supported_ecosystem"]),
                   "age_days": dist(limbo_ages), "age_buckets": buckets(limbo_ages),
                   "by_ecosystem": Counter(e for r in limbo_rows for e in r["ecosystems"].split(";")),
                   "by_severity": Counter(r["severity"] for r in limbo_rows),
                   "duplicate_signals": Counter(r["duplicate_signal"] or "not_checked" for r in limbo_rows)},
+        "verification": {"checked_at": ver.get("checked_at"), "cve_list_release": ver.get("cve_list_release"),
+                         "cve_records_scanned": ver.get("cve_records_scanned"), "verdicts": Counter(verdict.values())},
         "rbp": {"count": len(rbp), "age_days": dist([r["days_since_repo_publication"] for r in rbp]),
                 "over_72h": sum(1 for r in rbp if r["days_since_repo_publication"] > 3)},
         "osv_proxy": {"limbo_confirmed_by_global_api": Counter(str((stt["global"].get(g) or {}).get("type") or (stt["global"].get(g) or {}).get("status")) for g in stt["in_limbo"]),

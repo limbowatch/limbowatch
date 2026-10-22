@@ -19,7 +19,6 @@ Output: data/<snapshot>/status.json
 from __future__ import annotations
 
 import asyncio
-import difflib
 import os
 import random
 import re
@@ -34,10 +33,10 @@ WORDS = re.compile(r"[a-z0-9_]{3,}")
 
 
 def similarity(a: str, b: str) -> float:
-    a, b = a.lower(), b.lower()
-    wa, wb = set(WORDS.findall(a)), set(WORDS.findall(b))
-    jac = len(wa & wb) / max(1, len(wa | wb))
-    return max(jac, difflib.SequenceMatcher(None, a, b).ratio())
+    """Word-set Jaccard. Character-level ratios over-match same-repo titles that share
+    boilerplate ("undici vulnerable to Denial of Service via ...") - FINDINGS F-048."""
+    wa, wb = set(WORDS.findall(a.lower())), set(WORDS.findall(b.lower()))
+    return len(wa & wb) / max(1, len(wa | wb))
 
 
 def match_hits(inv: dict, mapping: dict, repo_adv: dict) -> list[dict]:
