@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="brand/assets/wordmark-transparent-light-text.png">
+    <img alt="limbo.watch" src="brand/assets/wordmark-transparent-dark-text.png" width="420">
+  </picture>
+</p>
+
 # Limbowatch
 
 **Published. Not reviewed. Not scanned. In limbo.**
