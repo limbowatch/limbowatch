@@ -58,6 +58,7 @@ export SNAPSHOT_DATE=2026-10-22   # or $(date +%F); add PROJECT_SET=offgithub fo
 uv run s1_inventory.py && uv run s2_map.py && uv run s3_poll.py && uv run s4_status.py \
   && uv run s5_review_lag.py && uv run s8_verify.py && uv run s6_analyze.py && uv run s7_charts.py
 # s8 needs the CVE List bulk export at research/2026-10-state-of-the-gap/.cache/cvelist/all.zip.zip (cvelistV5 releases)
+SNAPSHOT_DATE=2026-10-22 CVELIST_RELEASE=cve_<date>_<time>Z uv run s9_followup.py   # later re-check of a snapshot's limbo advisories (download that CVE List release first)
 uv run --with httpx --with univers python common.py   # range-parser self-check
 uvx ruff check --line-length 140 --select E,F,W,B --ignore E501,B905,B007 .
 ```

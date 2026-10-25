@@ -4,14 +4,14 @@
 
 What we've verified or measured while building Limbowatch. Maintenance rules are in [CLAUDE.md](../CLAUDE.md#findings-report-docsfindingsmd).
 
-Last summarized: 2026-10-22 (Phase 1, after the same-day re-measurement and off-GitHub scan)
+Last summarized: 2026-10-25 (Phase 1, after the three-day follow-up)
 
 ## Summary
 
 Current understanding (Phase 1, 2026-10-21), with entries linked:
 
 1. **About 1 in 6 upstream advisories is in limbo.** Across the upstreams of 15 popular projects (5 on GitHub, 10 on GitLab/Codeberg/Tor/GNOME/Framagit/SourceHut), 415 of 2,517 unique published repo advisories (16.5%) are in neither GitHub's reviewed DB nor OSV: 14.3% for the GitHub-hosted set, 17.1% off-GitHub. All confirmed by the global API and verified automatically ([F-055](#f-055), [F-053](#f-053), [F-050](#f-050)).
-2. **The median wait for GitHub review is about 3 weeks.** 23 days on 990 reviews (Sep 24 → Oct 22); 94% over the documented 72 hours, 44% over 30 days ([F-055](#f-055), [F-042](#f-042), [F-019](#f-019)). Review comes in bursts: 37 of one day's limbo set were reviewed within 30 hours ([F-050](#f-050)). GitHub attributes the delay to throughput, more than 5,000 repo advisories a week ([F-035](#f-035)).
+2. **The median wait for GitHub review is about 3 weeks.** 23 days on 990 reviews (Sep 24 → Oct 22); 94% over the documented 72 hours, 44% over 30 days ([F-055](#f-055), [F-042](#f-042), [F-019](#f-019)). Review comes in bursts: 37 of one day's limbo set were reviewed within 30 hours ([F-050](#f-050)). GitHub attributes the delay to throughput, more than 5,000 repo advisories a week ([F-035](#f-035)). Three days after a snapshot, only 8% of its limbo advisories had been reviewed ([F-056](#f-056)).
 3. **Real projects ship affected versions that scanners report clean.** 105 package-versions across 13 of 14 readable projects, including GitLab (14), Forgejo (7), Gitea (4) and Kubernetes (3), are affected by advisories in limbo that OSV-Scanner reports with no known vulnerability. Hosting off GitHub doesn't help ([F-055](#f-055), [F-053](#f-053)).
 4. **Before review, an advisory is invisible everywhere scanners look.** It's not in the global DB, not even as `unreviewed`; at most OSV has a `CVE-*` record with GIT ranges and no package ([F-012](#f-012)). CVE records mostly appear about a day before review, 18 days after repo publication ([F-042](#f-042)).
 5. **The lifecycle is not linear.** About 11% of reviewed advisories never get a CVE ([F-016](#f-016), [F-055](#f-055)). 27 CVE IDs stay *reserved but public* (up to 119 days, [F-029](#f-029)). 23 limbo advisories have a CVE assigned by VulnCheck/Tenable that they don't cite, so CVE-keyed tools see them first ([F-050](#f-050)). Other-CNA CVEs are almost never reviewed ([F-017](#f-017)). Model facts independently.
@@ -546,6 +546,30 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
     - 23 unique advisories with an uncited CVE (22 VulnCheck, 1 Tenable).
     - **105 package-versions reported clean by OSV-Scanner** across 13 of 14 readable projects.
 - **Implication:** These are the numbers the State of the Gap report uses. Cross-set totals must be de-duplicated by GHSA ID, because the sets share upstreams.
+
+### F-056
+- **Date:** 2026-10-25 · **Status:** confirmed (observed)
+- **Question:** Three days after the 2026-10-22 snapshots, what happened to the advisories in limbo, especially their CVEs?
+- **Method:** `s9_followup.py`, live re-check (no cache) of all 415 unique advisories in limbo on 2026-10-22 (268 GitHub-hosted set, 217 off-GitHub set, 70 overlap) at 2026-10-25 09:45 UTC:
+  - repo advisory (state, cited CVE), global DB, OSV;
+  - CVE Services `cve` / `cve-id` for cited CVEs;
+  - reverse lookup in CVE List release `cve_2026-10-25_0900Z` (413,919 records).
+- **Result:**
+  - **34 (8%) reviewed, all on 2026-10-23** (single batch). 381 still in limbo.
+  - Of the 381:
+    - 249 have no CVE anywhere (14 critical, 104 high);
+    - 27 reserved (RBP);
+    - 63 published and cited;
+    - 42 published by another CNA but not cited.
+  - Changes in 3 days:
+    - 16 advisories now cite a CVE (GitHub CNA; 14 published, 2 reserved).
+    - **24 gained an uncited CVE**: 26 CVEs, from VulnCheck 21, Red Hat 1, and **GitHub 4**. GitHub's CNA published a CVE referencing the advisory before the advisory page showed it.
+    - **0 of 27 reserved CVEs were published.**
+- **Implication:**
+  - The "no CVE anywhere" state is common and sticky.
+  - Review lands in batches.
+  - The tracker must re-check daily and record transitions; a single snapshot understates churn.
+  - Report readers need the CVE states explained in plain language. Added to the report as "What the CVE states mean".
 
 ## Archive
 

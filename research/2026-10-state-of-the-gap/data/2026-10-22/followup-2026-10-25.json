@@ -1,0 +1,41 @@
+{
+ "checked_at": "2026-10-25T09:45:39Z",
+ "cve_changes": {
+  "advisory now cites CVE-2026-114614": 1,
+  "advisory now cites CVE-2026-114615": 1,
+  "advisory now cites CVE-2026-114616": 1,
+  "advisory now cites CVE-2026-114617": 1,
+  "advisory now cites CVE-2026-114618": 1,
+  "advisory now cites CVE-2026-114619": 1,
+  "advisory now cites CVE-2026-114620": 1,
+  "advisory now cites CVE-2026-115563": 1,
+  "advisory now cites CVE-2026-115572": 1,
+  "advisory now cites CVE-2026-115580": 1,
+  "advisory now cites CVE-2026-115585": 1,
+  "advisory now cites CVE-2026-115883": 1,
+  "advisory now cites CVE-2026-115885": 1,
+  "advisory now cites CVE-2026-115895": 1,
+  "new CVE by another CNA": 11
+ },
+ "cve_list_release": "cve_2026-10-25_0900Z",
+ "followed_up": 268,
+ "snapshot": "2026-10-22",
+ "status_now": {
+  "reviewed": 33,
+  "still in limbo": 235
+ },
+ "still_in_limbo_cve_now": {
+  "no CVE anywhere": 148,
+  "published by another CNA, not cited by the advisory": 28,
+  "published, cited by the advisory": 45,
+  "reserved (RBP), cited by the advisory": 14
+ },
+ "transitions": {
+  "LIMBO_ADVISORY -> reviewed": 12,
+  "LIMBO_ADVISORY -> still in limbo": 166,
+  "LIMBO_ADVISORY_RBP -> reviewed": 2,
+  "LIMBO_ADVISORY_RBP -> still in limbo": 13,
+  "LIMBO_CVE -> reviewed": 19,
+  "LIMBO_CVE -> still in limbo": 56
+ }
+}

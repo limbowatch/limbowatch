@@ -1,0 +1,29 @@
+{
+ "checked_at": "2026-10-25T09:46:08Z",
+ "cve_changes": {
+  "advisory now cites CVE-2026-115472": 1,
+  "advisory now cites CVE-2026-115567": 1,
+  "advisory now cites CVE-2026-115895": 1,
+  "new CVE by another CNA": 15
+ },
+ "cve_list_release": "cve_2026-10-25_0900Z",
+ "followed_up": 217,
+ "snapshot": "2026-10-22-offgithub",
+ "status_now": {
+  "reviewed": 11,
+  "still in limbo": 206
+ },
+ "still_in_limbo_cve_now": {
+  "no CVE anywhere": 141,
+  "published by another CNA, not cited by the advisory": 18,
+  "published, cited by the advisory": 30,
+  "reserved (RBP), cited by the advisory": 17
+ },
+ "transitions": {
+  "LIMBO_ADVISORY -> reviewed": 2,
+  "LIMBO_ADVISORY -> still in limbo": 156,
+  "LIMBO_ADVISORY_RBP -> still in limbo": 16,
+  "LIMBO_CVE -> reviewed": 9,
+  "LIMBO_CVE -> still in limbo": 34
+ }
+}

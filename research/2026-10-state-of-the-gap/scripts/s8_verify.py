@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import csv
 import json
+import os
 import re
 import time
 import zipfile
@@ -29,22 +30,30 @@ from pathlib import Path
 from common import CACHE, DATA, SNAPSHOT, Http, load_json, log, save_json
 from s4_status import similarity
 
-CVELIST_RELEASE = "cve_2026-10-22_0800Z"
-CVELIST_ASSET = "2026-10-22_all_CVEs_at_midnight.zip.zip"
+CVELIST_RELEASE = os.environ.get("CVELIST_RELEASE", "cve_2026-10-22_0800Z")
+LEGACY_RELEASE = "cve_2026-10-22_0800Z"  # first download, stored as all.zip.zip / cves.zip
 GHSA_RE = re.compile(r"GHSA(?:-[23456789cfghjmpqrvwx]{4}){3}", re.I)
 GH_REPO_RE = re.compile(r"github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)", re.I)
 TITLE_SIM = 0.7  # word-set Jaccard; see s4_status.similarity
 
 
 def cvelist_zip() -> Path:
+    """Inner cves.zip of a cvelistV5 bulk release (CVELIST_RELEASE, e.g. cve_2026-10-25_0900Z)."""
     d = CACHE / "cvelist"
-    outer = d / "all.zip.zip"
+    legacy = CVELIST_RELEASE == LEGACY_RELEASE
+    outer = d / ("all.zip.zip" if legacy else f"all-{CVELIST_RELEASE}.zip.zip")
+    inner = d / ("cves.zip" if legacy else f"cves-{CVELIST_RELEASE}.zip")
     if not outer.exists():
-        raise SystemExit(f"download https://github.com/CVEProject/cvelistV5/releases/download/{CVELIST_RELEASE}/{CVELIST_ASSET} to {outer}")
-    inner = d / "cves.zip"
+        date = CVELIST_RELEASE.removeprefix("cve_").split("_")[0]
+        raise SystemExit(f"download https://github.com/CVEProject/cvelistV5/releases/download/{CVELIST_RELEASE}/"
+                         f"{date}_all_CVEs_at_midnight.zip.zip to {outer}")
     if not inner.exists():
         with zipfile.ZipFile(outer) as z:
-            z.extract("cves.zip", d)
+            if legacy:
+                z.extract("cves.zip", d)
+            else:  # extract per release so the legacy cves.zip is never overwritten
+                z.extract("cves.zip", d / CVELIST_RELEASE)
+                (d / CVELIST_RELEASE / "cves.zip").rename(inner)
     return inner
 
 

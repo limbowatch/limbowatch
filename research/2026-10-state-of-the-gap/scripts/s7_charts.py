@@ -168,7 +168,7 @@ def main() -> None:
     OUT.mkdir(exist_ok=True)
     note = f"Snapshot {SNAPSHOT} · Limbowatch research · data CC BY 4.0 · advisory data: GitHub Advisory Database (CC BY 4.0), OSV"
     cls = s["classes"]
-    order = [("LIMBO_ADVISORY", "In limbo, no CVE"), ("LIMBO_ADVISORY_RBP", "In limbo, CVE reserved (RBP)"),
+    order = [("LIMBO_ADVISORY", "In limbo, no CVE anywhere"), ("LIMBO_ADVISORY_RBP", "In limbo, CVE reserved (RBP)"),
              ("LIMBO_CVE", "In limbo, CVE published"), ("REVIEWED_NO_CVE", "Reviewed, no CVE"), ("REVIEWED_WITH_CVE", "Reviewed, with CVE")]
     total = sum(cls.values())
     lag = s["review_lag"]

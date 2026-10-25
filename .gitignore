@@ -19,3 +19,4 @@ research/**/.cache/
 # research intermediates: contain advisory text and author/credit data; never commit
 research/**/data/**/*.json
 !research/**/data/**/summary.json
+!research/**/data/**/followup-*.json

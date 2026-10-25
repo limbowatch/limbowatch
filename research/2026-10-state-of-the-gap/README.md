@@ -9,6 +9,7 @@
 - **About 1 in 6 upstream advisories is in limbo.** Across the upstream repositories of all fifteen projects, **415 of 2,517** unique published advisories (**16.5%**) are in neither GitHub's reviewed database nor OSV. That's 14.3% behind the GitHub-hosted projects and 17.1% behind the projects hosted elsewhere.
 - **The median wait for review is 23 days.** For 990 advisories GitHub reviewed between 2026-09-24 and 2026-10-22, **94% waited longer than 72 hours and 44% longer than 30 days.**
 - **13 of the 14 projects we could read ship affected versions that a scanner reports as clean.** That's **105 package-versions** affected by advisories in limbo that OSV-Scanner reports with no known vulnerability at all. It includes GitLab (14), Forgejo (7), Gitea (4) and Kubernetes (3).
+- **Three days later, little had moved.** By 2026-10-25, GitHub had reviewed 34 of the 415 (8%), all in one batch on Oct 23. 381 were still in limbo, and 249 of those still had no CVE of any kind.
 - **CVE data is out of sync too.** 27 advisories in limbo cite a CVE ID that's still *reserved*, up to 119 days later. Another 23 have a CVE, almost all assigned by **VulnCheck**, that the advisory itself doesn't cite. For those, CVE-based tools see them before GitHub-based scanners do.
 
 ## What "limbo" means
@@ -27,6 +28,24 @@ GitHub lets maintainers publish a security advisory directly in their repository
 
 These events don't happen in a fixed order. Some advisories get a CVE first and some never get one. Some reserve a CVE ID that stays unpublished. Some get a CVE from another CNA that the advisory never mentions, and some are reviewed under a different GHSA ID. We record each fact separately.
 
+## What the CVE states mean
+
+A **CVE** is a public ID for a vulnerability, like `CVE-2026-110858`. A repository owner can't create one alone: CVE IDs are issued by **CNAs** (CVE Numbering Authorities), organizations allowed to assign them, such as GitHub, VulnCheck, Red Hat or MITRE. A maintainer who publishes an advisory on GitHub can click *Request CVE*, and GitHub (acting as a CNA) reviews the request, reserves an ID and later publishes the CVE record. A maintainer can also get an ID elsewhere and type it into the advisory.
+
+Many security tools track vulnerabilities by CVE ID. NVD-based scanners, vulnerability-management dashboards, compliance reports and patch SLAs often ignore anything without one. So for each advisory in limbo, we check the CVE side separately:
+
+| State | What it means | Who can see it |
+|---|---|---|
+| **No CVE anywhere** | The advisory has no CVE ID, and no record in the entire CVE List refers to it. Either the maintainer never requested one, or a request is still pending (pending requests aren't public, so we can't tell which). | Only someone reading the repository's advisory page. Neither GitHub-based nor CVE-based tools know it exists. |
+| **CVE reserved (RBP)** | The advisory shows a CVE ID, but the CVE record behind it hasn't been published. The ID exists; its content doesn't. The CVE Program calls this *Reserved But Public* and expects publication within 72 hours. | Effectively no tool: looking up the ID returns nothing. |
+| **CVE published, cited by the advisory** | The usual case: the advisory names a CVE whose record is published. | CVE- and NVD-based tools can look it up (if NVD has enriched it, Finding 6). GitHub/OSV-based scanners still can't, until GitHub reviews the advisory. |
+| **CVE published by another CNA, not cited** | Someone other than the maintainer, almost always **VulnCheck**, published a CVE that refers to this advisory, but the advisory itself doesn't mention it. | CVE-based tools *can* see it, while the advisory's own page and GitHub-based scanners don't connect the two. The usual gap, reversed. |
+
+Two examples from the data:
+
+- **[GitPython GHSA-f9j4-qggq-h239](https://github.com/gitpython-developers/GitPython/security/advisories/GHSA-f9j4-qggq-h239)** (critical, command injection). Published by the maintainers on GitHub without a CVE. On 2026-10-14, VulnCheck published [CVE-2026-110858](https://www.cve.org/CVERecord?id=CVE-2026-110858) referring to it. As of 2026-10-25 the advisory still doesn't cite that CVE, and GitHub still hasn't reviewed it. open-webui ships an affected version, which OSV-Scanner reports as clean.
+- **[regexp2 GHSA-wq9v-j77v-qr26](https://github.com/dlclark/regexp2/security/advisories/GHSA-wq9v-j77v-qr26)** (high, memory exhaustion). Published 2026-07-11 citing CVE-2026-77299. More than 100 days later, that CVE is still `RESERVED`, so looking it up returns no record. Forgejo ships an affected version.
+
 ## Finding 1: about one in six upstream advisories is in limbo
 
 <picture>
@@ -36,9 +55,10 @@ These events don't happen in a fixed order. Some advisories get a CVE first and 
 
 | State | GitHub-hosted projects | | Projects hosted elsewhere | |
 |---|---:|---:|---:|---:|
-| In limbo, no CVE | 178 | 9.5% | 158 | 12.5% |
-| In limbo, CVE reserved but public (RBP) | 15 | 0.8% | 16 | 1.3% |
-| In limbo, CVE published (cited, or found in the CVE List) | 75 | 4.0% | 43 | 3.4% |
+| In limbo, no CVE anywhere | 178 | 9.5% | 158 | 12.5% |
+| In limbo, CVE reserved (RBP) | 15 | 0.8% | 16 | 1.3% |
+| In limbo, CVE published, cited by the advisory | 53 | 2.8% | 38 | 3.0% |
+| In limbo, CVE published by another CNA, not cited | 22 | 1.2% | 5 | 0.4% |
 | Reviewed, no CVE | 205 | 10.9% | 111 | 8.8% |
 | Reviewed, with CVE | 1,403 | 74.8% | 940 | 74.1% |
 | **Advisories in upstream repos** | **1,876** | | **1,268** | |
@@ -46,7 +66,7 @@ These events don't happen in a fixed order. Some advisories get a CVE first and 
 The two columns overlap: 627 advisories appear in both, because npm and Go libraries are everywhere. Unique across both: **2,517 advisories, 415 in limbo (16.5%)**. Automated duplicate checks move the shares only slightly, to 13.9–14.0% and 15.9–16.1%.
 
 - **Confirmed directly.** Every advisory missing from OSV also returned *not found* from GitHub's global advisory API. In a random sample of 200 advisories present in OSV, all 200 were reviewed.
-- **Mostly without a CVE.** Two thirds or more (178 of 268, and 158 of 217) have no CVE at all, so tools keyed on CVE IDs can't track them either.
+- **Mostly without any CVE.** Two thirds or more (178 of 268, and 158 of 217) have no CVE anywhere, so tools keyed on CVE IDs can't track them either. See [What the CVE states mean](#what-the-cve-states-mean).
 - **Mostly serious.** By the maintainers' own rating, GitHub-hosted set: 11 critical, 104 high, 123 medium, 30 low.
 - **Ecosystems.** npm, pip and Go dominate; Rust and RubyGems appear through the off-GitHub projects.
 
@@ -175,6 +195,26 @@ Mobilizon's Elixir dependencies (`mix.lock`) were read but couldn't be mapped to
 - **CVEs the advisory doesn't mention.** For 23 unique advisories in limbo, a CVE that references the advisory exists in the CVE List even though the advisory cites none. All but one were assigned by **VulnCheck** (the other by Tenable). Example: [CVE-2026-110858](https://www.cve.org/CVERecord?id=CVE-2026-110858) for GitPython GHSA-f9j4-qggq-h239. For these, CVE-keyed tools can see the vulnerability while GitHub/OSV-based scanners can't, the reverse of the usual gap.
 - **NVD.** Of 44 published CVEs on advisories in limbo (GitHub-hosted set), NVD has no record for 10, and 17 more aren't enriched (Awaiting/Undergoing Analysis, Deferred). Even after GitHub review, 21 of a random 60 CVEs on reviewed advisories have neither NIST CVSS nor CPE data (5 of them are rejected CVEs). Tools that match on NVD CPEs miss them too.
 
+## Three days later: the follow-up check
+
+On 2026-10-25 we re-checked, live, every advisory that was in limbo on 2026-10-22: 415 unique advisories across both sets. We used the repository advisory, GitHub's global database, OSV, CVE Services, and the CVE List release `cve_2026-10-25_0900Z`.
+
+| Status on 2026-10-25 | Advisories |
+|---|---:|
+| Reviewed by GitHub (all 34 on the same day, Oct 23) | 34 |
+| **Still in limbo** | **381** |
+| …with no CVE anywhere | 249 (14 critical, 104 high) |
+| …with a CVE still reserved (RBP) | 27 |
+| …with a published CVE, cited by the advisory | 63 |
+| …with a published CVE from another CNA, not cited | 42 |
+
+What changed in those three days:
+- **16 advisories now cite a CVE** they didn't before, all from GitHub as CNA: 14 published, 2 only reserved.
+- **24 advisories gained a CVE from another CNA** that they don't cite: 21 from VulnCheck, 1 from Red Hat, and 4 that GitHub published but which the advisory page doesn't show yet.
+- **None of the 27 reserved CVEs was published.**
+
+Review happens in batches: nothing for days, then dozens at once. Meanwhile new advisories keep arriving. Limbowatch's live tracker (next phase) will measure this daily.
+
 ## Data quality: what we had to correct for
 
 Unreviewed advisories are entered by maintainers, and that data is noisy. Every one of these problems is handled automatically and reported, never guessed:
@@ -271,6 +311,7 @@ Each folder has IDs, states, dates, ranges and links, but no advisory text or pe
 | `nvd.csv` | NVD status of sampled CVEs |
 | `unresolved.csv` | entries we couldn't check, with the reason |
 | `verification.csv` | the automated verification of every advisory in limbo, with timestamps |
+| `followup-2026-10-25.csv` / `.json` | the three-days-later re-check of every advisory that was in limbo |
 
 To rerun (needs `uv`, `go` and `git`; a GitHub token from `gh auth token` or `GITHUB_TOKEN`; optional `NVD_API_KEY`):
 
@@ -279,6 +320,8 @@ cd research/2026-10-state-of-the-gap/scripts
 export SNAPSHOT_DATE=$(date +%F)          # PROJECT_SET=offgithub for the off-GitHub projects
 uv run s1_inventory.py && uv run s2_map.py && uv run s3_poll.py && uv run s4_status.py && \
 uv run s5_review_lag.py && uv run s8_verify.py && uv run s6_analyze.py && uv run s7_charts.py
+# later: re-check a snapshot's advisories in limbo against today's CVE List release
+SNAPSHOT_DATE=2026-10-22 CVELIST_RELEASE=cve_2026-10-25_0900Z uv run s9_followup.py
 ```
 
 - **CVE List:** `s8_verify.py` needs the bulk export (about 610 MB, [cvelistV5 releases](https://github.com/CVEProject/cvelistV5/releases)) saved as `.cache/cvelist/all.zip.zip`.
