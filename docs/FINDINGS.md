@@ -4,7 +4,7 @@
 
 What we've verified or measured while building Limbowatch. Maintenance rules are in [CLAUDE.md](../CLAUDE.md#findings-report-docsfindingsmd).
 
-Last summarized: 2026-10-25 (Phase 1, after the three-day follow-up)
+Last summarized: 2026-10-26 (Phase 2, tracker built; first live runs)
 
 ## Summary
 
@@ -29,6 +29,7 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
 12. **GitLab specifics:** SARIF ingestion is Ultimate-only (GA 19.2) and treats CVE-less findings as SAST ([F-008](#f-008)). GitLab's advisory DB can't be queried ([F-038](#f-038)).
 13. **More languages are feasible in layers:** deps.dev (7 systems), then ecosyste.ms (~100 registries, CC BY-SA), then repo-only matching for languages GitHub doesn't review ([F-020](#f-020), [F-021](#f-021), [F-023](#f-023)).
 14. **Verify automatically, from primary sources only.** Search results and AI summaries mis-pair advisory and CVE IDs. Stage 8 verifies every advisory in limbo (live re-check, cited-CVE consistency with live fetch, case-insensitive full CVE List reverse lookup, cross-ID review) and records the verdicts ([F-049](#f-049), [F-050](#f-050)). Time-varying data must be stored per snapshot ([F-054](#f-054)).
+15. **The live tracker sees far more than the report sample.** First live runs (2026-10-26, about half of an 8,827-repo watchlist polled): **2,964 advisories in limbo in ecosystems GitHub reviews** (median 54 days; 1,552 with no CVE anywhere, 364 with an uncited CVE from another CNA, 243 reserved), plus **1,943 likely permanent** in ecosystems GitHub never reviews ([F-061](#f-061)). Renamed repos and interrupted runs needed fixes ([F-060](#f-060)); ETag reuse across tokens is still unmeasured (Q11, [F-058](#f-058)).
 
 ## Open questions
 
@@ -41,7 +42,8 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
 - Q7. How do we reliably detect packaging/recipe repos (conan-center-index, homebrew-core, distro packaging) so they aren't treated as upstream? ([F-021](#f-021))
 - Q8. How do we reliably detect that a limbo advisory was reviewed under a different GHSA ID when no CVE is shared? Shared CVEs prove 4; title overlap flags 4 more ([F-048](#f-048)). Advisories without a CVE remain undecidable by text alone.
 - ~~Q9. Build separately, contribute upstream, or build only the layers blindspot lacks?~~ **Answered 2026-10-21: plan rev 5 approved. Report → tracker + limbo feed → upstream contributions → watcher. Renamed to Limbowatch ([F-036](#f-036), [F-037](#f-037)).**
-- Q10. Under what terms may repository advisory content be redistributed? This decides whether the limbo feed can include summaries or descriptions, or only IDs and links ([F-047](#f-047)). Needed for Phase 2.
+- Q10. Under what terms may repository advisory content be redistributed? *Partly answered 2026-10-26: GitHub's terms cover the Advisory Database (CC BY 4.0) but are silent on repository advisories in limbo; the feed carries factual metadata only ([F-059](#f-059)).*
+- Q11. Do different `GITHUB_TOKEN`s (one per Actions run) share ETags for the same URL? Decides whether the daily job needs a PAT ([F-058](#f-058)). Measure in the first CI runs.
 
 ## Log
 
@@ -570,6 +572,77 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
   - Review lands in batches.
   - The tracker must re-check daily and record transitions; a single snapshot understates churn.
   - Report readers need the CVE states explained in plain language. Added to the report as "What the CVE states mean".
+
+### F-057
+- **Date:** 2026-10-26 · **Status:** confirmed (observed)
+- **Question:** How large is tracker watchlist source 1 (repos where reviewed advisories originated)?
+- **Method:** Full pagination of `GET /advisories?type=reviewed&per_page=100&sort=published&direction=desc` (373 pages, about 6.5 minutes).
+- **Result:**
+  - 37,219 reviewed advisories; 16,873 (45%) have a `repository_advisory_url`; **3,587 distinct origin repos**; 685 repos have ≥ 5.
+  - Combined with the ~6,000 dependency upstreams from the Phase 1 research, the watchlist is roughly 8–10k repos.
+  - The full reviewed list is the cheapest way to know every reviewed GHSA (no per-advisory calls).
+- **Implication:** A daily tracker is feasible. Bootstrap the reviewed set once from full pagination, then page incrementally by `published` (= review time, F-009).
+
+### F-058
+- **Date:** 2026-10-26 · **Status:** confirmed (docs + observed); per-run behaviour of `GITHUB_TOKEN` ETags untested
+- **Question:** Can a daily GitHub Actions job poll ~9k repos within rate limits?
+- **Result:**
+  - Docs: `GITHUB_TOKEN` gets **1,000 requests/hour per repository**; user tokens (PATs) 5,000/hour.
+  - Secondary limits: 100 concurrent requests, 900 points/minute (GET = 1 point).
+  - A 304 from a conditional request "does not count against your primary rate limit" if the request was authorized. Observed: three 304s left `x-ratelimit-remaining` unchanged.
+  - **ETags vary by token:** the repo-advisories response sends `Vary: Authorization`. The ETag differs between anonymous and authenticated requests, and an anonymous ETag sent with a token returned 200, not 304.
+  - Untested: whether two different tokens of the same identity share ETags. Actions mints a new `GITHUB_TOKEN` every run, so per-run ETags may never match.
+- **Implication:**
+  - Don't rely on cheap daily polling of all repos with `GITHUB_TOKEN`. Poll in priority order within a request budget, resume across runs, and report coverage ("polled in the last 24 h").
+  - Detect reviews from the global reviewed list and OSV, not repo polling.
+  - Store ETags with a fingerprint of the token that obtained them, and ignore them for other tokens.
+  - Recommend a stable fine-grained PAT secret (public read-only); `GITHUB_TOKEN` is the fallback.
+- **Sources:** [Rate limits for the REST API](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api), [Best practices for using the REST API](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api)
+
+### F-059
+- **Date:** 2026-10-26 · **Status:** tentative (docs silent on repository advisories). Partly answers Q10.
+- **Question:** What may the limbo feed redistribute from repository advisories?
+- **Result:**
+  - GitHub's terms: the Advisory Database "is licensed under the Creative Commons Attribution 4.0 license". Contributions to it are released under CC0. Attribution "may be fulfilled by linking to the GitHub Advisory Database at https://github.com/advisories".
+  - The terms don't distinguish reviewed, unreviewed or repository advisories. They don't say whether a repository advisory not yet in the database is covered.
+  - Repository advisory objects also carry personal data (F-047).
+- **Implication:**
+  - The feed and site carry factual metadata only: IDs, repo, package, ecosystem, version range, fixed version, severity, CVSS vector, CWE IDs, dates and links. Titles, descriptions, author, publisher and credits are excluded.
+  - Attribute with links to github.com/advisories and to each advisory.
+  - Revisit if GitHub clarifies, or ask GitHub during outreach.
+- **Sources:** [GitHub Terms for Additional Products and Features](https://docs.github.com/en/site-policy/github-terms/github-terms-for-additional-products-and-features), [github/advisory-database](https://github.com/github/advisory-database)
+
+### F-060
+- **Date:** 2026-10-26 · **Status:** confirmed (observed)
+- **Question:** What broke when the tracker ran against the real watchlist?
+- **Result:**
+  - **Renamed / transferred repos.** `cryspen/libcrux` now redirects to `celabshq/libcrux`; both names were on the watchlist (seed + reviewed origin). The API follows the redirect, so the same advisory arrived twice and the run crashed on the duplicate key.
+    - Fix: the canonical repo is taken from the advisory's `html_url`, and advisories are keyed by GHSA ID across repos.
+  - **No state was saved from the first, interrupted run,** because state was only written at the end.
+    - Fix: checkpoint after each step and every 500 polls, and always export on exit.
+  - **The delta log alone misses older uncited CVEs.** After the first run, only 1 limbo advisory had a CVE from another CNA, vs 23 in the research snapshot (F-050).
+    - Fix: one-time bootstrap from a bulk CVE List release (`--cve-list`); the daily delta log keeps it current. The delta log covers about 4 weeks (2,267 entries), so a longer outage needs another bootstrap.
+- **Implication:** Watchlists built from several sources need canonical identities. Any long-running job must checkpoint.
+
+### F-061
+- **Date:** 2026-10-26 · **Status:** confirmed (observed; first run, partial coverage)
+- **Question:** What does the tracker see on its first real runs?
+- **Method:**
+  - Watchlist: 8,827 repos = 5,613 seed (dependency upstreams of the 15 report projects) + 3,587 reviewed-origin repos (F-057), 373 in both.
+  - Two runs, 2026-10-26 08:13–08:30 UTC. The reviewed list was synced in full (37,219). **4,388 repos polled** (budget-limited, 1,857 with advisories), 12,183 repo advisories.
+- **Result:**
+  - **2,966 in limbo in ecosystems GitHub reviews:**
+    - median age 54 days; 1,018 ≤ 30 days, 712 > 90 days, 147 > 1 year;
+    - CVE: 1,917 no CVE anywhere, 794 published & cited, 243 reserved (RBP);
+    - ecosystems: Go 1,306, PyPI 767, npm 670, Maven 609, Packagist 549, NuGet 331, crates.io 220.
+  - **1,947 more are likely permanent** (free-text or unreviewed ecosystems: `other` 973, bottlerocket 452, c/c++ 127, docker images, …): median age 257 days, 935 older than 1 year.
+  - 133 duplicates (same CVE reviewed under another GHSA).
+  - Live spot-check: 25 of 25 random limbo advisories (20 pending, 5 permanent) return 404 from the global API.
+  - ETags: 0 of 3,889 polls returned 304 in the second run. Every repo it polled was new to the state, so this doesn't test Q11 yet.
+- **Caveats:** About half the watchlist was unpolled at the time; numbers are a floor and will rise. The reviewed-origin repos skew toward repos that use advisories heavily (e.g. bottlerocket).
+- **Implication:**
+  - The headline must separate pending (reviewable) from likely-permanent limbo, or the long tail of never-reviewed ecosystems dominates.
+  - Old pending advisories in reviewable ecosystems (147 > 1 year) suggest review may never come for some even there; track separately once lag data accumulates.
 
 ## Archive
 

@@ -49,7 +49,19 @@ Private repo `git@github.com:limbowatch/limbowatch.git` in the **limbowatch** Gi
 
 ## Commands
 
-Product code doesn't exist yet; Phase 2 scaffolds uv/ruff/mypy/pytest. Add those commands here then.
+Product code: a uv workspace (`packages/core` = library `limbowatch`, `packages/cli` = `limbowatch` command). From the repo root:
+
+```sh
+uv sync
+uv run ruff check packages tests && uv run ruff format --check packages tests
+uv run mypy                      # strict
+uv run lint-imports              # module boundaries: pure modules do no I/O, sources never classify, core never imports cli
+uv run pytest -q                 # recorded fixtures only; tests never hit the network
+uv run limbowatch track --state tracker/state --seed tracker/seeds/popular-upstreams.txt --budget 4000
+uv run limbowatch publish --state tracker/state --out tracker/site
+```
+
+See [tracker/README.md](tracker/README.md) for how the live tracker works. Only `limbowatch.http` builds requests, and `limbowatch.normalize` drops advisory text and personal data before anything is stored.
 
 Research pipeline (Phase 1 report), from `research/2026-10-state-of-the-gap/scripts/`. It needs uv, go and git, plus a GitHub token via `gh auth token` or `GITHUB_TOKEN`; `NVD_API_KEY` is optional.
 

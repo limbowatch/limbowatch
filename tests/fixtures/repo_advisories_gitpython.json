@@ -1,0 +1,123 @@
+[
+ {
+  "ghsa_id": "GHSA-83vg-56qc-22m7",
+  "cve_id": "CVE-2026-114145",
+  "state": "published",
+  "severity": "high",
+  "cvss_severities": {
+   "cvss_v3": {
+    "score": 7.5,
+    "vector_string": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:H/A:H"
+   },
+   "cvss_v4": {
+    "score": null,
+    "vector_string": null
+   }
+  },
+  "cwe_ids": [
+   "CWE-696"
+  ],
+  "published_at": "2026-10-14T12:22:57Z",
+  "updated_at": "2026-10-21T20:34:26Z",
+  "withdrawn_at": null,
+  "vulnerabilities": [
+   {
+    "package": {
+     "ecosystem": "pip",
+     "name": "Gitpython"
+    },
+    "patched_versions": ">= 3.2.1",
+    "vulnerable_functions": [],
+    "vulnerable_version_range": " <= 3.2.0"
+   }
+  ],
+  "html_url": "https://github.com/gitpython-developers/GitPython/security/advisories/GHSA-83vg-56qc-22m7",
+  "url": "https://api.github.com/repos/gitpython-developers/GitPython/security-advisories/GHSA-83vg-56qc-22m7",
+  "summary": "REDACTED-SUMMARY",
+  "description": "REDACTED-DESCRIPTION",
+  "author": {
+   "login": "redacted-author"
+  },
+  "publisher": {
+   "login": "redacted-publisher"
+  },
+  "credits": [
+   {
+    "login": "redacted",
+    "type": "reporter"
+   }
+  ],
+  "credits_detailed": [
+   {
+    "user": {
+     "login": "redacted"
+    },
+    "type": "reporter",
+    "state": "accepted"
+   }
+  ],
+  "collaborating_users": [],
+  "collaborating_teams": []
+ },
+ {
+  "ghsa_id": "GHSA-f9j4-qggq-h239",
+  "cve_id": null,
+  "state": "published",
+  "severity": "critical",
+  "cvss_severities": {
+   "cvss_v3": {
+    "score": 9.8,
+    "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+   },
+   "cvss_v4": {
+    "score": null,
+    "vector_string": null
+   }
+  },
+  "cwe_ids": [
+   "CWE-78",
+   "CWE-88"
+  ],
+  "published_at": "2026-09-30T09:11:36Z",
+  "updated_at": "2026-09-30T18:20:05Z",
+  "withdrawn_at": null,
+  "vulnerabilities": [
+   {
+    "package": {
+     "ecosystem": "pip",
+     "name": "GitPython"
+    },
+    "patched_versions": ">= 3.2.0",
+    "vulnerable_functions": [],
+    "vulnerable_version_range": ">= 3.1.30"
+   }
+  ],
+  "html_url": "https://github.com/gitpython-developers/GitPython/security/advisories/GHSA-f9j4-qggq-h239",
+  "url": "https://api.github.com/repos/gitpython-developers/GitPython/security-advisories/GHSA-f9j4-qggq-h239",
+  "summary": "REDACTED-SUMMARY",
+  "description": "REDACTED-DESCRIPTION",
+  "author": {
+   "login": "redacted-author"
+  },
+  "publisher": {
+   "login": "redacted-publisher"
+  },
+  "credits": [
+   {
+    "login": "redacted",
+    "type": "reporter"
+   }
+  ],
+  "credits_detailed": [
+   {
+    "user": {
+     "login": "redacted"
+    },
+    "type": "reporter",
+    "state": "accepted"
+   }
+  ],
+  "collaborating_users": [],
+  "collaborating_teams": []
+ }
+]

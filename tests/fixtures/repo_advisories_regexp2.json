@@ -1,0 +1,63 @@
+[
+ {
+  "ghsa_id": "GHSA-wq9v-j77v-qr26",
+  "cve_id": "CVE-2026-77299",
+  "state": "published",
+  "severity": "high",
+  "cvss_severities": {
+   "cvss_v3": {
+    "score": 7.5,
+    "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+   },
+   "cvss_v4": {
+    "score": null,
+    "vector_string": null
+   }
+  },
+  "cwe_ids": [
+   "CWE-400",
+   "CWE-770"
+  ],
+  "published_at": "2026-07-11T19:19:57Z",
+  "updated_at": "2026-08-20T19:25:27Z",
+  "withdrawn_at": null,
+  "vulnerabilities": [
+   {
+    "package": {
+     "ecosystem": "go",
+     "name": "github.com/dlclark/regexp2"
+    },
+    "patched_versions": "2.3.0",
+    "vulnerable_functions": [],
+    "vulnerable_version_range": "< 2.3.0"
+   }
+  ],
+  "html_url": "https://github.com/dlclark/regexp2/security/advisories/GHSA-wq9v-j77v-qr26",
+  "url": "https://api.github.com/repos/dlclark/regexp2/security-advisories/GHSA-wq9v-j77v-qr26",
+  "summary": "REDACTED-SUMMARY",
+  "description": "REDACTED-DESCRIPTION",
+  "author": {
+   "login": "redacted-author"
+  },
+  "publisher": {
+   "login": "redacted-publisher"
+  },
+  "credits": [
+   {
+    "login": "redacted",
+    "type": "reporter"
+   }
+  ],
+  "credits_detailed": [
+   {
+    "user": {
+     "login": "redacted"
+    },
+    "type": "reporter",
+    "state": "accepted"
+   }
+  ],
+  "collaborating_users": [],
+  "collaborating_teams": []
+ }
+]
