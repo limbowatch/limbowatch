@@ -22,7 +22,7 @@ import urllib.request
 from collections import Counter
 from pathlib import Path
 
-from common import CACHE, DATA, SNAPSHOT, UA, log, save_json
+from common import CACHE, DATA, ROOT, SNAPSHOT, UA, log, save_json
 
 GITHUB = ["go-gitea/gitea", "kubernetes/kubernetes", "n8n-io/n8n", "open-webui/open-webui", "langchain-ai/langchain"]
 # Popular projects hosted off GitHub (GitLab, Codeberg/Forgejo, GNOME, Tor, Framagit, SourceHut).
@@ -38,7 +38,13 @@ OFF_GITHUB = {
     "framagit.org/framasoft/mobilizon": "https://framagit.org/framasoft/mobilizon.git",
     "git.sr.ht/~rjarry/aerc": "https://git.sr.ht/~rjarry/aerc",
 }
-PROJECT_SETS = {"github": {s: f"https://github.com/{s}.git" for s in GITHUB}, "offgithub": OFF_GITHUB}
+TOP100 = ROOT.parent.parent / "tracker" / "seeds" / "top100-projects.txt"  # tracker seed (make_seed.py select)
+PROJECT_SETS = {
+    "github": {s: f"https://github.com/{s}.git" for s in GITHUB},
+    "offgithub": OFF_GITHUB,
+    "top100": {s: f"https://github.com/{s}.git" for s in
+               (ln.split("\t")[0] for ln in (TOP100.read_text().splitlines() if TOP100.exists() else []) if ln and not ln.startswith("#"))},
+}
 PROJECTS = PROJECT_SETS[os.environ.get("PROJECT_SET", "github")]
 OSV_SCANNER_VERSION = "v2.7.0"
 LOCKFILES = [
@@ -148,18 +154,30 @@ def lockfiles_in(dest: Path) -> list[Path]:
 def scan(exe: Path, src: Path, out: Path) -> dict:
     # Explicit -L per lockfile: `scan source --recursive DIR` silently finds nothing when DIR
     # sits under a hidden directory such as .cache (FINDINGS F-040).
-    args: list[str] = []
-    for f in lockfiles_in(src):
-        is_req = f.name.startswith("requirements") and f.name.endswith(".txt")
-        args += ["-L", f"requirements.txt:{f}" if is_req and f.name != "requirements.txt" else str(f)]
-    if out.exists():
-        out.unlink()
-    r = run([str(exe), "scan", "source", "--all-packages", "--format", "json", "--output-file", str(out), *args])
+    files = lockfiles_in(src)
+    unreadable: list[str] = []
+    for _ in range(len(files) + 1):  # a malformed lockfile fails the whole scan: drop it, record it, retry
+        args: list[str] = []
+        for f in files:
+            is_req = f.name.startswith("requirements") and f.name.endswith(".txt")
+            args += ["-L", f"requirements.txt:{f}" if is_req and f.name != "requirements.txt" else str(f)]
+        if out.exists():
+            out.unlink()
+        r = run([str(exe), "scan", "source", "--all-packages", "--format", "json", "--output-file", str(out), *args])
+        bad = [f for f in files if "extraction failed" in r.stderr and f"{str(f).lstrip('/')}: could not extract" in r.stderr]
+        if r.returncode not in (0, 1) and bad:
+            unreadable += [str(f.relative_to(src)) for f in bad]
+            files = [f for f in files if f not in bad]
+            log(f"  unreadable lockfile(s), recorded and skipped: {[str(f.relative_to(src)) for f in bad]}")
+            if files:
+                continue
+            return {"results": [], "no_package_sources": True, "unreadable_lockfiles": unreadable}
+        break
     if r.returncode == 128 and "No package sources found" in r.stderr:
-        return {"results": [], "no_package_sources": True}  # recorded by the caller, not treated as clean
+        return {"results": [], "no_package_sources": True, "unreadable_lockfiles": unreadable}  # recorded by the caller
     if r.returncode not in (0, 1) or not out.exists():  # 1 = vulnerabilities found
         raise SystemExit(f"osv-scanner failed ({r.returncode}): {r.stderr[-800:]}")
-    return json.loads(out.read_text())
+    return {**json.loads(out.read_text()), "unreadable_lockfiles": unreadable}
 
 
 def main() -> None:
@@ -174,7 +192,12 @@ def main() -> None:
             failed[slug] = str(e)
             log(f"  SKIPPED {slug}: {e}")
             continue
-        res = scan(exe, src, CACHE / f"osv-{slug.replace('/', '__').replace('~', '')}.json")
+        try:
+            res = scan(exe, src, CACHE / f"osv-{slug.replace('/', '__').replace('~', '')}.json")
+        except SystemExit as e:  # same rule: record the project as unreadable, keep going
+            failed[slug] = str(e)[:500]
+            log(f"  SCAN FAILED {slug}: {str(e)[:200]}")
+            continue
         if res.get("no_package_sources"):
             failed[slug] = "no package sources: OSV-Scanner found no readable lockfile (only fixtures / undeclared lockfile)"
             log(f"  NO PACKAGE SOURCES for {slug}; recorded as inventory gap")
@@ -188,7 +211,8 @@ def main() -> None:
                 pkgs.append({"ecosystem": pk.get("ecosystem", ""), "name": pk["name"], "version": pk.get("version", ""),
                              "lockfile": path, "osv_ids": ids})
                 lockfiles[path] += 1
-        inventory[slug] = {"commit": sha, "clone_url": url, "lockfiles": dict(lockfiles), "packages": pkgs}
+        inventory[slug] = {"commit": sha, "clone_url": url, "lockfiles": dict(lockfiles), "packages": pkgs,
+                           "unreadable_lockfiles": res.get("unreadable_lockfiles", [])}
         eco = Counter(p["ecosystem"] for p in pkgs)
         nover = sum(1 for p in pkgs if not p["version"])
         log(f"  {len(lockfiles)} lockfiles, {len(pkgs)} package entries, {nover} without version, {dict(eco)}")

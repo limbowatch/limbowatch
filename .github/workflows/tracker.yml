@@ -59,6 +59,7 @@ jobs:
           else export LIMBOWATCH_GITHUB_TOKEN="$ACTIONS_TOKEN"; budget=900; fi
           extra=""; [ -n "${CVE_LIST:-}" ] && extra="--cve-list $CVE_LIST"
           uv run limbowatch track --state tracker-data/state --seed tracker/seeds/popular-upstreams.txt \
+            --seed tracker/seeds/top100-upstreams.txt \
             --budget "${BUDGET_INPUT:-$budget}" --minutes 50 --max-nvd 40 $extra
       - name: Publish
         run: uv run limbowatch publish --state tracker-data/state --out site

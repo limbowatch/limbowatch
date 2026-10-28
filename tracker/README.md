@@ -21,10 +21,23 @@ A daily job that counts published GitHub security advisories still **in limbo**:
    - `feed/all.zip`: OSV schema, one `<GHSA>.json` per advisory in limbo, same layout as OSV's bulk exports;
    - `feed/index.json`.
 
+## Seeds
+
+- `seeds/popular-upstreams.txt`: upstream repos of the 15 projects in the October report.
+- `seeds/top100-upstreams.txt`: upstream repos of the dependencies of `seeds/top100-projects.txt`, the 100 most-starred GitHub repos with a readable lockfile (FINDINGS F-063). To regenerate:
+
+```sh
+uv run tracker/seeds/make_seed.py select
+cd research/2026-10-state-of-the-gap/scripts
+SNAPSHOT_DATE=$(date +%F)-top100 PROJECT_SET=top100 uv run s1_inventory.py && SNAPSHOT_DATE=$(date +%F)-top100 uv run s2_map.py
+cd - && uv run tracker/seeds/make_seed.py upstreams $(date +%F)-top100
+```
+
 ## Running it
 
 ```sh
-uv run limbowatch track --state tracker/state --seed tracker/seeds/popular-upstreams.txt --budget 4000 --minutes 50
+uv run limbowatch track --state tracker/state --seed tracker/seeds/popular-upstreams.txt \
+  --seed tracker/seeds/top100-upstreams.txt --budget 4000 --minutes 50
 uv run limbowatch publish --state tracker/state --out tracker/site
 ```
 
@@ -63,7 +76,7 @@ It runs daily at 06:17 UTC (and on manual dispatch). The first run also download
 
 ## What it doesn't see
 
-- **Repos outside the watchlist.** GitHub has no global list of repository advisories, so the tracker sees only repos on its watchlist: where reviewed advisories originated, the seed list, and repos named in new GitHub-assigned CVEs. **Every number is a floor.**
+- **Repos outside the watchlist.** GitHub has no global list of repository advisories, so the tracker sees only repos on its watchlist: where reviewed advisories originated, the seed lists, and repos named in new GitHub-assigned CVEs. **Every number is a floor.**
 - **First advisories in unknown repos.** A repo's first advisory with no CVE, in a repo that isn't a popular upstream, appears only once something else reveals it.
 
 ## What it publishes

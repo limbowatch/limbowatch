@@ -656,6 +656,22 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
 - **Caveats:** With `GITHUB_TOKEN` alone, one full pass over the watchlist takes about 16 daily runs. Never-polled repos are taken in alphabetical order, so early reports skew toward repos starting with "a".
 - **Implication:** Coverage, not correctness, is the constraint. A PAT (3,500 per run) gets a full pass in about 3 days, after which unchanged repos cost nothing if ETags carry over (Q11). The report states coverage, so partial numbers aren't read as totals.
 
+### F-063
+- **Date:** 2026-10-28 · **Status:** confirmed (observed)
+- **Question:** How many upstream repos do the dependencies of the 100 most popular GitHub projects add to the tracker's watchlist?
+- **Method:**
+  - Selection (`tracker/seeds/make_seed.py select`): GitHub search `stars:>10000 archived:false fork:false`, sorted by stars. A repo qualifies if its recursive git tree has a supported lockfile outside test, fixture, vendor, example and docs directories. 171 repos were checked; 71 had no such lockfile.
+  - Mapping: research pipeline s1 (OSV-Scanner v2.7.0 `--all-packages`) and s2 (deps.dev, Go module paths), snapshot `2026-10-28-top100`.
+- **Result:**
+  - All 100 projects were read. Two lockfiles failed to parse and were recorded as unreadable: `microsoft/Web-Dev-For-Beginners` (`7-bank-project/api/package-lock.json`) and `microsoft/ML-For-Beginners` (`package-lock.json`).
+  - 51,374 unique package-versions: 48,301 mapped to a GitHub repo; 1,544 not found on deps.dev; 1,432 with no repo; 88 hosted off GitHub; 9 with no mapper.
+  - **12,406 unique upstream repos**, of which 7,819 aren't in `popular-upstreams.txt`. The two seeds together hold 13,432 repos.
+- **Caveats:**
+  - A malformed lockfile used to abort the whole OSV-Scanner run (exit 127). s1 now drops it, records it and retries.
+  - Selection by stars includes tutorial and list repos whose lockfiles only build their websites.
+  - 34,985 of the mappings rest on unverified deps.dev metadata, not attestations.
+- **Implication:** The watchlist grows to about 16,700 repos with the reviewed-origin repos. With `GITHUB_TOKEN` alone, a full pass takes about 18 daily runs, so a PAT, or a one-off local pass, is needed for full coverage.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
