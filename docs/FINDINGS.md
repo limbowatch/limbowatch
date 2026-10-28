@@ -693,10 +693,24 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
 - **Caveats:**
   - Every number is a floor: only watchlisted repos are seen.
   - The 258 pending advisories from before 2026 look like advisories GitHub never backfilled, not slow reviews. The site keeps them out of the "longest waiting" list.
-  - Today's 06:17 UTC scheduled tracker run never fired.
+  - Today's 06:17 UTC scheduled tracker run hadn't fired at the time of writing; it fired late (see [F-065](#f-065)).
 - **Implication:**
   - At steady state the adaptive schedule (`limbowatch/schedule.py`) works out to about 3,960 checks a day: 1,338 repos daily, 2,458 every 3 days, 12,635 weekly. That's slightly over the 3,500-request run budget, so tiers stretch a little until the ETags held by the PAT make unchanged repos free.
   - The pending count is about 15× the October report's 415, because the watchlist is about 3× larger and includes every reviewed-origin repo.
+
+### F-065
+- **Date:** 2026-10-28 · **Status:** confirmed (observed; one run)
+- **Question:** Does the daily scheduled tracker run fire on time, and what does it cost right after a full pass?
+- **Method:** `gh run list -R limbowatch/limbowatch` and the Track step's JSON summary of run 40693721039 (event `schedule`, cron `17 6 * * *`).
+- **Result:**
+  - The run was created at **13:08:23 UTC, 6 h 51 min after the 06:17 cron time**. It succeeded and triggered the site rebuild.
+  - Track: 171 s; 90 reviewed advisories synced, 380 CVE records read, watchlist 16,433.
+  - **2 repos polled, 3 counted GitHub requests**: every repo had been checked during the full pass 4–6 hours earlier, so nothing was due yet (F-064).
+  - 9,742 OSV lookups (every advisory not yet reviewed is reassessed each run), 40 NVD lookups (the cap), 0 failures; 4 new advisories, 45 changed.
+- **Caveats:** One observation. GitHub documents that scheduled workflows can be delayed during high load; how late they usually run here isn't known yet.
+- **Implication:**
+  - F-064's "never fired" was premature: the run fired, just late. A run later than 06:17 is still inside the schedule's 2-hour slack only if consecutive runs drift by a similar amount; a large swing (e.g. 13:08 one day, 06:20 the next) leaves daily-tier repos about 15 hours short of due, so they wait until the following run.
+  - The first real day of scheduled checks under the PAT is the 2026-10-29 run.
 
 ## Archive
 
