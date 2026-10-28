@@ -644,6 +644,18 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
   - The headline must separate pending (reviewable) from likely-permanent limbo, or the long tail of never-reviewed ecosystems dominates.
   - Old pending advisories in reviewable ecosystems (147 > 1 year) suggest review may never come for some even there; track separately once lag data accumulates.
 
+### F-062
+- **Date:** 2026-10-28 · **Status:** confirmed (observed)
+- **Question:** Does the daily tracker work end to end in GitHub Actions on the private repo, with only `GITHUB_TOKEN`?
+- **Method:** First dispatched run of `.github/workflows/tracker.yml` (run 40621299260), budget 900, no PAT, no NVD key.
+- **Result:**
+  - All steps succeeded in 6.5 minutes. The CVE List bootstrap imported 28,580 CVE records that reference a GHSA. The reviewed sync covered 37,320 advisories (320 new since F-057).
+  - Polling: **533 of 8,850 watchlist repos** before the budget ran out (907 GitHub requests counted), 274 advisories found.
+  - The report (25 in limbo, 2 newly published) was committed to `tracker-data` and posted to issue #1.
+  - Pages deploy skipped (private repo).
+- **Caveats:** With `GITHUB_TOKEN` alone, one full pass over the watchlist takes about 16 daily runs. Never-polled repos are taken in alphabetical order, so early reports skew toward repos starting with "a".
+- **Implication:** Coverage, not correctness, is the constraint. A PAT (3,500 per run) gets a full pass in about 3 days, after which unchanged repos cost nothing if ETags carry over (Q11). The report states coverage, so partial numbers aren't read as totals.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
