@@ -73,6 +73,7 @@ a{color:inherit}a:hover{color:var(--amber-text)}
 nav.main{display:flex;flex-wrap:wrap;gap:0 24px;font-size:15px}
 nav.main a{text-decoration:none;padding:10px 0;border-bottom:2px solid transparent}
 nav.main a[aria-current]{font-weight:600;border-bottom-color:currentColor}
+.menu,.tl-v,.ftoggle,.tabs .sm{display:none}
 /* hero (always dark) */
 .hero{background:#0F1218;color:#F3F1EA;border-bottom:1px solid #2A303B}
 .hero a:hover{color:#F4A62A}.hero .brand b{color:#F4A62A}.hero .eyebrow{color:#A9A8A0}
@@ -124,12 +125,13 @@ h2.sm{font-size:24px;letter-spacing:-.01em}h2.xs{font-size:20px;margin-bottom:16
 .facts3 p{margin:14px 0 0;color:var(--ink2)}.facts3 strong{color:var(--ink)}
 .more{display:inline-flex;align-items:center;min-height:44px;margin-top:12px;font-weight:600}
 .cards3{margin-top:32px;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px}
+h2.lg{margin-top:10px;max-width:820px;font-size:40px}
 .cards3 .card{padding:28px}.cards3 h3{margin:0;font-size:19px;font-weight:600}.cards3 p{margin:8px 0 16px;font-size:15px;color:var(--ink2)}
 pre{margin:0;padding:14px 16px;background:var(--code-bg);color:var(--code-ink);border-radius:10px;font:13px/1.6 var(--mono);overflow-x:auto}
 pre.light{background:var(--surface);color:var(--ink);border:1px solid var(--line);font-size:12.5px;line-height:1.65;padding:18px 20px}
 .about{display:flex;flex-wrap:wrap;gap:24px 64px;border-top:1px solid var(--line);padding-top:48px}
 .about h2{flex:1 1 240px}.about div{flex:3 1 520px;min-width:0;color:var(--ink2);line-height:1.65}.about p{margin:0 0 16px}
-footer{padding-top:72px;padding-bottom:48px;font-size:13px;line-height:1.6;color:var(--muted)}
+footer.wrap{padding-top:72px;padding-bottom:48px;font-size:13px;line-height:1.6;color:var(--muted)}
 footer .f{border-top:1px solid var(--line);padding-top:24px;display:flex;flex-wrap:wrap;gap:16px 48px;justify-content:space-between}
 footer p{margin:0;max-width:760px}
 /* tracker */
@@ -139,7 +141,7 @@ h1.page b{color:var(--mark);font-weight:650}
 .sevs{margin:0;display:flex;flex-wrap:wrap;gap:8px 32px;font-size:14px}.sevs dt{color:var(--muted)}.sevs dd{margin:2px 0 0;font-size:22px;font-weight:600}
 .tabs{margin-top:40px;display:flex;flex-wrap:wrap;gap:0 24px;border-bottom:1px solid var(--line)}
 .tabs button{min-height:44px;padding:0 2px;background:none;border:0;border-bottom:2px solid transparent;font:inherit;font-size:15px;color:var(--ink2);cursor:pointer}
-.tabs button[aria-selected="true"]{border-bottom-color:var(--ink);color:var(--ink);font-weight:600}.tabs span{color:var(--muted);font-weight:500}
+.tabs button[aria-selected="true"]{border-bottom-color:var(--ink);color:var(--ink);font-weight:600}.tabs .n{color:var(--muted);font-weight:500}
 .filters{margin-top:20px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
 .filters label{flex:1 1 130px;min-width:0;display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--ink2)}.filters label.q{flex:2 1 240px}
 .filters input,.filters select{width:100%}
@@ -197,15 +199,68 @@ width:10px;height:10px;border-radius:50%;background:var(--bg);border:2px solid v
 .story-tl li.now:before{background:var(--mark)}.story-tl time{display:block;font:13px var(--mono);color:var(--muted)}
 .story-tl span{display:block;margin-top:2px;line-height:1.55}
 .note h3{margin:0;font-size:16px;font-weight:600}.note ul{margin:10px 0 0;padding-left:18px;font-size:14px;color:var(--ink2)}
-@media (max-width:640px){.wrap{padding:0 16px}.hero-body{padding-top:40px;padding-bottom:56px}.lede{font-size:17px}
-.stats dd{font-size:22px}.tl-labels{font-size:13px}h2{font-size:26px}h1.page{font-size:34px}.facts3 .n{font-size:44px}
-.facts dt{flex-basis:100%}.li{padding:12px 16px}.list h3{padding:14px 16px 6px}
-nav.main{gap:0 16px;font-size:14px}.tl .f3{flex:1.4}.tl-labels span{display:none}.tl-labels .f1{flex-direction:column;gap:6px}
-.tl-labels .r{text-align:left}
-.tbl{overflow:visible}table{min-width:0}thead{display:none}
-.tbl tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:14px 16px;border-bottom:1px solid var(--line2)}
-.tbl td{display:block;padding:0;border:0;max-width:none}.tbl td.p,.tbl td:nth-child(4){grid-column:1/-1}
-.tbl td:nth-child(3),.tbl td:nth-child(6){text-align:right}.wait{width:120px}}
+@media (max-width:640px){.wrap{padding-left:16px;padding-right:16px}
+/* header: one row, menu in a panel */
+.bar{position:relative;flex-wrap:nowrap;padding-top:8px;padding-bottom:8px}nav.main{display:none}
+.menu{display:block}.menu summary{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;margin-right:-12px;
+list-style:none;cursor:pointer;font-size:15px;font-weight:500;-webkit-tap-highlight-color:transparent}
+.menu summary::-webkit-details-marker{display:none}
+.burger,.burger:before,.burger:after{display:block;width:18px;height:2px;border-radius:1px;background:currentColor;transition:transform .15s}
+.burger{position:relative}.burger:before,.burger:after{content:"";position:absolute;left:0}.burger:before{top:-6px}.burger:after{top:6px}
+.menu[open] .burger{background:transparent}.menu[open] .burger:before{top:0;transform:rotate(45deg)}
+.menu[open] .burger:after{top:0;transform:rotate(-45deg)}
+.menu nav{position:absolute;left:0;right:0;top:100%;z-index:20;display:flex;flex-direction:column;padding:4px 16px 12px;
+background:var(--bg);border-bottom:1px solid var(--line);box-shadow:0 16px 32px rgba(0,0,0,.18)}
+.menu nav a{display:flex;align-items:center;min-height:52px;border-bottom:1px solid var(--line2);text-decoration:none;font-size:18px}
+.menu nav a:last-child{border-bottom:0}.menu nav a[aria-current]{font-weight:600;color:var(--amber-text)}
+.hero .menu nav{background:#0F1218;border-color:#2A303B}.hero .menu nav a{border-color:#232833}
+/* home */
+.hero-body{padding-top:32px;padding-bottom:48px}.hero .eyebrow .dt{display:none}.hero h1{margin-top:12px}.lede{font-size:17px;margin-top:18px}
+.count-row{margin-top:40px;gap:28px}.stats{gap:18px 24px}.stats dd{font-size:24px}
+.tl{margin-top:48px}.tl-row,.tl-cols{display:none}
+.tl-v{display:block;margin:0;padding:0;list-style:none}.tl-v li{position:relative;padding:0 0 20px 34px;font-size:15px;line-height:1.45}
+.tl-v li:before{content:"";position:absolute;left:5px;top:10px;bottom:-10px;width:6px;background:#F4A62A}
+.tl-v li.rev:before{left:7px;width:2px;background:#3A404C}.tl-v li.seen:before{display:none}
+.tl-v b{position:absolute;left:0;top:2px;width:16px;height:16px;border-radius:50%}.tl-v .pub b{background:#F4A62A}
+.tl-v .rev b{background:#0F1218;border:3px solid #F3F1EA}.tl-v .seen b{background:#F3F1EA}
+.tl-v span{display:block;color:#A9A8A0}.tl-v .limbo{padding-top:4px;padding-bottom:28px}.tl-v .limbo .tl-tag{margin-bottom:4px}
+.tl-foot{margin-top:4px}
+.ctas{margin-top:40px;flex-direction:column}.ctas .btn{justify-content:center}
+.strip .wrap{flex-direction:column;align-items:stretch;gap:12px}.meter{flex:none;max-width:none}
+.strip a{display:inline-flex;align-items:center;min-height:44px;margin:-10px 0}
+section.s{padding-top:64px}h2{font-size:26px}h2.lg{font-size:30px}h2.sm{font-size:22px}
+.cols{margin-top:24px;gap:16px}.li{padding:14px 16px;gap:12px}.list h3{padding:14px 16px 6px}
+.li .m small{display:block;margin-top:2px;line-height:1.5}.li .m small .sep{display:none}.li .m small span{display:block}
+.facts3{margin-top:32px}.facts3>div{padding:24px 0}.facts3 .n{font-size:44px}
+.cards3{gap:16px}.cards3 .card{padding:20px}
+.cards3 pre,ol.steps pre{white-space:pre-wrap;overflow-wrap:anywhere}
+.about{padding-top:32px}footer.wrap{padding-top:56px}
+/* tracker */
+h1.page{font-size:34px}.head{padding-top:32px;gap:24px}.sevs{display:grid;grid-template-columns:repeat(4,auto);gap:4px 16px;width:100%}
+.tabs{margin-top:32px;flex-wrap:nowrap;gap:0 20px;overflow-x:auto;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
+.tabs button{flex:none;white-space:nowrap}.tabs .lg{display:none}.tabs .sm{display:inline}
+.filters{gap:10px}.filters label.q{flex:1 1 200px}.filters label:not(.q){display:none;flex:1 1 calc(50% - 5px)}
+.filters.open label{display:flex}
+.ftoggle{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border:1px solid var(--border);border-radius:10px;
+background:var(--surface);font:inherit;font-size:15px;font-weight:500;color:var(--ink);cursor:pointer;white-space:nowrap}
+.ftoggle[aria-expanded="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tbl{margin-top:16px;overflow:visible}table{min-width:0}thead{display:none}
+.tbl tr{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"p sev" "id id" "cve cve" "wait fix";
+gap:6px 12px;padding:16px;border-bottom:1px solid var(--line2)}.tbl tr:last-child{border-bottom:0}
+.tbl td{display:block;padding:0;border:0;max-width:none}.tbl td[colspan]{grid-column:1/-1}
+.tbl .c-p{grid-area:p}.tbl .c-id{grid-area:id}.tbl .c-cve{grid-area:cve}.tbl .c-cve small{margin-top:2px}
+.tbl .c-sev{grid-area:sev;align-self:start;justify-self:end;padding:1px 10px;border:1px solid var(--border);border-radius:999px;font-size:13px;line-height:1.6}
+.tbl .c-sev.sev-critical,.tbl .c-sev.sev-high{background:var(--pill-bg);color:var(--pill-ink);border-color:transparent}
+.tbl .c-wait{grid-area:wait;align-self:end;font-size:14px}.tbl .c-wait:before{content:attr(data-l) " ";color:var(--muted)}
+.tbl .c-fix{grid-area:fix;align-self:end;text-align:right}.tbl .c-fix:before{content:"Fixed in ";font:13px var(--sans);color:var(--muted)}
+.tbl .c-fix.none:before{content:"No fixed version"}.tbl .c-fix.none span{display:none}
+.wait{width:110px}
+.pager{flex-direction:column;align-items:stretch}.pager span.b{flex-wrap:wrap}.pager button{flex:1}
+.pager .btn{flex:1 1 100%;justify-content:center}
+/* advisory, feed, why */
+.facts dt{flex-basis:100%}.facts>div{padding:14px 16px}.adv-head .btn{width:100%;justify-content:center}
+ol.steps li{gap:12px}pre.light{max-height:440px;overflow:auto}
+.story{padding-top:32px}.story p{font-size:17px}}
 """
 
 TRACKER_JS = """(()=>{const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -219,17 +274,20 @@ function list(){const q=$('#q').value.trim().toLowerCase(),eco=$('#eco').value,s
  return r.sort(by[sort]);}
 function render(){if(!D)return;const r=list(),n=r.length,max=Math.max(1,...r.map(x=>x.age||0));page=Math.min(page,Math.max(0,Math.ceil(n/PER)-1));
  const rows=r.slice(page*PER,page*PER+PER);
- $('#rows').innerHTML=rows.map(x=>`<tr><td class="p"><a href="/advisory/${esc(x.id)}/"><strong>${esc(x.pkg)}</strong></a><small>${esc(x.eco)} · ${esc(x.repo)}</small></td>
-<td class="mono" style="font-size:13px;white-space:nowrap"><a href="/advisory/${esc(x.id)}/">${esc(x.id)}</a></td><td class="sev-${esc(x.sev)}">${esc(x.sev[0].toUpperCase()+x.sev.slice(1))}</td>
-<td>${tab==='left'?esc(x.to)+'<small>'+esc(x.at)+'</small>':`<span class="cve"><span class="cd ${esc(x.cve)}" aria-hidden="true"></span>${esc(CVE[x.cve])}</span><small class="mono">${esc(x.cves)}</small>`}</td>
-<td>${esc(days(x.age))}${tab==='left'?'':`<span class="wait" aria-hidden="true"><i style="width:${Math.max(2,Math.round((x.age||0)/max*100))}%"></i></span>`}</td>
-<td class="mono" style="font-size:13px">${esc(x.fix||'–')}</td></tr>`).join('')||'<tr><td colspan="6" class="muted">Nothing matches.</td></tr>';
+ $('#rows').innerHTML=rows.map(x=>`<tr><td class="p c-p"><a href="/advisory/${esc(x.id)}/"><strong>${esc(x.pkg)}</strong></a><small>${esc(x.eco)} · ${esc(x.repo)}</small></td>
+<td class="mono c-id" style="font-size:13px;white-space:nowrap"><a href="/advisory/${esc(x.id)}/">${esc(x.id)}</a></td><td class="c-sev sev-${esc(x.sev)}">${esc(x.sev[0].toUpperCase()+x.sev.slice(1))}</td>
+<td class="c-cve">${tab==='left'?esc(x.to)+'<small>'+esc(x.at)+'</small>':`<span class="cve"><span class="cd ${esc(x.cve)}" aria-hidden="true"></span>${esc(CVE[x.cve])}</span><small class="mono">${esc(x.cves)}</small>`}</td>
+<td class="c-wait" data-l="${tab==='left'?'Waited':'Waiting'}">${esc(days(x.age))}${tab==='left'?'':`<span class="wait" aria-hidden="true"><i style="width:${Math.max(2,Math.round((x.age||0)/max*100))}%"></i></span>`}</td>
+<td class="mono c-fix${x.fix?'':' none'}" style="font-size:13px">${x.fix?esc(x.fix):'<span>–</span>'}</td></tr>`).join('')||'<tr><td colspan="6" class="muted">Nothing matches.</td></tr>';
  $('#shown').textContent=n?`Showing ${(page*PER+1).toLocaleString('en')}–${Math.min(n,page*PER+PER).toLocaleString('en')} of ${n.toLocaleString('en')}`:'';
  $('#prev').disabled=page===0;$('#next').disabled=(page+1)*PER>=n;
+ const nf=['#eco','#sev','#cve','#pub'].filter(s=>$(s).value).length+($('#sort').value!=='new');
+ $('#ftoggle').textContent=nf?`Filters · ${nf}`:'Filters';
  $('#h-cve').textContent=tab==='left'?'Left limbo':'CVE';$('#h-wait').textContent=tab==='left'?'Waited':'Waiting';}
 document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{tab=b.dataset.tab;page=0;
  document.querySelectorAll('.tabs button').forEach(o=>o.setAttribute('aria-selected',String(o===b)));render();}));
 $('#filters').addEventListener('submit',e=>e.preventDefault());
+$('#ftoggle').addEventListener('click',()=>{const o=$('#filters').classList.toggle('open');$('#ftoggle').setAttribute('aria-expanded',String(o));});
 ['#q','#eco','#sev','#cve','#pub','#sort'].forEach(s=>$(s).addEventListener('input',()=>{page=0;render();}));
 $('#prev').addEventListener('click',()=>{page--;render();});$('#next').addEventListener('click',()=>{page++;render();});
 fetch('/tracker/data.json').then(r=>r.json()).then(d=>{D=d;const ecos=[...new Set([...d.pending,...d.permanent].map(x=>x.eco))].sort();
@@ -257,9 +315,14 @@ def header(active: str, dark: bool = False) -> str:
         f'<a href="{href}"{current if key and key == active else ""}>{label}</a>' for key, href, label in links
     )
     logo = mark("#F3F1EA", "#F4A62A") if dark else mark("currentColor", "var(--mark)")
+    # Phones get the same links in a disclosure panel; only one of the two navs is ever displayed.
+    menu = (
+        '<details class="menu"><summary><span class="burger" aria-hidden="true"></span>Menu</summary>'
+        f'<nav aria-label="Main">{nav}</nav></details>'
+    )
     return (
         f'<div class="wrap bar"><a class="brand" href="/">{logo}<span>limbo<b>.</b>watch</span></a>'
-        f'<nav class="main" aria-label="Main">{nav}</nav></div>'
+        f'<nav class="main" aria-label="Main">{nav}</nav>{menu}</div>'
     )
 
 
@@ -270,13 +333,19 @@ def footer(extra: str = "") -> str:
     )
 
 
+MENU_JS = (
+    "<script>document.addEventListener('click',e=>{const m=document.querySelector('details.menu[open]');"
+    "if(m&&(!m.contains(e.target)||e.target.closest('a')))m.open=false});</script>\n"
+)
+
+
 def page(title: str, description: str, body: str) -> str:
     return (
         '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         f'<title>{E(title)}</title>\n<meta name="description" content="{E(description)}">\n'
         '<link rel="icon" href="/favicon.svg" type="image/svg+xml">\n<link rel="stylesheet" href="/assets/site.css">\n'
-        f"</head>\n<body>\n{body}\n</body>\n</html>\n"
+        f"</head>\n<body>\n{body}\n{MENU_JS}</body>\n</html>\n"
     )
 
 
@@ -352,7 +421,8 @@ def home(items: list[Item], m: dict[str, Any], now: datetime) -> str:
             "".join(
                 f'<a class="li" href="/advisory/{E(i.adv.ghsa_id)}/"><span class="adot" aria-hidden="true"></span>'
                 f'<span class="m"><strong>{E(pkg_names(i))}</strong> <span class="muted">{E(eco_names(i))}</span><br>'
-                f"<small>{E(i.adv.ghsa_id)} · {E(cves(i) or CVE_TEXT[CVE_KEY[i.assessment.cve_label]].lower())}</small></span>"
+                f'<small><span>{E(i.adv.ghsa_id)}</span><span class="sep"> · </span>'
+                f"<span>{E(cves(i) or CVE_TEXT[CVE_KEY[i.assessment.cve_label]].lower())}</span></small></span>"
                 f'<span class="r">{E((i.adv.severity or "unknown").capitalize())}<br>{fmt_days(days_since(i.adv.published_at, now))}</span></a>'
                 for i in rows
             )
@@ -363,7 +433,7 @@ def home(items: list[Item], m: dict[str, Any], now: datetime) -> str:
     updated = stamp(m["generated_at"])
     body = f"""<div class="hero">{header("", dark=True)}
 <section class="wrap hero-body">
-<p class="eyebrow">Live · re-checked every day · updated {E(updated)}</p>
+<p class="eyebrow">Live<span class="dt"> · re-checked every day</span> · updated {E(updated)}</p>
 <h1>Published. Often fixed. Invisible to your scanner.</h1>
 <p class="lede">Maintainers publish security advisories on GitHub every day. Most scanners can’t see them until GitHub
 reviews them into its Advisory Database, and that review now takes weeks. Limbowatch tracks every advisory stuck in between.</p>
@@ -382,6 +452,12 @@ npm audit, pip-audit and OSV-Scanner report nothing.</p></div><div class="f1"></
 <div class="tl-cols tl-labels"><div class="f3 pr"><strong>Maintainer publishes</strong><br><span>a repository advisory</span></div>
 <div class="f1"><div><strong>GitHub reviews it</strong><br><span>global Advisory DB</span></div>
 <div class="r"><strong>Scanners see it</strong><br><span>via OSV, hours later</span></div></div></div>
+<ol class="tl-v">
+<li class="pub"><b aria-hidden="true"></b><strong>Maintainer publishes</strong><span>a repository advisory</span></li>
+<li class="limbo"><p class="tl-tag">In limbo</p><span>Public and often already fixed, but Dependabot, npm audit, pip-audit and
+OSV-Scanner report nothing.</span></li>
+<li class="rev"><b aria-hidden="true"></b><strong>GitHub reviews it</strong><span>global Advisory DB</span></li>
+<li class="seen"><b aria-hidden="true"></b><strong>Scanners see it</strong><span>via OSV, hours later</span></li></ol>
 <p class="tl-foot">A CVE can arrive before, after, or never. We track it separately.</p></figure>
 <div class="ctas"><a class="btn light" href="/tracker/">See all {li["count"]:,} in limbo</a>
 <a class="btn ghost" href="/feed/">Add the feed to your scanner</a></div>
@@ -394,7 +470,7 @@ repositories; {cov["on_schedule"]:,} are up to date. Repos with an advisory in l
 <section class="wrap s"><h2>In limbo now</h2><p class="sub">Facts only. Each advisory’s full text stays on GitHub.</p>
 <div class="cols">{lst("Newly published", fresh)}{lst("Longest waiting, published this past year", oldest)}</div></section>
 <section class="wrap s" id="report"><p class="eyebrow">State of the Gap · October 2026 · snapshot 2026-10-22</p>
-<h2 style="margin-top:10px;max-width:820px;font-size:40px">We measured the gap behind fifteen popular open-source projects.</h2>
+<h2 class="lg">We measured the gap behind fifteen popular open-source projects.</h2>
 <div class="facts3"><div><div class="n">1 in 6</div><p>upstream advisories were in limbo: <strong>415 of 2,517</strong>, in neither
 GitHub’s reviewed database nor OSV.</p></div>
 <div><div class="n">23 days</div><p>median wait for review. <strong>44%</strong> of 990 recently reviewed advisories waited more than 30 days.</p></div>
@@ -474,11 +550,12 @@ reviewed database or OSV.</p></div>
 <dl class="sevs"><div><dt>Critical</dt><dd>{sev["critical"]:,}</dd></div><div><dt>High</dt><dd>{sev["high"]:,}</dd></div>
 <div><dt>Medium</dt><dd>{sev["medium"]:,}</dd></div><div><dt>Low</dt><dd>{sev["low"]:,}</dd></div></dl></div>
 <div class="tabs" role="tablist" aria-label="Which advisories">
-<button role="tab" aria-selected="true" data-tab="pending">Pending review <span>{len(data["pending"]):,}</span></button>
-<button role="tab" aria-selected="false" data-tab="permanent">Likely permanent <span>{len(data["permanent"]):,}</span></button>
-<button role="tab" aria-selected="false" data-tab="left">Left limbo, last 30 days <span>{len(data["left"]):,}</span></button></div>
+<button role="tab" aria-selected="true" data-tab="pending">Pending<span class="lg"> review</span> <span class="n">{len(data["pending"]):,}</span></button>
+<button role="tab" aria-selected="false" data-tab="permanent"><span class="lg">Likely permanent</span><span class="sm">Permanent</span> <span class="n">{len(data["permanent"]):,}</span></button>
+<button role="tab" aria-selected="false" data-tab="left">Left limbo<span class="lg">, last 30 days</span> <span class="n">{len(data["left"]):,}</span></button></div>
 <form class="filters" role="search" id="filters">
 <label class="q">Package, repository or ID<input id="q" type="search" placeholder="e.g. sanitize-html, GHSA-…, CVE-2026-…" autocomplete="off"></label>
+<button type="button" class="ftoggle" id="ftoggle" aria-expanded="false">Filters</button>
 <label>Ecosystem<select id="eco"><option value="">All</option></select></label>
 <label>Severity<select id="sev"><option value="">All</option><option value="critical">Critical</option><option value="high+">High or above</option>
 <option value="medium+">Medium or above</option><option value="low">Low</option></select></label>
