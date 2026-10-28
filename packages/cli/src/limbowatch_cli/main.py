@@ -18,6 +18,7 @@ import typer
 from limbowatch.http import HttpClient
 from limbowatch.publish import dumps, items, metrics
 from limbowatch.publish import feed as feed_mod
+from limbowatch.publish import report as report_mod
 from limbowatch.publish import site as site_mod
 from limbowatch.store import Store
 from limbowatch.tracker import Tracker, TrackerConfig, import_cve_list
@@ -119,6 +120,24 @@ def publish(
         if (assets / name).exists():
             shutil.copyfile(assets / name, out / target)
     typer.echo(f"published {len(records)} advisories in limbo to {out}")
+
+
+@app.command()
+def report(
+    state: StateDir = Path("tracker/state"),
+    out: Annotated[Path, typer.Option(help="Directory for reports (YYYY-MM-DD.md and latest.md).")] = Path(
+        "tracker/reports"
+    ),
+) -> None:
+    """Write the daily Markdown report: current numbers and everything that changed since the last report."""
+    store = _load(state)
+    rep = report_mod.build(store)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / f"{rep.date}.md").write_text(rep.markdown)
+    (out / "latest.md").write_text(rep.markdown)
+    report_mod.commit(store, rep)
+    store.export_jsonl(state)
+    typer.echo(str(out / f"{rep.date}.md"))
 
 
 if __name__ == "__main__":

@@ -32,6 +32,22 @@ uv run limbowatch publish --state tracker/state --out tracker/site
 - **NVD:** `NVD_API_KEY` is optional; it speeds up lookups from 6.5 s to 0.7 s each.
 - **Interrupted runs:** state is checkpointed after each step and every 500 polls, so a cut-off run keeps its progress.
 
+## Daily report
+
+`limbowatch report` writes `reports/YYYY-MM-DD.md` (and `latest.md`). It covers:
+- **the current numbers**, with the change since the previous report;
+- **newly published advisories** that entered limbo, sorted by severity;
+- **what left limbo:** reviewed, duplicate, or withdrawn;
+- **CVE changes:** reserved CVEs that got published, and new CVEs from other CNAs;
+- **the longest-waiting advisories**, and coverage.
+
+The previous report's position is stored in the state, so a skipped day is covered by the next report.
+
+In CI the report is:
+- shown in the run summary;
+- committed to the `tracker-data` branch under `reports/`;
+- posted as a comment on the **"Limbo Tracker daily report"** issue. Subscribe to that issue to get it by email.
+
 ## In CI
 
 `.github/workflows/tracker.yml`:
@@ -39,7 +55,7 @@ uv run limbowatch publish --state tracker/state --out tracker/site
 - commits the JSONL state to the `tracker-data` branch;
 - deploys the site to GitHub Pages.
 
-The daily schedule is commented out until the repo is public, because Pages on a private repo needs a paid plan. Until then it runs on manual dispatch.
+It runs daily at 06:17 UTC (and on manual dispatch). The first run also downloads the latest CVE List release once, to bootstrap CVEs that other CNAs assigned earlier. The website deploy is skipped while the repo is private, because Pages on a private repo needs a paid plan; the report and the feed are still produced every day.
 
 **Token choice:**
 - **`GITHUB_TOKEN`** allows 1,000 requests/hour, and its ETags probably don't carry over between runs (FINDINGS F-058, Q11). So most repos cost a full request every day.

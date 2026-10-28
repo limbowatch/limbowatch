@@ -184,3 +184,26 @@ def test_cve_list_bootstrap_finds_uncited_cves(tmp_path: Path) -> None:
     work.mkdir()
     assert import_cve_list(store, release, work) == 1
     assert store.cursor("cve_bulk") == release.name
+
+
+async def test_daily_report_tracks_changes(tmp_path: Path, no_sleep: Any) -> None:
+    from limbowatch.publish import report
+
+    seed = tmp_path / "seed.txt"
+    seed.write_text("dlclark/regexp2\ngitpython-developers/gitpython\n")
+    store = Store()
+    with respx.mock(assert_all_mocked=True, assert_all_called=False) as router:
+        mock_world(router)
+        await run_once(store, seed, no_sleep)
+    first = report.build(store, datetime.now(UTC))
+    assert "first report" in first.markdown
+    assert "**2 advisories in limbo**" in first.markdown
+    assert "REDACTED" not in first.markdown
+    report.commit(store, first)
+
+    with respx.mock(assert_all_mocked=True, assert_all_called=False) as router:
+        mock_world(router, regexp2_reviewed=True)
+        await run_once(store, seed, no_sleep)
+    second = report.build(store, datetime.now(UTC))
+    assert "**1 advisories in limbo** (−1 since the last report)" in second.markdown
+    assert "1 reviewed by GitHub" in second.markdown

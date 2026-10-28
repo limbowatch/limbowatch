@@ -59,6 +59,7 @@ uv run lint-imports              # module boundaries: pure modules do no I/O, so
 uv run pytest -q                 # recorded fixtures only; tests never hit the network
 uv run limbowatch track --state tracker/state --seed tracker/seeds/popular-upstreams.txt --budget 4000
 uv run limbowatch publish --state tracker/state --out tracker/site
+uv run limbowatch report --state tracker/state --out tracker/reports   # daily Markdown report
 ```
 
 See [tracker/README.md](tracker/README.md) for how the live tracker works. Only `limbowatch.http` builds requests, and `limbowatch.normalize` drops advisory text and personal data before anything is stored.

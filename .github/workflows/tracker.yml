@@ -1,10 +1,13 @@
-# Daily Limbo Tracker run. State lives on the `tracker-data` branch (JSONL, factual fields only);
-# the site and feed are deployed to GitHub Pages. Disabled until the repo goes public (see tracker/README.md).
+# Daily Limbo Tracker run and report.
+# - State (JSONL, factual fields only) and daily reports live on the `tracker-data` branch.
+# - The report is posted as a comment on the "Limbo Tracker daily report" issue (watchers get an
+#   email) and shown in the run summary.
+# - The site is deployed to GitHub Pages only once the repo is public (Pages on private repos needs
+#   a paid plan).
 name: tracker
 on:
-  # Enable the daily schedule once the repo is public (Pages on a private repo needs a paid plan):
-  # schedule:
-  #   - cron: "17 6 * * *"   # daily, 06:17 UTC
+  schedule:
+    - cron: "17 6 * * *" # daily, 06:17 UTC
   workflow_dispatch:
     inputs:
       budget:
@@ -12,6 +15,7 @@ on:
         default: ""
 permissions:
   contents: write
+  issues: write
   pages: write
   id-token: write
 concurrency:
@@ -20,20 +24,32 @@ concurrency:
 jobs:
   track:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          ref: tracker-data
-          path: tracker-data
-        continue-on-error: true   # first run: the branch doesn't exist yet
+      - name: Check out tracker-data
+        run: |
+          if git ls-remote --exit-code --heads origin tracker-data >/dev/null; then
+            git clone -q --depth 1 --branch tracker-data "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" tracker-data
+          else
+            mkdir -p tracker-data && git -C tracker-data init -q -b tracker-data
+          fi
+          mkdir -p tracker-data/state tracker-data/reports
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --locked
+      - name: CVE List bootstrap (first run only)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! grep -q '"cve_bulk"' tracker-data/state/cursors.jsonl 2>/dev/null; then
+            mkdir -p "$RUNNER_TEMP/cvelist"
+            gh release download --repo CVEProject/cvelistV5 --pattern '*_all_CVEs_at_midnight.zip.zip' --dir "$RUNNER_TEMP/cvelist"
+            echo "CVE_LIST=$(ls "$RUNNER_TEMP"/cvelist/*.zip.zip)" >> "$GITHUB_ENV"
+          fi
       - name: Track
         env:
-          # A fine-grained PAT (public repos, read-only) keeps ETags valid across runs (FINDINGS F-058).
-          # Falls back to the per-run GITHUB_TOKEN (1,000 requests/hour).
+          # A fine-grained PAT (public repositories, read-only) keeps ETags valid across runs
+          # (FINDINGS F-058). Without it, the per-run GITHUB_TOKEN allows 1,000 requests/hour.
           PAT: ${{ secrets.LIMBOWATCH_GITHUB_TOKEN }}
           ACTIONS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
@@ -41,24 +57,44 @@ jobs:
         run: |
           if [ -n "$PAT" ]; then export LIMBOWATCH_GITHUB_TOKEN="$PAT"; budget=3500
           else export LIMBOWATCH_GITHUB_TOKEN="$ACTIONS_TOKEN"; budget=900; fi
-          mkdir -p tracker-data/state
+          extra=""; [ -n "${CVE_LIST:-}" ] && extra="--cve-list $CVE_LIST"
           uv run limbowatch track --state tracker-data/state --seed tracker/seeds/popular-upstreams.txt \
-            --budget "${BUDGET_INPUT:-$budget}" --minutes 50
+            --budget "${BUDGET_INPUT:-$budget}" --minutes 50 --max-nvd 40 $extra
       - name: Publish
         run: uv run limbowatch publish --state tracker-data/state --out site
-      - name: Save state
+      - name: Report
+        id: report
+        run: |
+          path=$(uv run limbowatch report --state tracker-data/state --out tracker-data/reports)
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+          cat "$path" >> "$GITHUB_STEP_SUMMARY"
+      - name: Save state and report
         working-directory: tracker-data
         run: |
-          git init -q 2>/dev/null || true
-          git checkout -q -B tracker-data
-          git add state
-          git -c user.name="limbowatch-bot" -c user.email="bot@limbo.watch" commit -q -m "tracker state $(date -u +%F)" || exit 0
+          git add state reports
+          git -c user.name="limbowatch-bot" -c user.email="bot@limbo.watch" commit -q -m "tracker $(date -u +%F)" || exit 0
           git push -q "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" tracker-data
+      - name: Post report to the issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPORT: ${{ steps.report.outputs.path }}
+        run: |
+          title="Limbo Tracker daily report"
+          n=$(gh issue list --repo "${{ github.repository }}" --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
+          if [ -z "$n" ]; then
+            n=$(gh issue create --repo "${{ github.repository }}" --title "$title" \
+              --body "Each daily Limbo Tracker run posts its report here. Subscribe to this issue to get it by email. Reports are also kept on the \`tracker-data\` branch under \`reports/\`." \
+              | grep -o '[0-9]*$')
+          fi
+          head -c 65000 "$REPORT" > "$RUNNER_TEMP/comment.md"
+          gh issue comment "$n" --repo "${{ github.repository }}" --body-file "$RUNNER_TEMP/comment.md"
       - uses: actions/upload-pages-artifact@v3
+        if: ${{ !github.event.repository.private }}
         with:
           path: site
   deploy:
     needs: track
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
