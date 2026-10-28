@@ -188,6 +188,14 @@ ol.steps{margin:0;padding:0;list-style:none}ol.steps li{display:flex;gap:16px}
 .num{flex:none;width:28px;height:28px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600}
 .num.p{border-style:dashed;color:var(--ink2)}
 .note{margin-top:24px;padding:20px 24px;border:1px solid var(--line);border-radius:14px;background:var(--sunk)}
+/* why */
+.story{max-width:680px;padding-top:48px}.story p{margin:0 0 20px;font-size:18px;line-height:1.7;color:var(--ink2)}
+.story p strong{color:var(--ink)}.story .mono{overflow-wrap:anywhere}.story .sig{margin-top:40px;color:var(--ink);font-weight:600}
+.story-tl{margin:8px 0 40px;padding:0;list-style:none;border-left:2px solid var(--line)}
+.story-tl li{position:relative;padding:0 0 22px 24px}.story-tl li:before{content:"";position:absolute;left:-6px;top:7px;
+width:10px;height:10px;border-radius:50%;background:var(--bg);border:2px solid var(--mark)}
+.story-tl li.now:before{background:var(--mark)}.story-tl time{display:block;font:13px var(--mono);color:var(--muted)}
+.story-tl span{display:block;margin-top:2px;line-height:1.55}
 .note h3{margin:0;font-size:16px;font-weight:600}.note ul{margin:10px 0 0;padding-left:18px;font-size:14px;color:var(--ink2)}
 @media (max-width:640px){.wrap{padding:0 16px}.hero-body{padding-top:40px;padding-bottom:56px}.lede{font-size:17px}
 .stats dd{font-size:22px}.tl-labels{font-size:13px}h2{font-size:26px}h1.page{font-size:34px}.facts3 .n{font-size:44px}
@@ -243,7 +251,7 @@ def mark(stroke: str, dot: str, size: int = 30) -> str:
 
 def header(active: str, dark: bool = False) -> str:
     links = [("tracker", "/tracker/", "Tracker"), ("feed", "/feed/", "Feed"), ("report", "/#report", "October report"),
-             ("about", "/#about", "About"), ("", REPO_URL, "GitHub ↗")]  # fmt: skip
+             ("about", "/#about", "About"), ("why", "/why/", "Why"), ("", REPO_URL, "GitHub ↗")]  # fmt: skip
     current = ' aria-current="page"'
     nav = "".join(
         f'<a href="{href}"{current if key and key == active else ""}>{label}</a>' for key, href, label in links
@@ -408,7 +416,8 @@ is it in OSV, which CVE does it cite, is that CVE published, and has another CNA
 <p>Advisories in ecosystems GitHub doesn’t review (C/C++, container images, free text) are counted separately as
 <a href="/tracker/">likely permanent</a>: {m["likely_permanent"]["count"]:,} right now.</p>
 <p>We don’t copy advisory titles or descriptions; we link to them. Version ranges are as entered by the maintainer and
-haven’t been reviewed. Limbowatch is open source under Apache-2.0.</p></div></div></section>
+haven’t been reviewed. Limbowatch is open source under Apache-2.0.</p>
+<p><a href="/why/">Why I built it →</a></p></div></div></section>
 </main>
 {footer()}"""
     return page(
@@ -665,6 +674,61 @@ building another scanner.</p></div></li></ol></section>
     )
 
 
+STORY_ADVISORY = "https://github.com/NationalSecurityAgency/skills-service/security/advisories/GHSA-hqfg-c8wf-w2g8"
+
+
+def why(m: dict[str, Any]) -> str:
+    """The story behind the project: one advisory, followed through every database (FINDINGS F-066)."""
+    li = m["in_limbo"]
+    steps = [
+        ("16 Jun 2026", "The advisory is published. GitHub reserved CVE-2026-54694 for it the day before."),
+        ("26 Jun", "The CVE is still only reserved. I ask GitHub to check whether something went wrong."),
+        ("30 Jun", "GitHub replies: a record backlog of CVE requests, about three weeks to clear, no expediting. "
+                   "Dependabot alerts come from the advisory, not the CVE."),
+        ("11 Aug", "I follow up. GitHub is still publishing CVEs for advisories from May."),
+        ("9 Sep", "After my third follow-up, the CVE is published: 85 days after the advisory."),
+        ("28 Oct", "The advisory is still not in GitHub’s Advisory Database or in OSV."),
+    ]  # fmt: skip
+    tl = "".join(
+        f"<li{' class="now"' if n == len(steps) - 1 else ''}><time>{E(d)}</time><span>{E(t)}</span></li>"
+        for n, (d, t) in enumerate(steps)
+    )
+    body = f"""<header class="top">{header("why")}</header>
+<main class="wrap"><article class="story">
+<p class="eyebrow">The story behind limbo.watch</p>
+<h1 class="page">Why I built Limbowatch</h1>
+<p style="margin-top:32px">On 16 June 2026, the maintainers of <span class="mono">NationalSecurityAgency/skills-service</span>
+published <a href="{STORY_ADVISORY}">a security advisory</a> for a vulnerability I had reported: a stored XSS, reachable through
+user registration, that lets an attacker take over an admin account. GitHub rated it <strong>critical</strong>, and the fix
+shipped in 4.4.2.</p>
+<p>I assumed the rest would take care of itself. The CVE would go public, scanners would pick it up, and anyone running 4.4.1
+or earlier would be told to upgrade. That isn’t what happened.</p>
+<ol class="story-tl">{tl}</ol>
+<p>The reassurance in that June reply is true of how GitHub works, but it didn’t apply here. Dependabot only alerts on
+advisories GitHub has reviewed into its Advisory Database, and this one was never going to be reviewed: it affects a release
+<span class="mono">.jar</span> and a Docker image, not a package from an ecosystem GitHub supports. Scanners that start from
+the CVE had nothing to find either, because for 85 days the CVE was only a reserved ID. Even now OSV’s copy of the record
+lists git commits but no package, and NVD has deferred it.</p>
+<p><strong>A critical vulnerability, fixed and publicly documented, has been invisible for more than four months
+to every scanner that reads GitHub’s database, OSV or NVD.</strong> The people involved were doing their jobs. The review queue is simply far longer than the tools downstream
+assume.</p>
+<p>I wanted to know whether my advisory was unusual. It isn’t. In October I measured the upstream advisories of fifteen popular
+projects: about 1 in 6 was in limbo, and the median wait for review was 23 days. Today limbo.watch counts
+<strong>{li["count"]:,} advisories waiting for review</strong>, with a median wait of {fmt_days(li["age_days_median"])},
+and that’s a floor: it only sees the repositories it watches.</p>
+<p>Limbowatch makes that wait visible. It lists what’s waiting, publishes it in the format scanners already read, and will help
+maintainers and reviewers get advisories through faster. If you maintain a project, request a CVE when you publish and fill in
+both the affected range and the fixed version. If you run a scanner, <a href="/feed/">the feed is open</a>.</p>
+<p class="sig">Yujia Lin, creator of Limbowatch</p>
+</article></main>
+{footer()}"""
+    return page(
+        "Why I built Limbowatch · limbo.watch",
+        "One critical advisory, 85 days waiting for its CVE and still invisible to scanners: the story behind limbo.watch.",
+        body,
+    )
+
+
 def build(
     items: list[Item],
     metrics: dict[str, Any],
@@ -684,6 +748,7 @@ def build(
         "tracker/index.html": tracker(metrics, data),
         "tracker/data.json": json.dumps(data, separators=(",", ":")),
         "feed/index.html": feed(metrics, sample),
+        "why/index.html": why(metrics),
         "assets/site.css": CSS,
         "assets/tracker.js": TRACKER_JS,
     }

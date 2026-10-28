@@ -13,6 +13,10 @@ Limbowatch measures, and will help close, the gap between a maintainer publishin
 
 When a maintainer publishes a security advisory in their GitHub repository, Dependabot, npm audit, OSV-Scanner and most other dependency scanners stay silent until GitHub reviews that advisory into its global Advisory Database. Until then, the advisory is **in limbo**: public, usually already fixed upstream, and invisible to the tools teams rely on.
 
+## Why this exists
+
+In June 2026 I reported a critical vulnerability in [NationalSecurityAgency/skills-service](https://github.com/NationalSecurityAgency/skills-service/security/advisories/GHSA-hqfg-c8wf-w2g8). The advisory was published on 16 June, but its CVE stayed reserved for 85 days, and four months later scanners that read GitHub's database, OSV or NVD still can't match it. I wanted to know how many other advisories are stuck the same way. The answer is thousands. [The full story](https://limbo.watch/why/).
+
 ## The October 2026 report
 
 📊 **[State of the Gap (October 2026)](research/2026-10-state-of-the-gap/README.md)**, *draft*. Main findings (snapshot 2026-10-22, 15 projects on GitHub, GitLab, Codeberg, Tor, GNOME, Framagit and SourceHut):
