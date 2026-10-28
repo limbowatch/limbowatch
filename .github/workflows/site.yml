@@ -1,0 +1,62 @@
+# Builds the public site from the latest tracker state and deploys it to limbo.watch.
+# - Runs after each successful tracker run, when site code changes, or by hand.
+# - Pushes ghcr.io/limbowatch/limbowatch-site:<date>-<run id>, then points deploy/k8s/deployment.yaml
+#   at it. Argo CD on the cluster syncs that change (deploy/README.md).
+name: site
+on:
+  workflow_run:
+    workflows: [tracker]
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - "deploy/site/**"
+      - "packages/core/src/limbowatch/publish/**"
+      - "brand/assets/**"
+      - ".github/workflows/site.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+  packages: write
+concurrency:
+  group: site
+  cancel-in-progress: false
+jobs:
+  build:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Check out tracker-data
+        run: git clone -q --depth 1 --branch tracker-data "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" tracker-data
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - name: Publish
+        run: uv run limbowatch publish --state tracker-data/state --out deploy/site/public
+      - id: tag
+        run: echo "tag=$(date -u +%Y%m%d)-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6.10.0
+        with:
+          context: deploy/site
+          push: true
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          tags: |
+            ghcr.io/limbowatch/limbowatch-site:latest
+            ghcr.io/limbowatch/limbowatch-site:${{ steps.tag.outputs.tag }}
+      - name: Point the deployment at the new image
+        run: |
+          sed -i "s|image: ghcr.io/limbowatch/limbowatch-site:.*|image: ghcr.io/limbowatch/limbowatch-site:${{ steps.tag.outputs.tag }}|" deploy/k8s/deployment.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add deploy/k8s/deployment.yaml
+          git commit -q -m "ci: deploy site ${{ steps.tag.outputs.tag }}"
+          git pull -q --rebase origin main
+          git push -q

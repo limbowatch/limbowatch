@@ -86,3 +86,28 @@ def test_osv_ranges_pypi_is_ecosystem_type_and_versions_enumerated() -> None:
 def test_osv_ranges_refuses_what_osv_cannot_express() -> None:
     assert osv_ranges("npm", "> 1.0.0, < 2.0.0") is None  # strict lower bound
     assert osv_ranges("pip", "all") is None
+
+
+def test_osv_ranges_open_range_closed_by_patched_version() -> None:
+    # GHSA-xmpp-f9v3-r7qh: affected ">= 4.29.0", patched ">=4.32.0"
+    assert osv_ranges("npm", ">= 4.29.0", ">=4.32.0") == (
+        [{"type": "SEMVER", "events": [{"introduced": "4.29.0"}, {"fixed": "4.32.0"}]}],
+        [],
+    )
+    assert osv_ranges("pip", ">= 1.0", "1.7.2") == (
+        [{"type": "ECOSYSTEM", "events": [{"introduced": "1.0"}, {"fixed": "1.7.2"}]}],
+        [],
+    )
+    # per-branch fixes: the one on the range's own line applies
+    ranges, _ = osv_ranges("npm", ">= 2.3.0", "1.9.9, 2.3.5") or ([], [])
+    assert ranges[0]["events"] == [{"introduced": "2.3.0"}, {"fixed": "2.3.5"}]
+    # a fix below the range's start, or ambiguous per-branch fixes, leave the range open
+    assert osv_ranges("npm", ">= 4.29.0", "4.1.0") == (
+        [{"type": "SEMVER", "events": [{"introduced": "4.29.0"}]}],
+        [],
+    )
+    ranges, _ = osv_ranges("npm", ">= 1.0.0", "1.5.0, 2.5.0") or ([], [])
+    assert ranges[0]["events"] == [{"introduced": "1.0.0"}]
+    # an explicit upper bound wins over the patched field
+    ranges, _ = osv_ranges("npm", ">= 1.0.0, < 1.2.3", "1.4.0") or ([], [])
+    assert ranges[0]["events"] == [{"introduced": "1.0.0"}, {"fixed": "1.2.3"}]

@@ -201,11 +201,41 @@ def go_relation(advisory_path: str, module: str) -> str | None:
     return None
 
 
-def osv_ranges(ghsa_ecosystem: str, rng: str | None) -> tuple[list[dict[str, Any]], list[str]] | None:
+def _fix_for(ghsa_ecosystem: str, low: str | None, patched: str | None) -> str | None:
+    """The fixed version that closes an open-ended range starting at `low`, if it's unambiguous.
+
+    Maintainers often enter ">= 4.29.0" as the affected range and put the fix only in the patched
+    field. Without it, the OSV range would mark every later version, fixes included, as affected.
+    """
+    cls = VERSION_CLASS.get(ghsa_ecosystem)
+    if cls is None or not patched:
+        return None
+    text = patched.strip()
+    m = re.fullmatch(rf">=\s*({_VER})", text)
+    fixes = [m.group(1)] if m else re.split(r"[\s,;]+", text)
+    if not fixes or not all(re.fullmatch(_VER, f) for f in fixes):
+        return None
+    if len(fixes) > 1 and low is not None:
+        same = [f for f in fixes if f.lstrip("v").split(".")[:2] == low.lstrip("v").split(".")[:2]]
+        fixes = same
+    if len(fixes) != 1:
+        return None
+    try:
+        if low is not None and not _mk(cls, fixes[0]) > _mk(cls, low):
+            return None
+    except Exception:
+        return None
+    return fixes[0]
+
+
+def osv_ranges(
+    ghsa_ecosystem: str, rng: str | None, patched: str | None = None
+) -> tuple[list[dict[str, Any]], list[str]] | None:
     """Convert a maintainer range to OSV `ranges` (and enumerated `versions`), or None.
 
     Each alternative becomes one range with introduced / fixed / last_affected events. An
-    alternative that's a single "= X" becomes an enumerated version. Anything OSV can't express
+    alternative that's a single "= X" becomes an enumerated version. An alternative with no upper
+    bound is closed by the patched version when that's unambiguous. Anything OSV can't express
     exactly (a strict lower bound, several bounds on one side) makes the whole range None, so the
     feed falls back to publishing the raw string.
     """
@@ -232,6 +262,8 @@ def osv_ranges(ghsa_ecosystem: str, rng: str | None) -> tuple[list[dict[str, Any
         if highs:
             op, v = highs[0]
             events.append({"fixed" if op == "<" else "last_affected": clean(v)})
+        elif fix := _fix_for(ghsa_ecosystem, lows[0] if lows else None, patched):
+            events.append({"fixed": clean(fix)})
         values = [clean(e) for ev in events for e in ev.values() if e != "0"]
         kind = "SEMVER" if semver and all(_SEMVER.fullmatch(x) for x in values) else "ECOSYSTEM"
         ranges.append({"type": kind, "events": events})

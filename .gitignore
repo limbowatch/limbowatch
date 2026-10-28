@@ -24,3 +24,6 @@ research/**/data/**/*.json
 # tracker runtime output (state lives on the tracker-data branch; site is built in CI)
 tracker/state/
 tracker/site/
+
+# Site build output (written by CI before docker build)
+deploy/site/public/

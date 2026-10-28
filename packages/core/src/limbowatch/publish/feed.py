@@ -33,7 +33,7 @@ def record(it: Item, modified: str) -> dict[str, Any]:
         if not p.name or eco.osv is None:
             continue
         entry: dict[str, Any] = {"package": {"ecosystem": eco.osv, "name": p.name}}
-        conv = osv_ranges(p.ecosystem, p.vulnerable_version_range)
+        conv = osv_ranges(p.ecosystem, p.vulnerable_version_range, p.patched_versions)
         if conv is not None:
             ranges, versions = conv
             if ranges:

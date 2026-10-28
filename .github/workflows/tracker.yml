@@ -2,8 +2,7 @@
 # - State (JSONL, factual fields only) and daily reports live on the `tracker-data` branch.
 # - The report is posted as a comment on the "Limbo Tracker daily report" issue (watchers get an
 #   email) and shown in the run summary.
-# - The site is deployed to GitHub Pages only once the repo is public (Pages on private repos needs
-#   a paid plan).
+# - The public site is rebuilt from this state by .github/workflows/site.yml when this run succeeds.
 name: tracker
 on:
   schedule:
@@ -16,8 +15,6 @@ on:
 permissions:
   contents: write
   issues: write
-  pages: write
-  id-token: write
 concurrency:
   group: tracker
   cancel-in-progress: false
@@ -61,8 +58,6 @@ jobs:
           uv run limbowatch track --state tracker-data/state --seed tracker/seeds/popular-upstreams.txt \
             --seed tracker/seeds/top100-upstreams.txt \
             --budget "${BUDGET_INPUT:-$budget}" --minutes 50 --max-nvd 40 $extra
-      - name: Publish
-        run: uv run limbowatch publish --state tracker-data/state --out site
       - name: Report
         id: report
         run: |
@@ -89,17 +84,3 @@ jobs:
           fi
           head -c 65000 "$REPORT" > "$RUNNER_TEMP/comment.md"
           gh issue comment "$n" --repo "${{ github.repository }}" --body-file "$RUNNER_TEMP/comment.md"
-      - uses: actions/upload-pages-artifact@v3
-        if: ${{ !github.event.repository.private }}
-        with:
-          path: site
-  deploy:
-    needs: track
-    if: ${{ !github.event.repository.private }}
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
