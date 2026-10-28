@@ -712,6 +712,23 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
   - F-064's "never fired" was premature: the run fired, just late. A run later than 06:17 is still inside the schedule's 2-hour slack only if consecutive runs drift by a similar amount; a large swing (e.g. 13:08 one day, 06:20 the next) leaves daily-tier repos about 15 hours short of due, so they wait until the following run.
   - The first real day of scheduled checks under the PAT is the 2026-10-29 run.
 
+### F-066
+- **Date:** 2026-10-28 · **Status:** confirmed (observed; one case, plus a count over the tracker state)
+- **Question:** How did one known stuck advisory, GHSA-hqfg-c8wf-w2g8 (CVE-2026-54694), move through each database, and does the tracker see it?
+- **Method:**
+  - `cveawg.mitre.org/api/cve/CVE-2026-54694`; `gh api /repos/NationalSecurityAgency/skills-service/security-advisories/GHSA-hqfg-c8wf-w2g8`; `gh api /advisories/<GHSA>` for all 5 of the repo's published advisories; `api.osv.dev/v1/vulns/` for the GHSA and the CVE; NVD `cves/2.0?cveId=`.
+  - GitHub's replies to the reporter's three support follow-ups (2026-06-30, 08-11, 09-09), shared by the reporter.
+  - Watchlist gap: `tracker-data` `state/cves.jsonl` vs `state/repos.jsonl` at commit of the 2026-10-28 13:11 UTC run.
+- **Result:**
+  - **Timeline:** CVE reserved 2026-06-15 by GitHub_M; repo advisory published 2026-06-16 (critical); CVE record published **2026-09-09, 85 days later**, after three follow-ups. GitHub's 06-30 reply cited an industry-wide surge in CVE requests, first-in-first-out processing and "approximately three weeks" turnaround, with no expediting. On 08-11 it was still publishing CVEs for May 2026 advisories.
+  - **Today (134 days after publication):** the advisory is absent from the global Advisory Database (404) and from OSV by GHSA ID (404). OSV has `CVE-2026-54694` (aliasing the GHSA) with GIT ranges only and no package. NVD status: Deferred. All 5 of the repo's published advisories are 404 in the global database.
+  - **Why it's never reviewed:** the advisory's packages have no ecosystem (a release `.jar` and a Docker Hub image), so it falls in the "likely permanent" bucket; Dependabot can't alert on it regardless of review.
+  - **The tracker missed it:** `nationalsecurityagency/skills-service` isn't on the watchlist. The CVE List bootstrap (`tracker.import_cve_list`) stores CVEs but, unlike the CVE delta sync, doesn't add GitHub_M CVEs' repos to the watchlist. Of 21,735 stored GitHub_M CVEs naming 5,117 repos, **2,338 repos are missing from the 16,433-repo watchlist**.
+- **Caveats:** One case for the timeline. The 2,338 repos are candidates; most of their advisories may be reviewed or out of scope.
+- **Implication:**
+  - Supports F-042/F-064: CVE publication by GitHub_M can lag the repo advisory by months, and a published CVE doesn't mean scanners can match it (no package in OSV's CVE record).
+  - Fix: add GitHub_M CVEs' repos to the watchlist during the bulk import too (and once from the stored CVEs). At about 2,300 repos, mostly weekly tier, that's roughly 330 extra checks a day.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
