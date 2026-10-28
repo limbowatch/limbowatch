@@ -333,7 +333,7 @@ def home(items: list[Item], m: dict[str, Any], now: datetime) -> str:
     pend = pending(items)
     ages = [a for i in pend if (a := days_since(i.adv.published_at, now)) is not None]
     sev = li["by_severity"]
-    pct = 100 * cov["polled_last_24h"] / cov["watchlist_repos"] if cov["watchlist_repos"] else 0
+    pct = 100 * cov["on_schedule"] / cov["watchlist_repos"] if cov["watchlist_repos"] else 0
     fresh = sorted(pend, key=lambda i: i.adv.published_at or now, reverse=True)[:LIST_ROWS]
     # Old advisories GitHub never backfilled would fill this list (some date from 2019), so it covers the last year.
     recent = [i for i in pend if (days_since(i.adv.published_at, now) or 0) <= 365]
@@ -379,8 +379,8 @@ npm audit, pip-audit and OSV-Scanner report nothing.</p></div><div class="f1"></
 <a class="btn ghost" href="/feed/">Add the feed to your scanner</a></div>
 </section></div>
 <div class="strip"><div class="wrap"><span><strong>Every number is a floor.</strong> We watch {cov["watchlist_repos"]:,} upstream
-repositories; {cov["polled_last_24h"]:,} were checked in the last 24 hours.</span>
-<span class="meter" role="img" aria-label="{pct:.0f}% of the watchlist checked in the last 24 hours"><span style="width:{min(pct, 100):.0f}%"></span></span>
+repositories; {cov["on_schedule"]:,} are up to date. Repos with an advisory in limbo are re-checked daily, the rest every 3 to 7 days.</span>
+<span class="meter" role="img" aria-label="{pct:.0f}% of the watchlist up to date"><span style="width:{min(pct, 100):.0f}%"></span></span>
 <a href="/#about">How coverage works</a></div></div>
 <main>
 <section class="wrap s"><h2>In limbo now</h2><p class="sub">Facts only. Each advisory’s full text stays on GitHub.</p>
@@ -486,7 +486,7 @@ reviewed database or OSV.</p></div>
 <p class="muted" style="font-size:14px;margin-top:8px">Ranges and fixed versions are as entered by maintainers and haven’t been reviewed.</p>
 <section style="margin-top:72px"><h2 class="sm">What the CVE states mean</h2><div class="legend">{legend}</div></section>
 </main>
-{footer(f"Watchlist {m['coverage']['watchlist_repos']:,} repositories; {m['coverage']['polled_last_24h']:,} checked in the last 24 hours. Every number is a floor. ")}
+{footer(f"Watchlist {m['coverage']['watchlist_repos']:,} repositories, {m['coverage']['on_schedule']:,} up to date on their schedule. Every number is a floor. ")}
 <script type="application/json" id="cve-text">{json.dumps(CVE_TEXT)}</script>
 <script src="/assets/tracker.js" defer></script>"""
     return page(

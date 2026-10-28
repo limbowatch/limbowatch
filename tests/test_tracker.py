@@ -5,7 +5,7 @@ from __future__ import annotations
 import io
 import json
 import zipfile
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -102,6 +102,14 @@ async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any) -> None:
     assert gitpython.facts.uncited_cves == ("CVE-2026-110858",)  # VulnCheck CVE found via the delta log
     assert gitpython.assessment.cve_label is CveLabel.PUBLISHED_UNCITED
     assert "GHSA-83vg-56qc-22m7" not in by_id  # already reviewed when first seen: never tracked
+
+    # right away, nothing is due (limbowatch.schedule)
+    with respx.mock(assert_all_mocked=True, assert_all_called=False) as router:
+        mock_world(router)
+        assert (await run_once(store, seed, no_sleep)).polled == 0
+    with store.session() as s:  # four days pass: due in every tier but the weekly one
+        for repo in s.query(Repo):
+            repo.last_polled_at = (datetime.now(UTC) - timedelta(days=4)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     # second run: regexp2 gets reviewed; its repo answers 304 (ETag stored for this token)
     with respx.mock(assert_all_mocked=True, assert_all_called=False) as router:

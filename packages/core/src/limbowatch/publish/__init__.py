@@ -11,7 +11,7 @@ from typing import Any
 
 from sqlalchemy import select
 
-from limbowatch import __version__
+from limbowatch import __version__, schedule
 from limbowatch.classify import assess
 from limbowatch.ecosystems import info, reviewable
 from limbowatch.models import Assessment, Facts, RepoAdvisory, Status
@@ -85,6 +85,14 @@ def metrics(store: Store, now: datetime | None = None) -> dict[str, Any]:
         reviewed = list(s.execute(select(Reviewed)).scalars())
         runs = list(s.execute(select(Run).order_by(Run.id.desc()).limit(1)).scalars())
         events = list(s.execute(select(Event).order_by(Event.id.desc()).limit(200)).scalars())
+    limbo_repos = {i.adv.repo for i in in_limbo}
+    tiers: Counter[str] = Counter()
+    on_schedule = 0
+    for r in repos:
+        t = schedule.tier(r.full_name in limbo_repos, r.advisory_count, r.poll_status)
+        tiers[t.value] += 1
+        last = datetime.fromisoformat(r.last_polled_at.replace("Z", "+00:00")) if r.last_polled_at else None
+        on_schedule += last is not None and schedule.overdue(t, last, None, now) < 1
     polled_24h = sum(
         1
         for r in repos
@@ -105,6 +113,8 @@ def metrics(store: Store, now: datetime | None = None) -> dict[str, Any]:
         "coverage": {
             "watchlist_repos": len(repos),
             "polled_last_24h": polled_24h,
+            "on_schedule": on_schedule,
+            "by_schedule": {t.value: tiers.get(t.value, 0) for t in schedule.Tier},
             "repos_with_advisories": sum(1 for r in repos if r.advisory_count),
             "reviewed_advisories_known": len(reviewed),
             "note": "Every number is a floor: only repositories on the watchlist are seen.",

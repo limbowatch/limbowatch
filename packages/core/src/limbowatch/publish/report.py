@@ -160,7 +160,9 @@ def build(store: Store, now: datetime | None = None) -> Report:
     lines += [
         "## Coverage",
         "",
-        f"Watchlist {cov['watchlist_repos']:,} repositories; {cov['polled_last_24h']:,} polled in the last 24 hours"
+        f"Watchlist {cov['watchlist_repos']:,} repositories; {cov['on_schedule']:,} up to date on their schedule "
+        "(daily for repos with an advisory in limbo, every 3 to 7 days for the rest); "
+        f"{cov['polled_last_24h']:,} checked in the last 24 hours"
         + (f"; the last run stopped early ({run['stopped_early']})" if run.get("stopped_early") else "")
         + f"; {cov['reviewed_advisories_known']:,} reviewed advisories known. Every number is a floor: the tracker "
         "only sees repositories on its watchlist. Version ranges are as entered by maintainers and unreviewed.",

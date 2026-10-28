@@ -18,6 +18,7 @@ from typing import Any
 
 from sqlalchemy import select
 
+from limbowatch import schedule
 from limbowatch.classify import facts_hash, transitions
 from limbowatch.http import BudgetExhausted, DeadlineReached, HttpClient
 from limbowatch.models import CveInfo, Facts, RepoAdvisory
@@ -32,7 +33,6 @@ REVIEW_OVERLAP = timedelta(days=2)  # re-read recent reviews: late edits, ties o
 DELTA_BOOTSTRAP = timedelta(days=2)  # first run: only this much of the CVE delta log
 RESERVED_RECHECK = timedelta(hours=20)
 NVD_RECHECK = timedelta(days=7)
-POLL_404_BACKOFF = timedelta(days=7)
 POLL_WORKERS = 8
 
 
@@ -152,6 +152,7 @@ class Tracker:
 
     # ------------------------------------------------------------------ 3. polling
     def poll_order(self) -> list[Repo]:
+        """Repos due for a check, most overdue first (limbowatch.schedule)."""
         now = datetime.now(UTC)
         with self.store.session() as s:
             repos = list(s.execute(select(Repo)).scalars())
@@ -163,17 +164,20 @@ class Tracker:
                 if a.data.get("state") == "published" and a.ghsa_id not in reviewed
             }
 
-        def key(r: Repo) -> tuple[int, str]:
-            last = _parse(r.last_polled_at)
-            if last is None:
-                return (0, "")  # never polled
-            if r.poll_status == 404 and now - last < POLL_404_BACKOFF:
-                return (9, r.last_polled_at or "")
-            if r.full_name in limbo_repos:
-                return (1, r.last_polled_at or "")
-            return (2, r.last_polled_at or "")  # oldest first
-
-        return [r for r in sorted(repos, key=key) if key(r)[0] < 9]
+        by_name = {r.full_name: r for r in repos}
+        scores = [
+            (
+                r.full_name,
+                schedule.overdue(
+                    schedule.tier(r.full_name in limbo_repos, r.advisory_count, r.poll_status),
+                    _parse(r.last_polled_at),
+                    _parse(r.first_seen),
+                    now,
+                ),
+            )
+            for r in repos
+        ]
+        return [by_name[n] for n in schedule.due_order(scores)]
 
     async def poll(self, report: RunReport) -> None:
         queue: asyncio.Queue[Repo] = asyncio.Queue()
