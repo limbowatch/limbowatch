@@ -672,6 +672,32 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
   - 34,985 of the mappings rest on unverified deps.dev metadata, not attestations.
 - **Implication:** The watchlist grows to about 16,700 repos with the reviewed-origin repos. With `GITHUB_TOKEN` alone, a full pass takes about 18 daily runs, so a PAT, or a one-off local pass, is needed for full coverage.
 
+### F-064
+- **Date:** 2026-10-28 · **Status:** confirmed (observed)
+- **Question:** How many published advisories are in limbo across the whole watchlist, and what does a full pass cost?
+- **Method:**
+  - `limbowatch track` run locally with the maintainer's `gh` token over the 16,431-repo watchlist: reviewed-origin repos, `popular-upstreams.txt` and `top100-upstreams.txt`.
+  - Four runs, one per hourly rate-limit window, 07:18–09:50 UTC. State pushed to `tracker-data` (commit 0f77ae3). Metrics from `limbowatch.publish.metrics` on that state.
+  - Spot check: 15 random feed records against `api.osv.dev/v1/vulns/{id}`.
+- **Result:**
+  - **Coverage:** all 16,431 repos polled with 0 failures. 3,796 have published advisories; 172 answered 404. About 16,000 counted GitHub requests in total; one 5,000/hour window covered about 4,600 polls.
+  - **Advisories:** 9,738 not yet reviewed when first seen: 9,540 in limbo, 196 duplicates of a reviewed advisory, 2 reviewed since.
+  - **Pending review (ecosystems GitHub reviews): 6,124.**
+    - Severity: 533 critical, 2,477 high, 2,531 medium, 583 low.
+    - CVE state: 3,355 with no CVE anywhere; 1,304 citing a published CVE; 982 with an uncited CVE from another CNA; 469 citing a reserved CVE (460 for more than 72 hours); 14 other.
+    - Wait so far: median 47.4 days. 1,272 have waited more than 3 months.
+    - By year published: 5,866 from 2026, and 258 from 2019–2025.
+    - By ecosystem: Go 1,416, npm 1,345, PyPI 1,097, Packagist 955, Maven 589, crates.io 418, others 386.
+  - **Likely permanent (ecosystems GitHub doesn't review): 3,416**, median age 167 days.
+  - **Spot check:** 15 of 15 sampled records absent from OSV. The old ones (Envoy, Bottlerocket, 2020–2023) are in the likely-permanent bucket.
+- **Caveats:**
+  - Every number is a floor: only watchlisted repos are seen.
+  - The 258 pending advisories from before 2026 look like advisories GitHub never backfilled, not slow reviews. The site keeps them out of the "longest waiting" list.
+  - Today's 06:17 UTC scheduled tracker run never fired.
+- **Implication:**
+  - At steady state the adaptive schedule (`limbowatch/schedule.py`) works out to about 3,960 checks a day: 1,338 repos daily, 2,458 every 3 days, 12,635 weekly. That's slightly over the 3,500-request run budget, so tiers stretch a little until the ETags held by the PAT make unchanged repos free.
+  - The pending count is about 15× the October report's 415, because the watchlist is about 3× larger and includes every reviewed-origin repo.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
