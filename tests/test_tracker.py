@@ -14,7 +14,7 @@ import respx
 from conftest import load
 from limbowatch.http import HttpClient
 from limbowatch.models import CveLabel, Status
-from limbowatch.publish import feed, items, metrics, site
+from limbowatch.publish import all_events, feed, items, metrics, site
 from limbowatch.store import Event, Repo, Store
 from limbowatch.tracker import Tracker, TrackerConfig
 
@@ -128,8 +128,14 @@ async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any) -> None:
     with zipfile.ZipFile(io.BytesIO(zipped)) as z:
         assert z.namelist() == ["GHSA-f9j4-qggq-h239.json"]
 
-    page = site.build(items(store), m, datetime(2099, 1, 2, tzinfo=UTC))
-    assert "GHSA-f9j4-qggq-h239" in page and "REDACTED" not in page
+    pages = site.build(items(store), m, datetime.now(UTC), events=all_events(store), sample=rec)
+    assert {"index.html", "tracker/index.html", "tracker/data.json", "feed/index.html"} <= set(pages)
+    adv = pages["advisory/GHSA-f9j4-qggq-h239/index.html"]
+    assert "CVE-2026-110858" in adv and "published by another CNA" in adv
+    assert "advisory/GHSA-wq9v-j77v-qr26/index.html" not in pages  # reviewed: no longer in limbo
+    left = json.loads(pages["tracker/data.json"])["left"]
+    assert [r["id"] for r in left] == ["GHSA-wq9v-j77v-qr26"] and left[0]["to"] == "Reviewed by GitHub"
+    assert all("REDACTED" not in text for text in pages.values())
 
     # state round-trips through JSONL
     store.export_jsonl(tmp_path / "state")

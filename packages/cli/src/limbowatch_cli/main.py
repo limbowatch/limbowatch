@@ -16,7 +16,7 @@ from typing import Annotated
 
 import typer
 from limbowatch.http import HttpClient
-from limbowatch.publish import dumps, items, metrics
+from limbowatch.publish import all_events, dumps, items, metrics
 from limbowatch.publish import feed as feed_mod
 from limbowatch.publish import report as report_mod
 from limbowatch.publish import site as site_mod
@@ -95,7 +95,7 @@ def publish(
     out: Annotated[Path, typer.Option(help="Output directory for the site and feed.")] = Path("tracker/site"),
     assets: Annotated[Path, typer.Option(help="Brand assets to copy (favicon, avatar).")] = Path("brand/assets"),
 ) -> None:
-    """Write feed/all.zip, feed/index.json, metrics.json and index.html from the state."""
+    """Write the site, feed (all.zip, index.json, one JSON per record) and metrics.json from the state."""
     store = _load(state)
     now = datetime.now(UTC)
     all_items = items(store)
@@ -115,7 +115,15 @@ def publish(
         )
     )
     (out / "metrics.json").write_text(dumps(m))
-    (out / "index.html").write_text(site_mod.build(all_items, m, now))
+    for r in records:
+        (out / "feed" / f"{r['id']}.json").write_text(dumps(r))
+    # the feed page shows a real record: the newest pending one with a machine-readable range
+    pending = {i.adv.ghsa_id: i for i in all_items if not i.assessment.likely_permanent}
+    with_ranges = [r for r in records if r["id"] in pending and any("ranges" in a for a in r["affected"])]
+    sample = max(with_ranges, key=lambda r: r.get("published") or "", default=None)
+    for path, text in site_mod.build(all_items, m, now, events=all_events(store), sample=sample).items():
+        (out / path).parent.mkdir(parents=True, exist_ok=True)
+        (out / path).write_text(text)
     for name, target in (("favicon.svg", "favicon.svg"), ("avatar-500.png", "avatar-500.png")):
         if (assets / name).exists():
             shutil.copyfile(assets / name, out / target)

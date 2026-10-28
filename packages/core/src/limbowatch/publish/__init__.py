@@ -59,6 +59,11 @@ def items(store: Store) -> list[Item]:
     return out
 
 
+def all_events(store: Store) -> list[dict[str, Any]]:
+    with store.session() as s:
+        return [{"ghsa_id": e.ghsa_id, "at": e.at, "event": e.event} for e in s.execute(select(Event)).scalars()]
+
+
 def eco_label(ghsa_ecosystem: str) -> str:
     return info(ghsa_ecosystem).osv or ghsa_ecosystem
 
