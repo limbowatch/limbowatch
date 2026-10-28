@@ -1,4 +1,6 @@
-# limbo.watch serves the site; www.limbo.watch redirects to it. One certificate covers both.
+# limbo.watch serves the site; www.limbo.watch redirects to it.
+# www has no DNS record yet. Once it has one, add it to the tls hosts below and give the www ingress
+# the same tls block; until then Let's Encrypt can't validate it and the whole certificate stalls.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -11,7 +13,6 @@ spec:
   tls:
     - hosts:
         - limbo.watch
-        - www.limbo.watch
       secretName: limbowatch-tls
   rules:
     - host: limbo.watch
@@ -46,10 +47,6 @@ metadata:
     traefik.ingress.kubernetes.io/router.middlewares: limbowatch-www-redirect@kubernetescrd
 spec:
   ingressClassName: traefik
-  tls:
-    - hosts:
-        - www.limbo.watch
-      secretName: limbowatch-tls
   rules:
     - host: www.limbo.watch
       http:
