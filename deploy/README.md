@@ -25,6 +25,17 @@ GitHub holds no credentials for the cluster. The cluster pulls from GitHub.
 | `limbowatch/ghcr-pull-secret` | Pulls the private image; a copy of the cluster's existing GHCR pull secret |
 | `limbowatch/limbowatch-tls` | Let's Encrypt certificate for limbo.watch and www.limbo.watch (cert-manager, `letsencrypt-http`) |
 
+## Analytics
+
+Google Analytics is off unless the repository variable `LIMBOWATCH_GA_ID` (Settings → Secrets and variables → Actions → Variables) holds a GA4 measurement ID (`G-…`). It isn't a secret: it appears in every page.
+
+With it set, every page loads Google Analytics in Consent Mode:
+- every storage type is denied until a visitor clicks **Allow cookies** on the banner. Until then, and after **No thanks**, Google gets only cookieless pings;
+- ad storage is never granted;
+- the choice is kept in the visitor's browser, and the footer's **Cookie settings** link changes it.
+
+The Content-Security-Policy in `site/nginx.conf` allows `www.googletagmanager.com`, `*.google-analytics.com` and `*.google.com` (Google's list for Analytics without Ads features). Remove them if analytics is turned off for good.
+
 ## Checking it
 
 ```sh

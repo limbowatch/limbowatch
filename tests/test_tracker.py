@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+import pytest
 import respx
 from conftest import load
 from limbowatch.http import HttpClient
@@ -144,6 +145,12 @@ async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any) -> None:
     left = json.loads(pages["tracker/data.json"])["left"]
     assert [r["id"] for r in left] == ["GHSA-wq9v-j77v-qr26"] and left[0]["to"] == "Reviewed by GitHub"
     assert all("REDACTED" not in text for text in pages.values())
+    assert "analytics.js" not in pages["index.html"] and "assets/analytics.js" not in pages  # off unless configured
+    tagged = site.build(items(store), m, datetime.now(UTC), analytics_id="G-ABC123XYZ")
+    assert all('data-id="G-ABC123XYZ"' in v for k, v in tagged.items() if k.endswith(".html"))
+    assert "analytics_storage:choice==='granted'?'granted':'denied'" in tagged["assets/analytics.js"]
+    with pytest.raises(ValueError):
+        site.build(items(store), m, datetime.now(UTC), analytics_id='G-1"><script>')
 
     # state round-trips through JSONL
     store.export_jsonl(tmp_path / "state")

@@ -94,6 +94,12 @@ def publish(
     state: StateDir = Path("tracker/state"),
     out: Annotated[Path, typer.Option(help="Output directory for the site and feed.")] = Path("tracker/site"),
     assets: Annotated[Path, typer.Option(help="Brand assets to copy (favicon, avatar).")] = Path("brand/assets"),
+    analytics_id: Annotated[
+        str | None,
+        typer.Option(
+            envvar="LIMBOWATCH_GA_ID", help="GA4 measurement ID (G-…); adds Google Analytics behind a consent banner."
+        ),
+    ] = None,
 ) -> None:
     """Write the site, feed (all.zip, index.json, one JSON per record) and metrics.json from the state."""
     store = _load(state)
@@ -121,7 +127,9 @@ def publish(
     pending = {i.adv.ghsa_id: i for i in all_items if not i.assessment.likely_permanent}
     with_ranges = [r for r in records if r["id"] in pending and any("ranges" in a for a in r["affected"])]
     sample = max(with_ranges, key=lambda r: r.get("published") or "", default=None)
-    for path, text in site_mod.build(all_items, m, now, events=all_events(store), sample=sample).items():
+    for path, text in site_mod.build(
+        all_items, m, now, events=all_events(store), sample=sample, analytics_id=analytics_id or None
+    ).items():
         (out / path).parent.mkdir(parents=True, exist_ok=True)
         (out / path).write_text(text)
     for name, target in (("favicon.svg", "favicon.svg"), ("avatar-500.png", "avatar-500.png")):

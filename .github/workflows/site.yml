@@ -34,6 +34,8 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --locked
       - name: Publish
+        env:
+          LIMBOWATCH_GA_ID: ${{ vars.LIMBOWATCH_GA_ID }}  # repository variable; empty means no analytics
         run: uv run limbowatch publish --state tracker-data/state --out deploy/site/public
       - id: tag
         run: echo "tag=$(date -u +%Y%m%d)-${{ github.run_id }}" >> "$GITHUB_OUTPUT"

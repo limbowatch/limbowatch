@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import html
 import json
+import re
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -198,6 +199,11 @@ ol.steps{margin:0;padding:0;list-style:none}ol.steps li{display:flex;gap:16px}
 width:10px;height:10px;border-radius:50%;background:var(--bg);border:2px solid var(--mark)}
 .story-tl li.now:before{background:var(--mark)}.story-tl time{display:block;font:13px var(--mono);color:var(--muted)}
 .story-tl span{display:block;margin-top:2px;line-height:1.55}
+/* cookie consent (only when analytics is on) */
+.consent{position:fixed;left:16px;right:16px;bottom:16px;z-index:30;max-width:600px;margin-left:auto;display:flex;flex-wrap:wrap;
+gap:12px 16px;align-items:center;padding:16px 18px;background:var(--surface);color:var(--ink);border:1px solid var(--border);
+border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.25);font-size:14px;line-height:1.5}
+.consent[hidden]{display:none}.consent p{margin:0;flex:1 1 280px;color:var(--ink2)}.consent div{display:flex;gap:8px}
 .note h3{margin:0;font-size:16px;font-weight:600}.note ul{margin:10px 0 0;padding-left:18px;font-size:14px;color:var(--ink2)}
 @media (max-width:640px){.wrap{padding-left:16px;padding-right:16px}
 /* header: one row, menu in a panel */
@@ -260,7 +266,8 @@ gap:6px 12px;padding:16px;border-bottom:1px solid var(--line2)}.tbl tr:last-chil
 /* advisory, feed, why */
 .facts dt{flex-basis:100%}.facts>div{padding:14px 16px}.adv-head .btn{width:100%;justify-content:center}
 ol.steps li{gap:12px}pre.light{max-height:440px;overflow:auto}
-.story{padding-top:32px}.story p{font-size:17px}}
+.story{padding-top:32px}.story p{font-size:17px}
+.consent div{width:100%}.consent .btn{flex:1;justify-content:center}}
 """
 
 TRACKER_JS = """(()=>{const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -806,14 +813,45 @@ both the affected range and the fixed version. If you run a scanner, <a href="/f
     )
 
 
+# Google Analytics 4 with Consent Mode: every storage type is denied until the visitor accepts, so a visitor who
+# declines (or never answers) sends only cookieless pings. Ads storage is never granted. The choice is kept in
+# localStorage, and the footer gets a "Cookie settings" link to change it.
+ANALYTICS_JS = """(()=>{const id=document.currentScript.dataset.id,K='lw-consent';let choice=null;
+try{choice=localStorage.getItem(K)}catch(e){}
+window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}
+gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',
+ analytics_storage:choice==='granted'?'granted':'denied'});
+gtag('set','ads_data_redaction',true);gtag('js',new Date());gtag('config',id);
+const s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+encodeURIComponent(id);
+document.head.appendChild(s);
+const b=document.createElement('div');b.className='consent';b.setAttribute('role','region');b.setAttribute('aria-label','Cookie consent');
+b.innerHTML='<p>limbo.watch uses Google Analytics to count visits. Allow cookies? If you don\u2019t, it sends only anonymous counts without cookies.</p>'
+ +'<div><button type="button" class="btn solid" data-v="granted">Allow cookies</button><button type="button" class="btn line" data-v="denied">No thanks</button></div>';
+b.hidden=!!choice;document.body.appendChild(b);
+b.addEventListener('click',e=>{const v=e.target.closest('button')?.dataset.v;if(!v)return;
+ try{localStorage.setItem(K,v)}catch(e){}gtag('consent','update',{analytics_storage:v});b.hidden=true;
+ if(v==='denied')document.cookie.split(';').map(c=>c.split('=')[0].trim()).filter(n=>n.startsWith('_ga')).forEach(n=>{
+  for(const d of ['',';domain='+location.hostname,';domain=.'+location.hostname])document.cookie=n+'=;Max-Age=0;path=/'+d;});});
+const f=document.querySelector('footer .f p:last-child');
+if(f){const a=document.createElement('a');a.href='#';a.textContent='Cookie settings';f.append(' \u00b7 ',a);
+ a.addEventListener('click',e=>{e.preventDefault();b.hidden=false;b.querySelector('button').focus();});}
+})();
+"""
+GA_ID = re.compile(r"G-[A-Z0-9]{4,16}")
+
+
 def build(
     items: list[Item],
     metrics: dict[str, Any],
     now: datetime,
     events: list[dict[str, Any]] | None = None,
     sample: dict[str, Any] | None = None,
+    analytics_id: str | None = None,
 ) -> dict[str, str]:
-    """Every page of the site, keyed by its path under the output directory."""
+    """Every page of the site, keyed by its path under the output directory. With a GA4 measurement ID,
+    every page loads Google Analytics behind a consent banner."""
+    if analytics_id and not GA_ID.fullmatch(analytics_id):
+        raise ValueError(f"not a GA4 measurement ID: {analytics_id!r}")
     events = events or []
     now = now.astimezone(UTC)
     by_ghsa: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -832,4 +870,8 @@ def build(
     for i in items:
         if i.assessment.status is Status.LIMBO:
             out[f"advisory/{i.adv.ghsa_id}/index.html"] = advisory(i, by_ghsa.get(i.adv.ghsa_id, []), now)
+    if analytics_id:
+        tag = f'<script src="/assets/analytics.js" data-id="{analytics_id}" defer></script>\n</head>'
+        out = {k: v.replace("</head>", tag, 1) if k.endswith(".html") else v for k, v in out.items()}
+        out["assets/analytics.js"] = ANALYTICS_JS
     return out
