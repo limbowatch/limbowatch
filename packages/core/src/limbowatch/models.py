@@ -57,6 +57,9 @@ class CveInfo(Frozen):
     repo_refs: tuple[str, ...] = ()
 
 
+GITHUB_CNA = "GitHub_M"  # GitHub's CNA short name in CVE records
+
+
 class CveLabel(StrEnum):
     NONE = "no CVE anywhere"
     RESERVED = "CVE reserved (RBP)"

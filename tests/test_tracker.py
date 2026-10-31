@@ -226,5 +226,31 @@ async def test_daily_report_tracks_changes(tmp_path: Path, no_sleep: Any) -> Non
         mock_world(router, regexp2_reviewed=True)
         await run_once(store, seed, no_sleep)
     second = report.build(store, datetime.now(UTC))
-    assert "**1 advisories in limbo** (−1 since the last report)" in second.markdown
+    assert (
+        "**1 advisories in limbo** (−1 since the last report: 0 newly published, "
+        "0 older ones found for the first time, 1 left limbo)" in second.markdown
+    )
     assert "1 reviewed by GitHub" in second.markdown
+    assert "## Longest waiting, published in the last 90 days" in second.markdown
+    assert "0 advisories in limbo have waited more than a year." in second.markdown
+
+
+async def test_watch_cna_repos_backfills_bulk_imported_cves(tmp_path: Path, no_sleep: Any) -> None:
+    """The bulk CVE import stores GitHub-CNA CVEs without watching their repos (F-066); each run catches up."""
+    from limbowatch.store import Cve
+
+    store = Store()
+    with store.session() as s:
+        for cid, cna, refs in [
+            ("CVE-1", "GitHub_M", ["acme/widget", "advisories/ghsa-xxxx-xxxx-xxxx"]),
+            ("CVE-2", "VulnCheck", ["other/repo"]),
+        ]:
+            s.add(
+                Cve(cve_id=cid, data={"cve_id": cid, "cna": cna, "repo_refs": refs}, fetched_at="2026-10-30T00:00:00Z")
+            )
+    async with HttpClient("t", github_budget=1, sleep=no_sleep) as http:
+        tracker = Tracker(store, http, TrackerConfig())
+        assert tracker.watch_cna_repos() == 1
+        assert tracker.watch_cna_repos() == 0
+    with store.session() as s:
+        assert [r.full_name for r in s.query(Repo)] == ["acme/widget"]

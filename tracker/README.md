@@ -5,7 +5,7 @@ A daily job that counts published GitHub security advisories still **in limbo**:
 ## What one run does
 
 1. **Reviewed list.** Syncs GitHub's reviewed advisories since the last run. The first run walks the whole list (about 370 requests). Every repo where a reviewed advisory originated joins the watchlist.
-2. **CVE delta log.** Reads new and updated CVE records from cvelistV5. CVEs that reference a GHSA are kept, and repos named by GitHub-assigned CVEs join the watchlist.
+2. **CVE delta log.** Reads new and updated CVE records from cvelistV5. CVEs that reference a GHSA are kept, and repos named by GitHub-assigned CVEs join the watchlist. Each run also adds repos named by GitHub-assigned CVEs already in the state, including those from the CVE List bootstrap (F-066).
 3. **Polling.** Polls the repos that are due for published advisories, within a request budget (`limbowatch/schedule.py`):
    - each repo has a target interval: daily if it has an advisory in limbo, every 3 days if it has other advisories, weekly if it has none yet or answered 404;
    - each run polls only repos that are due, most overdue first (time since the last check ÷ the interval). If the budget can't cover everything due, every tier slows down by the same factor. Never-polled repos rank above repos that are merely due;
@@ -50,11 +50,11 @@ uv run limbowatch publish --state tracker/state --out tracker/site
 ## Daily report
 
 `limbowatch report` writes `reports/YYYY-MM-DD.md` (and `latest.md`). It covers:
-- **the current numbers**, with the change since the previous report;
+- **the current numbers**, with the change since the previous report split into newly published advisories, older ones found for the first time (mostly in newly watched repos) and ones that left limbo. Older finds are coverage growth, not new limbo (F-067);
 - **newly published advisories** that entered limbo, sorted by severity;
 - **what left limbo:** reviewed, duplicate, or withdrawn;
-- **CVE changes:** reserved CVEs that got published, and new CVEs from other CNAs;
-- **the longest-waiting advisories**, and coverage.
+- **CVE changes:** reserved CVEs that got published, new CVEs from other CNAs, and GitHub-assigned CVEs the advisory doesn't cite yet;
+- **the longest-waiting advisories published in the last 90 days** (older ones would top it every day), the count waiting more than a year, and coverage.
 
 The previous report's position is stored in the state, so a skipped day is covered by the next report.
 
@@ -78,7 +78,7 @@ It runs daily at 06:17 UTC (and on manual dispatch). The first run also download
 
 ## What it doesn't see
 
-- **Repos outside the watchlist.** GitHub has no global list of repository advisories, so the tracker sees only repos on its watchlist: where reviewed advisories originated, the seed lists, and repos named in new GitHub-assigned CVEs. **Every number is a floor.**
+- **Repos outside the watchlist.** GitHub has no global list of repository advisories, so the tracker sees only repos on its watchlist: where reviewed advisories originated, the seed lists, and repos named in GitHub-assigned CVEs. **Every number is a floor.**
 - **First advisories in unknown repos.** A repo's first advisory with no CVE, in a repo that isn't a popular upstream, appears only once something else reveals it.
 
 ## What it publishes

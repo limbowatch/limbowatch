@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 
 from limbowatch.ecosystems import reviewable
-from limbowatch.models import Assessment, CveLabel, Facts, RepoAdvisory, Status
+from limbowatch.models import GITHUB_CNA, Assessment, CveLabel, Facts, RepoAdvisory, Status
 
 
 def status(f: Facts) -> Status:
@@ -52,8 +53,10 @@ def facts_hash(f: Facts) -> str:
     return hashlib.sha256(json.dumps(f.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()
 
 
-def transitions(old: Facts | None, new: Facts) -> list[str]:
-    """Human-readable events between two fact snapshots (empty if nothing meaningful changed)."""
+def transitions(old: Facts | None, new: Facts, cnas: Mapping[str, str | None] | None = None) -> list[str]:
+    """Human-readable events between two fact snapshots (empty if nothing meaningful changed).
+
+    `cnas` maps uncited CVE IDs to their CNA, so GitHub's own CVEs aren't called another CNA's (F-067)."""
     if old is None:
         return ["first seen"]
     ev = []
@@ -64,8 +67,11 @@ def transitions(old: Facts | None, new: Facts) -> list[str]:
     elif old.cited_cve_state != new.cited_cve_state and new.cited_cve:
         ev.append(f"{new.cited_cve} {old.cited_cve_state or '?'} -> {new.cited_cve_state}")
     added = sorted(set(new.uncited_cves) - set(old.uncited_cves))
-    if added:
-        ev.append(f"new CVE from another CNA: {', '.join(added)}")
+    github = [c for c in added if (cnas or {}).get(c) == GITHUB_CNA]
+    if github:
+        ev.append(f"new CVE from GitHub's CNA, not cited: {', '.join(github)}")
+    if other := [c for c in added if c not in github]:
+        ev.append(f"new CVE from another CNA: {', '.join(other)}")
     if not old.duplicate_of and new.duplicate_of:
         ev.append(f"duplicate of reviewed {', '.join(new.duplicate_of)}")
     return ev

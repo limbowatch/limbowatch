@@ -48,3 +48,8 @@ def test_transitions() -> None:
     assert "in limbo -> reviewed" in ev
     assert "CVE-1 RESERVED -> PUBLISHED" in ev
     assert "new CVE from another CNA: CVE-9" in ev
+    gh = facts(uncited_cves=("CVE-8", "CVE-9"))
+    assert transitions(facts(), gh, {"CVE-8": "GitHub_M", "CVE-9": "VulnCheck"}) == [
+        "new CVE from GitHub's CNA, not cited: CVE-8",
+        "new CVE from another CNA: CVE-9",
+    ]

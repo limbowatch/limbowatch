@@ -748,6 +748,14 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
   - Label `new CVE from another CNA` only when the CVE's CNA isn't GitHub_M; otherwise say "CVE published by GitHub, not yet cited".
   - The report's "Longest waiting" table repeats the same 2019 advisories every day; it would say more limited to the last 90 days.
 
+### F-068
+- **Date:** 2026-10-31 · **Status:** confirmed (count over the tracker state)
+- **Question:** How big is F-066's watchlist gap now that the CVE delta sync has been adding GitHub-CNA repos for two days?
+- **Method:** `tracker-data` state at 699cf99 (2026-10-30 13:12 UTC): repos in `repo_refs` of every `state/cves.jsonl` record with `cna == "GitHub_M"`, excluding `advisories/…` (github.com/advisories links), minus `state/repos.jsonl`.
+- **Result:** 21,893 GitHub_M CVEs name 4,958 repos; **2,113 aren't on the 16,499-repo watchlist** (F-066 counted 2,338 two days earlier, with a slightly different repo count). No `advisories/…` pseudo-repos were on the watchlist.
+- **Caveats:** As F-066: candidates; many will have only reviewed advisories.
+- **Implication:** The delta sync closes the gap only as repos get new CVEs, about 100 repos a day, and each brings its backlog into the daily "found for the first time" count. The tracker now adds them all on its next run (`Tracker.watch_cna_repos`). That first run polls about 2,100 new repos ahead of the regular ~1,400, close to the 3,500-request budget, so some daily-tier repos may wait one extra day.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

@@ -21,7 +21,7 @@ from sqlalchemy import select
 from limbowatch import schedule
 from limbowatch.classify import facts_hash, transitions
 from limbowatch.http import BudgetExhausted, DeadlineReached, HttpClient
-from limbowatch.models import CveInfo, Facts, RepoAdvisory
+from limbowatch.models import GITHUB_CNA, CveInfo, Facts, RepoAdvisory
 from limbowatch.normalize import ts
 from limbowatch.sources import cve as cve_src
 from limbowatch.sources import github, nvd, osv
@@ -70,6 +70,11 @@ def _parse(s: str | None) -> datetime | None:
     return ts(s)
 
 
+def _cna_repos(records: list[dict[str, Any]]) -> set[str]:
+    """Repos named by CVE records; github.com/advisories/GHSA-... links parse as owner "advisories"."""
+    return {r for rec in records for r in rec.get("repo_refs", []) if not r.startswith("advisories/")}
+
+
 class Tracker:
     def __init__(self, store: Store, http: HttpClient, cfg: TrackerConfig) -> None:
         self.store, self.http, self.cfg = store, http, cfg
@@ -97,6 +102,15 @@ class Tracker:
             }
             n = self.add_repos(names, f"seed:{path.stem}")
             log.info("seed loaded", extra={"seed": path.name, "repos": len(names), "new": n})
+
+    def watch_cna_repos(self) -> int:
+        """Watch every repo named by a stored GitHub-CNA CVE. The CVE delta sync adds these as CVEs arrive;
+        this also covers CVEs stored by the bulk import, which adds none (F-066). Idempotent."""
+        with self.store.session() as s:
+            refs = [c.data for c in s.execute(select(Cve)).scalars() if c.data.get("cna") == GITHUB_CNA]
+        n = self.add_repos(_cna_repos(refs), "github-cna-cve")
+        log.info("github-cna repos", extra={"new": n})
+        return n
 
     # ------------------------------------------------------------------ 1. reviewed list
     async def sync_reviewed(self, report: RunReport) -> None:
@@ -145,8 +159,7 @@ class Tracker:
         keep = [i for i in infos if i is not None and i.ghsa_refs]
         report.cve_records_seen = len(latest)
         self._merge([Cve(cve_id=i.cve_id, data=i.model_dump(mode="json"), fetched_at=now_iso()) for i in keep])
-        cna_repos = {r for i in keep if i.cna == "GitHub_M" for r in i.repo_refs}
-        self.add_repos(cna_repos, "github-cna-cve")
+        self.add_repos(_cna_repos([i.model_dump() for i in keep if i.cna == GITHUB_CNA]), "github-cna-cve")
         if entries:
             self.store.set_cursor("cve_delta", entries[-1].fetch_time)
 
@@ -311,7 +324,8 @@ class Tracker:
             h = facts_hash(f)
             if old is not None and facts_hash(Facts.model_validate(old)) == h:
                 continue
-            evs = transitions(Facts.model_validate(old) if old else None, f)
+            cnas = {c: cves[c].data.get("cna") if c in cves else None for c in uncited}
+            evs = transitions(Facts.model_validate(old) if old else None, f, cnas)
             with self.store.session() as s:
                 s.add(
                     FactSnapshot(
@@ -361,6 +375,7 @@ class Tracker:
         report = RunReport(started_at=now_iso())
         t0 = time.monotonic()
         self.load_seeds()
+        self.watch_cna_repos()
         for step in (self.sync_reviewed, self.sync_cve_delta):
             try:
                 await step(report)

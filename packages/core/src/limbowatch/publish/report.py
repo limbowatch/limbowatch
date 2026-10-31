@@ -16,12 +16,13 @@ from sqlalchemy import select
 
 from limbowatch.models import Status
 from limbowatch.publish import ATTRIBUTION, Item, days_since, items, metrics
-from limbowatch.store import Event, Store
+from limbowatch.store import Event, Repo, Store
 
 CURSOR = "daily_report"
 NEW_WINDOW = timedelta(days=2)  # "newly published" = published within this long before the report
 TABLE_ROWS = 25
 SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+RECENT = timedelta(days=90)  # "Longest waiting" covers this window; older ones would top it every day
 
 
 @dataclass
@@ -61,11 +62,22 @@ def _table(rows: list[Item], now: datetime) -> list[str]:
     return out
 
 
-def _delta(now_v: int, prev: int | None) -> str:
+def _delta(now_v: int, prev: int | None, parts: str = "") -> str:
     if prev is None:
         return ""
     d = now_v - prev
-    return f" ({'+' if d >= 0 else '−'}{abs(d):,} since the last report)"
+    return f" ({'+' if d >= 0 else '−'}{abs(d):,} since the last report{': ' + parts if parts else ''})"
+
+
+def _parts(new: int, found: int, left: int, net: int | None) -> str:
+    """Why the pending count moved: newly found advisories aren't new limbo (F-067)."""
+    if net is None:
+        return ""
+    other = net - (new + found - left)
+    out = [f"{new:,} newly published", f"{found:,} older ones found for the first time", f"{left:,} left limbo"]
+    if other:
+        out.append(f"{'+' if other > 0 else '−'}{abs(other):,} other changes")
+    return ", ".join(out)
 
 
 def build(store: Store, now: datetime | None = None) -> Report:
@@ -80,9 +92,11 @@ def build(store: Store, now: datetime | None = None) -> Report:
     with store.session() as s:
         # Event IDs, not timestamps: timestamps have one-second resolution.
         events = list(s.execute(select(Event).where(Event.id > (prev or {}).get("event_id", 0))).scalars())
+        new_repos = {r.full_name for r in s.execute(select(Repo)).scalars() if since and _after(r.first_seen, since)}
     last_event_id = max((e.id for e in events), default=(prev or {}).get("event_id", 0))
 
     left: Counter[str] = Counter()
+    left_pending = 0
     cve_changes: list[tuple[Item, str]] = []
     first_seen: set[str] = set()
     for e in events:
@@ -93,6 +107,7 @@ def build(store: Store, now: datetime | None = None) -> Report:
             first_seen.add(e.ghsa_id)
         elif e.event.startswith("in limbo -> "):
             left[e.event.removeprefix("in limbo -> ")] += 1
+            left_pending += not it.assessment.likely_permanent
         elif "CVE" in e.event or e.event.startswith("cites "):
             cve_changes.append((it, e.event))
 
@@ -105,7 +120,11 @@ def build(store: Store, now: datetime | None = None) -> Report:
         key=sev_key,
     )
     discovered = [i for i in pending if i.adv.ghsa_id in first_seen and i not in new_pub]
-    oldest = sorted(pending, key=lambda i: days_since(i.adv.published_at, now) or 0, reverse=True)[:5]
+    in_new_repos = sum(1 for i in discovered if i.adv.repo in new_repos)
+    ages = {i.adv.ghsa_id: days_since(i.adv.published_at, now) or 0 for i in pending}
+    over_year = sum(1 for a in ages.values() if a > 365)
+    recent = [i for i in pending if ages[i.adv.ghsa_id] <= RECENT.days]
+    oldest = sorted(recent, key=lambda i: ages[i.adv.ghsa_id], reverse=True)[:5]
 
     li, lp, cov = m["in_limbo"], m["likely_permanent"], m["coverage"]
     date = now.strftime("%Y-%m-%d")
@@ -117,7 +136,15 @@ def build(store: Store, now: datetime | None = None) -> Report:
         "",
         "## Now",
         "",
-        f"- **{li['count']:,} advisories in limbo**{_delta(li['count'], prev and prev.get('limbo'))}: published by "
+        f"- **{li['count']:,} advisories in limbo**"
+        + _delta(
+            li["count"],
+            prev_limbo := prev and prev.get("limbo"),
+            _parts(
+                len(new_pub), len(discovered), left_pending, None if prev_limbo is None else li["count"] - prev_limbo
+            ),
+        )
+        + ": published by "
         "maintainers on GitHub, in ecosystems GitHub reviews, but not yet in GitHub's reviewed database or OSV.",
         f"  - {li['by_cve'].get('no CVE anywhere', 0):,} with no CVE anywhere · "
         f"{li['rbp']['count']:,} citing a CVE that's still only reserved · "
@@ -132,8 +159,9 @@ def build(store: Store, now: datetime | None = None) -> Report:
         "## Since the last report",
         "",
         f"- **{len(new_pub):,} newly published** advisories entered limbo.",
-        f"- {len(discovered):,} older advisories were found for the first time (newly watched repos).",
-        f"- **Left limbo:** {left.get('reviewed', 0):,} reviewed by GitHub, "
+        f"- {len(discovered):,} older advisories were found for the first time"
+        + (f" ({in_new_repos:,} in newly watched repos)." if discovered else "."),
+        f"- **Left limbo** (likely permanent included): {left.get('reviewed', 0):,} reviewed by GitHub, "
         f"{left.get('duplicate of a reviewed advisory', 0):,} found to duplicate a reviewed advisory, "
         f"{left.get('withdrawn', 0) + left.get('no longer published', 0):,} withdrawn or unpublished.",
         f"- **CVE changes:** {len(cve_changes):,}"
@@ -155,7 +183,14 @@ def build(store: Store, now: datetime | None = None) -> Report:
             lines.append(f"\n…and {len(cve_changes) - TABLE_ROWS:,} more.")
         lines.append("")
     if oldest:
-        lines += ["## Longest waiting", "", *_table(oldest, now), ""]
+        lines += [
+            f"## Longest waiting, published in the last {RECENT.days} days",
+            "",
+            *_table(oldest, now),
+            "",
+            f"{over_year:,} advisories in limbo have waited more than a year.",
+            "",
+        ]
     run = m.get("last_run") or {}
     lines += [
         "## Coverage",
@@ -180,6 +215,10 @@ def build(store: Store, now: datetime | None = None) -> Report:
         "cve_changes": len(cve_changes),
     }
     return Report(date, "\n".join(lines), summary)
+
+
+def _after(stamp: str | None, since: datetime) -> bool:
+    return bool(stamp) and datetime.fromisoformat(str(stamp).replace("Z", "+00:00")) > since
 
 
 def commit(store: Store, report: Report) -> None:
