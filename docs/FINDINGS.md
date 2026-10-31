@@ -756,6 +756,35 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
 - **Caveats:** As F-066: candidates; many will have only reviewed advisories.
 - **Implication:** The delta sync closes the gap only as repos get new CVEs, about 100 repos a day, and each brings its backlog into the daily "found for the first time" count. The tracker now adds them all on its next run (`Tracker.watch_cna_repos`). That first run polls about 2,100 new repos ahead of the regular ~1,400, close to the 3,500-request budget, so some daily-tier repos may wait one extra day.
 
+### F-069
+- **Date:** 2026-10-31 · **Status:** confirmed (OSV-SCALIBR source, Composer and OSV docs, count over the tracker state)
+- **Question:** How clean are the package names and ranges the limbo feed publishes, and which defects stop scanners from matching?
+- **Method:**
+  - Matching rules: OSV-SCALIBR `enricher/vulnmatch/osvlocal/internal/vulns/vulnerability.go` (`IsAffected`), `osvlocal/zip.go` and `enricher/vulnmatch/osvutil/osvutil.go` (`name`), at commit b0c689b4e6 (2026-10-12), read with `gh api repos/google/osv-scalibr/contents/...`. Naming rules: the OSV schema's ecosystem table (`ossf/osv-schema` `docs/schema.md`, main) and Composer's `doc/04-schema.md` (`name`).
+  - Data: every package of the 10,786 advisories in limbo (pending and likely permanent) in the state at 699cf99; the feed built from it by the code before and after the fix, compared entry by entry (9,508 entries in OSV ecosystems with a name).
+- **Result:**
+  - **Scanners match names exactly.** `IsAffected` requires `affected.package.name == name`; the loader doesn't normalize the record's side. The scanner's side is normalized for PyPI only (lowercase, runs of `-_.` to `-`, i.e. PEP 503, which the OSV schema also requires for PyPI). Composer requires lowercase names matching `^[a-z0-9]([_.-]?[a-z0-9]+)*/[a-z0-9](([_.]|-{1,2})?[a-z0-9]+)*$`.
+  - So before the fix, these feed entries **could never match**:
+    - 89 PyPI names not in PEP 503 form (e.g. `GitPython`);
+    - 168 Packagist names with capitals or stray spaces (e.g. `givanz/Vvveb`, ` baserproject/basercms `);
+    - 74 Go module paths wrapped in a URL, a markdown link or spaces (`https://github.com/siyuan-note/siyuan`, ` github.com/rancher/rancher`);
+    - 28 others with stray spaces (Maven 17, crates.io 4, npm 4, NuGet, Actions, RubyGems 1 each).
+    
+    All 359 are now cleaned.
+  - **406 names remain invalid** and are flagged (`name_valid: false`), not guessed: labels and file paths (`Hazelcast Management Center`, `application/modules/.../Invoices.php`), Maven group IDs with no artifact (`io.dataease`), Composer names with no vendor (`WeGIA`), Go repos with no host (`maximhq/bifrost`), Swift names that aren't URLs (`Sparkle`).
+  - **An entry with no `ranges` and no `versions` is skipped** (`continue` in `IsAffected`), so an unconverted range causes misses, never false alarms.
+  - **Open-ended ranges marked the fix as affected:** 103 entries had an `introduced` event and nothing else. In 45 of them the fixed field named a version that didn't close the range: a fix below the range's start, per-branch fixes that don't line up, or text like `< 0.2.2`. These are no longer converted, a reversal of the earlier rule that left such ranges open. The 58 open ranges left (90 over all ecosystems) all have a fixed field meaning no fix (`None`, `N/A`, `tbd`, `Will not fix`, empty).
+  - **Newly converted, 55 entries:** `all`/`All`, `&` and `&&`, `A to B` and `A through B`, and plain version lists (`1.11.12, 1.11.14, …`, now OSV `versions`). Still left as text: Rust-style `A .. B` (44; `..` excludes its end in Rust, maintainers seem to mean it inclusively), per-branch upper bounds like `< 1.2.5, < 2.0.3` (about 80; the lower bound of each branch would be a guess), strict lower bounds `> X`, and words.
+  - Range conversion overall: 9,111 of 9,508 entries (95.8%), 9,113 before.
+  - **Fixed-version field shapes:** 7,684 one version, 866 `>= X`, 368 version lists, 471 empty, 60 words or hashes, 59 with other operators. Display and the site's upgrade advice now use the parsed versions (`>= 0.5.16, >= 0.6.3` shows as `0.5.16, 0.6.3`); unreadable text is shown as entered, not as "Upgrade to < 2.5.1 or later".
+  - **Records by `quality`**, over the 6,583 with a named package in an OSV ecosystem: 5,690 with names ok and ranges converted, 164 with names cleaned and ranges converted; 398 with an invalid name; 344 with ranges left as text and 29 partly converted (these overlap).
+- **Caveats:**
+  - The name rules check form, not existence: a well-formed name can still be the wrong package. Checking names against each registry is a separate step.
+  - npm, crates.io, NuGet, Maven and Go names keep their case; whether OSV-Scanner's other paths (e.g. the API) normalize more wasn't checked.
+- **Implication:**
+  - Name hygiene, not range parsing, was the feed's larger silent-miss problem.
+  - The 406 invalid names and the ranges left as text are where a human (or the maintainer) is needed. They are candidates for a maintainer-facing "fix your advisory" note in the upstream phase.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

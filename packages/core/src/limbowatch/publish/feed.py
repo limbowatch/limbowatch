@@ -13,7 +13,7 @@ import zipfile
 from datetime import datetime
 from typing import Any
 
-from limbowatch.ecosystems import info
+from limbowatch.ecosystems import info, package_name
 from limbowatch.models import Status
 from limbowatch.publish import ATTRIBUTION, Item
 from limbowatch.versions import osv_ranges
@@ -29,10 +29,10 @@ def record(it: Item, modified: str) -> dict[str, Any]:
     adv, f, a = it.adv, it.facts, it.assessment
     affected = []
     for p in adv.packages:
-        eco = info(p.ecosystem)
-        if not p.name or eco.osv is None:
+        eco, name = info(p.ecosystem), package_name(p.ecosystem, p.name)
+        if name is None or eco.osv is None:
             continue
-        entry: dict[str, Any] = {"package": {"ecosystem": eco.osv, "name": p.name}}
+        entry: dict[str, Any] = {"package": {"ecosystem": eco.osv, "name": name.name}}
         conv = osv_ranges(p.ecosystem, p.vulnerable_version_range, p.patched_versions)
         if conv is not None:
             ranges, versions = conv
@@ -44,7 +44,8 @@ def record(it: Item, modified: str) -> dict[str, Any]:
             "vulnerable_version_range": p.vulnerable_version_range,
             "patched_versions": p.patched_versions,
             "range_converted": conv is not None,
-        }
+            "name_valid": name.valid,  # False: doesn't fit the ecosystem's naming, so it can't match (F-069)
+        } | ({"name_as_entered": name.raw} if name.cleaned else {})
         affected.append(entry)
     aliases = sorted({c for c in [adv.cve_id, *f.uncited_cves] if c})
     severity = []
@@ -76,10 +77,28 @@ def record(it: Item, modified: str) -> dict[str, Any]:
                 "nvd_status": f.nvd_status,
                 "likely_permanent": a.likely_permanent,
                 "first_seen_by_limbowatch": it.first_seen,
+                "quality": _quality(affected),
             },
             "attribution": ATTRIBUTION,
         },
     }
+
+
+def _quality(affected: list[dict[str, Any]]) -> dict[str, str]:
+    """How far a consumer can trust the record's package data: names and ranges (F-069)."""
+    ds = [a["database_specific"] for a in affected]
+    if not ds:
+        return {"names": "none", "ranges": "none"}
+    names = (
+        "invalid"
+        if not all(d["name_valid"] for d in ds)
+        else "cleaned"
+        if any("name_as_entered" in d for d in ds)
+        else "ok"
+    )
+    conv = [d["range_converted"] for d in ds]
+    ranges = "converted" if all(conv) else "partly converted" if any(conv) else "as entered"
+    return {"names": names, "ranges": ranges}
 
 
 def build(items: list[Item], modified: str) -> tuple[list[dict[str, Any]], bytes]:

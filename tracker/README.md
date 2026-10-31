@@ -21,6 +21,9 @@ A daily job that counts published GitHub security advisories still **in limbo**:
    - `index.html`;
    - `metrics.json`;
    - `feed/all.zip`: OSV schema, one `<GHSA>.json` per advisory in limbo, same layout as OSV's bulk exports;
+     - package names are cleaned only where the result is certain (stray spaces, URL wrappers, PyPI's PEP 503 form, lowercase Packagist names); the original is kept in `name_as_entered`, and names that still don't fit the ecosystem's rules get `name_valid: false`;
+     - a range that can't be converted exactly is left as text (`range_converted: false`), never published open-ended when a fix is listed;
+     - `database_specific.limbowatch.quality` sums up both, per record (F-069);
    - `feed/index.json`.
 
 ## Seeds

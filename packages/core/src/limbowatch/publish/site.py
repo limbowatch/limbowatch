@@ -17,8 +17,10 @@ from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from limbowatch.models import CveLabel, Status
-from limbowatch.publish import ATTRIBUTION, Item, days_since, eco_label
+from limbowatch.ecosystems import PackageName, package_name
+from limbowatch.models import AdvisoryPackage, CveLabel, Status
+from limbowatch.publish import ATTRIBUTION, Item, days_since, eco_label, fixes_text
+from limbowatch.versions import fixed_versions, no_fix
 
 REPO_URL = "https://github.com/limbowatch/limbowatch"
 REPORT_URL = f"{REPO_URL}/tree/main/research/2026-10-state-of-the-gap"
@@ -376,8 +378,12 @@ def permanent(items: list[Item]) -> list[Item]:
     return [i for i in items if i.assessment.status is Status.LIMBO and i.assessment.likely_permanent]
 
 
+def _name(p: AdvisoryPackage) -> PackageName:
+    return package_name(p.ecosystem, p.name) or PackageName("", "", False)
+
+
 def pkg_names(i: Item) -> str:
-    names = sorted({p.name for p in i.adv.packages if p.name})
+    names = sorted({n.name for p in i.adv.packages if (n := package_name(p.ecosystem, p.name))})
     if not names:
         return i.adv.repo
     return names[0] if len(names) == 1 else f"{names[0]} +{len(names) - 1} more"
@@ -388,7 +394,7 @@ def eco_names(i: Item) -> str:
 
 
 def fixes(i: Item) -> str:
-    return "; ".join(sorted({p.patched_versions for p in i.adv.packages if p.patched_versions}))
+    return fixes_text(i)
 
 
 def cves(i: Item) -> str:
@@ -597,10 +603,11 @@ def advisory(i: Item, events: list[dict[str, Any]], now: datetime) -> str:
     age = days_since(a.published_at, now)
     perm = s.likely_permanent
     pill = "Likely permanent: GitHub doesn’t review this ecosystem" if perm else f"In limbo for {fmt_days(age)}"
-    pkgs = [p for p in a.packages if p.name]
+    pkgs = [p for p in a.packages if package_name(p.ecosystem, p.name)]
     first = pkgs[0] if pkgs else None
+    first_name = _name(first).name if first else ""
     sub = (
-        f"<strong>{E(first.name or '')}</strong> on {E(eco_label(first.ecosystem))} · published in "
+        f"<strong>{E(first_name)}</strong> on {E(eco_label(first.ecosystem))} · published in "
         f'<a href="https://github.com/{E(a.repo)}">{E(a.repo)}</a>'
         if first
         else f'Published in <a href="https://github.com/{E(a.repo)}">{E(a.repo)}</a>'
@@ -612,7 +619,17 @@ def advisory(i: Item, events: list[dict[str, Any]], now: datetime) -> str:
     vec = a.cvss_v4_vector or a.cvss_v3_vector
     facts.append(("Severity", sev + (f'<small class="mono">{E(vec)}</small>' if vec else "")))
     for p in pkgs or a.packages:
-        name = f" ({E(p.name)})" if len(pkgs) > 1 and p.name else ""
+        pn = _name(p)
+        name = f" ({E(pn.name)})" if len(pkgs) > 1 and pn.name else ""
+        if pn.raw and (pn.cleaned or not pn.valid):
+            note = (
+                "Cleaned up for matching."
+                if pn.valid
+                else f"Doesn’t look like a valid {E(eco_label(p.ecosystem))} package name, so scanners can’t match it."
+            )
+            facts.append(
+                (f"Package name{name}", f'<span class="mono">{E(pn.raw)}</span><small>As entered. {note}</small>')
+            )
         facts.append(
             (
                 f"Affected versions{name}",
@@ -680,21 +697,23 @@ def advisory(i: Item, events: list[dict[str, Any]], now: datetime) -> str:
             + (f'<p class="d">{detail}</p>' if detail else "")
             + "</div></li>"
         )
-    fix = (first.patched_versions or "").strip() if first else ""
-    fix = fix.removeprefix(">=").strip()
-    if first and fix:
-        advice = f"Upgrade to {E(fix)} or later."
+    raw_fix = (first.patched_versions or "").strip() if first else ""
+    fix = fixed_versions(raw_fix)
+    if first and fix and len(fix) == 1:
+        advice = f"Upgrade to {E(fix[0])} or later."
+    elif first and fix:
+        advice = f"Upgrade to the fixed version for your release line: {E(', '.join(fix))}."
+    elif first and not no_fix(raw_fix):
+        advice = f"The fixed-version field says “{E(raw_fix)}”. Check the advisory for which version fixes it."
     elif first:
         advice = "No fixed version is listed yet. Check the advisory for workarounds."
     else:
         advice = "The advisory doesn’t name a package. Check it for the affected component."
     scanners = "probably never will" if perm else "won’t flag this yet"
-    who = (
-        f"If you use {E(first.name or '')} {E(first.vulnerable_version_range or '')}" if first else "If you’re affected"
-    )
+    who = f"If you use {E(first_name)} {E(first.vulnerable_version_range or '')}" if first else "If you’re affected"
     body = f"""<header class="top">{header("tracker")}</header>
 <main class="wrap">
-<nav class="crumb" aria-label="Breadcrumb"><a href="/tracker/">Tracker</a>{f" / {E(eco_label(first.ecosystem))} / {E(first.name or '')}" if first else ""}</nav>
+<nav class="crumb" aria-label="Breadcrumb"><a href="/tracker/">Tracker</a>{f" / {E(eco_label(first.ecosystem))} / {E(first_name)}" if first else ""}</nav>
 <div class="adv-head"><div style="min-width:0"><p class="pill"><i aria-hidden="true"></i>{E(pill)}</p>
 <h1 class="ghsa">{E(a.ghsa_id)}</h1><p class="sub">{sub}</p></div>
 <a class="btn solid" style="min-height:48px" href="{E(a.html_url)}">Read the advisory on GitHub ↗</a></div>
@@ -706,7 +725,7 @@ def advisory(i: Item, events: list[dict[str, Any]], now: datetime) -> str:
 <a class="mono" href="/feed/{E(a.ghsa_id)}.json">feed/{E(a.ghsa_id)}.json</a></p></section>
 </div></main>
 {footer("We show facts only; the advisory’s title, description and credits are on GitHub. ")}"""
-    name = first.name if first and first.name else a.repo
+    name = first_name or a.repo
     return page(
         f"{a.ghsa_id} ({name}) · limbo.watch",
         f"{a.ghsa_id} for {name}: published on GitHub {fmt_days(age)} ago and not yet visible to scanners that read GitHub’s Advisory Database.",
@@ -748,7 +767,11 @@ building another scanner.</p></div></li></ol></section>
 <section style="flex:2 1 380px"><h2 class="xs">One record</h2><pre class="light">{sample_html}</pre>
 <div class="note"><h3>What’s in it, and what isn’t</h3><ul>
 <li>Facts only: IDs, packages, ranges, severity, CVE state. No titles, descriptions or credits; each record links to the advisory.</li>
-<li>Ranges are as entered by maintainers and haven’t been reviewed. Expect some to be wrong.</li>
+<li>Ranges are as entered by maintainers and haven’t been reviewed. Expect some to be wrong. Where one can’t be
+converted exactly, it’s left out of <span class="mono">ranges</span> and kept as text, so it can’t raise a false alarm.</li>
+<li>Package names are cleaned where the fix is certain: stray spaces and URLs removed, PyPI and Packagist names in their
+canonical spelling. The original is kept in <span class="mono">name_as_entered</span>; names that still aren’t valid
+have <span class="mono">name_valid: false</span>. Each record’s <span class="mono">quality</span> field sums this up.</li>
 <li>An advisory leaves the feed when GitHub reviews it, so OSV takes over.</li>
 <li>Licensed CC BY 4.0. Credit “Limbowatch (limbo.watch)” and GitHub, as each record’s <span class="mono">attribution</span> field says.</li>
 </ul></div></section></div></main>

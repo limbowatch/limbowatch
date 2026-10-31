@@ -16,6 +16,7 @@ from limbowatch.classify import assess
 from limbowatch.ecosystems import info, reviewable
 from limbowatch.models import Assessment, Facts, RepoAdvisory, Status
 from limbowatch.store import Event, Repo, Reviewed, Run, Store
+from limbowatch.versions import fixed_versions, no_fix
 
 ATTRIBUTION = (
     "Advisory metadata from published GitHub repository security advisories and the GitHub Advisory Database "
@@ -57,6 +58,15 @@ def items(store: Store) -> list[Item]:
             facts = Facts.model_validate(f)
             out.append(Item(adv, facts, assess(adv, facts), a.first_seen))
     return out
+
+
+def fixes_text(i: Item) -> str:
+    """Fixed versions for display: plain versions where the field reads as such, else the text as entered."""
+    out: list[str] = []
+    for p in i.adv.packages:
+        if p.patched_versions and not no_fix(p.patched_versions):
+            out += fixed_versions(p.patched_versions) or [p.patched_versions.strip()]
+    return ", ".join(dict.fromkeys(out))
 
 
 def all_events(store: Store) -> list[dict[str, Any]]:

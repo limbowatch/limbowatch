@@ -62,6 +62,10 @@ def parse_range(rng: str) -> list[Alternative] | None:
     s = rng.strip().replace("≤", "<=").replace("≥", ">=")
     if not s:
         return None
+    if re.fullmatch(r"(?i)(?:all|any)(?: versions)?", s):
+        s = "*"
+    s = re.sub(r"\s*&&?\s*", ", ", s)
+    s = re.sub(rf"(?:>=\s*)?({_VER})\s+(?:to|through)\s+({_VER})", r"\1 - \2", s, flags=re.I)
     s = re.sub(rf"({_VER})\s+and\s+(?:earlier|below|lower|prior)\b", r"<= \1", s, flags=re.I)
     s = re.sub(rf"({_VER})\s+and\s+(?:later|above|higher|newer)\b", r">= \1", s, flags=re.I)
     alts: list[Alternative] = []
@@ -90,6 +94,9 @@ def parse_range(rng: str) -> list[Alternative] | None:
         leftover = _TOKEN.sub("", rest).replace(",", "").strip()
         if leftover or (not cons and "*" not in alt):
             return None
+        if len(cons) > 1 and all(op == "=" for op, _ in cons):
+            alts += [[c] for c in cons]  # "1.0.1, 1.0.2": a list; no version equals two
+            continue
         alts.append(cons)
     return alts
 
@@ -145,6 +152,31 @@ def affected(ghsa_ecosystem: str, version: str, rng: str | None) -> bool | None:
         return None
 
 
+_NO_FIX = re.compile(
+    r"(?i)\s*(?:none|n/?a|tbd|[-–—]|no fix|not (?:yet )?(?:fixed|patched)|unpatched|will not fix)\b.*|\s*"
+)
+
+
+def fixed_versions(patched: str | None) -> list[str] | None:
+    """Plain versions from the maintainer's fixed-version field, or None if it isn't plain versions.
+
+    Accepts "1.2.3", "1.2.3, 2.0.1", ">= 1.2.3" and ">= 1.2, >= 2.0" (also "=>" and "V1.2"). Text that
+    reads as a range ("< 2.5.1") or words ("tbd") is None: its meaning isn't certain (FINDINGS F-069).
+    """
+    if not patched:
+        return None
+    text = re.sub(r"(?:>=|=>)\s*", "", patched.strip())
+    parts = [("v" + x[1:]) if x[:1] == "V" else x for x in re.split(r"[\s,;]+", text) if x]
+    if not parts or not all(re.fullmatch(_VER, x) for x in parts):
+        return None
+    return parts
+
+
+def no_fix(patched: str | None) -> bool:
+    """The fixed-version field says there's no fix (empty, "None", "N/A", "tbd", ...)."""
+    return _NO_FIX.fullmatch(patched or "") is not None
+
+
 def already_fixed(ghsa_ecosystem: str, version: str, patched: str | None) -> bool | None:
     """True if `version` is at or after the applicable fixed version (FINDINGS F-051).
 
@@ -152,14 +184,8 @@ def already_fixed(ghsa_ecosystem: str, version: str, patched: str | None) -> boo
     fixed-version text can't be read as plain versions.
     """
     cls = VERSION_CLASS.get(ghsa_ecosystem)
-    if cls is None or not patched:
-        return None
-    text = patched.strip()
-    m = re.fullmatch(rf">=\s*({_VER})", text)
-    if m:
-        text = m.group(1)
-    fixes = re.split(r"[\s,;]+", text)
-    if not fixes or not all(re.fullmatch(_VER, f) for f in fixes):
+    fixes = fixed_versions(patched)
+    if cls is None or not fixes:
         return None
 
     def line(s: str) -> str:
@@ -208,12 +234,8 @@ def _fix_for(ghsa_ecosystem: str, low: str | None, patched: str | None) -> str |
     field. Without it, the OSV range would mark every later version, fixes included, as affected.
     """
     cls = VERSION_CLASS.get(ghsa_ecosystem)
-    if cls is None or not patched:
-        return None
-    text = patched.strip()
-    m = re.fullmatch(rf">=\s*({_VER})", text)
-    fixes = [m.group(1)] if m else re.split(r"[\s,;]+", text)
-    if not fixes or not all(re.fullmatch(_VER, f) for f in fixes):
+    fixes = fixed_versions(patched)
+    if cls is None or not fixes:
         return None
     if len(fixes) > 1 and low is not None:
         same = [f for f in fixes if f.lstrip("v").split(".")[:2] == low.lstrip("v").split(".")[:2]]
@@ -237,7 +259,9 @@ def osv_ranges(
     alternative that's a single "= X" becomes an enumerated version. An alternative with no upper
     bound is closed by the patched version when that's unambiguous. Anything OSV can't express
     exactly (a strict lower bound, several bounds on one side) makes the whole range None, so the
-    feed falls back to publishing the raw string.
+    feed falls back to publishing the raw string. So does an open-ended alternative when the fixed
+    field names something that isn't a usable fix: published, it would mark the fix as affected
+    (FINDINGS F-069).
     """
     alts = alternatives(ghsa_ecosystem, rng)
     if not alts:
@@ -264,6 +288,8 @@ def osv_ranges(
             events.append({"fixed" if op == "<" else "last_affected": clean(v)})
         elif fix := _fix_for(ghsa_ecosystem, lows[0] if lows else None, patched):
             events.append({"fixed": clean(fix)})
+        elif not no_fix(patched):
+            return None
         values = [clean(e) for ev in events for e in ev.values() if e != "0"]
         kind = "SEMVER" if semver and all(_SEMVER.fullmatch(x) for x in values) else "ECOSYSTEM"
         ranges.append({"type": kind, "events": events})

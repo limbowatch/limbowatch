@@ -21,7 +21,7 @@ CASES = [
     ("npm", "7.10.0", "< 6.24.0; 7.0.0 < 7.24.0", True),
     ("npm", "5.0.6", "<1.1.17, >= 2.0.0 < 2.1.3, >= 3.0.0 < 3.0.3, 4.0.0 - 5.0.7", True),
     ("npm", "3.5.0", "<1.1.17, >= 2.0.0 < 2.1.3, >= 3.0.0 < 3.0.3, 4.0.0 - 5.0.7", False),
-    ("pip", "2.13.4", "all", None),
+    ("pip", "2.13.4", "all", True),  # all versions (F-069)
     ("npm", "1.0.0", None, None),
 ]
 
@@ -85,7 +85,6 @@ def test_osv_ranges_pypi_is_ecosystem_type_and_versions_enumerated() -> None:
 
 def test_osv_ranges_refuses_what_osv_cannot_express() -> None:
     assert osv_ranges("npm", "> 1.0.0, < 2.0.0") is None  # strict lower bound
-    assert osv_ranges("pip", "all") is None
 
 
 def test_osv_ranges_open_range_closed_by_patched_version() -> None:
@@ -101,13 +100,49 @@ def test_osv_ranges_open_range_closed_by_patched_version() -> None:
     # per-branch fixes: the one on the range's own line applies
     ranges, _ = osv_ranges("npm", ">= 2.3.0", "1.9.9, 2.3.5") or ([], [])
     assert ranges[0]["events"] == [{"introduced": "2.3.0"}, {"fixed": "2.3.5"}]
-    # a fix below the range's start, or ambiguous per-branch fixes, leave the range open
-    assert osv_ranges("npm", ">= 4.29.0", "4.1.0") == (
-        [{"type": "SEMVER", "events": [{"introduced": "4.29.0"}]}],
-        [],
-    )
-    ranges, _ = osv_ranges("npm", ">= 1.0.0", "1.5.0, 2.5.0") or ([], [])
-    assert ranges[0]["events"] == [{"introduced": "1.0.0"}]
+    # a fix below the range's start, ambiguous per-branch fixes or an unreadable fixed field: not
+    # converted, since an open range would mark the fix itself as affected (F-069)
+    assert osv_ranges("npm", ">= 4.29.0", "4.1.0") is None
+    assert osv_ranges("npm", ">= 1.0.0", "1.5.0, 2.5.0") is None
+    assert osv_ranges("pip", ">= 0.2.1", "< 0.2.2") is None
+    # no fix stated: open is right
+    for none in (None, "", "None", "N/A", "tbd", "None — migrate to x", "Will not fix"):
+        assert osv_ranges("npm", ">= 1.0.0", none) == ([{"type": "SEMVER", "events": [{"introduced": "1.0.0"}]}], [])
     # an explicit upper bound wins over the patched field
     ranges, _ = osv_ranges("npm", ">= 1.0.0, < 1.2.3", "1.4.0") or ([], [])
     assert ranges[0]["events"] == [{"introduced": "1.0.0"}, {"fixed": "1.2.3"}]
+
+
+def test_more_range_forms() -> None:
+    """Forms maintainers type that have one meaning (F-069)."""
+    assert osv_ranges("pip", "All", "1.106.0") == (
+        [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "1.106.0"}]}],
+        [],
+    )
+    assert osv_ranges("pip", ">=3.0.0 & <=3.2.1") == (
+        [{"type": "ECOSYSTEM", "events": [{"introduced": "3.0.0"}, {"last_affected": "3.2.1"}]}],
+        [],
+    )
+    ranges, _ = osv_ranges("go", ">= v0.27.0 && < v0.55.1") or ([], [])
+    assert ranges[0]["events"] == [{"introduced": "0.27.0"}, {"fixed": "0.55.1"}]
+    ranges, _ = osv_ranges("nuget", ">= 2.1.0, < 3.0.0; 3.0.0 to 3.2.1; 4.0.0 through 4.0.2") or ([], [])
+    assert [r["events"] for r in ranges][1:] == [
+        [{"introduced": "3.0.0"}, {"last_affected": "3.2.1"}],
+        [{"introduced": "4.0.0"}, {"last_affected": "4.0.2"}],
+    ]
+    assert osv_ranges("composer", "1.11.12, 1.11.14, 1.11.16") == ([], ["1.11.12", "1.11.14", "1.11.16"])
+    assert (
+        osv_ranges("rust", "0.25.0 .. 0.26.0") is None
+    )  # ambiguous: Rust's ".." excludes its end, maintainers often don't
+
+
+def test_fixed_versions() -> None:
+    from limbowatch.versions import fixed_versions
+
+    assert fixed_versions("1.2.3") == ["1.2.3"]
+    assert fixed_versions(">= 0.5.16, >= 0.6.3") == ["0.5.16", "0.6.3"]
+    assert fixed_versions("=> 26.09.2") == ["26.09.2"]
+    assert fixed_versions("V1.0.3") == ["v1.0.3"]
+    assert fixed_versions("3.2.2; 4.0.3") == ["3.2.2", "4.0.3"]
+    for text in ("< 2.5.1", "tbd", "main", "c86e4cb9ce7546324970ceb6e85ad7001df4318c", None, ""):
+        assert fixed_versions(text) is None, text

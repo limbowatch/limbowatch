@@ -131,7 +131,10 @@ async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any) -> None:
     assert [r["id"] for r in records] == ["GHSA-f9j4-qggq-h239"]
     rec = records[0]
     assert rec["aliases"] == ["CVE-2026-110858"]
-    assert rec["affected"][0]["package"] == {"ecosystem": "PyPI", "name": "GitPython"}  # as the advisory names it
+    # PEP 503 form, which OSV requires and OSV-Scanner compares against (F-069); the original is kept
+    assert rec["affected"][0]["package"] == {"ecosystem": "PyPI", "name": "gitpython"}
+    assert rec["affected"][0]["database_specific"]["name_as_entered"] == "GitPython"
+    assert rec["database_specific"]["limbowatch"]["quality"] == {"names": "cleaned", "ranges": "converted"}
     assert "summary" not in rec and "details" not in rec
     assert "REDACTED" not in json.dumps(rec)
     with zipfile.ZipFile(io.BytesIO(zipped)) as z:

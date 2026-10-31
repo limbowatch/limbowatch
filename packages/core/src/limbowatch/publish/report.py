@@ -14,8 +14,9 @@ from typing import Any
 
 from sqlalchemy import select
 
+from limbowatch.ecosystems import package_name
 from limbowatch.models import Status
-from limbowatch.publish import ATTRIBUTION, Item, days_since, items, metrics
+from limbowatch.publish import ATTRIBUTION, Item, days_since, fixes_text, items, metrics
 from limbowatch.store import Event, Repo, Store
 
 CURSOR = "daily_report"
@@ -33,14 +34,14 @@ class Report:
 
 
 def _pkgs(it: Item) -> str:
-    names = sorted({f"{p.ecosystem}:{p.name}" for p in it.adv.packages if p.name}) or [it.adv.repo]
+    names = sorted({f"{p.ecosystem}:{n.name}" for p in it.adv.packages if (n := package_name(p.ecosystem, p.name))})
+    names = names or [it.adv.repo]
     s = ", ".join(names)
     return s if len(s) <= 60 else s[:57] + "…"
 
 
 def _fix(it: Item) -> str:
-    fixes = sorted({p.patched_versions for p in it.adv.packages if p.patched_versions})
-    return "; ".join(fixes)[:40] or "–"
+    return fixes_text(it)[:40] or "–"
 
 
 def _cve(it: Item) -> str:
