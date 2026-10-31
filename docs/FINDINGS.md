@@ -4,46 +4,65 @@
 
 What we've verified or measured while building Limbowatch. Maintenance rules are in [CLAUDE.md](../CLAUDE.md#findings-report-docsfindingsmd).
 
-Last summarized: 2026-10-26 (Phase 2, tracker built; first live runs)
+Last summarized: 2026-10-31 (end of Phase 2: live tracker, site and feed running daily)
 
 ## Summary
 
-Current understanding (Phase 1, 2026-10-21), with entries linked:
+Current understanding at the end of Phase 2 (2026-10-31), with entries linked. Points 1–14 come from the Phase 1 research (2026-10-21 to 10-25); points 15–20 from the live tracker. Numbers are dated; review backlogs drift.
 
-1. **About 1 in 6 upstream advisories is in limbo.** Across the upstreams of 15 popular projects (5 on GitHub, 10 on GitLab/Codeberg/Tor/GNOME/Framagit/SourceHut), 415 of 2,517 unique published repo advisories (16.5%) are in neither GitHub's reviewed DB nor OSV: 14.3% for the GitHub-hosted set, 17.1% off-GitHub. All confirmed by the global API and verified automatically ([F-055](#f-055), [F-053](#f-053), [F-050](#f-050)).
-2. **The median wait for GitHub review is about 3 weeks.** 23 days on 990 reviews (Sep 24 → Oct 22); 94% over the documented 72 hours, 44% over 30 days ([F-055](#f-055), [F-042](#f-042), [F-019](#f-019)). Review comes in bursts: 37 of one day's limbo set were reviewed within 30 hours ([F-050](#f-050)). GitHub attributes the delay to throughput, more than 5,000 repo advisories a week ([F-035](#f-035)). Three days after a snapshot, only 8% of its limbo advisories had been reviewed ([F-056](#f-056)).
+**Phase 1: the gap in a sample of real projects**
+
+1. **About 1 in 6 upstream advisories is in limbo.** Across the upstreams of 15 popular projects (5 on GitHub, 10 on GitLab/Codeberg/Tor/GNOME/Framagit/SourceHut), 415 of 2,517 unique published repo advisories (16.5%) are in neither GitHub's reviewed DB nor OSV: 14.3% for the GitHub-hosted set, 17.1% off-GitHub (2026-10-22). All confirmed by the global API and verified automatically ([F-055](#f-055), [F-053](#f-053), [F-050](#f-050)).
+2. **The median wait for GitHub review was about 3 weeks.** 23 days on 990 reviews (Sep 24 → Oct 22); 94% over the documented 72 hours, 44% over 30 days ([F-055](#f-055), [F-042](#f-042), [F-019](#f-019)). Review comes in batches ([F-050](#f-050), [F-056](#f-056)). GitHub attributes the delay to throughput, more than 5,000 repo advisories a week ([F-035](#f-035)).
 3. **Real projects ship affected versions that scanners report clean.** 105 package-versions across 13 of 14 readable projects, including GitLab (14), Forgejo (7), Gitea (4) and Kubernetes (3), are affected by advisories in limbo that OSV-Scanner reports with no known vulnerability. Hosting off GitHub doesn't help ([F-055](#f-055), [F-053](#f-053)).
-4. **Before review, an advisory is invisible everywhere scanners look.** It's not in the global DB, not even as `unreviewed`; at most OSV has a `CVE-*` record with GIT ranges and no package ([F-012](#f-012)). CVE records mostly appear about a day before review, 18 days after repo publication ([F-042](#f-042)).
-5. **The lifecycle is not linear.** About 11% of reviewed advisories never get a CVE ([F-016](#f-016), [F-055](#f-055)). 27 CVE IDs stay *reserved but public* (up to 119 days, [F-029](#f-029)). 23 limbo advisories have a CVE assigned by VulnCheck/Tenable that they don't cite, so CVE-keyed tools see them first ([F-050](#f-050)). Other-CNA CVEs are almost never reviewed ([F-017](#f-017)). Model facts independently.
+4. **Before review, an advisory is invisible everywhere scanners look.** It's not in the global DB, not even as `unreviewed`; at most OSV has a `CVE-*` record with GIT ranges and no package ([F-012](#f-012), [F-066](#f-066)).
+5. **The lifecycle is not linear.** About 11% of reviewed advisories never get a CVE ([F-016](#f-016), [F-055](#f-055)). CVE IDs stay *reserved but public* for months ([F-029](#f-029), [F-056](#f-056)). Advisories often have a CVE from another CNA (mostly VulnCheck) that they don't cite, so CVE-keyed tools see them first ([F-050](#f-050), [F-067](#f-067)). Other-CNA CVEs are almost never reviewed ([F-017](#f-017)). Model facts independently.
 6. **Repo-advisory data is noisy.**
    - 16% of in-range matches contradict the advisory's own fixed version ([F-051](#f-051)).
    - Go advisories confuse `module` and `module/v2` ([F-052](#f-052)).
-   - Duplicates are proven only by a shared CVE (5 + 13), with title overlap only a flag ([F-048](#f-048)).
-   - Free-form ranges: about 4% unparseable after tolerant parsing ([F-044](#f-044)).
-   - Wrong package names ([F-014](#f-014)); a CVE of another product cited ([F-050](#f-050)).
+   - Duplicates are proven only by a shared CVE, with title overlap only a flag ([F-048](#f-048)).
+   - Package names are often unusable as entered ([F-014](#f-014), [F-069](#f-069)); a CVE of another product is sometimes cited ([F-050](#f-050)).
 7. **NVD lags as well.** New non-priority CVEs are `Deferred` at once ([F-005](#f-005), [F-018](#f-018)). About 45% of reviewed CVEs on real dependencies are unenriched ([F-046](#f-046)).
-8. **Global signals exist for part of the window.** The cvelistV5 delta log gives GitHub-CNA CVEs with GHSA links and owner/repo ([F-013](#f-013)). `cveawg /api/cve-id/` exposes RBP state ([F-029](#f-029)). OSV-by-GHSA is a free, validated proxy for "reviewed" ([F-041](#f-041)).
-9. **Reuse, don't rebuild.** OSV-Scanner provides inventory for about 25 lockfile types ([F-032](#f-032)), but needs explicit lockfiles to avoid a silent empty scan ([F-040](#f-040)). deps.dev maps 96% of packages to repos ([F-020](#f-020), [F-041](#f-041)); univers compares versions ([F-022](#f-022)). OSV-Scanner can't load custom DBs ([F-039](#f-039)).
-10. **The core scan already exists; the lifecycle layer doesn't.** blindspot does lockfile → repo advisories → OSV for npm/PyPI/Go ([F-036](#f-036)). Nobody runs a live tracker, an open limbo feed, GitLab/Gitea workflow or watch mode ([F-038](#f-038)). "Ghost CVE" already means reserved-but-public, hence the name Limbowatch ([F-037](#f-037)).
-11. **Repo advisories contain personal data** (author, credits): never redistribute raw objects ([F-047](#f-047)).
+8. **Global signals exist for part of the window.** The cvelistV5 delta log gives GitHub-CNA CVEs with GHSA links and owner/repo ([F-013](#f-013)). `cveawg /api/cve-id/` exposes RBP state ([F-029](#f-029)). OSV-by-GHSA plus the full reviewed list are a cheap test for "reviewed" ([F-055](#f-055), [F-057](#f-057)).
+9. **Reuse, don't rebuild.** OSV-Scanner provides inventory for about 25 lockfile types ([F-032](#f-032)), but needs explicit lockfiles to avoid a silent empty scan ([F-040](#f-040), [F-054](#f-054)). deps.dev maps 94–96% of packages to repos ([F-020](#f-020), [F-055](#f-055), [F-063](#f-063)); univers compares versions ([F-022](#f-022)). OSV-Scanner can't load custom DBs ([F-039](#f-039)).
+10. **The core scan already exists; the lifecycle layer doesn't.** blindspot does lockfile → repo advisories → OSV for npm/PyPI/Go ([F-036](#f-036)). Nobody else runs a live tracker, an open limbo feed, GitLab/Gitea workflow or watch mode ([F-038](#f-038)). "Ghost CVE" already means reserved-but-public, hence the name Limbowatch ([F-037](#f-037)).
+11. **Repo advisories contain personal data** (author, credits): never redistribute raw objects. The feed carries factual metadata only, attributed to GitHub ([F-047](#f-047), [F-059](#f-059)).
 12. **GitLab specifics:** SARIF ingestion is Ultimate-only (GA 19.2) and treats CVE-less findings as SAST ([F-008](#f-008)). GitLab's advisory DB can't be queried ([F-038](#f-038)).
 13. **More languages are feasible in layers:** deps.dev (7 systems), then ecosyste.ms (~100 registries, CC BY-SA), then repo-only matching for languages GitHub doesn't review ([F-020](#f-020), [F-021](#f-021), [F-023](#f-023)).
-14. **Verify automatically, from primary sources only.** Search results and AI summaries mis-pair advisory and CVE IDs. Stage 8 verifies every advisory in limbo (live re-check, cited-CVE consistency with live fetch, case-insensitive full CVE List reverse lookup, cross-ID review) and records the verdicts ([F-049](#f-049), [F-050](#f-050)). Time-varying data must be stored per snapshot ([F-054](#f-054)).
-15. **The live tracker sees far more than the report sample.** First live runs (2026-10-26, about half of an 8,827-repo watchlist polled): **2,964 advisories in limbo in ecosystems GitHub reviews** (median 54 days; 1,552 with no CVE anywhere, 364 with an uncited CVE from another CNA, 243 reserved), plus **1,943 likely permanent** in ecosystems GitHub never reviews ([F-061](#f-061)). Renamed repos and interrupted runs needed fixes ([F-060](#f-060)); ETag reuse across tokens is still unmeasured (Q11, [F-058](#f-058)).
+14. **Verify automatically, from primary sources only.** Search results and AI summaries mis-pair advisory and CVE IDs. Verification is a pipeline stage with recorded verdicts ([F-049](#f-049), [F-050](#f-050)). Time-varying data must be stored per snapshot ([F-054](#f-054)).
+
+**Phase 2: the live tracker**
+
+15. **The gap at scale is far bigger than the sample.** On 2026-10-31, over a watchlist of 18,656 repos (every one polled at least once): **7,988 advisories pending review** in ecosystems GitHub reviews (861 critical, 3,191 high; median wait so far 57 days; 4,055 with no CVE anywhere), plus **13,852 likely permanent** in ecosystems GitHub doesn't review. Every number is a floor: only watched repos are seen ([F-064](#f-064), [F-070](#f-070)).
+16. **Where the watchlist comes from matters.** Dependency upstreams of popular projects, origin repos of reviewed advisories, and every repo named by a GitHub-CNA CVE ([F-057](#f-057), [F-063](#f-063), [F-066](#f-066)). Adding the last source on 10-31 closed a 2,113-repo gap, mostly applications whose advisories are likely permanent ([F-068](#f-068), [F-070](#f-070)).
+17. **The backlog isn't shrinking yet (tentative).** On 10-29 and 10-30, fresh inflow was 93 and 71 advisories, review outflow 88 and 20, and the median wait grew a day per day. Advisories that did get reviewed had waited a median 11 days. Two weeks of data from 2026-11-01 are needed before claiming a trend ([F-067](#f-067), [F-070](#f-070)).
+18. **A published CVE doesn't mean scanners can see it.** One critical advisory's GitHub-CNA CVE took 85 days to publish; 134 days after publication (2026-10-28) the advisory was still in no package database, because it has no ecosystem ([F-066](#f-066)).
+19. **Names, more than ranges, decide whether the feed matches.** OSV-Scanner's local matching compares names exactly. 359 names were unmatchable until cleaned; 406 are still malformed and flagged. 95.8% of ranges convert, and a range is left open only when the advisory says there's no fix. An entry with no usable range never matches, so it can miss but never false-alarm ([F-069](#f-069)).
+20. **Running it cheaply.** A stable PAT plus conditional requests make an unchanged repo free to re-poll ([F-058](#f-058), [F-071](#f-071)). The scheduled run fires about 6 h 50 min late, consistently ([F-065](#f-065), [F-067](#f-067)). The tracker needs canonical repo identities and checkpoints ([F-060](#f-060)) and works on `GITHUB_TOKEN` alone, only slowly ([F-062](#f-062)).
 
 ## Open questions
 
-- ~~Q1. While a CVE is reserved but not yet published, does the repo advisory API already expose `cve_id`?~~ **Answered 2026-10-20: yes. Detectable via `cveawg /api/cve-id/{id}` ([F-029](#f-029)).**
-- ~~Q2. Was the 55-day median a backlog being cleared on Oct 15–16, or the normal state?~~ **Answered 2026-10-21: a backlog batch. On 992 reviews the median is 26.6 days ([F-042](#f-042)). Keep re-measuring monthly (Phase 2 tracker).**
-- Q3. What share of other-CNA CVEs affecting npm/PyPI/Go packages get package-level coverage in OSV through ecosystem DBs (Go vulndb, PyPA, RustSec)? Requires the CVE→package matching from Phase 2.
+Open:
+
+- Q3. What share of other-CNA CVEs affecting npm/PyPI/Go packages get package-level coverage in OSV through ecosystem DBs (Go vulndb, PyPA, RustSec)? The tracker stores the CVEs ([F-067](#f-067)); the matching isn't built.
 - Q4. How far behind GHSA are the scanner DBs (Trivy DB, Grype DB, OSV-Scanner)? GitLab Advisory DB lag can't be measured because its terms forbid querying it.
 - Q5. Is "Not Scheduled" ever an NVD API `vulnStatus` value, or always `Deferred`? ([F-005](#f-005))
-- Q6. Does ecosyste.ms's CC BY-SA 4.0 data license constrain Limbowatch? *Partly answered 2026-10-20: open source, so no commercial license is needed. Share-alike applies to redistributed derived data; use at runtime with a local cache only, with attribution. Revisit before 1.0.* ([F-021](#f-021))
-- Q7. How do we reliably detect packaging/recipe repos (conan-center-index, homebrew-core, distro packaging) so they aren't treated as upstream? ([F-021](#f-021))
-- Q8. How do we reliably detect that a limbo advisory was reviewed under a different GHSA ID when no CVE is shared? Shared CVEs prove 4; title overlap flags 4 more ([F-048](#f-048)). Advisories without a CVE remain undecidable by text alone.
-- ~~Q9. Build separately, contribute upstream, or build only the layers blindspot lacks?~~ **Answered 2026-10-21: plan rev 5 approved. Report → tracker + limbo feed → upstream contributions → watcher. Renamed to Limbowatch ([F-036](#f-036), [F-037](#f-037)).**
-- Q10. Under what terms may repository advisory content be redistributed? *Partly answered 2026-10-26: GitHub's terms cover the Advisory Database (CC BY 4.0) but are silent on repository advisories in limbo; the feed carries factual metadata only ([F-059](#f-059)).*
-- Q11. Do different `GITHUB_TOKEN`s (one per Actions run) share ETags for the same URL? Decides whether the daily job needs a PAT ([F-058](#f-058)). Measure in the first CI runs.
+- Q6. Does ecosyste.ms's CC BY-SA 4.0 data license constrain Limbowatch? *Partly answered 2026-10-20: share-alike applies to redistributed derived data; use at runtime with a local cache only, with attribution. Revisit before 1.0* ([F-021](#f-021)).
+- Q7. How do we reliably detect packaging/recipe repos (conan-center-index, homebrew-core, distro packaging) so they aren't treated as upstream? ([F-021](#f-021)) Not addressed in Phase 2: the tracker's seeds come from the research mapper, which has no such filter.
+- Q8. How do we detect that a limbo advisory was reviewed under a different GHSA ID when no CVE is shared? The tracker proves duplicates by shared CVE only ([F-048](#f-048)).
+- Q10. Under what terms may repository advisory content be redistributed? *Partly answered 2026-10-26: GitHub's terms are silent on repository advisories in limbo; the feed carries factual metadata only* ([F-059](#f-059)). Ask GitHub during outreach.
+- Q12. Is review throughput keeping up with inflow? Needs about two weeks of daily runs from 2026-11-01, split by ecosystem and severity ([F-067](#f-067), [F-070](#f-070)).
+- Q13. Do OSV-Scanner's other matching paths (the osv.dev API) normalize package names beyond PyPI? ([F-069](#f-069))
+- Q14. Do the feed's well-formed names exist in their registries? A registry check would catch wrong-but-valid names ([F-069](#f-069)).
+- Q15. Can per-branch ranges like `< 1.2.5, < 2.0.3` be converted without guessing where each branch starts, e.g. from the registry's version list? ([F-069](#f-069))
+- Q16. Are pending advisories published before 2026 (258 on 2026-10-28) ever reviewed, or did GitHub never backfill them? ([F-064](#f-064))
+
+Answered:
+
+- ~~Q1. While a CVE is reserved but not yet published, does the repo advisory API already expose `cve_id`?~~ **Yes. Detectable via `cveawg /api/cve-id/{id}` ([F-029](#f-029)).**
+- ~~Q2. Was the 55-day median a backlog being cleared on Oct 15–16, or the normal state?~~ **A backlog batch; the median was 23–27 days ([F-042](#f-042), [F-055](#f-055)).** Kept under watch as Q12.
+- ~~Q9. Build separately, contribute upstream, or build only the layers blindspot lacks?~~ **Plan rev 5: report → tracker + limbo feed → upstream contributions → watcher ([F-036](#f-036), [F-037](#f-037)).**
+- ~~Q11. Do different `GITHUB_TOKEN`s share ETags for the same URL?~~ **Moot 2026-10-31: the daily job uses one stable PAT, and with it 1,330 of 1,410 next-day polls were free 304s ([F-071](#f-071)).**
 
 ## Log
 
@@ -443,27 +462,6 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
   - F-045's 23 "likely duplicates" used the character ratio and overstated the correction. The limbo share is **14.7–15.1%**, not 13.9–15.1%.
 - **Implication:** For dedup, use shared CVE IDs (and the CVE List reverse lookup, F-049) as proof and title overlap only as a flag. Never subtract text-only matches from headline counts.
 
-### F-049
-- **Date:** 2026-10-22 · **Status:** partly refuted by [F-050](#f-050) (GHSA case bug in the reverse lookup; the MSAL "conflict" was wrong)
-- **Question:** Can every claim about an advisory in limbo be verified automatically, without manual checking?
-- **Trigger:** The user searched a limbo advisory's title (GHSA-wq9v-j77v-qr26, regexp2) on Google and was shown **CVE-2026-102274**. That is PyJWT's CVE (GitHub CNA, linked to GHSA-w6j9-cwv2-h6wq). The advisory itself cites CVE-2026-77299, still `RESERVED`. An independent page (delphix/ollama PR #29) confirms CVE-2026-77299. Search results and AI summaries can mis-pair IDs.
-- **Method:** Stage 8 (`s8_verify.py`) checks all 294 limbo advisories against primary sources only:
-  1. Live re-check of the repo advisory, global DB and OSV.
-  2. Cited-CVE consistency against the CVE List record.
-  3. Reverse lookup across the full CVE List bulk export (`cve_2026-10-22_0800Z`, 412,863 records, of which 991 touch our repos or GHSAs).
-  4. GitHub global DB by every linked CVE.
-- **Result** (2026-10-22 08:54 UTC):
-  - 286 verified in limbo; 4 duplicates (same CVE reviewed under another GHSA, F-048); 2 possible duplicates.
-  - **2 cite a CVE belonging to another product.** cdxgen GHSA-j59w-7c4x-4xgw cites Node.js CVE-2025-27210 (HackerOne CNA). MSAL GHSA-xcx6-jx8p-x3h5 cites Microsoft's CVE-2026-109461, whose record doesn't reference it.
-  - For the 199 without a CVE, no CVE List record references their GHSA ID.
-  - All 10 report examples verified.
-  - GitHub's single repo-advisory endpoint `GET /repos/{o}/{r}/security-advisories/{ghsa}` works authenticated and unauthenticated (an apparent 404 was a zsh word-splitting bug in our shell loop, not GitHub).
-- **Implication:**
-  - Verification is a pipeline stage, not a reader task.
-  - The tracker (Phase 2) should run it on every refresh and publish verdicts with timestamps.
-  - "Cited CVE belongs to another product" is a distinct, detectable data-quality state worth reporting to maintainers.
-  - The CVE List reverse index is also the matching engine for the cvelistV5 feed (F-013).
-
 ### F-050
 - **Date:** 2026-10-22 · **Status:** confirmed (observed). **Partly refutes F-049.**
 - **Question:** Was the stage-8 verification of F-049 correct?
@@ -624,26 +622,6 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
     - Fix: one-time bootstrap from a bulk CVE List release (`--cve-list`); the daily delta log keeps it current. The delta log covers about 4 weeks (2,267 entries), so a longer outage needs another bootstrap.
 - **Implication:** Watchlists built from several sources need canonical identities. Any long-running job must checkpoint.
 
-### F-061
-- **Date:** 2026-10-26 · **Status:** confirmed (observed; first run, partial coverage)
-- **Question:** What does the tracker see on its first real runs?
-- **Method:**
-  - Watchlist: 8,827 repos = 5,613 seed (dependency upstreams of the 15 report projects) + 3,587 reviewed-origin repos (F-057), 373 in both.
-  - Two runs, 2026-10-26 08:13–08:30 UTC. The reviewed list was synced in full (37,219). **4,388 repos polled** (budget-limited, 1,857 with advisories), 12,183 repo advisories.
-- **Result:**
-  - **2,966 in limbo in ecosystems GitHub reviews:**
-    - median age 54 days; 1,018 ≤ 30 days, 712 > 90 days, 147 > 1 year;
-    - CVE: 1,917 no CVE anywhere, 794 published & cited, 243 reserved (RBP);
-    - ecosystems: Go 1,306, PyPI 767, npm 670, Maven 609, Packagist 549, NuGet 331, crates.io 220.
-  - **1,947 more are likely permanent** (free-text or unreviewed ecosystems: `other` 973, bottlerocket 452, c/c++ 127, docker images, …): median age 257 days, 935 older than 1 year.
-  - 133 duplicates (same CVE reviewed under another GHSA).
-  - Live spot-check: 25 of 25 random limbo advisories (20 pending, 5 permanent) return 404 from the global API.
-  - ETags: 0 of 3,889 polls returned 304 in the second run. Every repo it polled was new to the state, so this doesn't test Q11 yet.
-- **Caveats:** About half the watchlist was unpolled at the time; numbers are a floor and will rise. The reviewed-origin repos skew toward repos that use advisories heavily (e.g. bottlerocket).
-- **Implication:**
-  - The headline must separate pending (reviewable) from likely-permanent limbo, or the long tail of never-reviewed ecosystems dominates.
-  - Old pending advisories in reviewable ecosystems (147 > 1 year) suggest review may never come for some even there; track separately once lag data accumulates.
-
 ### F-062
 - **Date:** 2026-10-28 · **Status:** confirmed (observed)
 - **Question:** Does the daily tracker work end to end in GitHub Actions on the private repo, with only `GITHUB_TOKEN`?
@@ -756,18 +734,6 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
 - **Caveats:** As F-066: candidates; many will have only reviewed advisories.
 - **Implication:** The delta sync closes the gap only as repos get new CVEs, about 100 repos a day, and each brings its backlog into the daily "found for the first time" count. The tracker now adds them all on its next run (`Tracker.watch_cna_repos`). That first run polls about 2,100 new repos ahead of the regular ~1,400, close to the 3,500-request budget, so some daily-tier repos may wait one extra day.
 
-### F-070
-- **Date:** 2026-10-31 · **Status:** confirmed (count over the tracker state)
-- **Question:** Did the first run with `Tracker.watch_cna_repos` close F-068's gap, and what did it bring in?
-- **Method:** `tracker-data` state at 7fca6ac (run 10, 2026-10-31 12:44–12:52 UTC): `state/runs.jsonl`, `state/repos.jsonl` (`first_seen` on 2026-10-31), the F-068 count over `state/cves.jsonl`, and `reports/2026-10-31.md`.
-- **Result:**
-  - The watchlist went from 16,499 to 18,656 repos (2,157 added). **All 5,007 repos named by the 22,071 GitHub_M CVEs are now on it; 0 are missing.** Every repo on the watchlist has been polled at least once.
-  - The run polled 3,484 repos and stopped at the budget (3,507 counted GitHub requests). No HTTP failures.
-  - 1,675 of the 2,157 new repos have repository advisories, 13,307 in all.
-  - Pending limbo rose from 6,655 to 7,988: 33 newly published, 1,355 older ones seen for the first time (1,294 in the new repos), 55 left limbo. Likely permanent rose from 4,131 to 13,852 (+9,721). Of the 11,195 unreviewed advisories first observed this run, 10,848 are in the new repos and 347 in repos already watched, so at least 9,374 of the +9,721 (96%) came from the new repos.
-- **Caveats:** The report's likely-permanent delta has no breakdown, so the 96% is a lower bound from counts (latest facts per advisory in `state/facts.jsonl`), not a per-advisory classification. Because the run stopped at the budget, some daily-tier repos waited one extra day.
-- **Implication:** The watchlist gap from bulk-imported GitHub_M CVEs (F-066, F-068) is closed. The delta sync keeps it closed. Most of what the new repos brought is likely permanent: these are mostly applications, not packages in ecosystems GitHub reviews. From the next run on, the daily delta should again reflect real inflow. Use 2026-11-01 onward, not 2026-10-31, as the baseline for throughput numbers.
-
 ### F-069
 - **Date:** 2026-10-31 · **Status:** confirmed (OSV-SCALIBR source, Composer and OSV docs, count over the tracker state)
 - **Question:** How clean are the package names and ranges the limbo feed publishes, and which defects stop scanners from matching?
@@ -797,9 +763,76 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
   - Name hygiene, not range parsing, was the feed's larger silent-miss problem.
   - The 406 invalid names and the ranges left as text are where a human (or the maintainer) is needed. They are candidates for a maintainer-facing "fix your advisory" note in the upstream phase.
 
+### F-070
+- **Date:** 2026-10-31 · **Status:** confirmed (count over the tracker state)
+- **Question:** Did the first run with `Tracker.watch_cna_repos` close F-068's gap, and what did it bring in?
+- **Method:** `tracker-data` state at 7fca6ac (run 10, 2026-10-31 12:44–12:52 UTC): `state/runs.jsonl`, `state/repos.jsonl` (`first_seen` on 2026-10-31), the F-068 count over `state/cves.jsonl`, and `reports/2026-10-31.md`.
+- **Result:**
+  - The watchlist went from 16,499 to 18,656 repos (2,157 added). **All 5,007 repos named by the 22,071 GitHub_M CVEs are now on it; 0 are missing.** Every repo on the watchlist has been polled at least once.
+  - The run polled 3,484 repos and stopped at the budget (3,507 counted GitHub requests). No HTTP failures.
+  - 1,675 of the 2,157 new repos have repository advisories, 13,307 in all.
+  - Pending limbo rose from 6,655 to 7,988: 33 newly published, 1,355 older ones seen for the first time (1,294 in the new repos), 55 left limbo. Likely permanent rose from 4,131 to 13,852 (+9,721). Of the 11,195 unreviewed advisories first observed this run, 10,848 are in the new repos and 347 in repos already watched, so at least 9,374 of the +9,721 (96%) came from the new repos.
+- **Caveats:** The report's likely-permanent delta has no breakdown, so the 96% is a lower bound from counts (latest facts per advisory in `state/facts.jsonl`), not a per-advisory classification. Because the run stopped at the budget, some daily-tier repos waited one extra day.
+- **Implication:** The watchlist gap from bulk-imported GitHub_M CVEs (F-066, F-068) is closed. The delta sync keeps it closed. Most of what the new repos brought is likely permanent: these are mostly applications, not packages in ecosystems GitHub reviews. From the next run on, the daily delta should again reflect real inflow. Use 2026-11-01 onward, not 2026-10-31, as the baseline for throughput numbers.
+
+### F-071
+- **Date:** 2026-10-31 · **Status:** confirmed (count over the tracker state; four PAT runs)
+- **Question:** Do conditional requests make repeat polls free under the tracker's PAT, and why did run 10 get no 304s?
+- **Method:** `state/runs.jsonl` (runs 1–10) and `state/repos.jsonl` at 7fca6ac, compared with 699cf99: `etag_token` (token fingerprint), `etag`, `poll_status` and `advisory_count` of every repo polled on 2026-10-31.
+- **Result:**
+  - **Same token, next day: almost all free.** Run 9 (2026-10-30) polled 1,410 repos; 1,330 answered 304 and only 92 GitHub requests counted. Those repos had ETags from run 8 under the same PAT.
+  - **Run 10 (2026-10-31): 0 of 3,484 answered 304, and that is expected.** 2,157 polls were new repos (F-070). The other 1,327 repos held ETags from other tokens: 1,296 from the maintainer's local token used for the 2026-10-28 full pass (F-064), 31 from run 1's `GITHUB_TOKEN`. The tracker doesn't send an ETag obtained by another token (F-058), so these were full requests. Their stored ETags all changed (now the PAT's); 22 of them had a different advisory count.
+  - Run 8 (2026-10-29), the PAT's first scheduled run: 1 of 1,394 was 304, for the same reason.
+- **Caveats:** Whether GitHub would honour an ETag across two tokens of the same user was never tested, because the tracker doesn't try. Four runs.
+- **Implication:**
+  - Q11 is moot: the daily job uses one stable PAT, and with it an unchanged repo costs nothing on its next poll.
+  - Until every repo has been polled once under the PAT, polls are full price. 12,635 weekly-tier repos from the 2026-10-28 pass come due around 2026-11-04, on top of the 2,157 repos added on 10-31. At 3,500 requests a day that takes about four runs; daily-tier repos come first, and the weekly tier stretches by a few days. After that, the budget should cover the schedule with room to spare.
+- **Sources:** [Best practices for using the REST API: conditional requests](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api)
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
+
+### F-061
+- **Date:** 2026-10-26 · **Status:** superseded by [F-064](#f-064) (counts from a half-polled watchlist; F-064 is the first full pass. The implications stand and are implemented)
+- **Question:** What does the tracker see on its first real runs?
+- **Method:**
+  - Watchlist: 8,827 repos = 5,613 seed (dependency upstreams of the 15 report projects) + 3,587 reviewed-origin repos (F-057), 373 in both.
+  - Two runs, 2026-10-26 08:13–08:30 UTC. The reviewed list was synced in full (37,219). **4,388 repos polled** (budget-limited, 1,857 with advisories), 12,183 repo advisories.
+- **Result:**
+  - **2,966 in limbo in ecosystems GitHub reviews:**
+    - median age 54 days; 1,018 ≤ 30 days, 712 > 90 days, 147 > 1 year;
+    - CVE: 1,917 no CVE anywhere, 794 published & cited, 243 reserved (RBP);
+    - ecosystems: Go 1,306, PyPI 767, npm 670, Maven 609, Packagist 549, NuGet 331, crates.io 220.
+  - **1,947 more are likely permanent** (free-text or unreviewed ecosystems: `other` 973, bottlerocket 452, c/c++ 127, docker images, …): median age 257 days, 935 older than 1 year.
+  - 133 duplicates (same CVE reviewed under another GHSA).
+  - Live spot-check: 25 of 25 random limbo advisories (20 pending, 5 permanent) return 404 from the global API.
+  - ETags: 0 of 3,889 polls returned 304 in the second run. Every repo it polled was new to the state, so this doesn't test Q11 yet.
+- **Caveats:** About half the watchlist was unpolled at the time; numbers are a floor and will rise. The reviewed-origin repos skew toward repos that use advisories heavily (e.g. bottlerocket).
+- **Implication:**
+  - The headline must separate pending (reviewable) from likely-permanent limbo, or the long tail of never-reviewed ecosystems dominates.
+  - Old pending advisories in reviewable ecosystems (147 > 1 year) suggest review may never come for some even there; track separately once lag data accumulates.
+
+### F-049
+- **Date:** 2026-10-22 · **Status:** partly refuted by [F-050](#f-050) (GHSA case bug in the reverse lookup; the MSAL "conflict" was wrong)
+- **Question:** Can every claim about an advisory in limbo be verified automatically, without manual checking?
+- **Trigger:** The user searched a limbo advisory's title (GHSA-wq9v-j77v-qr26, regexp2) on Google and was shown **CVE-2026-102274**. That is PyJWT's CVE (GitHub CNA, linked to GHSA-w6j9-cwv2-h6wq). The advisory itself cites CVE-2026-77299, still `RESERVED`. An independent page (delphix/ollama PR #29) confirms CVE-2026-77299. Search results and AI summaries can mis-pair IDs.
+- **Method:** Stage 8 (`s8_verify.py`) checks all 294 limbo advisories against primary sources only:
+  1. Live re-check of the repo advisory, global DB and OSV.
+  2. Cited-CVE consistency against the CVE List record.
+  3. Reverse lookup across the full CVE List bulk export (`cve_2026-10-22_0800Z`, 412,863 records, of which 991 touch our repos or GHSAs).
+  4. GitHub global DB by every linked CVE.
+- **Result** (2026-10-22 08:54 UTC):
+  - 286 verified in limbo; 4 duplicates (same CVE reviewed under another GHSA, F-048); 2 possible duplicates.
+  - **2 cite a CVE belonging to another product.** cdxgen GHSA-j59w-7c4x-4xgw cites Node.js CVE-2025-27210 (HackerOne CNA). MSAL GHSA-xcx6-jx8p-x3h5 cites Microsoft's CVE-2026-109461, whose record doesn't reference it.
+  - For the 199 without a CVE, no CVE List record references their GHSA ID.
+  - All 10 report examples verified.
+  - GitHub's single repo-advisory endpoint `GET /repos/{o}/{r}/security-advisories/{ghsa}` works authenticated and unauthenticated (an apparent 404 was a zsh word-splitting bug in our shell loop, not GitHub).
+- **Implication:**
+  - Verification is a pipeline stage, not a reader task.
+  - The tracker (Phase 2) should run it on every refresh and publish verdicts with timestamps.
+  - "Cited CVE belongs to another product" is a distinct, detectable data-quality state worth reporting to maintainers.
+  - The CVE List reverse index is also the matching engine for the cvelistV5 feed (F-013).
 
 ### F-043
 - **Date:** 2026-10-21 · **Status:** superseded by [F-055](#f-055) (pre-correction methods; Oct-21 commits)

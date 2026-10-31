@@ -53,7 +53,7 @@ uv run limbowatch publish --state tracker/state --out tracker/site
 ## Daily report
 
 `limbowatch report` writes `reports/YYYY-MM-DD.md` (and `latest.md`). It covers:
-- **the current numbers**, with the change since the previous report split into newly published advisories, older ones found for the first time (mostly in newly watched repos) and ones that left limbo. Older finds are coverage growth, not new limbo (F-067);
+- **the current numbers**, pending and likely permanent, each with the change since the previous report split into newly published advisories, older ones found for the first time (mostly in newly watched repos) and ones that left limbo. Older finds are coverage growth, not new limbo (F-067);
 - **newly published advisories** that entered limbo, sorted by severity;
 - **what left limbo:** reviewed, duplicate, or withdrawn;
 - **CVE changes:** reserved CVEs that got published, new CVEs from other CNAs, and GitHub-assigned CVEs the advisory doesn't cite yet;

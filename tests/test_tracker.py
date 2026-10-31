@@ -234,6 +234,7 @@ async def test_daily_report_tracks_changes(tmp_path: Path, no_sleep: Any) -> Non
         "0 older ones found for the first time, 1 left limbo)" in second.markdown
     )
     assert "1 reviewed by GitHub" in second.markdown
+    assert "**0 more are likely permanent** (+0 since the last report: 0 newly published," in second.markdown
     assert "## Longest waiting, published in the last 90 days" in second.markdown
     assert "0 advisories in limbo have waited more than a year." in second.markdown
 

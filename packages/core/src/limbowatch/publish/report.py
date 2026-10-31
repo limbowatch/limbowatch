@@ -89,6 +89,7 @@ def build(store: Store, now: datetime | None = None) -> Report:
     all_items = items(store)
     by_id = {i.adv.ghsa_id: i for i in all_items}
     pending = [i for i in all_items if i.assessment.status is Status.LIMBO and not i.assessment.likely_permanent]
+    permanent = [i for i in all_items if i.assessment.status is Status.LIMBO and i.assessment.likely_permanent]
 
     with store.session() as s:
         # Event IDs, not timestamps: timestamps have one-second resolution.
@@ -116,11 +117,14 @@ def build(store: Store, now: datetime | None = None) -> Report:
         return (SEVERITY_ORDER.get(i.adv.severity or "", 9), -(days_since(i.adv.published_at, now) or 0))
 
     fresh_cut = now - NEW_WINDOW if since is None else min(since, now - NEW_WINDOW)
-    new_pub = sorted(
-        (i for i in pending if i.adv.ghsa_id in first_seen and i.adv.published_at and i.adv.published_at >= fresh_cut),
-        key=sev_key,
-    )
-    discovered = [i for i in pending if i.adv.ghsa_id in first_seen and i not in new_pub]
+
+    def first_seen_split(bucket: list[Item]) -> tuple[list[Item], list[Item]]:
+        seen = [i for i in bucket if i.adv.ghsa_id in first_seen]
+        fresh = [i for i in seen if i.adv.published_at and i.adv.published_at >= fresh_cut]
+        return sorted(fresh, key=sev_key), [i for i in seen if i not in fresh]
+
+    new_pub, discovered = first_seen_split(pending)
+    new_perm, discovered_perm = first_seen_split(permanent)
     in_new_repos = sum(1 for i in discovered if i.adv.repo in new_repos)
     ages = {i.adv.ghsa_id: days_since(i.adv.published_at, now) or 0 for i in pending}
     over_year = sum(1 for a in ages.values() if a > 365)
@@ -154,7 +158,18 @@ def build(store: Store, now: datetime | None = None) -> Report:
         f"  - severity: {li['by_severity']['critical']:,} critical, {li['by_severity']['high']:,} high, "
         f"{li['by_severity']['medium']:,} medium, {li['by_severity']['low']:,} low · median wait so far "
         f"{li['age_days_median']} days",
-        f"- **{lp['count']:,} more are likely permanent**{_delta(lp['count'], prev and prev.get('permanent'))}: "
+        f"- **{lp['count']:,} more are likely permanent**"
+        + _delta(
+            lp["count"],
+            prev_perm := prev and prev.get("permanent"),
+            _parts(
+                len(new_perm),
+                len(discovered_perm),
+                left.total() - left_pending,
+                None if prev_perm is None else lp["count"] - prev_perm,
+            ),
+        )
+        + ": "
         "in ecosystems GitHub doesn't review, so GitHub-based scanners will probably never see them.",
         "",
         "## Since the last report",
