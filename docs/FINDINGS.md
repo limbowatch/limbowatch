@@ -756,6 +756,18 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
 - **Caveats:** As F-066: candidates; many will have only reviewed advisories.
 - **Implication:** The delta sync closes the gap only as repos get new CVEs, about 100 repos a day, and each brings its backlog into the daily "found for the first time" count. The tracker now adds them all on its next run (`Tracker.watch_cna_repos`). That first run polls about 2,100 new repos ahead of the regular ~1,400, close to the 3,500-request budget, so some daily-tier repos may wait one extra day.
 
+### F-070
+- **Date:** 2026-10-31 · **Status:** confirmed (count over the tracker state)
+- **Question:** Did the first run with `Tracker.watch_cna_repos` close F-068's gap, and what did it bring in?
+- **Method:** `tracker-data` state at 7fca6ac (run 10, 2026-10-31 12:44–12:52 UTC): `state/runs.jsonl`, `state/repos.jsonl` (`first_seen` on 2026-10-31), the F-068 count over `state/cves.jsonl`, and `reports/2026-10-31.md`.
+- **Result:**
+  - The watchlist went from 16,499 to 18,656 repos (2,157 added). **All 5,007 repos named by the 22,071 GitHub_M CVEs are now on it; 0 are missing.** Every repo on the watchlist has been polled at least once.
+  - The run polled 3,484 repos and stopped at the budget (3,507 counted GitHub requests). No HTTP failures.
+  - 1,675 of the 2,157 new repos have repository advisories, 13,307 in all.
+  - Pending limbo rose from 6,655 to 7,988: 33 newly published, 1,355 older ones seen for the first time (1,294 in the new repos), 55 left limbo. Likely permanent rose from 4,131 to 13,852 (+9,721). Of the 11,195 unreviewed advisories first observed this run, 10,848 are in the new repos and 347 in repos already watched, so at least 9,374 of the +9,721 (96%) came from the new repos.
+- **Caveats:** The report's likely-permanent delta has no breakdown, so the 96% is a lower bound from counts (latest facts per advisory in `state/facts.jsonl`), not a per-advisory classification. Because the run stopped at the budget, some daily-tier repos waited one extra day.
+- **Implication:** The watchlist gap from bulk-imported GitHub_M CVEs (F-066, F-068) is closed. The delta sync keeps it closed. Most of what the new repos brought is likely permanent: these are mostly applications, not packages in ecosystems GitHub reviews. From the next run on, the daily delta should again reflect real inflow. Use 2026-11-01 onward, not 2026-10-31, as the baseline for throughput numbers.
+
 ### F-069
 - **Date:** 2026-10-31 · **Status:** confirmed (OSV-SCALIBR source, Composer and OSV docs, count over the tracker state)
 - **Question:** How clean are the package names and ranges the limbo feed publishes, and which defects stop scanners from matching?
