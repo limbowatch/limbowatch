@@ -789,6 +789,58 @@ Answered:
   - Until every repo has been polled once under the PAT, polls are full price. 12,635 weekly-tier repos from the 2026-10-28 pass come due around 2026-11-04, on top of the 2,157 repos added on 10-31. At 3,500 requests a day that takes about four runs; daily-tier repos come first, and the weekly tier stretches by a few days. After that, the budget should cover the schedule with room to spare.
 - **Sources:** [Best practices for using the REST API: conditional requests](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api)
 
+### F-072
+- **Date:** 2026-10-31 · **Status:** confirmed (repo contents and metadata; tool not executed). Refines [F-036](#f-036).
+- **Question:** Phase 3 step 1: what does blindspot cover now, does it take outside contributions, and has anything new appeared since 2026-10-21?
+- **Method:** `gh api repos/munimtechnologies/advisory-import-census` (metadata, releases, commits, the recursive tree at main, `README.md`, `blindspot.py`, all pulls and issues); `gh api search/repositories` for related terms, pushed or created after 2026-09-15 / 10-01.
+- **Result:**
+  - **blindspot:** v0.9.25 (2026-10-29, Marketplace metadata only; `blindspot.py` is still 0.9.24). About 105 commits, pushed today, 0 stars, 0 forks. Inputs, mapping, OSV-only check, SARIF and the Action are as in F-036; Cargo and Composer lockfiles are still not read.
+  - `blindspot.py` has none of: reserved-CVE (RBP) state, duplicate-GHSA detection, a GitHub global-database check, GitLab output or CI, Code Quality output, a feed input.
+  - **No outside contributions so far:** 0 pull requests and 0 issues ever, and no CONTRIBUTING file. Commits are by the owner's AI agents ("Made with AI agents working for MV2 of Munim, Inc.").
+  - **Its focus has moved to research:** since 2026-10-30 it publishes pre-registered studies (S1–S5) on why advisories don't reach the database: CVE reuse, CVE lookups, late CVEs on package-less "twin" records, OSV alias bridging. It has filed issues on `github/advisory-database` (#10733, #10746).
+  - **New since 2026-10-21:** `janghotan/depscope` (created 2026-10-26; npm/PyPI scanner over OSV that reports what it couldn't check; a possible feed consumer). `CyberNative-AI/apache-cve-ghsa-review-counts` (created 2026-10-31; one-off counts of ASF CVEs without a reviewed GHSA; the other-CNA gap of F-017). Neither runs a tracker or publishes a feed.
+- **Caveats:** Read-only, from the repo; whether the owner wants outside PRs is unknown until asked. Search finds only what repo names and descriptions say.
+- **Implication:** The planned blindspot contributions are all still missing there, but with no contribution history, open one issue asking which they'd want before writing any PR. Their studies overlap our findings (duplicates, late CVEs), so offering data may be as useful as code.
+
+### F-073
+- **Date:** 2026-10-31 · **Status:** confirmed (source and issue tracker). Refines [F-039](#f-039).
+- **Question:** Can OSV-Scanner use an extra advisory source now, and would its maintainers consider it?
+- **Method:** `gh api` reads of google/osv-scanner `cmd/osv-scanner/internal/helper/flags.go`, `pkg/osvscanner/scan.go`, `cmd/osv-scanner/fix/command.go` (main, latest release v2.7.0 of 2026-10-12) and google/osv-scalibr `enricher/vulnmatch/osvlocal/{osvlocal,matcher,zip}.go` at 9162ccacc0 (2026-10-30); commit history of `osvlocal.go`; issue search; issues #2198 and #3177 with comments; `curl -I` of `https://osv-vulnerabilities.storage.googleapis.com/PyPI/all.zip`.
+- **Result:**
+  - **SCALIBR's local matcher has a configurable download host** (`OSVLocalConfig.RemoteHost`, added 2026-02-03 in 5e3ca5326b, PR #1608 by ackama). It downloads `<host>/<Ecosystem>/all.zip` and stores it at `<local-db-path>/osv-scalibr/<Ecosystem>/all.zip` (F-039's `osv-scanner/` directory is now `osv-scalibr/`).
+  - **OSV-Scanner hard-codes that host** to `https://osv-vulnerabilities.storage.googleapis.com` (`pkg/osvscanner/scan.go:84`, `fix/command.go:296`). No flag or environment variable sets it. `--local-db-path` only moves the cache.
+  - The host is single-valued: pointing it elsewhere replaces OSV's data rather than adding to it.
+  - When a cached zip exists, a refresh first sends `HEAD` and requires an `X-Goog-Hash: crc32c=<base64>` header; without it the load fails ("could not find crc32c= checksum"). GCS sends it (`x-goog-hash: crc32c=wKp+9g==` observed).
+  - SCALIBR merges and de-duplicates findings that several matchers report for the same package (`dedupPackageVulns`).
+  - **Issue #2198** ("Allow OSV-Scanner to use a custom database", 2025-08) was closed as not planned on 2025-10-22, because the requester wanted a MySQL backend. Collaborator another-rex had written "I am open to the idea of having osv-scanner using custom database", listed "download the .zip files from a custom url" as one option, and on 2025-11-12 called a configurable API host "pretty easily doable", asking for a new issue. None was filed (search by author and terms).
+  - **Issue #3177** (open): since v2.7.0, npm lockfile entries without a `resolved` field are treated as local and not checked (PR #3104).
+- **Implication:** The upstream ask is small and has a precedent: (1) expose the existing `RemoteHost` as a flag or environment variable, (2) better, accept additional zip hosts and merge their findings, which SCALIBR already de-duplicates. The feed should serve `<Ecosystem>/all.zip` with an `X-Goog-Hash` header so it works the day (1) ships.
+- **Sources:** [osv-scanner#2198](https://github.com/google/osv-scanner/issues/2198), [osv-scanner#3177](https://github.com/google/osv-scanner/issues/3177), [osv-scalibr osvlocal](https://github.com/google/osv-scalibr/tree/main/enricher/vulnmatch/osvlocal)
+
+### F-074
+- **Date:** 2026-10-31 · **Status:** confirmed (observed; released binary, two packages)
+- **Question:** Can the released OSV-Scanner scan against the limbo feed today, without code changes?
+- **Method:** OSV-Scanner v2.7.0 built from source (`go install …@v2.7.0`, the research pipeline's binary). `https://limbo.watch/feed/all.zip` (21,840 records) split by `affected[].package.ecosystem` into `db/osv-scalibr/<Ecosystem>/all.zip`. Two test lockfiles: `requirements.txt` with `frappe==15.0.0`, and a `package-lock.json` v3 with `@vendure/core` 3.0.0. Both advisories checked first: `api.osv.dev/v1/vulns/GHSA-22v9-hw3x-x59w` and `GHSA-22x4-937q-5fr5` return 404. Run: `osv-scanner scan source --offline-vulnerabilities --local-db-path db -L …`.
+- **Result:**
+  - **Yes.** frappe 15.0.0: 58 limbo advisories reported. `@vendure/core` 3.0.0: 19, including GHSA-22x4-937q-5fr5 (CVSS 9.6, fixed 3.7.3). Exit code 1 (vulnerabilities found).
+  - **A missing ecosystem zip fails the whole scan:** with the npm zip absent, the run exits 127 with "no offline version of the OSV database is available" and reports 0 findings, PyPI included. **An empty zip is accepted** ("Loaded npm local db").
+  - An npm lock entry without `resolved` was skipped silently ("No issues found", exit 0), as #3177 describes; with `resolved` it matched.
+  - OSV publishes 47 ecosystem names in `https://osv-vulnerabilities.storage.googleapis.com/ecosystems.txt` (2026-10-31).
+- **Caveats:** Two packages. This mode scans against the limbo feed *instead of* OSV's data, so it complements a normal scan rather than replacing it. Range conversion caveats of F-069 apply.
+- **Implication:** Publish one zip per ecosystem at `/osv/<Ecosystem>/all.zip`, an empty one for every OSV ecosystem the feed doesn't cover, so a second scan works today: download, then `--offline-vulnerabilities --local-db-path`. This is a working demo for the upstream request (F-073).
+
+### F-075
+- **Date:** 2026-10-31 · **Status:** confirmed (repo contents; count over the tracker state)
+- **Question:** Does RogoLabs' rbptracker already read repository advisories, and what could our data add?
+- **Method:** `gh api` reads of RogoLabs/RBP (`FEEDS.md`, `rbp/feeds.py`, `feedlab/ghsa-repos.json`, `rbp/feed_data/ghsa_repos.txt`, main, pushed 2026-10-31). Overlap with `tracker-data` state at 7fca6ac (`state/repos.jsonl`; latest facts per advisory in `state/facts.jsonl`).
+- **Result:**
+  - **It does, since 2026-08:** a `ghsa-repos` feed polls a committed list of 1,871 valid repos, conditionally (ETag), for published advisories that cite a CVE. On 2026-08-27 it was the sole source for 1,015 of 1,709 published rows (59% of their headline).
+  - **The list is frozen** (curated 2026-08-26). Their code says: "NOT SELF-REFRESHING. Discovering a repository that publishes its FIRST advisory is a mining problem and it is not solved here."
+  - **Overlap:** 1,848 of their 1,871 repos are on our 18,656-repo watchlist. **3,727 repos with published advisories on our watchlist aren't on their list.** Of the 1,303 unreviewed advisories in our state citing a CVE recorded as RESERVED (408 repos), **416 in 188 repos** are outside their list.
+  - They publish counts, not CVE IDs from that cache, by design.
+- **Caveats:** RESERVED is as of our last CVE check per advisory, not re-checked today. Their list may have been chosen deliberately (provenance rules in the file header).
+- **Implication:** The useful offer is a daily, self-refreshing list of repos that publish advisories (repo names only, no CVE IDs), which is exactly their unsolved step. It's a contribution of data, not code.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
