@@ -751,6 +751,10 @@ layout as OSV’s own bulk downloads. Use it to see what your scanner can’t ye
 <section style="flex:3 1 560px"><h2 class="xs">Files</h2><div class="card files">
 <div><div class="x"><a class="mono" href="/feed/all.zip">feed/all.zip</a><p>One <span class="mono">GHSA-….json</span> per advisory
 in limbo, OSV bulk layout. Byte-stable, so you can diff it.</p></div><a class="btn solid" href="/feed/all.zip">Download</a></div>
+<div><div class="x"><a class="mono" href="/osv/limbo-db.zip">osv/limbo-db.zip</a><p>The feed split by ecosystem, laid out
+as OSV-Scanner’s offline database. Unzip it and scan.</p></div><a class="btn" href="/osv/limbo-db.zip">Download</a></div>
+<div><div class="x"><a class="mono" href="/osv/ecosystems.txt">osv/&lt;Ecosystem&gt;/all.zip</a><p>One zip per OSV ecosystem, the
+way OSV serves its own, with the <span class="mono">X-Goog-Hash</span> checksum it sends.</p></div></div>
 <div><div class="x"><a class="mono" href="/feed/index.json">feed/index.json</a><p>Every ID in the feed, to fetch only what changed.</p></div></div>
 <div><div class="x"><a class="mono" href="/feed/{sample_id}.json">feed/&lt;GHSA-ID&gt;.json</a><p>A single record, linked from each advisory page.</p></div></div>
 <div><div class="x"><a class="mono" href="/metrics.json">metrics.json</a><p>Today’s counts by severity, CVE state and age, plus coverage.</p></div></div>
@@ -761,9 +765,16 @@ in limbo, OSV bulk layout. Byte-stable, so you can diff it.</p></div><a class="b
 unzip -q all.zip -d limbo</pre></div></li>
 <li><span class="num">2</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">Look for your packages</p>
 <pre>jq -r 'select(.affected[].package.name == "sanitize-html") | .id' limbo/*.json</pre></div></li>
-<li><span class="num p">3</span><div style="flex:1;min-width:0"><p style="margin:2px 0 4px;font-weight:600">Scan with OSV-Scanner</p>
-<p class="ink2" style="margin:0;font-size:15px">OSV-Scanner can’t load an extra feed yet. We’re proposing that upstream rather than
-building another scanner.</p></div></li></ol></section>
+<li><span class="num">3</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">Or scan with OSV-Scanner</p>
+<pre>curl -O https://limbo.watch/osv/limbo-db.zip
+unzip -q limbo-db.zip -d limbo-db
+osv-scanner scan source --offline-vulnerabilities \\
+  --local-db-path limbo-db -r .</pre>
+<p class="ink2" style="margin:10px 0 0;font-size:15px">This checks your dependencies against the limbo feed only, so run it
+next to your usual scan: everything it finds is something OSV doesn’t have yet. Tested with OSV-Scanner 2.7.0, which skips npm
+lockfile entries that have no <span class="mono">resolved</span> field
+(<a href="https://github.com/google/osv-scanner/issues/3177">#3177</a>).
+We’re proposing upstream that OSV-Scanner add the feed to a normal scan, rather than building another scanner.</p></div></li></ol></section>
 <section style="flex:2 1 380px"><h2 class="xs">One record</h2><pre class="light">{sample_html}</pre>
 <div class="note"><h3>What’s in it, and what isn’t</h3><ul>
 <li>Facts only: IDs, packages, ranges, severity, CVE state. No titles, descriptions or credits; each record links to the advisory.</li>

@@ -841,6 +841,22 @@ Answered:
 - **Caveats:** RESERVED is as of our last CVE check per advisory, not re-checked today. Their list may have been chosen deliberately (provenance rules in the file header).
 - **Implication:** The useful offer is a daily, self-refreshing list of repos that publish advisories (repo names only, no CVE IDs), which is exactly their unsolved step. It's a contribution of data, not code.
 
+### F-076
+- **Date:** 2026-10-31 · **Status:** confirmed (observed; local build and local server)
+- **Question:** If OSV-Scanner let users set the zip host (F-073), would the limbo feed's per-ecosystem layout work end to end, including cache reuse?
+- **Method:**
+  - `limbowatch publish` on the 7fca6ac state writes `osv/<Ecosystem>/all.zip` (46 names from F-074's list), `osv/crc32c.map` and `osv/limbo-db.zip`.
+  - The site image (`deploy/site`, nginx 1.30.0-alpine) was built from that output and run locally; `curl -I` on `/osv/PyPI/all.zip`, `/osv/GitHub%20Actions/all.zip`, `/osv/Debian/all.zip`.
+  - OSV-Scanner v2.7.0 source with one change: `RemoteHost` in `pkg/osvscanner/scan.go` read from `OSV_SCANNER_LOCAL_DB_REMOTE_HOST` (default unchanged). Run twice with `--offline-vulnerabilities --download-offline-databases --local-db-path <empty dir>` on F-074's two test lockfiles, host `http://127.0.0.1:18080/osv`.
+  - CRC-32C check: our implementation on OSV's own `PyPI/all.zip` against its `x-goog-hash` header.
+- **Result:**
+  - Our CRC-32C gives `crc32c=wKp+9g==` for OSV's PyPI zip, the same as GCS's header. nginx sends `X-Goog-Hash` for every zip, including names with spaces.
+  - **Run 1** downloaded `GET /osv/npm/all.zip` and `/osv/PyPI/all.zip` and reported 77 limbo advisories for the 2 packages. **Run 2** sent only `HEAD` for both, matched the checksums, reused the cache and reported the same 77.
+  - The published bundle, unzipped and used with the released v2.7.0 (`--offline-vulnerabilities --local-db-path`), also reported 77.
+  - Fixing the zip writer (entries now deflated; they had been stored uncompressed) shrank `feed/all.zip` from 34.9 MB to 18.4 MB. The scanner bundle is 7.5 MB; the per-ecosystem zips total 14 MB.
+- **Caveats:** A local patch and a local server, not a released feature. With one host, the feed replaces OSV's data, so a real feature needs either a second host or merging (F-073).
+- **Implication:** The upstream change can be one configurable value and works with the feed as published. The request can include this patch and the two-run log as a reproducible demo.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

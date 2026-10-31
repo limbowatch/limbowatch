@@ -7,9 +7,11 @@ record the moment the real one arrives. Factual metadata only: no summary or det
 
 from __future__ import annotations
 
+import base64
 import io
 import json
 import zipfile
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 
@@ -19,6 +21,17 @@ from limbowatch.publish import ATTRIBUTION, Item
 from limbowatch.versions import osv_ranges
 
 SCHEMA_VERSION = "1.6.0"
+
+# OSV's ecosystem list (https://osv-vulnerabilities.storage.googleapis.com/ecosystems.txt, 2026-10-31).
+# OSV-Scanner's offline mode fails the whole scan when an ecosystem it needs has no zip, so each gets one,
+# empty if the feed has nothing for it (FINDINGS F-074).
+OSV_ECOSYSTEMS = (
+    "AlmaLinux", "Alpaquita", "Alpine", "Android", "Azure Linux", "BellSoft Hardened Containers", "Bitnami", "CRAN",
+    "Chainguard", "CleanStart", "Debian", "Echo", "GHC", "GIT", "GSD", "GitHub Actions", "Go", "Hackage", "Hex",
+    "Julia", "Linux", "Mageia", "Maven", "MinimOS", "NuGet", "OSS-Fuzz", "Packagist", "Pub", "PyPI", "Red Hat",
+    "Red Hat Lightwell", "Rocky Linux", "Root", "RubyGems", "SUSE", "SwiftURL", "TuxCare", "UVI", "Ubuntu", "VSCode",
+    "Wolfi", "crates.io", "npm", "opam", "openEuler", "openSUSE",
+)  # fmt: skip
 
 
 def _iso(d: datetime | None) -> str | None:
@@ -106,9 +119,58 @@ def build(items: list[Item], modified: str) -> tuple[list[dict[str, Any]], bytes
     recs = [
         record(i, modified) for i in sorted(items, key=lambda i: i.adv.ghsa_id) if i.assessment.status is Status.LIMBO
     ]
+    return recs, _zip(recs)
+
+
+def _zip(recs: Iterable[dict[str, Any]]) -> bytes:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for r in recs:
             zi = zipfile.ZipInfo(f"{r['id']}.json", date_time=(2026, 1, 1, 0, 0, 0))  # stable bytes for diffs
+            zi.compress_type = zipfile.ZIP_DEFLATED
             z.writestr(zi, json.dumps(r, indent=1, sort_keys=True))
-    return recs, buf.getvalue()
+    return buf.getvalue()
+
+
+def by_ecosystem(recs: list[dict[str, Any]]) -> dict[str, bytes]:
+    """One `all.zip` per OSV ecosystem, as OSV serves them at `<Ecosystem>/all.zip` (F-073, F-074).
+
+    A record with packages in two ecosystems goes in both. Every name in OSV_ECOSYSTEMS gets a zip.
+    """
+    names = sorted({*OSV_ECOSYSTEMS, *(a["package"]["ecosystem"] for r in recs for a in r["affected"])})
+    return {e: _zip(r for r in recs if any(a["package"]["ecosystem"] == e for a in r["affected"])) for e in names}
+
+
+def bundle(zips: dict[str, bytes]) -> bytes:
+    """The per-ecosystem zips laid out as OSV-Scanner's cache, for `--offline-vulnerabilities --local-db-path`."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as z:
+        for e, data in sorted(zips.items()):
+            z.writestr(zipfile.ZipInfo(f"osv-scalibr/{e}/all.zip", date_time=(2026, 1, 1, 0, 0, 0)), data)
+    return buf.getvalue()
+
+
+def _crc32c_table() -> list[int]:
+    table = []
+    for i in range(256):
+        c = i
+        for _ in range(8):
+            c = (c >> 1) ^ 0x82F63B78 if c & 1 else c >> 1
+        table.append(c)
+    return table
+
+
+_CRC32C = _crc32c_table()
+
+
+def crc32c(data: bytes) -> int:
+    """CRC-32C (Castagnoli), the checksum GCS sends and OSV-Scanner checks before reusing a cached zip."""
+    c, t = 0xFFFFFFFF, _CRC32C
+    for b in data:
+        c = t[(c ^ b) & 0xFF] ^ (c >> 8)
+    return c ^ 0xFFFFFFFF
+
+
+def goog_hash(data: bytes) -> str:
+    """The `X-Goog-Hash` header value OSV-Scanner expects on `HEAD <host>/<Ecosystem>/all.zip` (F-073)."""
+    return "crc32c=" + base64.b64encode(crc32c(data).to_bytes(4, "big")).decode()

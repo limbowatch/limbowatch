@@ -120,6 +120,17 @@ def publish(
             }
         )
     )
+    # The same records per ecosystem, in OSV's download layout, for OSV-Scanner (FINDINGS F-073, F-074).
+    # nginx sends each zip's CRC-32C as X-Goog-Hash, from the map written here (deploy/site/nginx.conf).
+    zips = feed_mod.by_ecosystem(records)
+    hashes = []
+    for eco, data in zips.items():
+        (out / "osv" / eco).mkdir(parents=True, exist_ok=True)
+        (out / "osv" / eco / "all.zip").write_bytes(data)
+        hashes.append(f'"/osv/{eco}/all.zip" "{feed_mod.goog_hash(data)}";\n')
+    (out / "osv" / "ecosystems.txt").write_text("".join(f"{e}\n" for e in zips))
+    (out / "osv" / "crc32c.map").write_text("".join(hashes))
+    (out / "osv" / "limbo-db.zip").write_bytes(feed_mod.bundle(zips))
     (out / "metrics.json").write_text(dumps(m))
     for r in records:
         (out / "feed" / f"{r['id']}.json").write_text(dumps(r))

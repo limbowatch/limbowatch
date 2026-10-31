@@ -24,7 +24,9 @@ A daily job that counts published GitHub security advisories still **in limbo**:
      - package names are cleaned only where the result is certain (stray spaces, URL wrappers, PyPI's PEP 503 form, lowercase Packagist names); the original is kept in `name_as_entered`, and names that still don't fit the ecosystem's rules get `name_valid: false`;
      - a range that can't be converted exactly is left as text (`range_converted: false`), never published open-ended when a fix is listed;
      - `database_specific.limbowatch.quality` sums up both, per record (F-069);
-   - `feed/index.json`.
+   - `feed/index.json`;
+   - `osv/<Ecosystem>/all.zip`: the same records split by ecosystem, the way OSV serves its own downloads, with an empty zip for every OSV ecosystem the feed doesn't cover (OSV-Scanner's offline mode fails the whole scan when one is missing, F-074). nginx sends each zip's CRC-32C as `X-Goog-Hash` from `osv/crc32c.map` (F-073);
+   - `osv/limbo-db.zip`: those zips laid out as OSV-Scanner's cache, so `osv-scanner scan source --offline-vulnerabilities --local-db-path <unzipped dir> -r .` scans against the feed (F-076).
 
 ## Seeds
 
@@ -73,7 +75,7 @@ In CI the report is:
 - commits the JSONL state to the `tracker-data` branch;
 - deploys the site to GitHub Pages.
 
-It runs daily at 06:17 UTC (and on manual dispatch). The first run also downloads the latest CVE List release once, to bootstrap CVEs that other CNAs assigned earlier. The website deploy is skipped while the repo is private, because Pages on a private repo needs a paid plan; the report and the feed are still produced every day.
+It runs daily at 06:17 UTC (and on manual dispatch). The first run also downloads the latest CVE List release once, to bootstrap CVEs that other CNAs assigned earlier. When it succeeds, the `site` workflow publishes and deploys limbo.watch ([deploy/README.md](../deploy/README.md)).
 
 **Token choice:**
 - **`GITHUB_TOKEN`** allows 1,000 requests/hour, and its ETags probably don't carry over between runs (FINDINGS F-058, Q11). So most repos cost a full request every day.

@@ -12,6 +12,7 @@ on:
     paths:
       - "deploy/site/**"
       - "packages/core/src/limbowatch/publish/**"
+      - "packages/cli/src/limbowatch_cli/**"
       - "brand/assets/**"
       - ".github/workflows/site.yml"
   workflow_dispatch:
