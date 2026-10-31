@@ -729,6 +729,25 @@ Current understanding (Phase 1, 2026-10-21), with entries linked:
   - Supports F-042/F-064: CVE publication by GitHub_M can lag the repo advisory by months, and a published CVE doesn't mean scanners can match it (no package in OSV's CVE record).
   - Fix: add GitHub_M CVEs' repos to the watchlist during the bulk import too (and once from the stored CVEs). At about 2,300 repos, mostly weekly tier, that's roughly 330 extra checks a day.
 
+### F-067
+- **Date:** 2026-10-30 · **Status:** tentative (three scheduled runs, two full days of review observations)
+- **Question:** What do the first days of daily tracking show about growth, review throughput and the report's labels?
+- **Method:** The daily reports `reports/2026-10-2{8,9}.md` and `2026-10-30.md` on `tracker-data`, plus the state at commit 699cf99 (2026-10-30 13:12 UTC) loaded with `limbowatch.publish.items`: "first seen" events split by advisory age (≤ 3 days after publication = fresh) and by whether the repo joined the watchlist that day; `-> reviewed` events; the CNA of each `new CVE from another CNA` event's CVE from `state/cves.jsonl`. `gh run list` for run times.
+- **Result:**
+  - **Pending limbo rose 6,128 → 6,272 → 6,655, mostly from watching more repos.** Of the +144 on 10-29, 140 were older advisories in repos that joined that day; of the +383 on 10-30, 328 were. Every one of those repos came from the CVE delta sync (`github-cna-cve`): a new GitHub_M CVE names the repo, and polling it turns up its whole backlog (labredescefetrj/wegia 212, e107inc/e107 190, cacti/cacti 67).
+  - **Fresh inflow** (published ≤ 3 days before first seen, reviewable ecosystems): 93 on 10-29 and 71 on 10-30. **Outflow:** 88 reviewed on 10-29, 20 on 10-30, none withdrawn or found to duplicate.
+  - **Observed review lag** (108 advisories seen in limbo, then reviewed): median 11.2 days, p25 8.6, p75 30.3, max 146; none under 2 days. Of the 1,102 tracked advisories published 10-20 to 10-29 in reviewable ecosystems, 32 were reviewed by 10-30. That ratio flatters the backlog's side: advisories already reviewed when first seen are never tracked, so fast reviews are missing from it.
+  - **Age of pending limbo on 10-30:** 607 under 7 days, 1,700 at 7–30, 2,804 at 30–90, 1,153 at 90–365, 391 over a year; 6,249 of 6,655 were published in 2026. The median grew exactly a day per day (47.5 → 48.5 → 49.5).
+  - **"Another CNA" mislabel:** of 77 `new CVE from another CNA` events, 56 were VulnCheck CVEs but **18 were GitHub_M's own** (e.g. labstack/echo's CVE-2026-1186xx); each of those advisories was reviewed the same day. None remain in the headline bucket: of the 1,003 pending advisories with an uncited CVE, 970 are VulnCheck, the rest small CNAs, none GitHub_M.
+  - **Cron:** runs started 13:08, 13:14 and 13:06 UTC on the `17 6 * * *` schedule. The delay held steady at about 6 h 50 min, so the day-to-day swing F-065 warned about hasn't happened yet.
+  - Every run finished under budget (1,394 and 1,410 repos polled; `stopped_early: null`).
+- **Caveats:** Two days of review data, both weekdays; GitHub reviews in batches, so a daily figure means little on its own. "Fresh" uses first-seen time, so an advisory in a repo polled every 3 to 7 days can be counted as older.
+- **Implication:**
+  - The report's headline delta mixes watchlist growth with real change; it should split "newly published − left limbo" from "found in newly watched repos". Until the F-066 backfill runs, expect several hundred backlog finds a day.
+  - At this sample, fresh inflow roughly matches review outflow on a good day and exceeds it on a slow one; the backlog isn't shrinking (the median climbs a day per day). It takes a few weeks of data to say more.
+  - Label `new CVE from another CNA` only when the CVE's CNA isn't GitHub_M; otherwise say "CVE published by GitHub, not yet cited".
+  - The report's "Longest waiting" table repeats the same 2019 advisories every day; it would say more limited to the last 90 days.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
