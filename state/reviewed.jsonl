@@ -2076,6 +2076,7 @@
 {"cve_id":"CVE-2025-32965","ghsa_id":"GHSA-33qr-m49q-rxfx","origin_repo":"xrplf/xrpl.js","reviewed_at":"2025-04-22T18:57:48Z"}
 {"cve_id":"CVE-2026-10223","ghsa_id":"GHSA-33qv-c5qm-799v","origin_repo":null,"reviewed_at":"2026-07-28T19:57:20Z"}
 {"cve_id":"CVE-2026-41211","ghsa_id":"GHSA-33r3-4whc-44c2","origin_repo":"voidzero-dev/vite-plus","reviewed_at":"2026-04-16T01:02:48Z"}
+{"cve_id":"CVE-2026-44267","ghsa_id":"GHSA-33r5-xmm8-v6x5","origin_repo":"enspirit/elo","reviewed_at":"2026-11-03T17:53:42Z"}
 {"cve_id":"CVE-2023-5196","ghsa_id":"GHSA-33r7-wjfc-7w98","origin_repo":null,"reviewed_at":"2023-09-29T22:05:57Z"}
 {"cve_id":"CVE-2025-54952","ghsa_id":"GHSA-33r8-vrx9-rmcv","origin_repo":null,"reviewed_at":"2025-08-08T17:00:01Z"}
 {"cve_id":"CVE-2015-1039","ghsa_id":"GHSA-33rh-5hvf-5jjp","origin_repo":null,"reviewed_at":"2024-04-25T22:23:18Z"}
@@ -4403,6 +4404,7 @@
 {"cve_id":"CVE-2020-5407","ghsa_id":"GHSA-48rw-j489-928m","origin_repo":null,"reviewed_at":"2020-06-04T19:19:34Z"}
 {"cve_id":"CVE-2026-54171","ghsa_id":"GHSA-48rx-c7pg-q66r","origin_repo":"excon/excon","reviewed_at":"2026-07-10T20:37:29Z"}
 {"cve_id":"CVE-2023-4198","ghsa_id":"GHSA-48v2-596x-4jr9","origin_repo":null,"reviewed_at":"2023-11-01T14:57:37Z"}
+{"cve_id":"CVE-2026-62331","ghsa_id":"GHSA-48v2-6jcm-fc99","origin_repo":"mtzanidakis/praktor","reviewed_at":"2026-11-03T17:27:25Z"}
 {"cve_id":null,"ghsa_id":"GHSA-48vq-8jqv-gm6f","origin_repo":"nervosnetwork/ckb","reviewed_at":"2021-08-02T21:53:41Z"}
 {"cve_id":"CVE-2012-6661","ghsa_id":"GHSA-48vv-2pmq-9fvv","origin_repo":null,"reviewed_at":"2020-06-16T20:57:52Z"}
 {"cve_id":"CVE-2024-28108","ghsa_id":"GHSA-48vw-jpf8-hwqh","origin_repo":"thorsten/phpmyfaq","reviewed_at":"2024-03-25T19:45:23Z"}
@@ -11206,6 +11208,7 @@
 {"cve_id":"CVE-2026-63481","ghsa_id":"GHSA-7w2g-9mf9-324m","origin_repo":"orange-opensource/hurl","reviewed_at":"2026-09-02T22:11:11Z"}
 {"cve_id":"CVE-2022-42486","ghsa_id":"GHSA-7w2v-35j3-xrm9","origin_repo":null,"reviewed_at":"2022-12-07T14:56:47Z"}
 {"cve_id":"CVE-2022-25181","ghsa_id":"GHSA-7w2w-fwpf-9m4h","origin_repo":null,"reviewed_at":"2022-06-20T22:39:16Z"}
+{"cve_id":"CVE-2026-44266","ghsa_id":"GHSA-7w38-ggh5-v542","origin_repo":"enspirit/elo","reviewed_at":"2026-11-03T17:51:30Z"}
 {"cve_id":"CVE-2020-24914","ghsa_id":"GHSA-7w3c-jgh7-cwjw","origin_repo":null,"reviewed_at":"2024-04-24T18:06:20Z"}
 {"cve_id":"CVE-2024-35186","ghsa_id":"GHSA-7w47-3wg8-547c","origin_repo":"gitoxidelabs/gitoxide","reviewed_at":"2024-05-22T14:05:58Z"}
 {"cve_id":"CVE-2018-19296","ghsa_id":"GHSA-7w4p-72j7-v7c2","origin_repo":"phpmailer/phpmailer","reviewed_at":"2020-03-05T22:08:10Z"}
@@ -14726,6 +14729,7 @@
 {"cve_id":"CVE-2025-62171","ghsa_id":"GHSA-9pp9-cfwx-54rm","origin_repo":"imagemagick/imagemagick","reviewed_at":"2025-10-28T14:43:20Z"}
 {"cve_id":"CVE-2026-31802","ghsa_id":"GHSA-9ppj-qmqm-q256","origin_repo":"isaacs/node-tar","reviewed_at":"2026-03-10T23:44:58Z"}
 {"cve_id":"CVE-2026-54897","ghsa_id":"GHSA-9ppp-w3g4-fh4q","origin_repo":"ohler55/oj","reviewed_at":"2026-06-19T19:36:50Z"}
+{"cve_id":null,"ghsa_id":"GHSA-9ppr-wfw9-xvr2","origin_repo":"tinfoil-factory/netfoil","reviewed_at":"2026-11-03T16:48:29Z"}
 {"cve_id":"CVE-2026-27118","ghsa_id":"GHSA-9pq4-5hcf-288c","origin_repo":"sveltejs/kit","reviewed_at":"2026-02-19T15:18:02Z"}
 {"cve_id":"CVE-2026-45010","ghsa_id":"GHSA-9pq7-mfwh-xx2j","origin_repo":"thorsten/phpmyfaq","reviewed_at":"2026-05-06T20:42:54Z"}
 {"cve_id":"CVE-2021-27293","ghsa_id":"GHSA-9pq7-rcxv-47vq","origin_repo":null,"reviewed_at":"2021-07-13T21:24:43Z"}
@@ -20039,6 +20043,7 @@
 {"cve_id":null,"ghsa_id":"GHSA-gh9f-6xm2-c4j2","origin_repo":"surrealdb/surrealdb","reviewed_at":"2024-07-11T13:19:19Z"}
 {"cve_id":"CVE-2026-45008","ghsa_id":"GHSA-gh9p-q46p-57g2","origin_repo":"thorsten/phpmyfaq","reviewed_at":"2026-05-06T20:47:54Z"}
 {"cve_id":"CVE-2025-27219","ghsa_id":"GHSA-gh9q-2xrm-x6qv","origin_repo":null,"reviewed_at":"2025-03-03T20:53:43Z"}
+{"cve_id":"CVE-2026-115878","ghsa_id":"GHSA-gh9r-c94j-cmp5","origin_repo":"stanfordnlp/stanza","reviewed_at":"2026-11-03T20:29:16Z"}
 {"cve_id":"CVE-2021-3148","ghsa_id":"GHSA-ghc2-hx3w-jqmp","origin_repo":null,"reviewed_at":"2024-04-22T21:16:52Z"}
 {"cve_id":"CVE-2026-26308","ghsa_id":"GHSA-ghc4-35x6-crw5","origin_repo":"envoyproxy/envoy","reviewed_at":"2026-03-10T18:30:42Z"}
 {"cve_id":null,"ghsa_id":"GHSA-ghc5-95c2-vwcv","origin_repo":"auth0/symfony","reviewed_at":"2026-04-03T03:44:13Z"}
@@ -20809,6 +20814,7 @@
 {"cve_id":"CVE-2026-33229","ghsa_id":"GHSA-h259-74h5-4rh9","origin_repo":"xwiki/xwiki-platform","reviewed_at":"2026-04-08T15:00:17Z"}
 {"cve_id":null,"ghsa_id":"GHSA-h25m-26qc-wcjf","origin_repo":"vercel/next.js","reviewed_at":"2026-01-28T15:38:01Z"}
 {"cve_id":null,"ghsa_id":"GHSA-h26f-j4mv-84g7","origin_repo":null,"reviewed_at":"2020-08-31T18:37:57Z"}
+{"cve_id":"CVE-2026-62848","ghsa_id":"GHSA-h26j-4vp7-x9w2","origin_repo":"metalama/metalama","reviewed_at":"2026-11-03T16:37:44Z"}
 {"cve_id":"CVE-2023-49793","ghsa_id":"GHSA-h26w-r4m5-8rrf","origin_repo":"ericsson/codechecker","reviewed_at":"2024-06-24T16:18:09Z"}
 {"cve_id":"CVE-2024-43403","ghsa_id":"GHSA-h27c-6xm3-mcqp","origin_repo":"kanisterio/kanister","reviewed_at":"2024-08-20T22:13:02Z"}
 {"cve_id":"CVE-2019-10414","ghsa_id":"GHSA-h27g-72mh-9m33","origin_repo":null,"reviewed_at":"2023-02-23T20:32:21Z"}
@@ -23344,6 +23350,7 @@
 {"cve_id":"CVE-2025-53365","ghsa_id":"GHSA-j975-95f5-7wqh","origin_repo":"modelcontextprotocol/python-sdk","reviewed_at":"2025-07-04T22:06:31Z"}
 {"cve_id":"CVE-2020-7750","ghsa_id":"GHSA-j977-g5vj-j27g","origin_repo":null,"reviewed_at":"2020-11-09T14:09:20Z"}
 {"cve_id":"CVE-2023-1976","ghsa_id":"GHSA-j97g-77fj-9c4p","origin_repo":null,"reviewed_at":"2023-04-11T21:31:01Z"}
+{"cve_id":"CVE-2026-11800","ghsa_id":"GHSA-j97h-3f8r-mrjr","origin_repo":"keycloak/keycloak","reviewed_at":"2026-11-03T17:24:27Z"}
 {"cve_id":"CVE-2018-1190","ghsa_id":"GHSA-j97q-9xp9-g5fx","origin_repo":null,"reviewed_at":"2024-03-01T23:42:54Z"}
 {"cve_id":null,"ghsa_id":"GHSA-j982-5jv7-v43r","origin_repo":null,"reviewed_at":"2024-05-23T18:07:48Z"}
 {"cve_id":"CVE-2015-7558","ghsa_id":"GHSA-j984-q4qc-6qxf","origin_repo":null,"reviewed_at":"2023-08-04T23:10:05Z"}
@@ -24689,6 +24696,7 @@
 {"cve_id":"CVE-2022-23542","ghsa_id":"GHSA-m3q4-7qmj-657m","origin_repo":"openfga/openfga","reviewed_at":"2022-12-20T19:33:27Z"}
 {"cve_id":"CVE-2015-7565","ghsa_id":"GHSA-m3q7-rj8g-m457","origin_repo":null,"reviewed_at":"2020-06-16T21:44:43Z"}
 {"cve_id":"CVE-2026-59225","ghsa_id":"GHSA-m3qf-58wf-w979","origin_repo":"open-webui/open-webui","reviewed_at":"2026-07-24T20:54:23Z"}
+{"cve_id":null,"ghsa_id":"GHSA-m3qr-fvp4-78xj","origin_repo":"basekick-labs/arc","reviewed_at":"2026-11-03T16:29:38Z"}
 {"cve_id":"CVE-2026-23494","ghsa_id":"GHSA-m3r2-724c-pwgf","origin_repo":"pimcore/pimcore","reviewed_at":"2026-01-15T18:12:49Z"}
 {"cve_id":"CVE-2024-23651","ghsa_id":"GHSA-m3r6-h7wv-7xxv","origin_repo":"moby/buildkit","reviewed_at":"2024-01-31T22:43:32Z"}
 {"cve_id":"CVE-2024-55889","ghsa_id":"GHSA-m3r7-8gw7-qwvc","origin_repo":"thorsten/phpmyfaq","reviewed_at":"2024-12-13T20:36:08Z"}
@@ -26536,6 +26544,7 @@
 {"cve_id":"CVE-2026-44798","ghsa_id":"GHSA-p3hx-pwf3-j8wr","origin_repo":"nautobot/nautobot","reviewed_at":"2026-05-13T15:31:04Z"}
 {"cve_id":"CVE-2024-30850","ghsa_id":"GHSA-p3j6-f45h-hw5f","origin_repo":null,"reviewed_at":"2024-04-12T21:23:30Z"}
 {"cve_id":"CVE-2023-7333","ghsa_id":"GHSA-p3jp-7gj7-h6pr","origin_repo":null,"reviewed_at":"2026-01-08T20:41:13Z"}
+{"cve_id":null,"ghsa_id":"GHSA-p3jp-9v83-76w9","origin_repo":"dotnet/runtime","reviewed_at":"2026-11-03T17:33:48Z"}
 {"cve_id":null,"ghsa_id":"GHSA-p3jx-g34v-q56j","origin_repo":null,"reviewed_at":"2020-08-31T18:53:26Z"}
 {"cve_id":"CVE-2024-46998","ghsa_id":"GHSA-p3m2-mj3j-j49x","origin_repo":"baserproject/basercms","reviewed_at":"2024-10-24T17:45:58Z"}
 {"cve_id":"CVE-2026-94482","ghsa_id":"GHSA-p3m5-59mp-jv5r","origin_repo":"vercel/next.js","reviewed_at":"2026-10-22T15:50:34Z"}
@@ -36391,6 +36400,7 @@
 {"cve_id":"CVE-2024-28125","ghsa_id":"GHSA-x9r9-48rm-4xm6","origin_repo":null,"reviewed_at":"2024-08-29T18:02:50Z"}
 {"cve_id":"CVE-2026-80047","ghsa_id":"GHSA-x9r9-c232-4q39","origin_repo":null,"reviewed_at":"2026-09-30T23:40:28Z"}
 {"cve_id":"CVE-2017-12197","ghsa_id":"GHSA-x9rg-q5fx-fx66","origin_repo":null,"reviewed_at":"2022-07-01T21:27:13Z"}
+{"cve_id":"CVE-2026-44265","ghsa_id":"GHSA-x9rp-7wh3-2rj5","origin_repo":"enspirit/elo","reviewed_at":"2026-11-03T17:48:09Z"}
 {"cve_id":"CVE-2020-2193","ghsa_id":"GHSA-x9rq-9h44-f84v","origin_repo":null,"reviewed_at":"2022-12-20T22:40:57Z"}
 {"cve_id":"CVE-2021-32560","ghsa_id":"GHSA-x9rq-fjp5-qgm9","origin_repo":null,"reviewed_at":"2024-04-22T22:50:31Z"}
 {"cve_id":"CVE-2026-48917","ghsa_id":"GHSA-x9v8-p946-5pwc","origin_repo":null,"reviewed_at":"2026-07-01T19:38:25Z"}
