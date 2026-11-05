@@ -18,18 +18,21 @@ class EcosystemInfo:
     reviewable: bool  # GitHub reviews advisories for this ecosystem (FINDINGS F-015, F-023)
     name_rule: str = r".+"  # what a well-formed package name looks like, after cleaning
     name_style: str = ""  # "pep503" / "lower": the canonical spelling scanners compare; "url": a path, not a URL
+    depsdev: str | None = None  # deps.dev system, for mapping a package to its source repo
 
 
 _REGISTRY: dict[str, EcosystemInfo] = {
     e.ghsa: e
     for e in (
         # Name rules follow each registry's documented naming (FINDINGS F-069)
-        EcosystemInfo("npm", "npm", "npm", True, r"(?:@[A-Za-z0-9~-][\w.~-]*/)?[A-Za-z0-9~-][\w.~-]*"),
-        EcosystemInfo("pip", "PyPI", "pypi", True, r"[a-z0-9]+(?:-[a-z0-9]+)*", "pep503"),
-        EcosystemInfo("go", "Go", "golang", True, r"stdlib|toolchain|[a-z0-9.-]+\.[a-z]{2,}(?:/[\w.~+-]+)*", "url"),
-        EcosystemInfo("rust", "crates.io", "cargo", True, r"[A-Za-z0-9_-]+"),
-        EcosystemInfo("maven", "Maven", "maven", True, r"[\w.-]+:[\w.-]+"),
-        EcosystemInfo("nuget", "NuGet", "nuget", True, r"[\w.-]+"),
+        EcosystemInfo("npm", "npm", "npm", True, r"(?:@[A-Za-z0-9~-][\w.~-]*/)?[A-Za-z0-9~-][\w.~-]*", depsdev="npm"),
+        EcosystemInfo("pip", "PyPI", "pypi", True, r"[a-z0-9]+(?:-[a-z0-9]+)*", "pep503", depsdev="pypi"),
+        EcosystemInfo(
+            "go", "Go", "golang", True, r"stdlib|toolchain|[a-z0-9.-]+\.[a-z]{2,}(?:/[\w.~+-]+)*", "url", depsdev="go"
+        ),
+        EcosystemInfo("rust", "crates.io", "cargo", True, r"[A-Za-z0-9_-]+", depsdev="cargo"),
+        EcosystemInfo("maven", "Maven", "maven", True, r"[\w.-]+:[\w.-]+", depsdev="maven"),
+        EcosystemInfo("nuget", "NuGet", "nuget", True, r"[\w.-]+", depsdev="nuget"),
         EcosystemInfo(
             "composer",
             "Packagist",
@@ -38,7 +41,7 @@ _REGISTRY: dict[str, EcosystemInfo] = {
             r"[a-z0-9]([_.-]?[a-z0-9]+)*/[a-z0-9](([_.]|-{1,2})?[a-z0-9]+)*",
             "lower",
         ),
-        EcosystemInfo("rubygems", "RubyGems", "gem", True, r"[\w.-]+"),
+        EcosystemInfo("rubygems", "RubyGems", "gem", True, r"[\w.-]+", depsdev="rubygems"),
         EcosystemInfo("erlang", "Hex", "hex", True, r"[a-z][a-z0-9_]*"),
         EcosystemInfo("actions", "GitHub Actions", "githubactions", True, r"[\w.-]+/[\w.-]+(?:/[\w./-]+)?", "url"),
         EcosystemInfo("pub", "Pub", "pub", True, r"[a-z_][a-z0-9_]*"),

@@ -56,3 +56,18 @@ def test_repos_with_advisories_lists_names_only() -> None:
     text = repos_with_advisories(store, "2026-11-05T00:00:00Z")
     assert [ln for ln in text.splitlines() if not ln.startswith("#")] == ["a/one", "b/two"]
     assert "watchlist of 4 repositories; 2 listed" in text
+
+
+def test_watchlist_lists_checked_repos_with_times() -> None:
+    from limbowatch.publish import watchlist
+
+    store = Store()
+    with store.session() as s:
+        s.add_all(
+            [
+                Repo(full_name="A/One", first_seen="x", last_polled_at="2026-11-05T13:00:00Z", poll_status=304),
+                Repo(full_name="b/new", first_seen="x"),
+                Repo(full_name="c/gone", first_seen="x", last_polled_at="2026-11-01T13:00:00Z", poll_status=404),
+            ]
+        )
+    assert watchlist(store, "t")["repos"] == {"a/one": "2026-11-05T13:00:00Z"}

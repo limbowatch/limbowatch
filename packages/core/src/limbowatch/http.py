@@ -31,6 +31,7 @@ HOST_CONCURRENCY = {
     "cveawg.mitre.org": 16,
     "services.nvd.nist.gov": 1,
     "raw.githubusercontent.com": 8,
+    "api.deps.dev": 16,
 }
 
 
@@ -104,8 +105,11 @@ class HttpClient:
         if self.deadline is not None and time.monotonic() > self.deadline:
             raise DeadlineReached
 
-    async def get(self, url: str, *, etag: str | None = None, json_body: Any = None) -> Response:
-        """GET (or POST with `json_body`). Returns status 304 with no body when `etag` still matches."""
+    async def get(self, url: str, *, etag: str | None = None, json_body: Any = None, raw: bool = False) -> Response:
+        """GET (or POST with `json_body`). Returns status 304 with no body when `etag` still matches.
+
+        With `raw`, the body is the response bytes (e.g. a zip), and `etag` is sent to any host.
+        """
         self._check_deadline()
         host = urlsplit(url).hostname or ""
         is_gh = host == GITHUB_API
@@ -118,6 +122,8 @@ class HttpClient:
                 headers["Authorization"] = f"Bearer {self._token}"
             if etag:
                 headers["If-None-Match"] = etag
+        elif raw and etag:
+            headers["If-None-Match"] = etag
         if host == "services.nvd.nist.gov":
             if self._nvd_key:
                 headers["apiKey"] = self._nvd_key
@@ -140,6 +146,8 @@ class HttpClient:
                 self.stats.github_counted += 1
         if r.status_code == 304:
             return Response(304, None, etag=etag)
+        if raw:
+            return Response(r.status_code, r.content, etag=r.headers.get("etag"), link=r.headers.get("link"))
         try:
             body: Any = r.json()
         except ValueError:

@@ -19,7 +19,7 @@ import typer
 from limbowatch.http import HttpClient
 from limbowatch.inventory import osv_scanner, sbom
 from limbowatch.models import Inventory, Unchecked
-from limbowatch.publish import all_events, dumps, items, metrics, repos_with_advisories
+from limbowatch.publish import all_events, dumps, items, metrics, repos_with_advisories, watchlist
 from limbowatch.publish import feed as feed_mod
 from limbowatch.publish import report as report_mod
 from limbowatch.publish import site as site_mod
@@ -135,6 +135,7 @@ def publish(
     (out / "osv" / "crc32c.map").write_text("".join(hashes))
     (out / "osv" / "limbo-db.zip").write_bytes(feed_mod.bundle(zips))
     (out / "feed" / "repos.txt").write_text(repos_with_advisories(store, modified))
+    (out / "feed" / "watchlist.json").write_text(json.dumps(watchlist(store, modified), separators=(",", ":")))
     (out / "metrics.json").write_text(dumps(m))
     for r in records:
         (out / "feed" / f"{r['id']}.json").write_text(dumps(r))

@@ -189,3 +189,14 @@ def repos_with_advisories(store: Store, generated_at: str) -> str:
         "# Facts only, no advisory or CVE IDs. CC BY 4.0, Limbowatch (https://limbo.watch).\n"
     )
     return head + "".join(f"{n}\n" for n in names)
+
+
+def watchlist(store: Store, generated_at: str) -> dict[str, Any]:
+    """Every watched repo with when the tracker last checked it, so the watcher polls only the rest.
+
+    Repo names and times only (PHASE0_PLAN §13.9).
+    """
+    with store.session() as s:
+        repos = list(s.execute(select(Repo)).scalars())
+    checked = {r.full_name.lower(): r.last_polled_at for r in repos if r.last_polled_at and r.poll_status in (200, 304)}
+    return {"generated_at": generated_at, "repos": dict(sorted(checked.items())), "attribution": ATTRIBUTION}

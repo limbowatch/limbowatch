@@ -117,6 +117,9 @@ class Unchecked(StrEnum):
     LOCKFILE_UNREADABLE = "lockfile couldn't be read"
     NO_LOCKFILES = "no supported lockfile or manifest found"
     NO_PURL = "SBOM component without a package URL"
+    # Partly checked: matched against the limbo feed by name, but not against its source repo.
+    NO_REPO = "source repository unknown; checked against the limbo feed by name only"
+    REPO_NOT_POLLED = "source repository not checked (GitHub rate limit); checked against the limbo feed by name only"
 
 
 class Dependency(Frozen):
@@ -146,3 +149,29 @@ class Inventory(Frozen):
     unresolved: tuple[UnresolvedDependency, ...] = ()
     sources: tuple[str, ...] = ()  # files read
     tool: str = ""  # e.g. "osv-scanner 2.7.0" or "cyclonedx"
+
+
+class MatchKind(StrEnum):
+    PACKAGE = "package and version"  # the advisory names this package, and the version is in its range
+    REPOSITORY = "repository"  # the advisory's package name is unusable; it's from this package's source repo
+
+
+class Finding(Frozen):
+    """One dependency affected (or possibly affected) by one advisory in limbo."""
+
+    key: str  # stable across runs and versions: ecosystem, package and advisory
+    dependency: Dependency
+    ghsa_id: str
+    url: str
+    repo: str
+    severity: str | None = None
+    cve: CveLabel = CveLabel.NONE
+    cves: tuple[str, ...] = ()
+    published_at: datetime | None = None
+    affected: bool | None = True  # None: possibly; the range couldn't be evaluated exactly
+    match: MatchKind = MatchKind.PACKAGE
+    advisory_package: str = ""  # the package name as the advisory gives it
+    vulnerable_range: str | None = None
+    fixed: str | None = None
+    evidence: str = ""
+    source: str = "feed"  # "feed" (limbo.watch) or "github" (polled from the repo just now)
