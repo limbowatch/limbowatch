@@ -23,8 +23,12 @@ from limbowatch.publish import all_events, dumps, items, metrics, repos_with_adv
 from limbowatch.publish import feed as feed_mod
 from limbowatch.publish import report as report_mod
 from limbowatch.publish import site as site_mod
+from limbowatch.sources import osv as osv_source
 from limbowatch.store import Store
 from limbowatch.tracker import Tracker, TrackerConfig, import_cve_list
+from limbowatch.watch import output
+from limbowatch.watch import scan as watch_scan
+from limbowatch.watch import state as watch_state
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 
@@ -219,6 +223,69 @@ def inventory(
             what = f"{u.name} {u.version}".strip() or ("(whole file)" if whole else "(no package name)")
             detail = f": {u.detail}" if u.detail else ""
             typer.echo(f"  {u.source}:{u.line}  {what}  {u.reason.value}{detail}")
+
+
+@app.command()
+def scan(
+    path: Annotated[Path, typer.Argument(help="Project directory.")] = Path("."),
+    sbom_file: Annotated[Path | None, typer.Option("--sbom", help="CycloneDX or SPDX JSON instead of a tree.")] = None,
+    fmt: Annotated[str, typer.Option("--format", help=f"Output on stdout: {', '.join(output.FORMATS)}.")] = "table",
+    outputs: Annotated[
+        list[str] | None, typer.Option("--output", help="FORMAT=FILE, repeatable, e.g. codequality=gl-cq.json.")
+    ] = None,
+    state_file: Annotated[Path | None, typer.Option("--state", help="JSON state file: report what changed.")] = None,
+    fail_on: Annotated[str, typer.Option(help="Fail at or above: critical, high, medium, low, or none.")] = "low",
+    fail_on_unknown: Annotated[bool, typer.Option(help="Fail on findings with no severity.")] = True,
+    ignore: Annotated[list[str] | None, typer.Option(help="Accept an advisory by GHSA or CVE ID; repeatable.")] = None,
+    ignore_file: Annotated[Path | None, typer.Option(help="File of accepted IDs, one per line, # comments.")] = None,
+    upstream: Annotated[bool, typer.Option(help="Also check source repos the tracker doesn't cover.")] = True,
+    cache: Annotated[Path | None, typer.Option(help="Where the feed is cached [default: ~/.cache/limbowatch].")] = None,
+    binary: Annotated[str, typer.Option("--osv-scanner", help="OSV-Scanner executable.")] = "osv-scanner",
+    verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Show the evidence for every finding.")] = False,
+) -> None:
+    """Check a project's dependencies against advisories in limbo. Exit 1 when --fail-on is met, 2 on errors."""
+    if fmt not in output.FORMATS or fail_on not in (*output.SEVERITIES, "none"):
+        raise typer.BadParameter(f"unknown --format {fmt!r} or --fail-on {fail_on!r}")
+    targets: list[tuple[str, Path]] = []
+    for o in outputs or []:
+        name, _, file = o.partition("=")
+        if name not in output.FORMATS or not file:
+            raise typer.BadParameter(f"--output wants FORMAT=FILE with FORMAT one of {', '.join(output.FORMATS)}")
+        targets.append((name, Path(file)))
+    accepted = set(ignore or [])
+    if ignore_file is not None:
+        accepted |= {ln.split("#", 1)[0].strip() for ln in ignore_file.read_text().splitlines()} - {""}
+    cache = cache or Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "limbowatch"
+    inv = load_inventory(path, sbom_file, binary)
+    old = json.loads(state_file.read_text()) if state_file and state_file.exists() else None
+    now = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+    async def run() -> tuple[watch_scan.ScanResult, str | None, set[str]]:
+        async with HttpClient(_token()) as http:
+            feed = await watch_scan.fetch(http, watch_scan.FEED_URL, cache)
+            wl_doc = json.loads(await watch_scan.fetch(http, watch_scan.WATCHLIST_URL, cache))
+            res = await watch_scan.scan(inv, http, feed_zip=feed, watchlist=dict(wl_doc.get("repos") or {}),
+                                        now=datetime.now(UTC), upstream_check=upstream)  # fmt: skip
+            gone = watch_state.vanished(old, res.findings)
+            seen = await asyncio.gather(*(osv_source.present(http, g) for g in sorted(gone)))
+            return res, wl_doc.get("generated_at"), {g for g, v in zip(sorted(gone), seen, strict=True) if v}
+
+    try:
+        res, feed_at, visible = asyncio.run(run())
+    except (RuntimeError, OSError) as e:
+        raise typer.Exit(_fail(str(e))) from e
+    changes = None
+    if state_file is not None:
+        new_state, changes = watch_state.diff(old, res.findings, now, visible)
+        state_file.parent.mkdir(parents=True, exist_ok=True)
+        state_file.write_text(json.dumps(new_state, indent=1, sort_keys=True) + "\n")
+    rep = output.Report(res.findings, res.unresolved, res.stats, inv.tool, feed_at, changes, accepted)
+    typer.echo(output.table(rep, verbose) if fmt == "table" else output.FORMATS[fmt](rep), nl=False)
+    for name, dest in targets:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(output.FORMATS[name](rep))
+    if output.gate(rep, fail_on, fail_on_unknown):
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":
