@@ -1,99 +1,99 @@
-# Limbo Tracker daily report — 2026-11-04
+# Limbo Tracker daily report — 2026-11-05
 
-Generated 2026-11-04 14:51:55 UTC; changes since 2026-11-03 14:36:08 UTC.
+Generated 2026-11-05 14:54:42 UTC; changes since 2026-11-04 14:51:55 UTC.
 
 ## Now
 
-- **8,518 advisories in limbo** (+164 since the last report: 163 newly published, 7 older ones found for the first time, 6 left limbo): published by maintainers on GitHub, in ecosystems GitHub reviews, but not yet in GitHub's reviewed database or OSV.
-  - 4,464 with no CVE anywhere · 583 citing a CVE that's still only reserved · 1,065 with a CVE from another CNA they don't cite
-  - severity: 881 critical, 3,358 high, 3,517 medium, 762 low · median wait so far 56.4 days
-- **14,096 more are likely permanent** (+55 since the last report: 45 newly published, 11 older ones found for the first time, 1 left limbo): in ecosystems GitHub doesn't review, so GitHub-based scanners will probably never see them.
+- **8,603 advisories in limbo** (+85 since the last report: 47 newly published, 40 older ones found for the first time, 2 left limbo): published by maintainers on GitHub, in ecosystems GitHub reviews, but not yet in GitHub's reviewed database or OSV.
+  - 4,494 with no CVE anywhere · 591 citing a CVE that's still only reserved · 1,096 with a CVE from another CNA they don't cite
+  - severity: 886 critical, 3,394 high, 3,557 medium, 766 low · median wait so far 56.9 days
+- **14,114 more are likely permanent** (+18 since the last report: 0 newly published, 19 older ones found for the first time, 1 left limbo): in ecosystems GitHub doesn't review, so GitHub-based scanners will probably never see them.
 
 ## Since the last report
 
-- **163 newly published** advisories entered limbo.
-- 7 older advisories were found for the first time (7 in newly watched repos).
-- **Left limbo** (likely permanent included): 7 reviewed by GitHub, 0 found to duplicate a reviewed advisory, 0 withdrawn or unpublished.
-- **CVE changes:** 100 (28 reserved CVEs published, 65 new CVEs from other CNAs).
+- **47 newly published** advisories entered limbo.
+- 40 older advisories were found for the first time (27 in newly watched repos).
+- **Left limbo** (likely permanent included): 3 reviewed by GitHub, 0 found to duplicate a reviewed advisory, 0 withdrawn or unpublished.
+- **CVE changes:** 80 (33 reserved CVEs published, 47 new CVEs from other CNAs).
 
 ## Newly published, in limbo
 
 | Advisory | Package | Severity | CVE | Days | Fixed in |
 |---|---|---|---|---:|---|
-| [GHSA-p6c9-h3f7-xq9f](https://github.com/goshs-labs/goshs/security/advisories/GHSA-p6c9-h3f7-xq9f) | `go:goshs.de/goshs/v2` | critical | no CVE anywhere | 0 | v2.1.8 |
-| [GHSA-8mf3-p375-389g](https://github.com/gina-io/swig/security/advisories/GHSA-8mf3-p375-389g) | `npm:@rhinostone/swig, npm:@rhinostone/swig-core, npm:@rhi…` | critical | no CVE anywhere | 0 | 2.12.1 |
-| [GHSA-4wq4-2ppv-q3hg](https://github.com/better-auth/better-auth/security/advisories/GHSA-4wq4-2ppv-q3hg) | `npm:@better-auth/expo, npm:better-auth` | critical | CVE published by another CNA, not cited (CVE-2026-121802) | 0 | 1.7.16, 1.8.0-beta.5 |
-| [GHSA-7jp3-2229-xgqj](https://github.com/openremote/core/security/advisories/GHSA-7jp3-2229-xgqj) | `maven:io.openremote:openremote-manager` | critical | no CVE anywhere | 0 | 1.34.0 |
-| [GHSA-m7pm-7jm9-cfp4](https://github.com/node-opcua/node-opcua/security/advisories/GHSA-m7pm-7jm9-cfp4) | `npm:node-opcua-pki` | critical | no CVE anywhere | 0 | 6.22.1, 7.0.0 |
-| [GHSA-gx67-694c-655c](https://github.com/team-alembic/ash_authentication/security/advisories/GHSA-gx67-694c-655c) | `erlang:ash_authentication` | high | CVE published, cited (CVE-2026-119215) | 0 | 5.0.0-rc.16 |
-| [GHSA-7r2m-g5wf-pj9j](https://github.com/surrealdb/surrealdb/security/advisories/GHSA-7r2m-g5wf-pj9j) | `rust:surrealdb` | high | no CVE anywhere | 0 | 4.0.0 |
-| [GHSA-fq69-wr4w-v3gm](https://github.com/surrealdb/surrealdb/security/advisories/GHSA-fq69-wr4w-v3gm) | `rust:surrealdb` | high | no CVE anywhere | 0 | 4.0.0 |
-| [GHSA-5w6j-qm42-4rc2](https://github.com/surrealdb/surrealdb/security/advisories/GHSA-5w6j-qm42-4rc2) | `rust:surrealdb` | high | no CVE anywhere | 0 | 4.0.0 |
-| [GHSA-cr79-9p8r-p5wx](https://github.com/surrealdb/surrealdb/security/advisories/GHSA-cr79-9p8r-p5wx) | `rust:surrealdb` | high | no CVE anywhere | 0 | 4.0.0 |
-| [GHSA-p3c2-wh5f-jwqm](https://github.com/surrealdb/surrealdb/security/advisories/GHSA-p3c2-wh5f-jwqm) | `rust:surrealdb` | high | no CVE anywhere | 0 | 4.0.0 |
-| [GHSA-fh2q-8f75-m4h6](https://github.com/surrealdb/surrealdb/security/advisories/GHSA-fh2q-8f75-m4h6) | `rust:surrealdb` | high | no CVE anywhere | 0 | 4.0.0 |
-| [GHSA-7pqw-x84x-frxc](https://github.com/surrealdb/surrealdb/security/advisories/GHSA-7pqw-x84x-frxc) | `rust:surrealdb` | high | no CVE anywhere | 0 | 4.0.0 |
-| [GHSA-6c37-x4jm-529x](https://github.com/surrealdb/surrealdb/security/advisories/GHSA-6c37-x4jm-529x) | `rust:surrealdb` | high | no CVE anywhere | 0 | 4.0.0 |
-| [GHSA-cph5-pm57-9w9c](https://github.com/surrealdb/surrealdb/security/advisories/GHSA-cph5-pm57-9w9c) | `rust:surrealdb` | high | no CVE anywhere | 0 | 4.0.0 |
-| [GHSA-5xcv-fm6g-4hf3](https://github.com/surrealdb/surrealdb/security/advisories/GHSA-5xcv-fm6g-4hf3) | `rust:surrealdb` | high | no CVE anywhere | 0 | 4.0.0 |
-| [GHSA-q83r-f38r-rwvj](https://github.com/surrealdb/surrealdb/security/advisories/GHSA-q83r-f38r-rwvj) | `rust:surrealdb-core` | high | no CVE anywhere | 0 | 4.0.0 |
-| [GHSA-m9qr-4rcq-3jhc](https://github.com/surrealdb/surrealdb/security/advisories/GHSA-m9qr-4rcq-3jhc) | `rust:surrealdb-core` | high | no CVE anywhere | 0 | 4.0.0 |
-| [GHSA-9fm9-c4h4-8g93](https://github.com/surrealdb/surrealdb/security/advisories/GHSA-9fm9-c4h4-8g93) | `rust:surrealkv` | high | no CVE anywhere | 0 | 1.2.0 |
-| [GHSA-9j7q-g3ch-2283](https://github.com/nektos/act/security/advisories/GHSA-9j7q-g3ch-2283) | `go:github.com/nektos/act` | high | no CVE anywhere | 0 | 0.2.96 |
-| [GHSA-vqhw-xhff-464q](https://github.com/langroid/langroid/security/advisories/GHSA-vqhw-xhff-464q) | `pip:langroid` | high | no CVE anywhere | 0 | 0.69.19 |
-| [GHSA-jm8m-792v-c66w](https://github.com/madeofpendletonwool/PinePods/security/advisories/GHSA-jm8m-792v-c66w) | `rust:pinepods` | high | CVE reserved (RBP) (CVE-2026-68504) | 0 | 0.9.1 |
-| [GHSA-3rqp-8h7g-xxv8](https://github.com/getgrav/grav/security/advisories/GHSA-3rqp-8h7g-xxv8) | `composer:getgrav/grav-plugin-api` | high | no CVE anywhere | 0 | 1.1.4 |
-| [GHSA-g5h5-fp5g-fmx4](https://github.com/cc-tweaked/CC-Tweaked/security/advisories/GHSA-g5h5-fp5g-fmx4) | `maven:cc.tweaked:cc-tweaked-1.20.1-core, maven:cc.tweaked…` | high | no CVE anywhere | 0 | 1.121.0 |
-| [GHSA-q747-mqgr-4gh7](https://github.com/better-auth/better-auth/security/advisories/GHSA-q747-mqgr-4gh7) | `npm:better-auth` | high | no CVE anywhere | 0 | 1.7.16, 1.8.0-beta.5 |
+| [GHSA-x994-x7gh-x573](https://github.com/OP-Engineering/link-preview-js/security/advisories/GHSA-x994-x7gh-x573) | `npm:link-preview-js` | critical | no CVE anywhere | 1 | 5.0.1 |
+| [GHSA-f3w6-w445-fwh9](https://github.com/rails/rails/security/advisories/GHSA-f3w6-w445-fwh9) | `rubygems:activestorage` | critical | CVE published by another CNA, not cited (CVE-2026-122006) | 1 | 8.1.4.1, 8.0.5.2 |
+| [GHSA-23w8-wx9r-vm57](https://github.com/better-auth/better-call/security/advisories/GHSA-23w8-wx9r-vm57) | `npm:better-call` | high | no CVE anywhere | 1 | 1.4.5 |
+| [GHSA-vvf4-9x63-8xvv](https://github.com/rthalley/dnspython/security/advisories/GHSA-vvf4-9x63-8xvv) | `pip:dnspython` | high | no CVE anywhere | 1 | 2.9.2 |
+| [GHSA-qv26-43gx-2qp2](https://github.com/OP-Engineering/link-preview-js/security/advisories/GHSA-qv26-43gx-2qp2) | `npm:link-preview-js` | high | no CVE anywhere | 1 | 5.0.2 |
+| [GHSA-pr9p-r5xm-659j](https://github.com/OP-Engineering/link-preview-js/security/advisories/GHSA-pr9p-r5xm-659j) | `npm:link-preview-js` | high | no CVE anywhere | 1 | 5.0.1 |
+| [GHSA-2gff-2mmg-m73p](https://github.com/rails/rails/security/advisories/GHSA-2gff-2mmg-m73p) | `rubygems:actionpack` | high | no CVE anywhere | 1 | 8.1.4.1 |
+| [GHSA-8474-xrp6-wh69](https://github.com/rails/rails/security/advisories/GHSA-8474-xrp6-wh69) | `rubygems:activesupport` | high | no CVE anywhere | 1 | 8.1.4.1, 8.0.5.2 |
+| [GHSA-v924-7rp8-4mxh](https://github.com/rails/rails/security/advisories/GHSA-v924-7rp8-4mxh) | `rubygems:activestorage` | high | no CVE anywhere | 1 | 8.1.4.1, 8.0.5.2 |
+| [GHSA-wm3x-v3qw-4jh3](https://github.com/rails/rails/security/advisories/GHSA-wm3x-v3qw-4jh3) | `rubygems:actionpack` | high | no CVE anywhere | 1 | 8.1.4.1, 8.0.5.2 |
+| [GHSA-77g6-g2mq-wxw4](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/security/advisories/GHSA-77g6-g2mq-wxw4) | `nuget:OpenTelemetry.Exporter.InfluxDB` | high | no CVE anywhere | 0 | 1.0.0-alpha.17 |
+| [GHSA-mqg3-3v4r-cm32](https://github.com/nodejs/undici/security/advisories/GHSA-mqg3-3v4r-cm32) | `npm:undici` | high | CVE reserved (RBP) (CVE-2026-116592) | 0 | 7.30.2, 8.12.4 |
+| [GHSA-mfr8-8qww-v76h](https://github.com/vercel/next.js/security/advisories/GHSA-mfr8-8qww-v76h) | `npm:next` | medium | CVE reserved (RBP) (CVE-2026-119790) | 1 | – |
+| [GHSA-vc7v-qv4w-wrv8](https://github.com/vercel/next.js/security/advisories/GHSA-vc7v-qv4w-wrv8) | `npm:next` | medium | CVE reserved (RBP) (CVE-2026-119351) | 1 | 16.4.2 |
+| [GHSA-vvgp-ww4w-46vf](https://github.com/vercel/next.js/security/advisories/GHSA-vvgp-ww4w-46vf) | `npm:next` | medium | CVE reserved (RBP) (CVE-2026-119350) | 1 | – |
+| [GHSA-rhh4-g77r-r9qj](https://github.com/vercel/next.js/security/advisories/GHSA-rhh4-g77r-r9qj) | `npm:next` | medium | CVE reserved (RBP) (CVE-2026-119349) | 1 | – |
+| [GHSA-pc58-hwjq-p385](https://github.com/vercel/next.js/security/advisories/GHSA-pc58-hwjq-p385) | `npm:next` | medium | CVE reserved (RBP) (CVE-2026-119348) | 1 | – |
+| [GHSA-7qx7-33qx-rqx2](https://github.com/vercel/next.js/security/advisories/GHSA-7qx7-33qx-rqx2) | `npm:next` | medium | CVE reserved (RBP) (CVE-2026-119347) | 1 | – |
+| [GHSA-f3mh-rxg3-f5g2](https://github.com/vercel/next.js/security/advisories/GHSA-f3mh-rxg3-f5g2) | `npm:next` | medium | CVE reserved (RBP) (CVE-2026-119346) | 1 | – |
+| [GHSA-fw37-f9mw-x9rx](https://github.com/better-auth/better-call/security/advisories/GHSA-fw37-f9mw-x9rx) | `npm:better-call` | medium | no CVE anywhere | 1 | 1.4.5 |
+| [GHSA-3grv-rf6r-fj3x](https://github.com/opennextjs/opennextjs-cloudflare/security/advisories/GHSA-3grv-rf6r-fj3x) | `npm:@opennextjs/cloudflare` | medium | no CVE anywhere | 1 | 1.20.16 |
+| [GHSA-5crp-j778-fgmr](https://github.com/opennextjs/opennextjs-cloudflare/security/advisories/GHSA-5crp-j778-fgmr) | `npm:@opennextjs/cloudflare` | medium | no CVE anywhere | 1 | 1.20.16 |
+| [GHSA-x3c9-3g43-37gg](https://github.com/The-40-Thieves/obsidian-tc/security/advisories/GHSA-x3c9-3g43-37gg) | `npm:obsidian-tc` | medium | no CVE anywhere | 1 | 1.34.0 |
+| [GHSA-4f57-v2rv-34vw](https://github.com/The-40-Thieves/obsidian-tc/security/advisories/GHSA-4f57-v2rv-34vw) | `npm:obsidian-tc` | medium | no CVE anywhere | 1 | 1.34.0 |
+| [GHSA-x9f8-2hw3-553w](https://github.com/The-40-Thieves/obsidian-tc/security/advisories/GHSA-x9f8-2hw3-553w) | `npm:obsidian-tc` | medium | no CVE anywhere | 1 | 1.34.0 |
 
-…and 138 more (see the feed).
+…and 22 more (see the feed).
 
 ## CVE changes
 
 | Advisory | Change |
 |---|---|
-| [GHSA-23wx-88m8-pfm2](https://github.com/AzuraCast/AzuraCast/security/advisories/GHSA-23wx-88m8-pfm2) | new CVE from another CNA: CVE-2026-121428 |
-| [GHSA-2c9x-4gr7-hrwx](https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-2c9x-4gr7-hrwx) | new CVE from another CNA: CVE-2026-121406 |
-| [GHSA-2j2x-c587-q33g](https://github.com/parse-community/parse-server/security/advisories/GHSA-2j2x-c587-q33g) | new CVE from another CNA: CVE-2026-121413 |
-| [GHSA-2wcv-vv3g-g86q](https://github.com/AzuraCast/AzuraCast/security/advisories/GHSA-2wcv-vv3g-g86q) | new CVE from another CNA: CVE-2026-121427 |
-| [GHSA-34r4-95hx-gxqr](https://github.com/yeti-platform/yeti/security/advisories/GHSA-34r4-95hx-gxqr) | CVE-2026-63482 RESERVED -> PUBLISHED |
-| [GHSA-3hf9-w6hr-hf9j](https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-3hf9-w6hr-hf9j) | new CVE from another CNA: CVE-2026-121409 |
-| [GHSA-3vh3-jf65-656w](https://github.com/darylldoyle/svg-sanitizer/security/advisories/GHSA-3vh3-jf65-656w) | new CVE from another CNA: CVE-2026-121446 |
-| [GHSA-47p6-w2rc-5qf7](https://github.com/lepture/mistune/security/advisories/GHSA-47p6-w2rc-5qf7) | new CVE from another CNA: CVE-2026-121438 |
-| [GHSA-4p2j-qj3c-6x84](https://github.com/anthropics/claude-code/security/advisories/GHSA-4p2j-qj3c-6x84) | CVE-2026-88066 RESERVED -> PUBLISHED |
-| [GHSA-4p53-46xw-7mx2](https://github.com/stape-io/gtm-server-side-wordpress-plugin/security/advisories/GHSA-4p53-46xw-7mx2) | CVE-2026-118422 RESERVED -> PUBLISHED |
-| [GHSA-4q3w-w2g5-8wqq](https://github.com/yeti-platform/yeti/security/advisories/GHSA-4q3w-w2g5-8wqq) | CVE-2026-63502 RESERVED -> PUBLISHED |
-| [GHSA-4vh4-3pc3-32p7](https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-4vh4-3pc3-32p7) | new CVE from another CNA: CVE-2026-121399 |
-| [GHSA-532v-ccph-m3xg](https://github.com/nocodb/nocodb/security/advisories/GHSA-532v-ccph-m3xg) | new CVE from another CNA: CVE-2026-121736 |
-| [GHSA-5fm2-8wxf-xc5v](https://github.com/froxlor/froxlor/security/advisories/GHSA-5fm2-8wxf-xc5v) | new CVE from another CNA: CVE-2026-121436 |
-| [GHSA-5j39-x36c-x9pm](https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-5j39-x36c-x9pm) | new CVE from another CNA: CVE-2026-121394 |
-| [GHSA-5qqp-5ffm-m3p9](https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-5qqp-5ffm-m3p9) | new CVE from another CNA: CVE-2026-121403 |
-| [GHSA-5x35-83gj-w8gw](https://github.com/AzuraCast/AzuraCast/security/advisories/GHSA-5x35-83gj-w8gw) | new CVE from another CNA: CVE-2026-121433 |
-| [GHSA-5xjx-9qx6-jcrv](https://github.com/anthropics/claude-code/security/advisories/GHSA-5xjx-9qx6-jcrv) | CVE-2026-88968 RESERVED -> PUBLISHED |
-| [GHSA-6437-7wc6-gmx5](https://github.com/HumanSignal/label-studio/security/advisories/GHSA-6437-7wc6-gmx5) | new CVE from another CNA: CVE-2026-121561 |
-| [GHSA-655c-2xf3-77x9](https://github.com/parse-community/parse-server/security/advisories/GHSA-655c-2xf3-77x9) | new CVE from another CNA: CVE-2026-121415 |
-| [GHSA-66mr-7wc7-23vc](https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-66mr-7wc7-23vc) | new CVE from another CNA: CVE-2026-121389 |
-| [GHSA-6p3w-fv52-cf24](https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-6p3w-fv52-cf24) | new CVE from another CNA: CVE-2026-121396 |
-| [GHSA-6vjr-55fw-r5x2](https://github.com/froxlor/froxlor/security/advisories/GHSA-6vjr-55fw-r5x2) | new CVE from another CNA: CVE-2026-121435 |
-| [GHSA-6w3r-6hpr-hp6p](https://github.com/Agamnentzar/ag-psd/security/advisories/GHSA-6w3r-6hpr-hp6p) | CVE-2026-63501 RESERVED -> PUBLISHED |
-| [GHSA-6xf2-8436-rgvf](https://github.com/yeti-platform/yeti/security/advisories/GHSA-6xf2-8436-rgvf) | CVE-2026-63500 RESERVED -> PUBLISHED |
+| [GHSA-24cc-9745-hxfc](https://github.com/kyverno/kyverno/security/advisories/GHSA-24cc-9745-hxfc) | new CVE from another CNA: CVE-2026-122315 |
+| [GHSA-2557-79qc-6gfr](https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-2557-79qc-6gfr) | new CVE from another CNA: CVE-2026-121956 |
+| [GHSA-2r43-6962-xcw5](https://github.com/kyverno/kyverno/security/advisories/GHSA-2r43-6962-xcw5) | new CVE from another CNA: CVE-2026-122321 |
+| [GHSA-338x-hgrv-626h](https://github.com/kyverno/kyverno/security/advisories/GHSA-338x-hgrv-626h) | new CVE from another CNA: CVE-2026-122305 |
+| [GHSA-373r-678h-hjc6](https://github.com/coder/coder/security/advisories/GHSA-373r-678h-hjc6) | new CVE from another CNA: CVE-2026-121967 |
+| [GHSA-3f2c-hfj8-542w](https://github.com/kyverno/kyverno/security/advisories/GHSA-3f2c-hfj8-542w) | new CVE from another CNA: CVE-2026-122322 |
+| [GHSA-3m37-hwq6-jrj8](https://github.com/zulip/zulip/security/advisories/GHSA-3m37-hwq6-jrj8) | CVE-2026-115574 RESERVED -> PUBLISHED |
+| [GHSA-3pg4-5r42-wxvj](https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-3pg4-5r42-wxvj) | new CVE from another CNA: CVE-2026-121960 |
+| [GHSA-3xfv-vq8x-qhg4](https://github.com/kyverno/kyverno/security/advisories/GHSA-3xfv-vq8x-qhg4) | new CVE from another CNA: CVE-2026-122310 |
+| [GHSA-493q-9xvg-9xf3](https://github.com/kyverno/kyverno/security/advisories/GHSA-493q-9xvg-9xf3) | new CVE from another CNA: CVE-2026-122320 |
+| [GHSA-49x8-xqjg-2pjg](https://github.com/espressif/esp-idf/security/advisories/GHSA-49x8-xqjg-2pjg) | CVE-2026-113780 RESERVED -> PUBLISHED |
+| [GHSA-4j3p-7hp7-xw73](https://github.com/veracrypt/VeraCrypt/security/advisories/GHSA-4j3p-7hp7-xw73) | CVE-2026-77372 RESERVED -> PUBLISHED |
+| [GHSA-4pqm-wqq6-h9q2](https://github.com/kyverno/kyverno/security/advisories/GHSA-4pqm-wqq6-h9q2) | new CVE from another CNA: CVE-2026-122311 |
+| [GHSA-4qq4-qwxq-49m8](https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-4qq4-qwxq-49m8) | new CVE from another CNA: CVE-2026-121951 |
+| [GHSA-4x3x-65c5-8hx4](https://github.com/zammad/zammad/security/advisories/GHSA-4x3x-65c5-8hx4) | CVE-2026-102345 RESERVED -> PUBLISHED |
+| [GHSA-5j7x-r6vf-jhq2](https://github.com/git-for-windows/git/security/advisories/GHSA-5j7x-r6vf-jhq2) | CVE-2026-100408 RESERVED -> PUBLISHED |
+| [GHSA-5qgv-9jcx-wph7](https://github.com/glpi-project/glpi/security/advisories/GHSA-5qgv-9jcx-wph7) | CVE-2026-53631 RESERVED -> PUBLISHED |
+| [GHSA-6wqx-rv3q-vcxp](https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-6wqx-rv3q-vcxp) | new CVE from another CNA: CVE-2026-121953 |
+| [GHSA-773r-585g-6vc3](https://github.com/blueprintue/blueprintue-self-hosted-edition/security/advisories/GHSA-773r-585g-6vc3) | new CVE from another CNA: CVE-2026-122138 |
+| [GHSA-7v5q-w6f3-2v8p](https://github.com/glpi-project/glpi/security/advisories/GHSA-7v5q-w6f3-2v8p) | CVE-2026-57152 RESERVED -> PUBLISHED |
+| [GHSA-8mrj-27wr-599g](https://github.com/kyverno/kyverno/security/advisories/GHSA-8mrj-27wr-599g) | new CVE from another CNA: CVE-2026-122306 |
+| [GHSA-95hp-82c6-25q5](https://github.com/parse-community/parse-server/security/advisories/GHSA-95hp-82c6-25q5) | new CVE from another CNA: CVE-2026-121965 |
+| [GHSA-95xv-3c54-c3pw](https://github.com/openedx/openedx-platform/security/advisories/GHSA-95xv-3c54-c3pw) | CVE-2026-97702 RESERVED -> PUBLISHED |
+| [GHSA-983v-jp34-f3fm](https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-983v-jp34-f3fm) | new CVE from another CNA: CVE-2026-121955 |
+| [GHSA-c26h-gm53-qg83](https://github.com/espressif/esp-idf/security/advisories/GHSA-c26h-gm53-qg83) | CVE-2026-113782 RESERVED -> PUBLISHED |
 
-…and 75 more.
+…and 55 more.
 
 ## Longest waiting, published in the last 90 days
 
 | Advisory | Package | Severity | CVE | Days | Fixed in |
 |---|---|---|---|---:|---|
-| [GHSA-5f8w-f448-47cj](https://github.com/spring-ai-community/mcp-security/security/advisories/GHSA-5f8w-f448-47cj) | `maven:org.springaicommunity:mcp-client-security` | medium | no CVE anywhere | 89 | 0.1.14 |
-| [GHSA-fp4j-ff6j-9793](https://github.com/vendurehq/vendure/security/advisories/GHSA-fp4j-ff6j-9793) | `npm:@vendure/core` | medium | no CVE anywhere | 89 | 3.7.2 |
-| [GHSA-rgjm-ff27-p2hf](https://github.com/vendurehq/vendure/security/advisories/GHSA-rgjm-ff27-p2hf) | `npm:@vendure/core` | medium | no CVE anywhere | 89 | 3.7.2 |
-| [GHSA-w3hf-fcg5-p4cc](https://github.com/simonw/datasette/security/advisories/GHSA-w3hf-fcg5-p4cc) | `pip:datasette` | high | no CVE anywhere | 89 | 0.65.3, 1.0a38 |
-| [GHSA-5784-6qcr-48fq](https://github.com/authzed/spicedb/security/advisories/GHSA-5784-6qcr-48fq) | `docker:authzed/spicedb, go:github.com/authzed/spicedb` | low | no CVE anywhere | 89 | v1.56.0 |
+| [GHSA-xmr7-549p-98w3](https://github.com/style-dictionary/style-dictionary/security/advisories/GHSA-xmr7-549p-98w3) | `npm:style-dictionary` | high | no CVE anywhere | 89 | 5.5.1 |
+| [GHSA-464h-4j8h-q5mf](https://github.com/mganss/HtmlSanitizer/security/advisories/GHSA-464h-4j8h-q5mf) | `nuget:HtmlSanitizer` | high | CVE reserved (RBP) (CVE-2026-102529) | 89 | 9.0.967, 9.1.968-beta |
+| [GHSA-8f95-jfm5-jjmr](https://github.com/markmhendrickson/neotoma/security/advisories/GHSA-8f95-jfm5-jjmr) | `npm:neotoma` | high | no CVE anywhere | 89 | 0.21.4 |
+| [GHSA-33x4-v5cf-2hfj](https://github.com/markmhendrickson/neotoma/security/advisories/GHSA-33x4-v5cf-2hfj) | `npm:neotoma` | critical | no CVE anywhere | 89 | 0.21.4 |
+| [GHSA-2745-m2g5-p3mw](https://github.com/uutils/coreutils/security/advisories/GHSA-2745-m2g5-p3mw) | `rust:uu_chmod` | high | no CVE anywhere | 89 | 0.10.0 |
 
 591 advisories in limbo have waited more than a year.
 
 ## Coverage
 
-Watchlist 18,661 repositories; 6,616 up to date on their schedule (daily for repos with an advisory in limbo, every 3 to 7 days for the rest); 4,574 checked in the last 24 hours; the last run stopped early (budget); 37,519 reviewed advisories known. Every number is a floor: the tracker only sees repositories on its watchlist. Version ranges are as entered by maintainers and unreviewed.
+Watchlist 18,671 repositories; 7,943 up to date on their schedule (daily for repos with an advisory in limbo, every 3 to 7 days for the rest); 4,194 checked in the last 24 hours; the last run stopped early (budget); 37,522 reviewed advisories known. Every number is a floor: the tracker only sees repositories on its watchlist. Version ranges are as entered by maintainers and unreviewed.
 
 _Advisory metadata from published GitHub repository security advisories and the GitHub Advisory Database (https://github.com/advisories, CC BY 4.0); CVE state from CVE Services; OSV.dev; NVD API (this product uses the NVD API but is not endorsed or certified by the NVD). Compiled by Limbowatch (https://limbo.watch), CC BY 4.0._
