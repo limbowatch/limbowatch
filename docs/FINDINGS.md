@@ -963,6 +963,27 @@ Answered:
 - **Caveats:** The jobs ran in a plain container, not on GitLab or an Actions runner; runner-specific behaviour (the CI/CD Catalog, `$GITHUB_PATH` handling) is assumed from docs (F-079). Installing from the GitHub archive needs the repo to be public.
 - **Implication:** Both integrations work end to end. Releasing them needs a public source (the repo or a release archive), a GitLab project for the component, and ideally the PyPI name reserved.
 
+### F-085
+- **Date:** 2026-11-05 · **Status:** confirmed (observed; 15 projects, recall and precision measured against primary sources)
+- **Question:** On the 15 projects of the October report, does the watcher find what the research pipeline found, and are its extra findings right?
+- **Method:** `limbowatch scan --scan-ignored --format json` on the research pipeline's lockfile-only clones at the commits of F-055/F-053 (2026-09-30 to 10-22), against the live feed of 2026-11-05 with a GitHub token. **Recall:** the research `findings.csv` rows (both 2026-10-22 snapshots) in a limbo class, `version_affected = yes`, not a likely duplicate, whose advisory is still in today's feed, de-duplicated to (advisory, ecosystem, package, version) per project. **Precision:** every distinct finding checked live: the repo advisory (`GET /repos/{repo}/security-advisories`), OSV by ID, and the installed version against the advisory's *current* range.
+- **Result:**
+  - **29,221 dependencies** across 15 projects; fdroidserver has no lockfile (as in F-053). **269 distinct package-versions certainly affected** (plus 19 possibly), in 13 of 14 readable projects: GitLab 125 (115 advisories), n8n 36, LangChain 30, Open WebUI 18, Forgejo 9, GoToSocial 9, Arti 9, Gitaly 8, GitLab Runner 8, Gitea 7, Mobilizon 5, Kubernetes 3, Fractal 2, aerc 0.
+  - **Recall 100%:** 709 research rows; 330 have left limbo since; the remaining 132 distinct affected package-versions were all found.
+  - **Precision:** of 657 distinct findings (275 advisories), **630 are in the advisory's current range**, 12 are "possible" with the live range still unreadable, 15 matched by Go package path or by repository (no same-name entry to compare), **0 contradicted**. 590 findings are new relative to the research set (advisories published since, or in repos the research didn't map).
+  - **Bugs found and fixed while measuring:**
+    1. OSV-Scanner applies an enclosing repo's `.gitignore`: the clones under the ignored `research/**/.cache/` read as empty ("No package sources found", exit 128, reported by the watcher as "no lockfiles", not as clean). Added `--scan-ignored` (`--no-ignore`) and a hint on that message.
+    2. A repository match in a monorepo flagged every package: one opentelemetry-ruby-contrib advisory with a sentence as its package name matched 97 gems. When several of the project's packages map to the repo, the unusable name must now mention the package (97 → 4 for GitLab).
+    3. Rust-style `A .. B` ranges (hickory-dns) were all "possible" (39 in Arti). Now evaluated under both readings; only a version equal to B stays possible.
+    4. `<= 3.0.10, 4.0.0` was read as AND (never true), so `@sveltejs/adapter-static` 3.0.10 looked unaffected under the live range. An exact version beside a bound is now another alternative (`versions.alternatives`), which also lets the feed convert such ranges.
+    5. Go versions went to deps.dev without their `v` (OSV-Scanner drops it), so every module off `github.com/` paths got a 404 (861 in Kubernetes).
+    6. deps.dev has no source repo for most gems (1,084 in GitLab); rubygems.org's own `source_code_uri` / `homepage_uri` now comes first in the chain.
+    
+    With 5 and 6, dependencies checked by name only fell from 2,979 to 1,225 (GitLab 1,316 → 293, Kubernetes 861 → 320; most of the rest are hosted off GitHub or are vanity Go paths deps.dev can't map).
+  - **Cost:** 532 GitHub requests in all (GitLab 356, because its Ruby upstreams aren't on the tracker's watchlist), 2–62 s per project.
+- **Caveats:** One run; the feed is a day old at most. Precision checks the advisory's current range with Limbowatch's own evaluator, the same one that matched. Recall is against the research pipeline, which used the same matching rules.
+- **Implication:** The watcher reproduces the October report's findings and finds about four times as many today, with no contradicted result. In GitLab CI without a GitHub token (60 requests an hour), a project like GitLab would leave most of those 356 repos unpolled and report them as checked by name only, so the docs should ask for a read-only GitHub token. Adding Ruby upstreams to the tracker's seeds (Phase 5) would cut that further.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

@@ -146,3 +146,12 @@ def test_fixed_versions() -> None:
     assert fixed_versions("3.2.2; 4.0.3") == ["3.2.2", "4.0.3"]
     for text in ("< 2.5.1", "tbd", "main", "c86e4cb9ce7546324970ceb6e85ad7001df4318c", None, ""):
         assert fixed_versions(text) is None, text
+
+
+def test_exact_version_beside_a_bound_is_an_alternative() -> None:
+    from limbowatch.versions import affected
+
+    assert affected("npm", "3.0.10", "<= 3.0.10, 4.0.0") is True  # live range of GHSA-jf9x-2fg2-hx4w
+    assert affected("npm", "4.0.0", "<= 3.0.10, 4.0.0") is True
+    assert affected("npm", "3.5.0", "<= 3.0.10, 4.0.0") is False
+    assert affected("npm", "1.5.0", ">= 1.0.0, < 2.0.0") is True  # an ordinary AND is unchanged

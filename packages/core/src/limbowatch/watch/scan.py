@@ -85,9 +85,15 @@ async def scan(
             elif m.repo in polled.not_polled:
                 res.unresolved.append(_partial(d, Unchecked.REPO_NOT_POLLED, m.repo))
     go = [c for cs in index.by_repo.values() for c in cs if any(p.ecosystem == "go" for p in c.adv.packages)]
+    per_repo: dict[str, set[tuple[str, str]]] = {}
+    for (eco, name, _), m in mapped.items():
+        if m.repo:
+            per_repo.setdefault(m.repo, set()).add((eco, name))
     for d in deps:
         found = mapped.get((d.ecosystem, d.name, d.version))
-        res.findings += match(d, index, found.repo if found else None, go if d.ecosystem == "go" else None)
+        repo = found.repo if found else None
+        n_pkgs = len(per_repo.get(repo, ())) if repo else 1
+        res.findings += match(d, index, repo, go if d.ecosystem == "go" else None, n_pkgs)
     res.findings.sort(key=lambda f: (f.dependency.source, f.dependency.line, f.dependency.name, f.ghsa_id))
     res.stats |= {"dependencies": len(deps), "feed_advisories": len(index.ids), "findings": len(res.findings)}
     return res

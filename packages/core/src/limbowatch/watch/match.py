@@ -7,12 +7,14 @@
 2. **Repository:** the advisory comes from this package's source repo, lists this ecosystem, but
    names no usable package anywhere (an invalid name, F-069/F-077). An advisory that names a valid
    package, of this ecosystem or another (a monorepo, or a Rust crate behind an npm binding), is
-   only matched by name.
+   only matched by name. When several of the project's packages come from that repo, the unusable
+   name has to mention this one (F-085).
 """
 
 from __future__ import annotations
 
 import hashlib
+import re
 
 from limbowatch.ecosystems import package_name
 from limbowatch.models import AdvisoryPackage, Dependency, Finding, MatchKind
@@ -30,6 +32,10 @@ def _version(dep: Dependency, p: AdvisoryPackage) -> tuple[bool | None, str]:
     """Is dep.version affected per this package entry? (verdict, evidence)."""
     rng = p.vulnerable_version_range
     hit = affected(dep.ecosystem, dep.version, rng)
+    if hit is None and rng and (readings := _dotdot(rng)):
+        verdicts = {affected(dep.ecosystem, dep.version, r) for r in readings}
+        if len(verdicts) == 1 and None not in verdicts:
+            hit = verdicts.pop()  # both readings of "A .. B" agree (F-069)
     if hit is False:
         return False, ""
     if hit is None:
@@ -66,7 +72,11 @@ def _finding(dep: Dependency, c: Candidate, p: AdvisoryPackage | None, hit: bool
 
 
 def match(
-    dep: Dependency, index: Index, dep_repo: str | None, go_candidates: list[Candidate] | None = None
+    dep: Dependency,
+    index: Index,
+    dep_repo: str | None,
+    go_candidates: list[Candidate] | None = None,
+    repo_packages: int = 1,
 ) -> list[Finding]:
     """Findings for one dependency: by package name first, then by its source repo."""
     out: dict[str, Finding] = {}
@@ -98,6 +108,8 @@ def match(
             entry = next((p for p in c.adv.packages if p.ecosystem == dep.ecosystem), None)
             if entry is None:
                 continue  # nothing says it's about a package of this ecosystem
+            if repo_packages > 1 and not _mentions(entry.name or "", dep.name):
+                continue  # a monorepo: an unusable name that doesn't mention this package could be any of them
             hit, why = _version(dep, entry)
             if hit is False:
                 continue
@@ -107,6 +119,25 @@ def match(
             )
             out[c.adv.ghsa_id] = _finding(dep, c, entry, hit, MatchKind.REPOSITORY, why)
     return sorted(out.values(), key=lambda f: f.ghsa_id)
+
+
+_V = r"v?\d[\w+-]*(?:\.[\w+-]+)*"
+
+
+def _dotdot(rng: str) -> tuple[str, str] | None:
+    """Both readings of a Rust-style `A .. B`: B fixed, or B affected. Matching takes the answer only
+    when they agree; the feed never guesses (F-069)."""
+    m = re.fullmatch(rf"\s*({_V})\s*\.\.=?\s*({_V})\s*", rng)
+    if not m:
+        return None
+    a, b = m.groups()
+    return f">= {a}, < {b}", f">= {a}, <= {b}"
+
+
+def _mentions(text: str, name: str) -> bool:
+    """Does free text name this package, as a whole word (e.g. "foo-bar (consumed by baz)" mentions foo-bar)?"""
+    tail = name.rsplit("/", 1)[-1].rsplit(":", 1)[-1].lower()
+    return bool(tail) and re.search(rf"(?<![\w.-]){re.escape(tail)}(?![\w-])", text.lower()) is not None
 
 
 def _usable(p: AdvisoryPackage) -> bool:

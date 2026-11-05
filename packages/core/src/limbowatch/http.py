@@ -32,6 +32,7 @@ HOST_CONCURRENCY = {
     "services.nvd.nist.gov": 1,
     "raw.githubusercontent.com": 8,
     "api.deps.dev": 16,
+    "rubygems.org": 4,  # its API asks for at most about 10 requests a second
 }
 
 

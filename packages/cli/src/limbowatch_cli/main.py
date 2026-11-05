@@ -179,7 +179,7 @@ def report(
     typer.echo(str(out / f"{rep.date}.md"))
 
 
-def load_inventory(path: Path, sbom_file: Path | None, binary: str) -> Inventory:
+def load_inventory(path: Path, sbom_file: Path | None, binary: str, include_ignored: bool = False) -> Inventory:
     """A project's dependencies, from an SBOM or by running OSV-Scanner offline over its tree."""
     if sbom_file is not None:
         return sbom.parse(sbom_file.read_text(errors="replace"), sbom_file.name)
@@ -193,7 +193,7 @@ def load_inventory(path: Path, sbom_file: Path | None, binary: str) -> Inventory
     if found != osv_scanner.TESTED_VERSION:
         typer.echo(f"warning: tested with osv-scanner {osv_scanner.TESTED_VERSION}, found {found}", err=True)
     try:
-        return osv_scanner.run(path, binary)
+        return osv_scanner.run(path, binary, include_ignored=include_ignored)
     except osv_scanner.InventoryError as e:
         raise typer.Exit(_fail(str(e))) from e
 
@@ -245,6 +245,7 @@ def scan(
     cache: Annotated[Path | None, typer.Option(help="Where the feed is cached [default: ~/.cache/limbowatch].")] = None,
     binary: Annotated[str, typer.Option("--osv-scanner", help="OSV-Scanner executable.")] = "osv-scanner",
     verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Show the evidence for every finding.")] = False,
+    scan_ignored: Annotated[bool, typer.Option(help="Also read lockfiles a .gitignore excludes.")] = False,
     issues: Annotated[str | None, typer.Option(help="Open and update issues: gitlab or gitea (also Forgejo).")] = None,
     issues_url: Annotated[str | None, typer.Option(help="Tracker base URL [default: $CI_SERVER_URL].")] = None,
     issues_project: Annotated[
@@ -268,7 +269,7 @@ def scan(
     if ignore_file is not None:
         accepted |= {ln.split("#", 1)[0].strip() for ln in ignore_file.read_text().splitlines()} - {""}
     cache = cache or Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "limbowatch"
-    inv = load_inventory(path, sbom_file, binary)
+    inv = load_inventory(path, sbom_file, binary, scan_ignored)
     old = json.loads(state_file.read_text()) if state_file and state_file.exists() else None
     now = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 

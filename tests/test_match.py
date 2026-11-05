@@ -164,3 +164,49 @@ async def test_fetch_reuses_the_cached_feed(tmp_path: Any, no_sleep: Any) -> Non
             assert await fetch(http, url, tmp_path) == b"zip"
             assert await fetch(http, url, tmp_path) == b"zip"
     assert route.calls[1].request.headers["if-none-match"] == '"e1"'
+
+
+def test_repository_match_in_a_monorepo_needs_the_name() -> None:
+    pkg = ("RubyGems", "otel-sql-processor (consumed by otel-pg/otel-mysql)", "< 1.0", None)
+    ix = index(rec("GHSA-13", "open-telemetry/contrib", pkg, valid=False))
+    one = match(dep("rubygems", "otel-sql-processor", "0.5.0"), ix, "open-telemetry/contrib", repo_packages=40)
+    assert [f.match for f in one] == [MatchKind.REPOSITORY]
+    assert match(dep("rubygems", "otel-redis", "0.5.0"), ix, "open-telemetry/contrib", repo_packages=40) == []
+    assert len(match(dep("rubygems", "otel-redis", "0.5.0"), ix, "open-telemetry/contrib", repo_packages=1)) == 1
+
+
+def test_rust_style_ranges_are_certain_when_both_readings_agree() -> None:
+    ix = index(rec("GHSA-14", "hickory-dns/hickory-dns", ("crates.io", "hickory-net", "0.26.0-beta.1 .. 0.26.1", None)))
+    assert match(dep("rust", "hickory-net", "0.25.2"), ix, None) == []  # outside under both readings
+    [inside] = match(dep("rust", "hickory-net", "0.26.0"), ix, None)
+    assert inside.affected is True
+    [edge] = match(dep("rust", "hickory-net", "0.26.1"), ix, None)
+    assert edge.affected is None  # only B itself depends on the reading
+
+
+async def test_mapping_registry_metadata_and_go_versions(no_sleep: Any) -> None:
+    from limbowatch.watch.mapping import repo_of
+
+    with respx.mock(assert_all_mocked=True) as router:
+        router.get("https://rubygems.org/api/v1/gems/rack.json").mock(
+            return_value=httpx.Response(200, json={"source_code_uri": "https://github.com/rack/rack/tree/main"})
+        )
+        router.get("https://rubygems.org/api/v1/gems/labkit.json").mock(
+            return_value=httpx.Response(200, json={"homepage_uri": "https://gitlab.com/gitlab-org/labkit-ruby"})
+        )
+        go = router.get("https://api.deps.dev/v3/systems/go/packages/k8s.io%2Fapi/versions/v0.31.0").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "relatedProjects": [
+                        {"projectKey": {"id": "github.com/kubernetes/api"}, "relationType": "SOURCE_REPO"}
+                    ]
+                },
+            )
+        )
+        async with HttpClient(sleep=no_sleep) as http:
+            assert (await repo_of(http, dep("rubygems", "rack", "2.2.8"))).repo == "rack/rack"
+            lab = await repo_of(http, dep("rubygems", "labkit", "1.0"))
+            assert lab.repo is None and "gitlab.com" in lab.method
+            assert (await repo_of(http, dep("go", "k8s.io/api", "0.31.0"))).repo == "kubernetes/api"
+    assert go.called

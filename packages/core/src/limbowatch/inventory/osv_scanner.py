@@ -41,10 +41,13 @@ def version(binary: str = "osv-scanner") -> str | None:
     return m.group(1) if m else None
 
 
-def command(binary: str, project: Path, db: Path) -> list[str]:
+def command(binary: str, project: Path, db: Path, include_ignored: bool = False) -> list[str]:
+    """OSV-Scanner skips files a .gitignore excludes, an enclosing repo's included (F-085); `include_ignored`
+    passes --no-ignore."""
     return [
         binary, "scan", "source", "--offline", "--offline-vulnerabilities", "--local-db-path", str(db),
-        "--no-call-analysis=all", "--all-packages", "--format", "json", "-r", str(project),
+        "--no-call-analysis=all", "--all-packages", "--format", "json",
+        *(["--no-ignore"] if include_ignored else []), "-r", str(project),
     ]  # fmt: skip
 
 
@@ -57,12 +60,11 @@ def empty_db(root: Path) -> Path:
     return root
 
 
-def run(project: Path, binary: str = "osv-scanner", timeout: int = 900) -> Inventory:
+def run(project: Path, binary: str = "osv-scanner", timeout: int = 900, include_ignored: bool = False) -> Inventory:
     project = project.resolve()
     with tempfile.TemporaryDirectory(prefix="limbowatch-db-") as tmp:
-        proc = subprocess.run(
-            command(binary, project, empty_db(Path(tmp))), capture_output=True, text=True, timeout=timeout, check=False
-        )
+        cmd = command(binary, project, empty_db(Path(tmp)), include_ignored)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
     data = json.loads(proc.stdout) if proc.stdout.strip().startswith("{") else {}
     tool = f"osv-scanner {version(binary) or 'unknown version'}"
     return parse(data, proc.stderr, proc.returncode, project, _reader, tool)
@@ -91,7 +93,8 @@ def parse(
     for path, err in sorted(failed.items()):
         unresolved.append(UnresolvedDependency(reason=Unchecked.LOCKFILE_UNREADABLE, source=path, detail=err))
     if code == 128:
-        unresolved.append(UnresolvedDependency(reason=Unchecked.NO_LOCKFILES, source="."))
+        hint = "files a .gitignore excludes (also an enclosing repo's) are skipped; --scan-ignored includes them"
+        unresolved.append(UnresolvedDependency(reason=Unchecked.NO_LOCKFILES, source=".", detail=hint))
     elif code not in (0, 1) and not (code == 127 and failed):
         tail = " ".join(stderr.strip().splitlines()[-3:])
         raise InventoryError(f"osv-scanner exited with {code}: {tail}")

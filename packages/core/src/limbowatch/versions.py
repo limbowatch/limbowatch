@@ -114,7 +114,8 @@ def _satisfiable(cls: Any, cons: Alternative) -> bool:
 
 
 def alternatives(ghsa_ecosystem: str, rng: str | None) -> list[Alternative] | None:
-    """Parsed alternatives, re-reading commas as OR when the AND reading is contradictory."""
+    """Parsed alternatives, re-reading commas as OR when the AND reading is contradictory, or when it
+    joins an exact version to a bound (FINDINGS F-085)."""
     cls = VERSION_CLASS.get(ghsa_ecosystem)
     if not rng:
         return None
@@ -122,7 +123,9 @@ def alternatives(ghsa_ecosystem: str, rng: str | None) -> list[Alternative] | No
     if cls is None:
         return alts
     try:
-        if "," in rng and (alts is None or any(not _satisfiable(cls, c) for c in alts)):
+        mixed = alts is not None and any(len(c) > 1 and any(op == "=" for op, _ in c) for c in alts)
+        # "<= 3.0.10, 4.0.0": an exact version listed beside a bound is another alternative, not an AND
+        if "," in rng and (alts is None or mixed or any(not _satisfiable(cls, c) for c in alts)):
             segs = [parse_range(seg) for seg in re.split(r"\s*[,;]\s*(?=[<>=~^]|\d|v\d)", rng)]
             alts = None if any(sg is None for sg in segs) else [c for sg in segs if sg for c in sg]
     except Exception:
