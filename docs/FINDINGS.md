@@ -4,11 +4,11 @@
 
 What we've verified or measured while building Limbowatch. Maintenance rules are in [CLAUDE.md](../CLAUDE.md#findings-report-docsfindingsmd).
 
-Last summarized: 2026-11-05 (end of Phase 3, closed without outreach; points 1–20 as of the end of Phase 2, 2026-10-31)
+Last summarized: 2026-11-05 (end of Phase 4, the watcher: built and checked on real projects)
 
 ## Summary
 
-Current understanding at the end of Phase 2 (2026-10-31), with entries linked. Points 1–14 come from the Phase 1 research (2026-10-21 to 10-25); points 15–20 from the live tracker. Numbers are dated; review backlogs drift.
+Current understanding at the end of Phase 4 (2026-11-05), with entries linked. Points 1–14 come from the Phase 1 research (2026-10-21 to 10-25), 15–20 from the live tracker (Phase 2), 21 from Phase 3, 22–26 from the watcher (Phase 4). Numbers are dated; review backlogs drift.
 
 **Phase 1: the gap in a sample of real projects**
 
@@ -24,7 +24,7 @@ Current understanding at the end of Phase 2 (2026-10-31), with entries linked. P
    - Package names are often unusable as entered ([F-014](#f-014), [F-069](#f-069)); a CVE of another product is sometimes cited ([F-050](#f-050)).
 7. **NVD lags as well.** New non-priority CVEs are `Deferred` at once ([F-005](#f-005), [F-018](#f-018)). About 45% of reviewed CVEs on real dependencies are unenriched ([F-046](#f-046)).
 8. **Global signals exist for part of the window.** The cvelistV5 delta log gives GitHub-CNA CVEs with GHSA links and owner/repo ([F-013](#f-013)). `cveawg /api/cve-id/` exposes RBP state ([F-029](#f-029)). OSV-by-GHSA plus the full reviewed list are a cheap test for "reviewed" ([F-055](#f-055), [F-057](#f-057)).
-9. **Reuse, don't rebuild.** OSV-Scanner provides inventory for about 25 lockfile types ([F-032](#f-032)), but needs explicit lockfiles to avoid a silent empty scan ([F-040](#f-040), [F-054](#f-054)). deps.dev maps 94–96% of packages to repos ([F-020](#f-020), [F-055](#f-055), [F-063](#f-063)); univers compares versions ([F-022](#f-022)). OSV-Scanner can't load custom DBs ([F-039](#f-039)).
+9. **Reuse, don't rebuild.** OSV-Scanner provides inventory for about 25 lockfile types ([F-032](#f-032)), but needs explicit lockfiles to avoid a silent empty scan ([F-040](#f-040), [F-054](#f-054)). deps.dev maps 94–96% of packages to repos ([F-020](#f-020), [F-055](#f-055), [F-063](#f-063)); univers compares versions ([F-022](#f-022)). OSV-Scanner can already scan against an extra database offline, and its matching library has a configurable download host ([F-073](#f-073), [F-074](#f-074)).
 10. **The core scan already exists; the lifecycle layer doesn't.** blindspot does lockfile → repo advisories → OSV for npm/PyPI/Go ([F-036](#f-036)). Nobody else runs a live tracker, an open limbo feed, GitLab/Gitea workflow or watch mode ([F-038](#f-038)). "Ghost CVE" already means reserved-but-public, hence the name Limbowatch ([F-037](#f-037)).
 11. **Repo advisories contain personal data** (author, credits): never redistribute raw objects. The feed carries factual metadata only, attributed to GitHub ([F-047](#f-047), [F-059](#f-059)).
 12. **GitLab specifics:** SARIF ingestion is Ultimate-only (GA 19.2) and treats CVE-less findings as SAST ([F-008](#f-008)). GitLab's advisory DB can't be queried ([F-038](#f-038)).
@@ -40,6 +40,23 @@ Current understanding at the end of Phase 2 (2026-10-31), with entries linked. P
 19. **Names, more than ranges, decide whether the feed matches.** OSV-Scanner's local matching compares names exactly. 359 names were unmatchable until cleaned; 406 are still malformed and flagged. 95.8% of ranges convert, and a range is left open only when the advisory says there's no fix. An entry with no usable range never matches, so it can miss but never false-alarm ([F-069](#f-069)).
 20. **Running it cheaply.** A stable PAT plus conditional requests make an unchanged repo free to re-poll ([F-058](#f-058), [F-071](#f-071)). The scheduled run fires about 6 h 50 min late, consistently ([F-065](#f-065), [F-067](#f-067)). The tracker needs canonical repo identities and checkpoints ([F-060](#f-060)) and works on `GITHUB_TOKEN` alone, only slowly ([F-062](#f-062)).
 21. **Phase 3 ended without outreach (2026-11-05).** The released OSV-Scanner can already scan against the feed ([F-074](#f-074)); letting it download the feed itself needs one configurable value that SCALIBR already has ([F-073](#f-073), [F-076](#f-076)). blindspot and RogoLabs both lack what we'd offer ([F-072](#f-072), [F-075](#f-075)). Nothing was posted: the feed, a data-quality page (1,294 advisories with a field scanners can't use) and a repo list are published for anyone who looks, and the drafts are in `docs/outreach/` ([F-077](#f-077)).
+
+**Phase 4: the watcher**
+
+22. **Real projects ship affected versions that scanners report clean, today.** On the October report's 15 projects (at their October commits, against the 2026-11-05 feed): **269 package-versions certainly affected** in 13 of 14 readable projects, GitLab 125. The watcher finds all 132 the research pipeline found that are still in limbo (recall 100%). Of 657 distinct findings checked live, 630 are in the advisory's current range, 12 possible and 0 contradicted ([F-085](#f-085), [F-082](#f-082)).
+23. **OSV-Scanner works as an inventory, but it needs checking.** Without saying so, it reads `flask>=2` as version 2, drops git and path requirements, labels git crates as crates.io, skips npm entries with no `resolved`, and applies an enclosing repo's `.gitignore`. The watcher reports each such dependency as unchecked, with the reason ([F-078](#f-078), [F-081](#f-081), [F-085](#f-085)).
+24. **Matching needs rules a scanner doesn't.**
+    - Names are compared the way scanners compare them.
+    - Repository matches only for unusable names; in a monorepo the name must mention the package.
+    - Rust `A .. B` is certain when both readings agree.
+    - An exact version beside a bound is an alternative.
+    - Go `/vN` is a different module.
+    - Ranges that can't be evaluated, or contradict their own fix, give *possible* findings, never passes ([F-082](#f-082), [F-085](#f-085)).
+25. **Most dependencies need no GitHub calls.** The tracker already watches nearly every upstream: Gitea needed 0 polls, Open WebUI 9. GitLab's Ruby upstreams needed 356, which an unauthenticated CI job (60 an hour) can't do, so a read-only GitHub token matters ([F-082](#f-082), [F-085](#f-085)). deps.dev lacks source repos for most gems, so rubygems.org's metadata comes first ([F-085](#f-085)).
+26. **CI and issues work end to end.**
+    - The GitLab component and the Action fail, report and summarize correctly in a container ([F-084](#f-084)).
+    - The issue lifecycle (open, idempotent, close on upgrade, reopen, refuse public repos) works against a real Gitea ([F-083](#f-083)).
+    - GitLab issues are confidential; Gitea's can't be, so public repos get none by default ([F-079](#f-079), [F-080](#f-080)).
 
 ## Open questions
 
@@ -57,6 +74,9 @@ Open:
 - Q14. Do the feed's well-formed names exist in their registries? A registry check would catch wrong-but-valid names ([F-069](#f-069)).
 - Q15. Can per-branch ranges like `< 1.2.5, < 2.0.3` be converted without guessing where each branch starts, e.g. from the registry's version list? ([F-069](#f-069))
 - Q16. Are pending advisories published before 2026 (258 on 2026-10-28) ever reviewed, or did GitHub never backfill them? ([F-064](#f-064))
+- Q17. How many Go modules on vanity paths (k8s.io, golang.org/x, go.opentelemetry.io) can be mapped to a GitHub repo without deps.dev? 320 Kubernetes dependencies stay checked by name only ([F-085](#f-085)). blindspot keeps a verified list (`docs/go-vanity-coverage.md`, [F-072](#f-072)).
+- Q18. Should the tracker's seeds include the upstreams of popular GitLab-hosted projects' Ruby dependencies, so the watcher doesn't need to poll them? ([F-085](#f-085); Phase 5.)
+- Q19. Do confidential issues and the Code Quality report behave on a real GitLab instance as the docs say? Tested with recorded responses and in a container only ([F-079](#f-079), [F-084](#f-084)).
 
 Answered:
 
@@ -389,17 +409,6 @@ Answered:
     - scanner-family visibility, ghost age, permanence
     - any-language inventory via OSV-Scanner
 - **Sources:** [Aikido: external DBs](https://help.aikido.dev/code-scanning/scanning-practices/external-vulnerability-databases-used-in-our-sca-engine.md), [SC World: shadow patches](https://www.scworld.com/news/bsides-sf-using-ai-to-spot-shadow-patches-in-open-source-software), [Apify monitor](https://apify.com/nexgendata/dependency-advisory-monitor), [GitHub notifications docs](https://docs.github.com/en/subscriptions-and-notifications/how-tos/managing-security-notifications), [GitLab advisory DB README](https://gitlab.com/gitlab-org/security-products/gemnasium-db/-/blob/master/README.md), [dev.to: blindspot](https://dev.to/munimv2/the-critical-advisory-your-scanner-cant-see-find-it-in-one-ci-step-naa), [dev.to: AI-tools census](https://dev.to/munimv2/316-of-security-advisories-for-self-hosted-ai-tools-never-reach-the-database-your-scanner-reads-4cfh), [CIRCL Vulnerability-Lookup](https://vulnerability.circl.lu/)
-
-### F-039
-- **Date:** 2026-10-21 · **Status:** confirmed (docs)
-- **Question:** Can OSV-Scanner consume a custom/additional advisory database (e.g. a Limbowatch "limbo feed")?
-- **Result:** Not as a documented feature.
-  - Offline mode reads `{OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY or os.UserCacheDir or os.TempDir}/osv-scanner/<ECOSYSTEM>/all.zip`, populated by `--download-offline-databases` from `https://osv-vulnerabilities.storage.googleapis.com/<ECOSYSTEM>/all.zip`.
-  - No flag or documented path exists for adding custom records.
-- **Implication:**
-  - A limbo feed should be published as standard OSV-schema JSON, which is easy for any tool to consume.
-  - Direct OSV-Scanner use needs an upstream feature request (custom local DB / extra source), not a hack into its cache.
-- **Sources:** [OSV-Scanner offline mode](https://google.github.io/osv-scanner/usage/offline-mode/)
 
 ### F-040
 - **Date:** 2026-10-21 · **Status:** confirmed (observed)
@@ -987,6 +996,17 @@ Answered:
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
+
+### F-039
+- **Date:** 2026-10-21 · **Status:** superseded by [F-073](#f-073) and [F-074](#f-074) (the cache directory is now `osv-scalibr/`; scanning against an extra database works offline today; the download host is configurable in SCALIBR)
+- **Question:** Can OSV-Scanner consume a custom/additional advisory database (e.g. a Limbowatch "limbo feed")?
+- **Result:** Not as a documented feature.
+  - Offline mode reads `{OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY or os.UserCacheDir or os.TempDir}/osv-scanner/<ECOSYSTEM>/all.zip`, populated by `--download-offline-databases` from `https://osv-vulnerabilities.storage.googleapis.com/<ECOSYSTEM>/all.zip`.
+  - No flag or documented path exists for adding custom records.
+- **Implication:**
+  - A limbo feed should be published as standard OSV-schema JSON, which is easy for any tool to consume.
+  - Direct OSV-Scanner use needs an upstream feature request (custom local DB / extra source), not a hack into its cache.
+- **Sources:** [OSV-Scanner offline mode](https://google.github.io/osv-scanner/usage/offline-mode/)
 
 ### F-061
 - **Date:** 2026-10-26 · **Status:** superseded by [F-064](#f-064) (counts from a half-polled watchlist; F-064 is the first full pass. The implications stand and are implemented)

@@ -33,6 +33,10 @@ Without the CI/CD Catalog, include the file directly with `include: remote:` and
 | `osv_scanner_version` | `2.7.0` | Downloaded from Google's releases and checked against their SHA-256 sums |
 | `limbowatch_source`, `limbowatch_ref` | GitHub archive, `main` | Pin `limbowatch_ref` to a release tag |
 
+## GitHub token
+
+To check source repos the live tracker doesn't watch, the job polls the GitHub API. Without a token GitHub allows 60 requests an hour. Add a masked CI/CD variable `LIMBOWATCH_GITHUB_TOKEN` holding any GitHub token that can read public repositories. Repos that can't be polled are reported as checked by name only, never skipped.
+
 ## Issues
 
 Set `issues: true` and a masked CI/CD variable `LIMBOWATCH_ISSUES_TOKEN`: a project access token with `api` scope. You get:

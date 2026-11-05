@@ -28,6 +28,12 @@ In June 2026 I reported a critical vulnerability in [NationalSecurityAgency/skil
 
 The methods, open dataset (CC BY 4.0) and scripts to reproduce it are in the [report folder](research/2026-10-state-of-the-gap/).
 
+## Use it
+
+- **[limbo.watch](https://limbo.watch):** the live tracker. It lists every advisory in limbo across about 18,600 watched repos, updated daily.
+- **[The limbo feed](https://limbo.watch/feed/):** the same advisories as OSV-schema records. The released OSV-Scanner can already scan against it.
+- **The watcher**, `limbowatch scan`: checks your project's dependencies against advisories in limbo, in CI or locally. It writes Code Quality, SARIF, Markdown or JSON, and keeps one issue per finding up to date in GitLab or Gitea/Forgejo. See the [guide](docs/WATCHER.md), the [GitLab CI/CD component](integrations/gitlab/) and the [Actions action](integrations/action/action.yml).
+
 ## Terms
 
 | Term | Meaning |
@@ -42,11 +48,12 @@ The methods, open dataset (CC BY 4.0) and scripts to reproduce it are in the [re
 
 | Phase | Status |
 |---|---|
-| 1. "State of the Gap" report | **draft for review** |
-| 2. Live Limbo Tracker and an open **limbo feed** (OSV schema) | planned |
-| 3. Contributions to existing tools ([blindspot](https://github.com/munimtechnologies/advisory-import-census), OSV-Scanner) | planned |
-| 4. Limbowatch watcher for GitLab and Gitea: CI component, issues that update as advisories move through review, org-wide watch | planned |
-| 5–6. More ecosystems (Maven/Gradle first), then C/C++ and vendored code | planned |
+| 1. "State of the Gap" report | draft for review |
+| 2. Live Limbo Tracker and an open **limbo feed** (OSV schema) | **live** at [limbo.watch](https://limbo.watch) |
+| 3. Contributions to existing tools ([blindspot](https://github.com/munimtechnologies/advisory-import-census), OSV-Scanner) | prepared, not sent ([drafts](docs/outreach/)) |
+| 4. Limbowatch watcher for GitLab and Gitea: CI component, issues that update as advisories move through review | **built, in review** |
+| 5. Org-wide watch, more ecosystems (Maven/Gradle first) | planned |
+| 6. C/C++ and vendored code | planned |
 
 Limbowatch builds only what existing tools don't do. See [the plan](docs/PHASE0_PLAN.md) and [research findings](docs/FINDINGS.md).
 
