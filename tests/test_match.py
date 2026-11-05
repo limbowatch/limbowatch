@@ -79,6 +79,7 @@ def test_go_packages_inside_a_module_and_major_versions() -> None:
     ix = index(
         rec("GHSA-5", "x/y", ("Go", "github.com/x/y/pkg/sub", "< 1.2.0", "1.2.0")),
         rec("GHSA-6", "x/y", ("Go", "github.com/x/y/v2", "< 2.1.0", "2.1.0")),
+        rec("GHSA-12", "x/y", ("Go", "github.com/x/y/v2", "< 1.0.0", "1.0.0")),  # out of range either way
     )
     go = [c for cs in ix.by_repo.values() for c in cs]
     got = {f.ghsa_id: f.affected for f in match(dep("go", "github.com/x/y", "1.1.0"), ix, "x/y", go)}
@@ -89,11 +90,13 @@ def test_repository_match_only_when_the_name_is_unusable() -> None:
     ix = index(
         rec("GHSA-7", "labredescefetrj/wegia", ("Packagist", "WeGIA", "< 3.4.0", "3.4.0"), valid=False),
         rec("GHSA-8", "acme/mono", ("npm", "@acme/a", "< 9", None)),
+        rec("GHSA-11", "napi-rs/napi-rs", ("crates.io", "napi", ">= 2.0.0", None)),
     )
     [f] = match(dep("composer", "labredescefetrj/wegia", "3.2.0"), ix, "labredescefetrj/wegia")
     assert f.match is MatchKind.REPOSITORY and f.affected is True and "WeGIA" in f.evidence
     assert match(dep("composer", "labredescefetrj/wegia", "3.4.0"), ix, "labredescefetrj/wegia") == []
     assert match(dep("npm", "@acme/b", "1.0.0"), ix, "acme/mono") == []  # names another package of the repo
+    assert match(dep("npm", "@napi-rs/wasm-runtime", "1.1.6"), ix, "napi-rs/napi-rs") == []  # a crate, not this
 
 
 def _zip(*records: dict[str, Any]) -> bytes:

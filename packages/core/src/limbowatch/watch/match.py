@@ -4,9 +4,10 @@
    is in its range. A range that can't be evaluated, or that contradicts the advisory's own fixed
    version (F-051), gives a *possible* finding, never a silent pass. Go `/vN` variants are a
    different module (F-052), so they're possible, not certain.
-2. **Repository:** the advisory comes from this package's source repo but names no usable package
-   in its ecosystem (an invalid name, F-069/F-077). An advisory that names a *different* valid
-   package of the same repo (a monorepo) is not a match.
+2. **Repository:** the advisory comes from this package's source repo, lists this ecosystem, but
+   names no usable package anywhere (an invalid name, F-069/F-077). An advisory that names a valid
+   package, of this ecosystem or another (a monorepo, or a Rust crate behind an npm binding), is
+   only matched by name.
 """
 
 from __future__ import annotations
@@ -83,32 +84,34 @@ def match(
             if rel is None:
                 continue
             hit, why = _version(dep, p)
-            if rel == "major_version_variant":
-                hit, why = None, f"the advisory names {n.name}, a different major version of {dep.name}"
             if hit is False:
                 continue
+            if rel == "major_version_variant":
+                hit, why = None, f"the advisory names {n.name}, a different major version of {dep.name}; {why}"
             f = _finding(dep, c, p, hit, MatchKind.PACKAGE, why)
             if f.ghsa_id not in out or out[f.ghsa_id].affected is not True:
                 out[f.ghsa_id] = f
     if dep_repo:
         for c in index.by_repo.get(dep_repo, []):
-            if c.adv.ghsa_id in out:
+            if c.adv.ghsa_id in out or any(_usable(p) for p in c.adv.packages):
+                continue  # it names a real package (maybe in another ecosystem): step 1 is the only match
+            entry = next((p for p in c.adv.packages if p.ecosystem == dep.ecosystem), None)
+            if entry is None:
+                continue  # nothing says it's about a package of this ecosystem
+            hit, why = _version(dep, entry)
+            if hit is False:
                 continue
-            same_eco = [p for p in c.adv.packages if p.ecosystem == dep.ecosystem]
-            usable = [p for p in same_eco if (n := package_name(p.ecosystem, p.name)) is not None and n.valid]
-            if usable:
-                continue  # it names a real package of this ecosystem; if it were this one, step 1 found it
-            entry = same_eco[0] if same_eco else None
-            if entry is not None:
-                hit, why = _version(dep, entry)
-                if hit is False:
-                    continue
-            else:
-                hit, why = None, "the advisory names no package in this ecosystem"
-            entered = (entry.name if entry else "") or ""
-            why = f"from {dep_repo}, this package's source repo; its package name “{entered}” can't be matched. {why}"
+            why = (
+                f"from {dep_repo}, this package's source repo; its package name “{entry.name or ''}” "
+                f"can't be matched. {why}"
+            )
             out[c.adv.ghsa_id] = _finding(dep, c, entry, hit, MatchKind.REPOSITORY, why)
     return sorted(out.values(), key=lambda f: f.ghsa_id)
+
+
+def _usable(p: AdvisoryPackage) -> bool:
+    n = package_name(p.ecosystem, p.name)
+    return n is not None and n.valid
 
 
 def _relation(dep: Dependency, advisory_name: str) -> str | None:

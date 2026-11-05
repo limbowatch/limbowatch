@@ -925,6 +925,20 @@ Answered:
 - **Caveats:** Two projects, both well maintained and fully locked. Projects with loose `requirements.txt` files will show many range-only entries, by design.
 - **Implication:** The inventory is ready for matching. On real lockfiles nearly every dependency is checkable; the unchecked list is short and specific.
 
+### F-082
+- **Date:** 2026-11-05 · **Status:** confirmed (observed; two projects, every finding verified live)
+- **Question:** Does the watcher's matching find real advisories in limbo in real projects, and are they right?
+- **Method:** `limbowatch.watch.scan` on the F-081 inventories of Gitea (3b9b8a8) and Open WebUI (c38885a), against the live feed (`limbo.watch/feed/all.zip`, 22,717 advisories) and watchlist (18,392 repos), 2026-11-05 ~22:10 UTC, with a GitHub token. Every distinct advisory found was then checked against primary sources: `api.osv.dev/v1/vulns/{id}`, `GET /advisories/{id}` (global database) and `GET /repos/{repo}/security-advisories/{id}` (state and current ranges).
+- **Result:**
+  - **Gitea:** 825 source repos mapped, all on the watchlist, so 0 polled; 1,008 deps.dev lookups, 9 s. **14 findings**, all certain, all from the feed, e.g. `github.com/andybalholm/brotli` 1.2.1 (`< 1.2.7`), `github.com/goccy/go-json` 0.10.6, `@sinclair/typebox` 0.27.10, `seroval` / `seroval-plugins` 1.5.4 (6), `solid-js` 1.9.13 (3).
+  - **Open WebUI:** 1,165 source repos, 1,156 on the watchlist, 9 polled (9 GitHub requests); 1,806 deps.dev lookups, 9 s. **46 findings** (45 certain, 1 possible) for 32 advisories, e.g. `pydantic` 2.13.4 (3), `undici` 7.30.1 (6), `@sveltejs/kit` 2.70.3 (6), `authlib` 1.7.2, `qdrant-client` 1.18.0, `openmls` 0.9.1 (2). Most appear in two or three lockfiles.
+  - **Verification: all 46 distinct advisories are published repository advisories, 404 in OSV and 404 in the global database.** For every certain finding the version is in the advisory's current range. The possible one is `prettier` 3.8.1 against `>=3.9.0, <=3.9.9; 3.9.9 tested`, unreadable because of the trailing words (the readable part excludes 3.8.1).
+  - Four ranges in the feed differ from the advisory's current text (edited after the tracker's last poll, e.g. `@sveltejs/kit` `< 3.0.0` now `<= 2.70.3`); none changed the verdict.
+  - Partly checked: 58 (Gitea) and 56 (Open WebUI) dependencies with no source repo from deps.dev, checked by name only.
+  - **Bug found and fixed:** the first run gave Gitea 6 "repository" matches for `@napi-rs/wasm-runtime`: napi-rs advisories that name the crates.io crate `napi`. A repository match now requires that the advisory names no valid package in any ecosystem. A Go `/vN` mismatch (`regexp2/v2` 2.11.0 vs GHSA-wq9v's `< 2.3.0`) is now evaluated first and dropped when out of range.
+- **Caveats:** Two projects. Feed ranges are as fresh as the tracker's last poll of the repo (up to about 10 days for quiet repos).
+- **Implication:** Matching works on real projects with verified results, and it needs almost no GitHub requests because the tracker already covers nearly every upstream. Both projects ship versions affected by advisories that OSV-based scanners don't report.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
