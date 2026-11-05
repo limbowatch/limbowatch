@@ -872,6 +872,48 @@ Answered:
 - **Caveats:** F-069 counted feed entries in the 2026-10-30 state (359 cleaned, 406 invalid); this counts problem fields in advisories in limbo four days later, so the numbers differ. Suggested fixes other than exact name fixes are advice, not certainties; per-release-line suggestions assume each line starts at `X.Y.0`.
 - **Implication:** Published at limbo.watch/quality/ (linked from each affected advisory page and the feed page) and limbo.watch/feed/repos.txt, without contacting anyone (Phase 3 closed without outreach, docs/outreach/). A handful of repos account for a large share, so if outreach happens later, a few notes would cover hundreds of advisories.
 
+### F-078
+- **Date:** 2026-11-05 · **Status:** confirmed (observed; OSV-Scanner 2.7.0, OSV-SCALIBR 0.5.3, hand-made lockfiles)
+- **Question:** What does OSV-Scanner's `--all-packages` JSON give the watcher as an inventory, and which dependencies does it drop or misreport without saying so?
+- **Method:** A test tree with an npm `package-lock.json` v3 (a registry entry, an entry without `resolved`, a `link`/`file:` workspace package, a `git+ssh` dependency with a short hash), `requirements.txt` (`requests==2.31.0`, `flask>=2`, a `git+https` line, `-e ./localpkg`, bare `numpy`), `go.mod` with a `replace` to a local path, `Cargo.lock` (registry, local and git crates) and an unparseable `package-lock.json`. Runs of `osv-scanner scan source --all-packages --format json -r <tree>`: fully offline (`--offline --offline-vulnerabilities --local-db-path <dir of 46 empty zips>`), with and without `--no-call-analysis=all`, and once with online resolution (`--offline-vulnerabilities` only) for `requirements.txt`.
+- **Result:**
+  - **Output:** `results[].source.path` and `.type`, then `packages[].package` with `name`, `version`, `ecosystem`, `purl` (plus `commit` for GIT). No line numbers, no dependency groups, no field saying a package was skipped.
+  - **Marked:** packages OSV-Scanner treats as local get `?source=LOCAL` in the purl: the npm entry without `resolved` (#3177) and the `link` workspace package. Its log says "Filtered 3 local/unscannable package/s from the scan" without naming them.
+  - **Not marked:**
+    - `flask>=2` is reported as version `2` offline (a range read as a version). With online resolution it becomes `3.1.3`, the latest, via deps.dev, and 12 transitive packages are added.
+    - `numpy` with no version is reported with version `""`, online too.
+    - The `git+https` and `-e ./localpkg` lines are left out entirely (5 lines in, 3 packages out).
+    - The Go `replace` target is a package named `../local` with version `""`.
+    - The Cargo git crate and the local crate are reported as `crates.io` packages with versions, so a crates.io advisory with the same name would match them.
+    - The git npm dependency with a short hash is listed as `GIT` and skipped for matching ("short commit hash … cannot be queried").
+  - **Exit codes:** 0 clean; **127** when any lockfile can't be read (the JSON still holds the other lockfiles; the file is named only on stderr: `Error during extraction: (extracting as javascript/packagelockjson) <path>: could not extract: …`), and also when Go call analysis fails without a Go toolchain (avoided with `--no-call-analysis=all`); **128** when no lockfile is found.
+  - Offline with empty zips, the run sends nothing over the network and does no matching, so it works as a pure inventory step.
+- **Caveats:** Hand-made files, one version. Other extractors (pnpm, yarn, poetry, uv, Gradle) not tried.
+- **Implication:** OSV-Scanner is a usable inventory, but the watcher must add its own checks, each reported as `UNRESOLVED` with a reason, never dropped: empty versions; `?source=LOCAL`; requirements lines that aren't exact pins (re-read the file); lines that vanish (compare against the file); `GIT` entries; registry-looking packages from git or path sources where the lockfile says so (Cargo `source`); and unreadable lockfiles from stderr with exit 127. Code Quality needs a line per finding, so the watcher finds the package in the lockfile itself.
+
+### F-079
+- **Date:** 2026-11-05 · **Status:** confirmed (docs)
+- **Question:** What do GitLab's issue, note and Code Quality interfaces and CI/CD components require of the watcher?
+- **Method:** GitLab's own docs from its repository at master 0fe4f24f (2026-11-05): `doc/api/issues.md`, `doc/api/notes.md`, `doc/api/labels.md`, `doc/ci/testing/code_quality.md`, `doc/ci/components/_index.md`, fetched raw from gitlab.com.
+- **Result:**
+  - Issues: `POST /projects/:id/issues` (`title` required; `description` up to 1,048,576 characters; `labels` as comma-separated names, created if missing; **`confidential`**, default false). `PUT /projects/:id/issues/:issue_iid` edits, including `add_labels` and `state_event` to close or reopen. List filters include `labels` (all must match), `search` (title and description), `state`, `iids[]`. Creation can be rate limited per minute.
+  - Notes: `POST /projects/:id/issues/:issue_iid/notes` with `body` (up to 1,000,000 characters) and `internal`.
+  - **Code Quality:** a single JSON array, no byte order mark; each object needs `description`, `check_name`, `fingerprint`, `severity` (`info`, `minor`, `major`, `critical`, `blocker`), `location.path` (relative, no `./`) and `location.lines.begin`. Only those fields are processed.
+  - **CI/CD components** live in a GitLab project with a top-level `templates/` directory (`<name>.yml` or `<name>/template.yml`) and a `README.md`, versioned together, up to 100 per project; publishing to the Catalog is a separate step. Components should take inputs rather than global keywords or hard-coded hosts.
+- **Implication:** Issues default to confidential on GitLab (a public issue saying a project ships an affected version discloses something new). Deduplicate by a marker in the description plus the `limbowatch` label, not by title. The component needs its own GitLab project at release time; until then it lives in this repo and is tested with fixtures.
+
+### F-080
+- **Date:** 2026-11-05 · **Status:** confirmed (observed; local Gitea 28.3.0 in Docker)
+- **Question:** How does Gitea's issue API behave for the watcher's lifecycle (create, label, find again, comment, close)?
+- **Method:** `gitea/gitea:28.3.0` (released 2026-11-01) bound to 127.0.0.1, SQLite, a generated local admin and token. Endpoints read from its `/swagger.v1.json`. On a private test repo: create a label, an issue with that label and a hidden marker (`<!-- limbowatch:finding=… -->`) in the body, search, comment, close, list closed by label.
+- **Result:**
+  - Create issue: `POST /repos/{owner}/{repo}/issues` with `title`, `body`, `labels` as **label IDs** (int64). Adding labels later (`PUT/POST …/issues/{index}/labels`) accepts IDs or names. Edit and close: `PATCH …/issues/{index}` with `state`. Comment: `POST …/issues/{index}/comments` with `body`. List: `state`, `labels`, `q`, `type`, `since`, paging.
+  - **No confidential issues** (no such field in `CreateIssueOption`).
+  - **Search lags:** `q` found the new issue by title, label name or the body marker only seconds after creation (immediately after, it returned nothing). Listing by `labels=limbowatch` found it at once, open and closed.
+  - Forgejo's latest release is v17.0.1 (2026-10-26, Codeberg API); not tested.
+- **Caveats:** One version, one run. Forgejo is a Gitea fork but its API may have diverged.
+- **Implication:** Resolve label names to IDs once per repo. Find existing issues by listing the `limbowatch` label and reading the marker, not by search. Because Gitea can't hide an issue, the watcher should warn before opening issues in a public Gitea/Forgejo repo and offer a setting to skip them there.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
