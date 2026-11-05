@@ -20,7 +20,8 @@ from typing import Any
 from limbowatch.ecosystems import PackageName, package_name
 from limbowatch.models import AdvisoryPackage, CveLabel, Status
 from limbowatch.publish import ATTRIBUTION, Item, days_since, eco_label, fixes_text
-from limbowatch.versions import fixed_versions, no_fix
+from limbowatch.publish.quality import NAME, Problem, problems
+from limbowatch.versions import fixed_versions, no_fix, osv_ranges
 
 REPO_URL = "https://github.com/limbowatch/limbowatch"
 REPORT_URL = f"{REPO_URL}/tree/main/research/2026-10-state-of-the-gap"
@@ -270,6 +271,11 @@ gap:6px 12px;padding:16px;border-bottom:1px solid var(--line2)}.tbl tr:last-chil
 ol.steps li{gap:12px}pre.light{max-height:440px;overflow:auto}
 .story{padding-top:32px}.story p{font-size:17px}
 .consent div{width:100%}.consent .btn{flex:1;justify-content:center}}
+/* data quality */
+.qrepo{margin-top:32px}.qrepo h3{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;margin:0 0 10px;font-size:17px;overflow-wrap:anywhere}
+.qrepo h3 small{color:var(--muted);font-weight:400;font-size:14px}.qrepo .card{padding:0}
+.qrow{padding:16px;border-top:1px solid var(--line2)}.qrow:first-child{border-top:0}.qrow p{margin:6px 0 0}
+.qrow .qh{font-size:14px;color:var(--muted)}.qrow .was{background:var(--sunk);padding:2px 6px;border-radius:6px;overflow-wrap:anywhere}
 """
 
 TRACKER_JS = """(()=>{const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -625,7 +631,8 @@ def advisory(i: Item, events: list[dict[str, Any]], now: datetime) -> str:
             note = (
                 "Cleaned up for matching."
                 if pn.valid
-                else f"Doesn’t look like a valid {E(eco_label(p.ecosystem))} package name, so scanners can’t match it."
+                else f"Doesn’t look like a valid {E(eco_label(p.ecosystem))} package name, so scanners can’t match it. "
+                f'<a href="/quality/#{E(quality_anchor(a.repo))}">How to fix it</a>'
             )
             facts.append(
                 (f"Package name{name}", f'<span class="mono">{E(pn.raw)}</span><small>As entered. {note}</small>')
@@ -634,7 +641,14 @@ def advisory(i: Item, events: list[dict[str, Any]], now: datetime) -> str:
             (
                 f"Affected versions{name}",
                 f'<span class="mono">{E(p.vulnerable_version_range or "not stated")}</span>'
-                "<small>As entered by the maintainer. Not reviewed.</small>",
+                "<small>As entered by the maintainer. Not reviewed."
+                + (
+                    " Scanners can’t read this range. "
+                    f'<a href="/quality/#{E(quality_anchor(a.repo))}">How to fix it</a>'
+                    if pn.name and osv_ranges(p.ecosystem, p.vulnerable_version_range, p.patched_versions) is None
+                    else ""
+                )
+                + "</small>",
             )
         )
         facts.append((f"Fixed in{name}", f'<span class="mono">{E(p.patched_versions or "not stated")}</span>'))
@@ -755,6 +769,8 @@ in limbo, OSV bulk layout. Byte-stable, so you can diff it.</p></div><a class="b
 as OSV-Scanner’s offline database. Unzip it and scan.</p></div><a class="btn" href="/osv/limbo-db.zip">Download</a></div>
 <div><div class="x"><a class="mono" href="/osv/ecosystems.txt">osv/&lt;Ecosystem&gt;/all.zip</a><p>One zip per OSV ecosystem, the
 way OSV serves its own, with the <span class="mono">X-Goog-Hash</span> checksum it sends.</p></div></div>
+<div><div class="x"><a class="mono" href="/feed/repos.txt">feed/repos.txt</a><p>Every watched repo with a published
+advisory, one per line. Names only, for trackers that poll repos.</p></div></div>
 <div><div class="x"><a class="mono" href="/feed/index.json">feed/index.json</a><p>Every ID in the feed, to fetch only what changed.</p></div></div>
 <div><div class="x"><a class="mono" href="/feed/{sample_id}.json">feed/&lt;GHSA-ID&gt;.json</a><p>A single record, linked from each advisory page.</p></div></div>
 <div><div class="x"><a class="mono" href="/metrics.json">metrics.json</a><p>Today’s counts by severity, CVE state and age, plus coverage.</p></div></div>
@@ -782,13 +798,99 @@ We’re proposing upstream that OSV-Scanner add the feed to a normal scan, rathe
 converted exactly, it’s left out of <span class="mono">ranges</span> and kept as text, so it can’t raise a false alarm.</li>
 <li>Package names are cleaned where the fix is certain: stray spaces and URLs removed, PyPI and Packagist names in their
 canonical spelling. The original is kept in <span class="mono">name_as_entered</span>; names that still aren’t valid
-have <span class="mono">name_valid: false</span>. Each record’s <span class="mono">quality</span> field sums this up.</li>
+have <span class="mono">name_valid: false</span>. Each record’s <span class="mono">quality</span> field sums this up, and
+<a href="/quality/">this page</a> lists every one with its fix.</li>
 <li>An advisory leaves the feed when GitHub reviews it, so OSV takes over.</li>
 <li>Licensed CC BY 4.0. Credit “Limbowatch (limbo.watch)” and GitHub, as each record’s <span class="mono">attribution</span> field says.</li>
 </ul></div></section></div></main>
 {footer()}"""
     return page(
         "The limbo feed · limbo.watch", "Every security advisory in limbo as OSV-schema records, rebuilt daily.", body
+    )
+
+
+# --- data quality --------------------------------------------------------------------------------
+
+
+QUALITY_IDS = 8  # advisory links shown per row
+
+
+def quality_anchor(repo: str) -> str:
+    return "r-" + re.sub(r"[^a-z0-9._-]+", "-", repo.lower())
+
+
+def _visible(raw: str) -> str:
+    """Escape, showing leading and trailing whitespace, which is often the whole problem."""
+    core = raw.strip()
+    if not core:
+        return E(raw)
+    i = raw.index(core)
+    lead, trail = raw[:i], raw[i + len(core) :]
+    return "␣" * len(lead) + E(core) + "␣" * len(trail)
+
+
+def _ticks(text: str) -> str:
+    """Escape, then show `code` spans in the mono face."""
+    return re.sub(r"`([^`]+)`", r'<span class="mono">\1</span>', E(text))
+
+
+def quality(items: list[Item]) -> str:
+    """Advisory fields scanners can't use, grouped by repo, with the edit that fixes each (F-069)."""
+    probs = problems(items)
+    by_repo: dict[str, list[Problem]] = defaultdict(list)
+    for pr in probs:
+        by_repo[pr.repo].append(pr)
+    repos = sorted(by_repo, key=lambda r: (-len({p.ghsa_id for p in by_repo[r]}), r))
+    names_bad = sum(1 for p in probs if p.field == NAME and not p.certain)
+    names_fix = sum(1 for p in probs if p.field == NAME and p.certain)
+    ranges = sum(1 for p in probs if p.field != NAME)
+    sections = []
+    for r in repos:
+        # Advisories in one repo often share the same mistake: one row per distinct problem.
+        same: dict[tuple[str, str, str, str, str], list[str]] = defaultdict(list)
+        for p in sorted(by_repo[r], key=lambda p: p.ghsa_id):
+            same[(p.ecosystem, p.field, p.as_entered, p.issue, p.fix)].append(p.ghsa_id)
+        rows = ""
+        for (eco, fld, was, issue, fix), ids in sorted(same.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+            links = ", ".join(f'<a class="mono" href="/advisory/{E(g)}/">{E(g)}</a>' for g in ids[:QUALITY_IDS])
+            more = f" and {len(ids) - QUALITY_IDS:,} more" if len(ids) > QUALITY_IDS else ""
+            rows += (
+                f'<div class="qrow"><div class="qh">{E(eco)} · {E(fld)} · {len(ids):,} advisor'
+                f"{'y' if len(ids) == 1 else 'ies'}: {links}{more}</div>"
+                f'<p><span class="mono was">{_visible(was) or "(empty)"}</span></p>'
+                f"<p>{_ticks(issue)}. <strong>{_ticks(fix)}</strong></p></div>"
+            )
+        n = len({p.ghsa_id for p in by_repo[r]})
+        sections.append(
+            f'<section class="qrepo" id="{E(quality_anchor(r))}"><h3><a href="https://github.com/{E(r)}/security/advisories">'
+            f'{E(r)}</a><small>{n:,} advisor{"y" if n == 1 else "ies"}</small></h3><div class="card">{rows}</div></section>'
+        )
+    body = f"""<header class="top">{header("")}</header>
+<main class="wrap">
+<div style="padding-top:48px"><p class="eyebrow">Data quality · rebuilt daily</p>
+<h1 class="page">Advisories scanners can’t match</h1>
+<p class="sub" style="max-width:720px;font-size:18px">Scanners compare package names exactly and skip version ranges they can’t
+read. These advisories in limbo have a field like that, so they’ll stay invisible to scanners until the field is
+fixed, even after GitHub reviews them. If you maintain one of these repos, you can edit a published advisory on GitHub.</p></div>
+<div class="facts3"><div><div class="n">{len({p.ghsa_id for p in probs}):,}</div><p>advisories in <strong>{len(repos):,} repos</strong>
+with at least one field scanners can’t use.</p></div>
+<div><div class="n">{names_bad + names_fix:,}</div><p>package names: <strong>{names_fix:,}</strong> with an exact fix (case, spaces, a URL
+around the name), <strong>{names_bad:,}</strong> that don’t fit the ecosystem’s naming rules.</p></div>
+<div><div class="n">{ranges:,}</div><p>version ranges scanners can’t read, or that would mark the fixed version as affected.</p></div></div>
+<div class="note" style="margin-top:32px;max-width:760px"><h3>How to read this</h3><ul>
+<li>Repos with the most affected advisories come first. Search the page for yours.</li>
+<li>Each row shows the field as entered and why it fails. Fixes for names in the wrong spelling are exact; the rest
+are suggestions, because only the maintainer knows the right package and release lines.</li>
+<li>The limbo feed already uses the corrected spelling where it’s certain, so <a href="/feed/">feed</a> users are
+covered. Scanners that read GitHub’s database only get it when the advisory itself is fixed.</li>
+<li>The name rules check the form, not that the package exists.</li></ul></div>
+{"".join(sections)}
+</main>
+{footer()}"""
+    return page(
+        "Advisories scanners can’t match · limbo.watch",
+        "Published security advisories whose package name or version range scanners can’t use, with the fix for each.",
+        body,
     )
 
 
@@ -898,6 +1000,7 @@ def build(
         "tracker/data.json": json.dumps(data, separators=(",", ":")),
         "feed/index.html": feed(metrics, sample),
         "why/index.html": why(metrics),
+        "quality/index.html": quality(items),
         "assets/site.css": CSS,
         "assets/tracker.js": TRACKER_JS,
     }

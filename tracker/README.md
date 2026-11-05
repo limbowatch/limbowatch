@@ -26,6 +26,8 @@ A daily job that counts published GitHub security advisories still **in limbo**:
      - `database_specific.limbowatch.quality` sums up both, per record (F-069);
    - `feed/index.json`;
    - `osv/<Ecosystem>/all.zip`: the same records split by ecosystem, the way OSV serves its own downloads, with an empty zip for every OSV ecosystem the feed doesn't cover (OSV-Scanner's offline mode fails the whole scan when one is missing, F-074). nginx sends each zip's CRC-32C as `X-Goog-Hash` from `osv/crc32c.map` (F-073);
+   - `feed/repos.txt`: every watched repo with at least one published advisory, one `owner/repo` per line, names only, for trackers that poll repos (F-075, F-077);
+   - `quality/`: advisories in limbo whose package name or range scanners can't use, grouped by repo, with the fix for each (F-077);
    - `osv/limbo-db.zip`: those zips laid out as OSV-Scanner's cache, so `osv-scanner scan source --offline-vulnerabilities --local-db-path <unzipped dir> -r .` scans against the feed (F-076).
 
 ## Seeds

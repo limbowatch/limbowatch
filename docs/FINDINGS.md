@@ -4,7 +4,7 @@
 
 What we've verified or measured while building Limbowatch. Maintenance rules are in [CLAUDE.md](../CLAUDE.md#findings-report-docsfindingsmd).
 
-Last summarized: 2026-10-31 (end of Phase 2: live tracker, site and feed running daily)
+Last summarized: 2026-11-05 (end of Phase 3, closed without outreach; points 1–20 as of the end of Phase 2, 2026-10-31)
 
 ## Summary
 
@@ -39,6 +39,7 @@ Current understanding at the end of Phase 2 (2026-10-31), with entries linked. P
 18. **A published CVE doesn't mean scanners can see it.** One critical advisory's GitHub-CNA CVE took 85 days to publish; 134 days after publication (2026-10-28) the advisory was still in no package database, because it has no ecosystem ([F-066](#f-066)).
 19. **Names, more than ranges, decide whether the feed matches.** OSV-Scanner's local matching compares names exactly. 359 names were unmatchable until cleaned; 406 are still malformed and flagged. 95.8% of ranges convert, and a range is left open only when the advisory says there's no fix. An entry with no usable range never matches, so it can miss but never false-alarm ([F-069](#f-069)).
 20. **Running it cheaply.** A stable PAT plus conditional requests make an unchanged repo free to re-poll ([F-058](#f-058), [F-071](#f-071)). The scheduled run fires about 6 h 50 min late, consistently ([F-065](#f-065), [F-067](#f-067)). The tracker needs canonical repo identities and checkpoints ([F-060](#f-060)) and works on `GITHUB_TOKEN` alone, only slowly ([F-062](#f-062)).
+21. **Phase 3 ended without outreach (2026-11-05).** The released OSV-Scanner can already scan against the feed ([F-074](#f-074)); letting it download the feed itself needs one configurable value that SCALIBR already has ([F-073](#f-073), [F-076](#f-076)). blindspot and RogoLabs both lack what we'd offer ([F-072](#f-072), [F-075](#f-075)). Nothing was posted: the feed, a data-quality page (1,294 advisories with a field scanners can't use) and a repo list are published for anyone who looks, and the drafts are in `docs/outreach/` ([F-077](#f-077)).
 
 ## Open questions
 
@@ -856,6 +857,20 @@ Answered:
   - Fixing the zip writer (entries now deflated; they had been stored uncompressed) shrank `feed/all.zip` from 34.9 MB to 18.4 MB. The scanner bundle is 7.5 MB; the per-ecosystem zips total 14 MB.
 - **Caveats:** A local patch and a local server, not a released feature. With one host, the feed replaces OSV's data, so a real feature needs either a second host or merging (F-073).
 - **Implication:** The upstream change can be one configurable value and works with the feed as published. The request can include this patch and the two-run log as a reproducible demo.
+
+### F-077
+- **Date:** 2026-11-05 · **Status:** confirmed (count over the tracker state)
+- **Question:** How many advisories in limbo have a field scanners can't use, where are they, and what does a repo list for other trackers hold?
+- **Method:** `limbowatch.publish.quality.problems` over the `tracker-data` state at fbcca97 (run of 2026-11-04): every package in an OSV ecosystem of every advisory in limbo. A name is a problem when `package_name` cleans it (exact fix) or finds it invalid; a range when `osv_ranges` returns None, classified by `range_problem`. `repos_with_advisories`: watched repos with `advisory_count > 0` and last poll 200 or 304.
+- **Result:**
+  - **1,467 problem fields in 1,294 advisories across 424 repos**, all pending review (none likely permanent).
+  - Names: 924, of which 334 have an exact fix (case, spaces, a URL around the name) and 590 don't fit the ecosystem's rules (Maven 196, Packagist 177, Go 68, npm 50, SwiftURL 36, GitHub Actions 34, PyPI 19, others 10).
+  - Ranges: 543. Not a range at all (`tbd`, `n/a`, prose, commit references) 246; several upper bounds in one range 100; exact versions mixed with bounds 45; `A .. B` 42; no upper bound with several fixed versions 39; `>` 35; no upper bound with a fix that doesn't close it 20; a fixed field that isn't a version 16.
+  - **Concentrated:** labredescefetrj/wegia 114 advisories (113 name the package `WeGIA`, with no vendor), dataease/dataease 93, churchcrm/crm 53, siyuan-note/siyuan 37, hickory-dns/hickory-dns 30. One edit pattern per repo would fix most.
+  - Grouped by repo and identical problem, the page has 754 rows.
+  - **Repo list:** 5,541 of 18,661 watched repos have published advisories.
+- **Caveats:** F-069 counted feed entries in the 2026-10-30 state (359 cleaned, 406 invalid); this counts problem fields in advisories in limbo four days later, so the numbers differ. Suggested fixes other than exact name fixes are advice, not certainties; per-release-line suggestions assume each line starts at `X.Y.0`.
+- **Implication:** Published at limbo.watch/quality/ (linked from each affected advisory page and the feed page) and limbo.watch/feed/repos.txt, without contacting anyone (Phase 3 closed without outreach, docs/outreach/). A handful of repos account for a large share, so if outreach happens later, a few notes would cover hundreds of advisories.
 
 ## Archive
 

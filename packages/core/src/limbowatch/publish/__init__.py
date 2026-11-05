@@ -170,3 +170,22 @@ def metrics(store: Store, now: datetime | None = None) -> dict[str, Any]:
 
 def dumps(obj: Any) -> str:
     return json.dumps(obj, indent=1, sort_keys=True, default=str) + "\n"
+
+
+def repos_with_advisories(store: Store, generated_at: str) -> str:
+    """Watched repos with at least one published repository advisory, one `owner/repo` per line.
+
+    Repo names only: no advisory or CVE IDs. Other trackers that poll repos one by one can use it to
+    find repos they don't watch yet (FINDINGS F-075).
+    """
+    with store.session() as s:
+        repos = list(s.execute(select(Repo)).scalars())
+    names = sorted({r.full_name.lower() for r in repos if r.advisory_count and r.poll_status in (200, 304)})
+    head = (
+        "# Repositories with at least one published GitHub repository security advisory, one owner/repo per line.\n"
+        f"# From the limbo.watch tracker's watchlist of {len(repos):,} repositories; {len(names):,} listed.\n"
+        f"# Generated {generated_at}, refreshed daily. Repos the tracker doesn't watch are missing.\n"
+        "# Names as polled, lower case; a renamed repo may appear under its old name.\n"
+        "# Facts only, no advisory or CVE IDs. CC BY 4.0, Limbowatch (https://limbo.watch).\n"
+    )
+    return head + "".join(f"{n}\n" for n in names)

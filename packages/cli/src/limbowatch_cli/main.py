@@ -16,7 +16,7 @@ from typing import Annotated
 
 import typer
 from limbowatch.http import HttpClient
-from limbowatch.publish import all_events, dumps, items, metrics
+from limbowatch.publish import all_events, dumps, items, metrics, repos_with_advisories
 from limbowatch.publish import feed as feed_mod
 from limbowatch.publish import report as report_mod
 from limbowatch.publish import site as site_mod
@@ -131,6 +131,7 @@ def publish(
     (out / "osv" / "ecosystems.txt").write_text("".join(f"{e}\n" for e in zips))
     (out / "osv" / "crc32c.map").write_text("".join(hashes))
     (out / "osv" / "limbo-db.zip").write_bytes(feed_mod.bundle(zips))
+    (out / "feed" / "repos.txt").write_text(repos_with_advisories(store, modified))
     (out / "metrics.json").write_text(dumps(m))
     for r in records:
         (out / "feed" / f"{r['id']}.json").write_text(dumps(r))
