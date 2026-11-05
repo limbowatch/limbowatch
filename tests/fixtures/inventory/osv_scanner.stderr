@@ -1,0 +1,14 @@
+Scanning dir /ROOT
+Starting filesystem walk for root: /
+Scanned /ROOT/py/requirements.txt file and found 3 packages
+Scanned /ROOT/go/go.mod file and found 3 packages
+Scanned /ROOT/cargo/Cargo.lock file and found 3 packages
+Scanned /ROOT/npm/package-lock.json file and found 4 packages
+End status: 6 dirs visited, 11 inodes visited, 5 Extract calls, 669.625µs elapsed, 669µs wall time
+Skipping https://github.com/owner/gitdep: short commit hash "abc123" cannot be queried; OSV API requires a full 40-character SHA.
+Filtered 3 local/unscannable package/s from the scan.
+Loaded npm local db from /var/folders/ng/f6k2b2nj0k92xndsgmh6bqrh0000gn/T/tmp.tzQaTtprGu/osv-scalibr/npm/all.zip
+Loaded PyPI local db from /var/folders/ng/f6k2b2nj0k92xndsgmh6bqrh0000gn/T/tmp.tzQaTtprGu/osv-scalibr/PyPI/all.zip
+Loaded crates.io local db from /var/folders/ng/f6k2b2nj0k92xndsgmh6bqrh0000gn/T/tmp.tzQaTtprGu/osv-scalibr/crates.io/all.zip
+Loaded Go local db from /var/folders/ng/f6k2b2nj0k92xndsgmh6bqrh0000gn/T/tmp.tzQaTtprGu/osv-scalibr/Go/all.zip
+Error during extraction: (extracting as javascript/packagelockjson) ROOT/bad/package-lock.json: could not extract: invalid character 't' looking for beginning of object key string

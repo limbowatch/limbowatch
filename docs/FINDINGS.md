@@ -914,6 +914,17 @@ Answered:
 - **Caveats:** One version, one run. Forgejo is a Gitea fork but its API may have diverged.
 - **Implication:** Resolve label names to IDs once per repo. Find existing issues by listing the `limbowatch` label and reading the marker, not by search. Because Gitea can't hide an issue, the watcher should warn before opening issues in a public Gitea/Forgejo repo and offer a setting to skip them there.
 
+### F-081
+- **Date:** 2026-11-05 · **Status:** confirmed (observed; two real projects)
+- **Question:** Does the watcher's inventory (OSV-Scanner offline plus the F-078 checks) hold up on real projects?
+- **Method:** `limbowatch inventory` (OSV-Scanner 2.7.0) on shallow clones of go-gitea/gitea at 3b9b8a8 and open-webui/open-webui at c38885a, 2026-11-05.
+- **Result:**
+  - Gitea: **1,193 dependencies** from `go.mod`, `pnpm-lock.yaml` and `uv.lock` (npm 957, Go 222, PyPI 14), none unchecked, every one located to a line.
+  - Open WebUI: **1,992 dependencies** from `package-lock.json`, `uv.lock`, two `requirements*.txt` and a `Cargo.lock` (npm 1,266, PyPI 528, crates.io 198); 1 not located (line 1). Unchecked: the project's own package in `uv.lock` (`source = { editable = "." }`, reported by OSV-Scanner with an empty version) and a local crate. Both are now reported as local packages, after adding a `uv.lock` source check.
+  - The unit tests found one more silent error, in the check itself: a hashed `pip-compile` requirement (`numpy==1.26.4 \` then `--hash=…`) read as a range, because the `--hash` option stayed in the specifier. Fixed.
+- **Caveats:** Two projects, both well maintained and fully locked. Projects with loose `requirements.txt` files will show many range-only entries, by design.
+- **Implication:** The inventory is ready for matching. On real lockfiles nearly every dependency is checkable; the unchecked list is short and specific.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

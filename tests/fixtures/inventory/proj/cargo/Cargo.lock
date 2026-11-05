@@ -1,0 +1,15 @@
+version = 3
+
+[[package]]
+name = "serde"
+version = "1.0.200"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "mylocal"
+version = "0.1.0"
+
+[[package]]
+name = "gitcrate"
+version = "0.2.0"
+source = "git+https://github.com/owner/gitcrate#deadbeef"

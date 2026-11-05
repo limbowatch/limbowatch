@@ -100,3 +100,49 @@ class Assessment(Frozen):
     cve_label: CveLabel
     likely_permanent: bool
     ecosystems: tuple[str, ...] = Field(default_factory=tuple)
+
+
+# --- the watcher's inventory (Phase 4) ---------------------------------------------------------
+
+
+class Unchecked(StrEnum):
+    """Why a dependency can't be checked. Every one is reported, never dropped (SPEC; FINDINGS F-078)."""
+
+    NO_VERSION = "no resolved version"
+    RANGE_ONLY = "only a version range is given"
+    LOCAL = "local package"
+    VCS = "installed from a Git repository or URL"
+    PATH = "installed from a local path"
+    UNKNOWN_ECOSYSTEM = "ecosystem not supported"
+    LOCKFILE_UNREADABLE = "lockfile couldn't be read"
+    NO_LOCKFILES = "no supported lockfile or manifest found"
+    NO_PURL = "SBOM component without a package URL"
+
+
+class Dependency(Frozen):
+    """One package at one version, as installed, with where it was declared."""
+
+    ecosystem: str  # GHSA ecosystem key (npm, pip, go, ...)
+    name: str
+    version: str
+    source: str  # lockfile, manifest or SBOM path, relative to the project root
+    line: int = 1  # where to point an alert; 1 when the package can't be located in the file
+    purl: str | None = None
+    note: str | None = None  # e.g. why a package OSV-Scanner skipped is checked anyway
+
+
+class UnresolvedDependency(Frozen):
+    reason: Unchecked
+    source: str
+    name: str = ""  # empty when a whole file couldn't be read
+    version: str = ""
+    ecosystem: str = ""
+    detail: str = ""
+    line: int = 1
+
+
+class Inventory(Frozen):
+    dependencies: tuple[Dependency, ...] = ()
+    unresolved: tuple[UnresolvedDependency, ...] = ()
+    sources: tuple[str, ...] = ()  # files read
+    tool: str = ""  # e.g. "osv-scanner 2.7.0" or "cyclonedx"

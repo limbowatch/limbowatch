@@ -15,23 +15,12 @@ from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 
-from limbowatch.ecosystems import info, package_name
+from limbowatch.ecosystems import OSV_ECOSYSTEMS, info, package_name
 from limbowatch.models import Status
 from limbowatch.publish import ATTRIBUTION, Item
 from limbowatch.versions import osv_ranges
 
 SCHEMA_VERSION = "1.6.0"
-
-# OSV's ecosystem list (https://osv-vulnerabilities.storage.googleapis.com/ecosystems.txt, 2026-10-31).
-# OSV-Scanner's offline mode fails the whole scan when an ecosystem it needs has no zip, so each gets one,
-# empty if the feed has nothing for it (FINDINGS F-074).
-OSV_ECOSYSTEMS = (
-    "AlmaLinux", "Alpaquita", "Alpine", "Android", "Azure Linux", "BellSoft Hardened Containers", "Bitnami", "CRAN",
-    "Chainguard", "CleanStart", "Debian", "Echo", "GHC", "GIT", "GSD", "GitHub Actions", "Go", "Hackage", "Hex",
-    "Julia", "Linux", "Mageia", "Maven", "MinimOS", "NuGet", "OSS-Fuzz", "Packagist", "Pub", "PyPI", "Red Hat",
-    "Red Hat Lightwell", "Rocky Linux", "Root", "RubyGems", "SUSE", "SwiftURL", "TuxCare", "UVI", "Ubuntu", "VSCode",
-    "Wolfi", "crates.io", "npm", "opam", "openEuler", "openSUSE",
-)  # fmt: skip
 
 
 def _iso(d: datetime | None) -> str | None:

@@ -1,0 +1,5 @@
+requests==2.31.0
+flask>=2
+git+https://github.com/owner/pkg.git@v1.0#egg=pkg
+-e ./localpkg
+numpy

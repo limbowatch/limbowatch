@@ -57,6 +57,31 @@ def reviewable(ghsa_ecosystem: str | None) -> bool:
     return info(ghsa_ecosystem).reviewable
 
 
+_BY_OSV = {e.osv: e for e in _REGISTRY.values() if e.osv}
+_BY_PURL = {e.purl_type: e for e in _REGISTRY.values() if e.purl_type}
+
+
+def by_osv(osv_ecosystem: str) -> EcosystemInfo | None:
+    """Registry entry for an OSV ecosystem name such as "PyPI" or "crates.io" (or "Debian:12")."""
+    return _BY_OSV.get(osv_ecosystem.split(":", 1)[0])
+
+
+def by_purl_type(purl_type: str) -> EcosystemInfo | None:
+    return _BY_PURL.get(purl_type.lower())
+
+
+# OSV's ecosystem list (https://osv-vulnerabilities.storage.googleapis.com/ecosystems.txt, 2026-10-31).
+# OSV-Scanner's offline mode fails the whole scan when an ecosystem it needs has no zip, so the feed
+# serves one for each, and the watcher's inventory step uses an empty one for each (F-074, F-078).
+OSV_ECOSYSTEMS = (
+    "AlmaLinux", "Alpaquita", "Alpine", "Android", "Azure Linux", "BellSoft Hardened Containers", "Bitnami", "CRAN",
+    "Chainguard", "CleanStart", "Debian", "Echo", "GHC", "GIT", "GSD", "GitHub Actions", "Go", "Hackage", "Hex",
+    "Julia", "Linux", "Mageia", "Maven", "MinimOS", "NuGet", "OSS-Fuzz", "Packagist", "Pub", "PyPI", "Red Hat",
+    "Red Hat Lightwell", "Rocky Linux", "Root", "RubyGems", "SUSE", "SwiftURL", "TuxCare", "UVI", "Ubuntu", "VSCode",
+    "Wolfi", "crates.io", "npm", "opam", "openEuler", "openSUSE",
+)  # fmt: skip
+
+
 @dataclass(frozen=True)
 class PackageName:
     name: str  # the name to publish and match on

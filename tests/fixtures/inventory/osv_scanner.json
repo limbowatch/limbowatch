@@ -1,0 +1,139 @@
+{
+  "results": [
+    {
+      "source": {
+        "path": "/ROOT/cargo/Cargo.lock",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "gitcrate",
+            "version": "0.2.0",
+            "ecosystem": "crates.io",
+            "purl": "pkg:cargo/gitcrate@0.2.0"
+          }
+        },
+        {
+          "package": {
+            "name": "mylocal",
+            "version": "0.1.0",
+            "ecosystem": "crates.io",
+            "purl": "pkg:cargo/mylocal@0.1.0"
+          }
+        },
+        {
+          "package": {
+            "name": "serde",
+            "version": "1.0.200",
+            "ecosystem": "crates.io",
+            "purl": "pkg:cargo/serde@1.0.200"
+          }
+        }
+      ]
+    },
+    {
+      "source": {
+        "path": "/ROOT/go/go.mod",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "github.com/gin-gonic/gin",
+            "version": "1.9.1",
+            "ecosystem": "Go",
+            "purl": "pkg:golang/github.com/gin-gonic/gin@1.9.1"
+          }
+        },
+        {
+          "package": {
+            "name": "../local",
+            "version": "",
+            "ecosystem": "Go",
+            "purl": "pkg:golang/../local"
+          }
+        }
+      ]
+    },
+    {
+      "source": {
+        "path": "/ROOT/npm/package-lock.json",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "@vendure/core",
+            "version": "3.0.0",
+            "ecosystem": "npm",
+            "purl": "pkg:npm/%40vendure/core@3.0.0?source=PUBLIC_REGISTRY"
+          }
+        },
+        {
+          "package": {
+            "name": "local-thing",
+            "version": "0.1.0",
+            "ecosystem": "npm",
+            "purl": "pkg:npm/local-thing@0.1.0?source=LOCAL"
+          }
+        },
+        {
+          "package": {
+            "name": "no-resolved",
+            "version": "1.0.0",
+            "ecosystem": "npm",
+            "purl": "pkg:npm/no-resolved@1.0.0?source=LOCAL"
+          }
+        },
+        {
+          "package": {
+            "name": "https://github.com/owner/gitdep",
+            "version": "2.0.0",
+            "ecosystem": "GIT",
+            "purl": "pkg:git/gitdep@2.0.0",
+            "commit": "abc123"
+          }
+        }
+      ]
+    },
+    {
+      "source": {
+        "path": "/ROOT/py/requirements.txt",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "flask",
+            "version": "2",
+            "ecosystem": "PyPI",
+            "purl": "pkg:pypi/flask@2"
+          }
+        },
+        {
+          "package": {
+            "name": "requests",
+            "version": "2.31.0",
+            "ecosystem": "PyPI",
+            "purl": "pkg:pypi/requests@2.31.0"
+          }
+        },
+        {
+          "package": {
+            "name": "numpy",
+            "version": "",
+            "ecosystem": "PyPI",
+            "purl": "pkg:pypi/numpy"
+          }
+        }
+      ]
+    }
+  ],
+  "experimental_config": {
+    "licenses": {
+      "summary": false,
+      "allowlist": null
+    }
+  }
+}

@@ -1,4 +1,5 @@
-"""`limbowatch track` runs the live tracker; `limbowatch publish` writes the feed, metrics and site."""
+"""`limbowatch track` runs the live tracker; `limbowatch publish` writes the feed, metrics and site;
+`limbowatch inventory` lists what a project depends on and what can't be checked."""
 
 from __future__ import annotations
 
@@ -16,6 +17,8 @@ from typing import Annotated
 
 import typer
 from limbowatch.http import HttpClient
+from limbowatch.inventory import osv_scanner, sbom
+from limbowatch.models import Inventory, Unchecked
 from limbowatch.publish import all_events, dumps, items, metrics, repos_with_advisories
 from limbowatch.publish import feed as feed_mod
 from limbowatch.publish import report as report_mod
@@ -166,6 +169,55 @@ def report(
     report_mod.commit(store, rep)
     store.export_jsonl(state)
     typer.echo(str(out / f"{rep.date}.md"))
+
+
+def load_inventory(path: Path, sbom_file: Path | None, binary: str) -> Inventory:
+    """A project's dependencies, from an SBOM or by running OSV-Scanner offline over its tree."""
+    if sbom_file is not None:
+        return sbom.parse(sbom_file.read_text(errors="replace"), sbom_file.name)
+    if shutil.which(binary) is None:
+        raise typer.BadParameter(
+            f"{binary} not found. Install OSV-Scanner {osv_scanner.TESTED_VERSION} "
+            "(https://google.github.io/osv-scanner/installation/), or pass --sbom.",
+            param_hint="--osv-scanner",
+        )
+    found = osv_scanner.version(binary)
+    if found != osv_scanner.TESTED_VERSION:
+        typer.echo(f"warning: tested with osv-scanner {osv_scanner.TESTED_VERSION}, found {found}", err=True)
+    try:
+        return osv_scanner.run(path, binary)
+    except osv_scanner.InventoryError as e:
+        raise typer.Exit(_fail(str(e))) from e
+
+
+def _fail(msg: str) -> int:
+    typer.echo(f"error: {msg}", err=True)
+    return 2
+
+
+@app.command()
+def inventory(
+    path: Annotated[Path, typer.Argument(help="Project directory.")] = Path("."),
+    sbom_file: Annotated[Path | None, typer.Option("--sbom", help="CycloneDX or SPDX JSON instead of a tree.")] = None,
+    binary: Annotated[str, typer.Option("--osv-scanner", help="OSV-Scanner executable.")] = "osv-scanner",
+    fmt: Annotated[str, typer.Option("--format", help="table or json.")] = "table",
+) -> None:
+    """List the dependencies Limbowatch would check, and every one it can't, with the reason."""
+    inv = load_inventory(path, sbom_file, binary)
+    if fmt == "json":
+        typer.echo(inv.model_dump_json(indent=1))
+        return
+    typer.echo(f"{len(inv.dependencies):,} dependencies from {len(inv.sources):,} files ({inv.tool})")
+    for d in inv.dependencies:
+        note = f"  ({d.note})" if d.note else ""
+        typer.echo(f"  {d.ecosystem:<9} {d.name} {d.version}  {d.source}:{d.line}{note}")
+    if inv.unresolved:
+        typer.echo(f"\n{len(inv.unresolved):,} can't be checked:")
+        for u in inv.unresolved:
+            whole = u.reason in (Unchecked.LOCKFILE_UNREADABLE, Unchecked.NO_LOCKFILES)
+            what = f"{u.name} {u.version}".strip() or ("(whole file)" if whole else "(no package name)")
+            detail = f": {u.detail}" if u.detail else ""
+            typer.echo(f"  {u.source}:{u.line}  {what}  {u.reason.value}{detail}")
 
 
 if __name__ == "__main__":
