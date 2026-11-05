@@ -952,6 +952,17 @@ Answered:
 - **Caveats:** Gitea only; GitLab is covered by recorded-response tests, not a live instance. The "now visible to scanners" path needs an advisory that reaches OSV during the test, so it is covered by unit tests only.
 - **Implication:** The lifecycle the SPEC asks for works end to end on Gitea, idempotently, without a public post.
 
+### F-084
+- **Date:** 2026-11-05 · **Status:** confirmed (observed; one run per integration, in a container)
+- **Question:** Do the GitLab CI/CD component's job and the Actions composite action work as written?
+- **Method:** `scripts/check_integrations.py`: each job's shell taken from `integrations/gitlab/templates/limbowatch.yml` and `integrations/action/action.yml` with the inputs filled in as GitLab and Actions would, run in `python:3.12-slim` against a Go module pinned to `andybalholm/brotli` v1.2.1. Limbowatch installed from `git archive HEAD` (a local file standing in for GitHub's archive URL; the repo is private). OSV-Scanner 2.7.0 downloaded from Google's release and checked against `osv-scanner_SHA256SUMS`.
+- **Result:**
+  - GitLab job: exits 1 with `fail_on: low`, writes `gl-code-quality-report.json` (with GHSA-c9gr-gmg4-2vqv) and `limbowatch.md`; exits 0 with `fail_on: none`. No issues are attempted on a feature branch.
+  - Action: exits 1, writes the SARIF file and appends the Markdown report to the job summary.
+  - `python:3.12-slim` has no git, so `pip install git+…` would fail there; both install from the source archive URL instead. The PyPI name `limbowatch` is unregistered (404), so neither installs it by name.
+- **Caveats:** The jobs ran in a plain container, not on GitLab or an Actions runner; runner-specific behaviour (the CI/CD Catalog, `$GITHUB_PATH` handling) is assumed from docs (F-079). Installing from the GitHub archive needs the repo to be public.
+- **Implication:** Both integrations work end to end. Releasing them needs a public source (the repo or a release archive), a GitLab project for the component, and ideally the PyPI name reserved.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

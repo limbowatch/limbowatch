@@ -1,0 +1,95 @@
+spec:
+  description: >-
+    Check dependencies against security advisories in limbo: published by maintainers on GitHub, not yet
+    in the databases scanners read. Code Quality report on every pipeline; optional issues from the
+    default branch.
+  inputs:
+    stage:
+      default: test
+    path:
+      default: "."
+      description: Project directory to scan.
+    fail_on:
+      default: low
+      options: [critical, high, medium, low, none]
+      description: Fail the job for findings at or above this severity.
+    fail_on_unknown:
+      default: true
+      type: boolean
+      description: Also fail for findings with no severity.
+    issues:
+      default: false
+      type: boolean
+      description: >-
+        Open and update confidential issues in this project from the default branch and scheduled
+        pipelines. Needs a LIMBOWATCH_ISSUES_TOKEN CI/CD variable (a project access token with api scope).
+    issues_min_severity:
+      default: low
+      options: [critical, high, medium, low]
+    extra_args:
+      default: ""
+      description: More `limbowatch scan` options, e.g. `--ignore GHSA-xxxx-xxxx-xxxx`.
+    image:
+      default: python:3.12-slim
+    osv_scanner_version:
+      default: 2.7.0
+    limbowatch_source:
+      default: https://github.com/limbowatch/limbowatch/archive
+      description: Where `<ref>.tar.gz` source archives are served (no git needed in the image).
+    limbowatch_ref:
+      default: main
+      description: Pin to a release tag.
+---
+limbowatch:
+  stage: $[[ inputs.stage ]]
+  image: $[[ inputs.image ]]
+  variables:
+    LW_OSV_VERSION: $[[ inputs.osv_scanner_version ]]
+    LW_SOURCE: $[[ inputs.limbowatch_source ]]
+    LW_REF: $[[ inputs.limbowatch_ref ]]
+    LW_PATH: $[[ inputs.path ]]
+    LW_FAIL_ON: $[[ inputs.fail_on ]]
+    LW_FAIL_ON_UNKNOWN: $[[ inputs.fail_on_unknown ]]
+    LW_ISSUES: $[[ inputs.issues ]]
+    LW_ISSUES_MIN: $[[ inputs.issues_min_severity ]]
+    LW_EXTRA: $[[ inputs.extra_args ]]
+    PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  cache:
+    key: limbowatch
+    paths: [.limbowatch-cache/]
+  script:
+    - |
+      set -eu
+      # OSV-Scanner reads the lockfiles (offline: nothing about the project leaves the job). Checksum-verified.
+      case "$(uname -m)" in x86_64) arch=amd64 ;; aarch64|arm64) arch=arm64 ;; *) echo "unsupported $(uname -m)"; exit 2 ;; esac
+      python3 - "$LW_OSV_VERSION" "$arch" <<'PY'
+      import hashlib, sys, urllib.request
+      ver, arch = sys.argv[1], sys.argv[2]
+      base = f"https://github.com/google/osv-scanner/releases/download/v{ver}/"
+      name = f"osv-scanner_linux_{arch}"
+      sums = urllib.request.urlopen(base + "osv-scanner_SHA256SUMS", timeout=60).read().decode()
+      want = next(line.split()[0] for line in sums.splitlines() if line.endswith(" " + name))
+      data = urllib.request.urlopen(base + name, timeout=300).read()
+      if hashlib.sha256(data).hexdigest() != want:
+          sys.exit(f"checksum mismatch for {name}")
+      open("/usr/local/bin/osv-scanner", "wb").write(data)
+      PY
+      chmod +x /usr/local/bin/osv-scanner
+      src="${LW_SOURCE}/${LW_REF}.tar.gz"  # both packages from the same pinned source, never from PyPI by name
+      pip install --quiet "limbowatch @ ${src}#subdirectory=packages/core" "limbowatch-cli @ ${src}#subdirectory=packages/cli"
+      set -- --cache .limbowatch-cache --state .limbowatch-cache/state.json \
+             --output codequality=gl-code-quality-report.json --output markdown=limbowatch.md \
+             --output json=limbowatch.json --fail-on "$LW_FAIL_ON"
+      [ "$LW_FAIL_ON_UNKNOWN" = "true" ] || set -- "$@" --no-fail-on-unknown
+      # Issues only from the default branch or a schedule, never from merge request pipelines.
+      if [ "$LW_ISSUES" = "true" ] && { [ "${CI_COMMIT_BRANCH:-}" = "${CI_DEFAULT_BRANCH:-}" ] || [ "${CI_PIPELINE_SOURCE:-}" = "schedule" ]; }; then
+        set -- "$@" --issues gitlab --issues-min-severity "$LW_ISSUES_MIN"
+      fi
+      # shellcheck disable=SC2086 # LW_EXTRA is a list of options
+      limbowatch scan "$LW_PATH" "$@" $LW_EXTRA
+  artifacts:
+    when: always
+    reports:
+      codequality: gl-code-quality-report.json
+    paths: [limbowatch.md, limbowatch.json, gl-code-quality-report.json]
+    expire_in: 30 days
