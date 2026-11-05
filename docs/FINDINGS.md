@@ -939,6 +939,19 @@ Answered:
 - **Caveats:** Two projects. Feed ranges are as fresh as the tracker's last poll of the repo (up to about 10 days for quiet repos).
 - **Implication:** Matching works on real projects with verified results, and it needs almost no GitHub requests because the tracker already covers nearly every upstream. Both projects ship versions affected by advisories that OSV-based scanners don't report.
 
+### F-083
+- **Date:** 2026-11-05 · **Status:** confirmed (observed; one end-to-end run)
+- **Question:** Does the watcher's issue lifecycle work against a real tracker?
+- **Method:** `scripts/e2e_gitea.py`: `gitea/gitea:28.3.0` in Docker on 127.0.0.1, a generated admin and token, one private and one public repo. A Go module pinned to `github.com/andybalholm/brotli` v1.2.1 (GHSA-c9gr-gmg4-2vqv, in limbo, F-082), scanned with `limbowatch scan --issues gitea --state …` against the live feed, five times: as is, unchanged, upgraded to v1.2.7, downgraded to v1.2.1, and against the public repo.
+- **Result:** All five checks passed:
+  1. One issue opened, `[limbo] GHSA-c9gr-gmg4-2vqv: go github.com/andybalholm/brotli 1.2.1 (low)`, labelled and carrying the finding marker.
+  2. A second run changed nothing (no new issue, no comment).
+  3. After the upgrade, the issue got one comment and was closed (the recorded range `< 1.2.7` excludes 1.2.7; the advisory isn't in OSV).
+  4. After the downgrade, the same issue was reopened.
+  5. The public repo got no issue, and the run said why.
+- **Caveats:** Gitea only; GitLab is covered by recorded-response tests, not a live instance. The "now visible to scanners" path needs an advisory that reaches OSV during the test, so it is covered by unit tests only.
+- **Implication:** The lifecycle the SPEC asks for works end to end on Gitea, idempotently, without a public post.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

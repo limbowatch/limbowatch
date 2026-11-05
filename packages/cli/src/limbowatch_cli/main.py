@@ -13,9 +13,10 @@ import tempfile
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
+from limbowatch.ecosystems import info
 from limbowatch.http import HttpClient
 from limbowatch.inventory import osv_scanner, sbom
 from limbowatch.models import Inventory, Unchecked
@@ -26,7 +27,9 @@ from limbowatch.publish import site as site_mod
 from limbowatch.sources import osv as osv_source
 from limbowatch.store import Store
 from limbowatch.tracker import Tracker, TrackerConfig, import_cve_list
-from limbowatch.watch import output
+from limbowatch.versions import norm_name
+from limbowatch.watch import issues as watch_issues
+from limbowatch.watch import output, trackers
 from limbowatch.watch import scan as watch_scan
 from limbowatch.watch import state as watch_state
 
@@ -242,6 +245,15 @@ def scan(
     cache: Annotated[Path | None, typer.Option(help="Where the feed is cached [default: ~/.cache/limbowatch].")] = None,
     binary: Annotated[str, typer.Option("--osv-scanner", help="OSV-Scanner executable.")] = "osv-scanner",
     verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Show the evidence for every finding.")] = False,
+    issues: Annotated[str | None, typer.Option(help="Open and update issues: gitlab or gitea (also Forgejo).")] = None,
+    issues_url: Annotated[str | None, typer.Option(help="Tracker base URL [default: $CI_SERVER_URL].")] = None,
+    issues_project: Annotated[
+        str | None, typer.Option(help="GitLab project or Gitea owner/repo [default: $CI_PROJECT_PATH].")
+    ] = None,
+    issues_min_severity: Annotated[str, typer.Option(help="Open issues at or above this severity.")] = "low",
+    issues_public: Annotated[bool, typer.Option(help="Allow issues anyone can read (public Gitea repos).")] = False,
+    issues_confidential: Annotated[bool, typer.Option(help="GitLab: open confidential issues.")] = True,
+    issues_dry_run: Annotated[bool, typer.Option(help="Print the issue changes instead of making them.")] = False,
 ) -> None:
     """Check a project's dependencies against advisories in limbo. Exit 1 when --fail-on is met, 2 on errors."""
     if fmt not in output.FORMATS or fail_on not in (*output.SEVERITIES, "none"):
@@ -260,32 +272,110 @@ def scan(
     old = json.loads(state_file.read_text()) if state_file and state_file.exists() else None
     now = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
-    async def run() -> tuple[watch_scan.ScanResult, str | None, set[str]]:
+    tracker_token = os.environ.get("LIMBOWATCH_ISSUES_TOKEN")
+    if issues is not None and issues not in ("gitlab", "gitea"):
+        raise typer.BadParameter("--issues wants gitlab or gitea")
+    if issues and not tracker_token and not issues_dry_run:
+        raise typer.BadParameter("set LIMBOWATCH_ISSUES_TOKEN to a token that can write issues", param_hint="--issues")
+    changes: list[watch_state.Change] | None = None
+    log_lines: list[str] = []
+
+    async def run() -> tuple[watch_scan.ScanResult, str | None]:
+        nonlocal changes
         async with HttpClient(_token()) as http:
             feed = await watch_scan.fetch(http, watch_scan.FEED_URL, cache)
             wl_doc = json.loads(await watch_scan.fetch(http, watch_scan.WATCHLIST_URL, cache))
             res = await watch_scan.scan(inv, http, feed_zip=feed, watchlist=dict(wl_doc.get("repos") or {}),
                                         now=datetime.now(UTC), upstream_check=upstream)  # fmt: skip
-            gone = watch_state.vanished(old, res.findings)
-            seen = await asyncio.gather(*(osv_source.present(http, g) for g in sorted(gone)))
-            return res, wl_doc.get("generated_at"), {g for g, v in zip(sorted(gone), seen, strict=True) if v}
+            gone = sorted(watch_state.vanished(old, res.findings))
+            seen = await asyncio.gather(*(osv_source.present(http, g) for g in gone))
+            visible = {g for g, v in zip(gone, seen, strict=True) if v}
+            if state_file is not None:
+                new_state, changes = watch_state.diff(old, res.findings, now, visible)
+                state_file.parent.mkdir(parents=True, exist_ok=True)
+                state_file.write_text(json.dumps(new_state, indent=1, sort_keys=True) + "\n")
+            if issues:
+                log_lines.extend(await _sync_issues(http, res, inv, changes or [], issues, tracker_token or "",
+                                                    issues_url, issues_project, issue_policy, issues_confidential,
+                                                    issues_dry_run))  # fmt: skip
+            return res, wl_doc.get("generated_at")
 
+    issue_policy = watch_issues.Policy(issues_min_severity, issues_public)
     try:
-        res, feed_at, visible = asyncio.run(run())
+        res, feed_at = asyncio.run(run())
     except (RuntimeError, OSError) as e:
         raise typer.Exit(_fail(str(e))) from e
-    changes = None
-    if state_file is not None:
-        new_state, changes = watch_state.diff(old, res.findings, now, visible)
-        state_file.parent.mkdir(parents=True, exist_ok=True)
-        state_file.write_text(json.dumps(new_state, indent=1, sort_keys=True) + "\n")
     rep = output.Report(res.findings, res.unresolved, res.stats, inv.tool, feed_at, changes, accepted)
+
     typer.echo(output.table(rep, verbose) if fmt == "table" else output.FORMATS[fmt](rep), nl=False)
     for name, dest in targets:
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(output.FORMATS[name](rep))
+    for line in log_lines:
+        typer.echo(line, err=True)
     if output.gate(rep, fail_on, fail_on_unknown):
         raise typer.Exit(1)
+
+
+async def _sync_issues(
+    http: HttpClient,
+    res: watch_scan.ScanResult,
+    inv: Inventory,
+    changes: list[watch_state.Change],
+    kind: str,
+    token: str,
+    url: str | None,
+    project: str | None,
+    policy: watch_issues.Policy,
+    confidential: bool,
+    dry_run: bool,
+) -> list[str]:
+    """Open, comment on and close issues for this scan's findings (watch.issues)."""
+    url = url or os.environ.get("CI_SERVER_URL") or os.environ.get("GITHUB_SERVER_URL")
+    project = project or os.environ.get("CI_PROJECT_PATH") or os.environ.get("GITHUB_REPOSITORY")
+    if not url or not project:
+        raise RuntimeError("--issues needs --issues-url and --issues-project (or CI_SERVER_URL and CI_PROJECT_PATH)")
+    tracker: trackers.GitLab | trackers.Gitea = (
+        trackers.GitLab(http, project, token, url, confidential)
+        if kind == "gitlab"
+        else trackers.Gitea(http, project, token, url)
+    )
+    await tracker.prepare()
+    if tracker.public and not policy.allow_public:
+        note = f"{tracker.name} issues in {project} are public; not opening new ones (--issues-public allows it)"
+    else:
+        note = ""
+    existing = await tracker.issues()
+    current = watch_state.entries(res.findings, "")
+    one: dict[str, dict[str, Any]] = {}
+    for f in res.findings:
+        one.setdefault(f.key, f.model_dump(mode="json"))
+    installed: dict[tuple[str, str], list[str]] = {}
+    for d in inv.dependencies:
+        installed.setdefault((d.ecosystem, norm_name(d.ecosystem, d.name)), []).append(d.version)
+    gone: dict[str, watch_issues.Gone] = {}
+    for key, issue in existing.items():
+        if not issue.open or key in current:
+            continue
+        meta = issue.meta
+        eco = str(meta.get("ecosystem", ""))
+        versions = installed.get((eco, norm_name(eco, str(meta.get("package", "")))), [])
+        osv_eco = info(eco).osv
+        ids: list[set[str] | None] = []
+        if versions and osv_eco and await osv_source.present(http, str(meta.get("ghsa_id"))):
+            ids = list(await asyncio.gather(*(osv_source.affecting(http, osv_eco, str(meta["package"]), v)
+                                              for v in versions)))  # fmt: skip
+        verdict = watch_issues.still_affected(meta, versions, ids) if versions else False
+        if verdict is False:
+            gone[key] = watch_issues.Gone.FIXED
+        elif verdict is True and ids:
+            gone[key] = watch_issues.Gone.VISIBLE
+    actions = watch_issues.plan(current, one, existing, changes, gone, policy, tracker.public)
+    lines = [note] if note else []
+    if dry_run:
+        return [*lines, *(f"would {a.kind}: {a.title or ('#' + str(a.issue.number) if a.issue else a.key)}"
+                          for a in actions)]  # fmt: skip
+    return [*lines, *await watch_issues.apply(tracker, actions)]
 
 
 if __name__ == "__main__":

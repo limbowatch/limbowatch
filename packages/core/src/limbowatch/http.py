@@ -154,6 +154,45 @@ class HttpClient:
             body = r.text
         return Response(r.status_code, body, etag=r.headers.get("etag"), link=r.headers.get("link"))
 
+    async def request(
+        self,
+        method: str,
+        url: str,
+        *,
+        auth: tuple[str, str],
+        json_body: Any = None,
+        params: dict[str, Any] | None = None,
+    ) -> Response:
+        """A request to an issue tracker (GitLab, Gitea): any method, a caller-supplied auth header.
+
+        The header value is a token; it's sent only to `url`'s host and never logged.
+        """
+        self._check_deadline()
+        host = urlsplit(url).hostname or ""
+        r: httpx.Response | None = None
+        async with self._sems.get(host, self._default_sem):
+            for attempt in range(5):
+                try:
+                    r = await self._client.request(method, url, headers={auth[0]: auth[1]}, json=json_body,
+                                                   params=params)  # fmt: skip
+                except httpx.HTTPError as e:
+                    log.warning("http error", extra={"host": host, "error": type(e).__name__, "attempt": attempt})
+                    await self._sleep(min(30, 2**attempt))
+                    continue
+                if r.status_code in (429, 502, 503, 504):
+                    await self._sleep(min(60, int(r.headers.get("retry-after", 2 ** (attempt + 1)))))
+                    continue
+                break
+        self.stats.requests[host] = self.stats.requests.get(host, 0) + 1
+        if r is None:
+            self.stats.failures += 1
+            return Response(-1, None)
+        try:
+            body: Any = r.json()
+        except ValueError:
+            body = r.text
+        return Response(r.status_code, body, etag=r.headers.get("etag"), link=r.headers.get("link"))
+
     async def _send(self, url: str, headers: dict[str, str], json_body: Any, is_gh: bool) -> httpx.Response | None:
         for attempt in range(6):
             self._check_deadline()
