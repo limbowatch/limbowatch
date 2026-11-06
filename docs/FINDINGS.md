@@ -1035,6 +1035,17 @@ Answered:
 - **Caveats:** One run per host, private projects only; code scanning alerts (needs a public repo or Code Security) and CI-opened issues (needs a token the user creates) weren't exercised in CI, though issues were from a laptop on gitlab.com (F-087). The offline inventory reads `requirements.txt` entries only, so certifi and idna, which OSV-Scanner resolves online, weren't checked.
 - **Implication:** The watcher works for a realistic multi-ecosystem project in both GitLab CI and GitHub Actions, the merge request widget shows exactly the advisories a change adds, and none of these findings reach a scanner that reads OSV. Q19 is answered.
 
+### F-089
+- **Date:** 2026-11-06 · **Status:** confirmed (observed; one public repo, one PR)
+- **Question:** Does the action's SARIF become GitHub code scanning alerts and pull request annotations (the part F-088 couldn't test on a private repo)?
+- **Method:** Made `github.com/limbowatch/demo-app` (the F-088 demo, demo files only) public, reran the workflow on `main`, then opened PR #1 adding `scapy==2.7.0`. Read `GET /repos/limbowatch/demo-app/code-scanning/alerts?tool_name=limbowatch`, the PR's check runs, and the PR's files view in a browser.
+- **Result:**
+  - `upload-sarif@v4`: "Successfully uploaded results"; **16 alerts** on `main`, one per finding, at repo-root paths and lines (`web/package-lock.json:879`, `api/go.mod:8`, `worker/requirements.txt:2`, …), with `security_severity_level` high/medium/low taken from the SARIF `security-severity` scores.
+  - PR #1: check run `limbowatch` (code scanning) failed with **"51 new alerts including 4 high severity security vulnerabilities"**, matching the 51 scapy advisories and GitLab's MR widget (F-088). Each alert is annotated on the added line `scapy==2.7.0` with the advisory ID, severity, fixed version and range.
+  - The demo workflow runs twice per PR because it triggers on both `push` and `pull_request`; that's the workflow's choice, not the action's.
+- **Caveats:** One repo; alerts close only when a later analysis no longer reports them, which wasn't exercised.
+- **Implication:** On GitHub, the watcher's findings appear where reviewers look: as code scanning alerts and inline on the lockfile line a PR changes. Code scanning needs a public repo or GitHub Code Security.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
