@@ -64,7 +64,7 @@ def test_formats_carry_findings_unresolved_and_attribution() -> None:
     text = output.table(r)
     assert "2 advisories in limbo affect 2 packages" in text and "HIGH?" in text  # ? marks a possible finding
     assert "other/package-lock.json:3, package-lock.json:7" in text
-    assert "1 dependencies can't be checked; 1 were checked by name only." in text
+    assert "1 dependency can't be checked; 1 was checked by name only." in text
     assert output.ATTRIBUTION in text
     md = output.markdown(r)
     assert "| high | [GHSA-aaaa-bbbb-cccc]" in md and "high (possibly)" in md and output.ATTRIBUTION in md
@@ -106,3 +106,8 @@ def test_machine_formats_give_paths_from_the_repo_root() -> None:
     cq = json.loads(output.codequality(r))[0]["location"]["path"]
     uri = json.loads(output.sarif(r))["runs"][0]["results"][0]["locations"][0]["physicalLocation"]["artifactLocation"]
     assert cq == uri["uri"] == f"services/api/{src}"
+
+
+def test_unchecked_line_agrees_in_number() -> None:
+    assert output._unchecked_line(2, 0) == "2 dependencies can't be checked; 0 were checked by name only."
+    assert output._unchecked_line(1, 1) == "1 dependency can't be checked; 1 was checked by name only."

@@ -75,14 +75,24 @@ On a GitLab instance other than gitlab.com, mirror the component project first (
 GitHub, Gitea or Forgejo Actions, with the [composite action](../integrations/action/action.yml). The runner needs Python 3.12 or later.
 
 ```yaml
-- uses: actions/checkout@v4
-- uses: actions/setup-python@v5      # if the runner image has no Python 3.12
-  with: { python-version: "3.12" }
-- uses: limbowatch/limbowatch/integrations/action@v0.1.0   # Gitea/Forgejo: https://github.com/limbowatch/limbowatch/integrations/action@v0.1.0
-  with:
-    fail-on: high
-    sarif: limbowatch.sarif
+permissions:
+  contents: read
+  security-events: write   # only for the SARIF upload
+  actions: read            # the upload action needs it in private repos
+steps:
+  - uses: actions/checkout@v4
+  - uses: actions/setup-python@v5      # if the runner image has no Python 3.12
+    with: { python-version: "3.12" }
+  - uses: limbowatch/limbowatch/integrations/action@v0.1.0   # Gitea/Forgejo: https://github.com/limbowatch/limbowatch/integrations/action@v0.1.0
+    with:
+      fail-on: high
+      sarif: limbowatch.sarif
+  - if: always()                       # GitHub code scanning: public repos, or private ones with GitHub Code Security
+    uses: github/codeql-action/upload-sarif@v4
+    with: { sarif_file: limbowatch.sarif, category: limbowatch }
 ```
+
+The Markdown report also goes to the job summary.
 
 ## Issues
 
@@ -103,6 +113,7 @@ In CI, `--issues-url` and `--issues-project` default to `CI_SERVER_URL` / `GITHU
 ## Limits
 
 - **Only as fresh as the tracker** for watched repos: quiet repos are checked weekly. Advisories published since the tracker's last check of a repo are missed until its next run.
+- **Only what the lockfiles list.** The inventory runs offline, so a `requirements.txt` gives its direct entries only; plain OSV-Scanner resolves Python's transitive dependencies online (F-088). Pin them with `pip-compile` or `uv pip compile` to have them checked.
 - **Ranges are as entered by maintainers** and haven't been reviewed. Unreadable ranges give *possible* findings.
 - **Upstream polling is GitHub only.** Off-GitHub upstreams, and vanity Go paths deps.dev can't map, are checked by name only.
 - **Polled upstream repos get fewer CVE facts.** Uncited CVEs and duplicates need the CVE List, so they're only detected for repos the tracker watches.

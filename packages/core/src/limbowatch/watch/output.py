@@ -24,6 +24,12 @@ SEVERITIES = ("critical", "high", "medium", "low")
 PARTIAL = (Unchecked.NO_REPO, Unchecked.REPO_NOT_POLLED)
 
 
+def _unchecked_line(full: int, part: int) -> str:
+    dep = "dependency" if full == 1 else "dependencies"
+    was = "was" if part == 1 else "were"
+    return f"{full:,} {dep} can't be checked; {part:,} {was} checked by name only."
+
+
 @dataclass
 class Report:
     """Everything an output needs: the scan, the gate's inputs and what changed."""
@@ -141,7 +147,7 @@ def table(r: Report, verbose: bool = False) -> str:
     full = [u for u in r.unresolved if u.reason not in PARTIAL]
     part = [u for u in r.unresolved if u.reason in PARTIAL]
     if full or part:
-        out += ["", f"{len(full):,} dependencies can't be checked; {len(part):,} were checked by name only."]
+        out += ["", _unchecked_line(len(full), len(part))]
         for u in full if not verbose else [*full, *part]:
             what = f"{u.name} {u.version}".strip() or "(whole file)"
             out.append(f"  {u.source}:{u.line}  {what}  {u.reason.value}{': ' + u.detail if u.detail else ''}")
@@ -193,7 +199,7 @@ def markdown(r: Report) -> str:
     full = [u for u in r.unresolved if u.reason not in PARTIAL]
     part = len(r.unresolved) - len(full)
     if full or part:
-        out += ["", f"{len(full):,} dependencies can't be checked; {part:,} were checked by name only."]
+        out += ["", _unchecked_line(len(full), part)]
     out += ["", f"_{ATTRIBUTION}_", ""]
     return "\n".join(out)
 

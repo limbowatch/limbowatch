@@ -39,7 +39,7 @@ To check source repos the live tracker doesn't watch, the job polls the GitHub A
 
 ## Issues
 
-Set `issues: true` and a masked CI/CD variable `LIMBOWATCH_ISSUES_TOKEN`: a project access token with `api` scope. You get:
+Set `issues: true` and a masked, protected CI/CD variable `LIMBOWATCH_ISSUES_TOKEN`: a project access token with `api` scope and at least the Reporter role. On gitlab.com, project access tokens need Premium or Ultimate; on the Free tier, use a personal access token with `api` scope, ideally of a separate bot account added to the project. You get:
 - one confidential issue per advisory and package;
 - a comment when a CVE is assigned, or when the advisory reaches the scanners' databases;
 - the issue closed once you've upgraded past it.
