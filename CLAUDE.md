@@ -45,7 +45,7 @@ Mention in chat when you add entries, and cite IDs (e.g. "see F-012").
 
 ## Git
 
-Private repo `git@github.com:limbowatch/limbowatch.git` in the **limbowatch** GitHub org (moved from blueandhack/Limbowatch on 2026-10-22; old URLs redirect; the local checkout directory may still be named GhostCVE). The user has authorized committing and pushing to it. Org profile repo: `limbowatch/.github`. Domain: limbo.watch.
+Public repo `git@github.com:limbowatch/limbowatch.git` (public since 2026-11-05) in the **limbowatch** GitHub org (moved from blueandhack/Limbowatch on 2026-10-22; old URLs redirect; the local checkout directory may still be named GhostCVE). The user has authorized committing and pushing to it. Org profile repo: `limbowatch/.github`. Domain: limbo.watch.
 
 ## Commands
 

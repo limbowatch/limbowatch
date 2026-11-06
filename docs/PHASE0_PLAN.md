@@ -308,3 +308,4 @@ Recommended defaults are in bold.
 7. **Decided 2026-11-05:** org-wide mode (watching a GitLab group or Gitea org with shared polling) is Phase 5, not Phase 4; Phase 4 watches one project at a time. This resolves the conflict between §7 and §10.
 8. **Decided 2026-11-05:** end-to-end tests of issue creation run against a local Gitea in Docker; nothing is posted to a public host. Unit tests use recorded responses.
 9. **Decided 2026-11-05:** the tracker publishes its watchlist with last-checked times, so the watcher polls only repos the tracker doesn't cover or hasn't checked recently. Nothing the watcher sees is sent back to limbo.watch.
+10. **Decided 2026-11-05:** the repository is public, so the CI integrations' default source archive URL works without credentials. Before the switch, a scan of every commit found no tokens or keys, and no committed research data other than the aggregate `summary.json` and `followup-*.json` files.
