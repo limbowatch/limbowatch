@@ -37,8 +37,8 @@ spec:
       default: https://github.com/limbowatch/limbowatch/archive
       description: Where `<ref>.tar.gz` source archives are served (no git needed in the image).
     limbowatch_ref:
-      default: main
-      description: Pin to a release tag.
+      default: v0.1.0
+      description: Limbowatch release tag to install (each component version pins the matching release).
 ---
 limbowatch:
   stage: $[[ inputs.stage ]]

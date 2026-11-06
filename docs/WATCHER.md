@@ -33,8 +33,7 @@ It can keep one issue per finding up to date in GitLab or Gitea/Forgejo.
 ## Use it
 
 ```sh
-uv tool install "limbowatch-cli @ git+https://github.com/limbowatch/limbowatch#subdirectory=packages/cli" \
-  --with "limbowatch @ git+https://github.com/limbowatch/limbowatch#subdirectory=packages/core"
+pipx install limbowatch-cli     # or: uv tool install limbowatch-cli, or pip install limbowatch-cli
 # needs OSV-Scanner 2.7.0 on PATH: https://google.github.io/osv-scanner/installation/
 
 limbowatch inventory .                       # what would be checked, and what can't be
@@ -59,6 +58,31 @@ limbowatch scan --sbom bom.cdx.json --format json
 Exit codes: **0** means nothing meets `--fail-on`; **1** means something does; **2** means an error.
 
 **GitHub token.** Polling source repos uses the GitHub API. Without a token GitHub allows 60 requests an hour, and a large project can need hundreds (GitLab needed 356 in F-085). Set `LIMBOWATCH_GITHUB_TOKEN`, or `GITHUB_TOKEN`, to any token that can read public repos. Repos that can't be polled are reported, not skipped.
+
+## In CI
+
+GitLab, with the [CI/CD component](https://gitlab.com/limbowatch/limbowatch-component) (inputs in [its README](../integrations/gitlab/README.md)):
+
+```yaml
+include:
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0
+    inputs:
+      fail_on: high
+```
+
+On a GitLab instance other than gitlab.com, mirror the component project first (GitLab's docs: "Use a GitLab.com component on GitLab Self-Managed").
+
+GitHub, Gitea or Forgejo Actions, with the [composite action](../integrations/action/action.yml). The runner needs Python 3.12 or later.
+
+```yaml
+- uses: actions/checkout@v4
+- uses: actions/setup-python@v5      # if the runner image has no Python 3.12
+  with: { python-version: "3.12" }
+- uses: limbowatch/limbowatch/integrations/action@v0.1.0   # Gitea/Forgejo: https://github.com/limbowatch/limbowatch/integrations/action@v0.1.0
+  with:
+    fail-on: high
+    sarif: limbowatch.sarif
+```
 
 ## Issues
 

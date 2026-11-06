@@ -10,7 +10,7 @@ It fails the pipeline when a finding meets `fail_on`.
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@<version>
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0
     inputs:
       fail_on: high
       issues: true          # confidential issues from the default branch and schedules
@@ -31,7 +31,7 @@ Without the CI/CD Catalog, include the file directly with `include: remote:` and
 | `extra_args` | | More `limbowatch scan` options, e.g. `--ignore GHSA-xxxx-xxxx-xxxx` |
 | `image` | `python:3.12-slim` | Any image with Python 3.12 |
 | `osv_scanner_version` | `2.7.0` | Downloaded from Google's releases and checked against their SHA-256 sums |
-| `limbowatch_source`, `limbowatch_ref` | GitHub archive, `main` | Pin `limbowatch_ref` to a release tag |
+| `limbowatch_source`, `limbowatch_ref` | GitHub archive, the matching release | Each component version installs the Limbowatch release of the same number |
 
 ## GitHub token
 

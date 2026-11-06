@@ -32,7 +32,7 @@ The methods, open dataset (CC BY 4.0) and scripts to reproduce it are in the [re
 
 - **[limbo.watch](https://limbo.watch):** the live tracker. It lists every advisory in limbo across about 18,600 watched repos, updated daily.
 - **[The limbo feed](https://limbo.watch/feed/):** the same advisories as OSV-schema records. The released OSV-Scanner can already scan against it.
-- **The watcher**, `limbowatch scan`: checks your project's dependencies against advisories in limbo, in CI or locally. It writes Code Quality, SARIF, Markdown or JSON, and keeps one issue per finding up to date in GitLab or Gitea/Forgejo. See the [guide](docs/WATCHER.md), the [GitLab CI/CD component](integrations/gitlab/) and the [Actions action](integrations/action/action.yml).
+- **The watcher**, `limbowatch scan`: checks your project's dependencies against advisories in limbo, in CI or locally. It writes Code Quality, SARIF, Markdown or JSON, and keeps one issue per finding up to date in GitLab or Gitea/Forgejo. `pip install limbowatch-cli`. See the [guide](docs/WATCHER.md), the [GitLab CI/CD component](https://gitlab.com/limbowatch/limbowatch-component) and the [Actions action](integrations/action/action.yml).
 
 ## Terms
 
@@ -51,7 +51,7 @@ The methods, open dataset (CC BY 4.0) and scripts to reproduce it are in the [re
 | 1. "State of the Gap" report | draft for review |
 | 2. Live Limbo Tracker and an open **limbo feed** (OSV schema) | **live** at [limbo.watch](https://limbo.watch) |
 | 3. Contributions to existing tools ([blindspot](https://github.com/munimtechnologies/advisory-import-census), OSV-Scanner) | prepared, not sent ([drafts](docs/outreach/)) |
-| 4. Limbowatch watcher for GitLab and Gitea: CI component, issues that update as advisories move through review | **built, in review** |
+| 4. Limbowatch watcher for GitLab and Gitea: CI component, issues that update as advisories move through review | **released** as 0.1.0 ([PyPI](https://pypi.org/project/limbowatch-cli/), [GitLab CI/CD Catalog](https://gitlab.com/explore/catalog/limbowatch/limbowatch-component)) |
 | 5. Org-wide watch, more ecosystems (Maven/Gradle first) | planned |
 | 6. C/C++ and vendored code | planned |
 
