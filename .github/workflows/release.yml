@@ -1,0 +1,47 @@
+name: release
+# Publishes both packages to PyPI with trusted publishing (no tokens) when a v* tag is pushed.
+# PyPI pending publishers: limbowatch -> environment "pypi", limbowatch-cli -> environment "pypi-cli".
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: uv run ruff check packages tests && uv run mypy && uv run lint-imports && uv run pytest -q
+      - name: Tag matches both package versions
+        run: |
+          for p in core cli; do
+            v=$(uv run python -c "import tomllib;print(tomllib.load(open('packages/$p/pyproject.toml','rb'))['project']['version'])")
+            [ "v$v" = "$GITHUB_REF_NAME" ] || { echo "packages/$p is $v, tag is $GITHUB_REF_NAME"; exit 1; }
+          done
+      - run: uv build --package limbowatch --out-dir dist/core && uv build --package limbowatch-cli --out-dir dist/cli
+      - uses: actions/upload-artifact@v4
+        with: { name: dist, path: dist/ }
+  publish-core:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: dist, path: dist/ }
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with: { packages-dir: dist/core/ }
+  publish-cli:
+    needs: publish-core
+    runs-on: ubuntu-latest
+    environment: pypi-cli
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: dist, path: dist/ }
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with: { packages-dir: dist/cli/ }

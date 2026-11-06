@@ -4,12 +4,28 @@ version = "0.1.0"
 description = "Track published security advisories stuck in limbo (not yet reviewed into the databases scanners read)"
 license = "Apache-2.0"
 requires-python = ">=3.12"
+readme = "README.md"
+authors = [{ name = "Limbowatch contributors" }]
+keywords = ["security", "advisories", "ghsa", "osv", "dependencies", "supply-chain"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+]
 dependencies = [
     "httpx>=0.27",
     "pydantic>=2.8",
     "sqlalchemy>=2.0",
     "univers>=30",
 ]
+
+[project.urls]
+Homepage = "https://limbo.watch"
+Source = "https://github.com/limbowatch/limbowatch"
+Documentation = "https://github.com/limbowatch/limbowatch/blob/main/docs/WATCHER.md"
+Issues = "https://github.com/limbowatch/limbowatch/issues"
 
 [build-system]
 requires = ["hatchling"]

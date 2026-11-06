@@ -4,10 +4,26 @@ version = "0.1.0"
 description = "Limbowatch command line"
 license = "Apache-2.0"
 requires-python = ">=3.12"
-dependencies = ["limbowatch", "typer>=0.12"]
+readme = "README.md"
+authors = [{ name = "Limbowatch contributors" }]
+keywords = ["security", "advisories", "ghsa", "osv", "dependencies", "supply-chain"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+]
+dependencies = ["limbowatch==0.1.0", "typer>=0.12"]
 
 [project.scripts]
 limbowatch = "limbowatch_cli.main:app"
+
+[project.urls]
+Homepage = "https://limbo.watch"
+Source = "https://github.com/limbowatch/limbowatch"
+Documentation = "https://github.com/limbowatch/limbowatch/blob/main/docs/WATCHER.md"
+Issues = "https://github.com/limbowatch/limbowatch/issues"
 
 [build-system]
 requires = ["hatchling"]
