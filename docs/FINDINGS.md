@@ -76,7 +76,7 @@ Open:
 - Q16. Are pending advisories published before 2026 (258 on 2026-10-28) ever reviewed, or did GitHub never backfill them? ([F-064](#f-064))
 - Q17. How many Go modules on vanity paths (k8s.io, golang.org/x, go.opentelemetry.io) can be mapped to a GitHub repo without deps.dev? 320 Kubernetes dependencies stay checked by name only ([F-085](#f-085)). blindspot keeps a verified list (`docs/go-vanity-coverage.md`, [F-072](#f-072)).
 - Q18. Should the tracker's seeds include the upstreams of popular GitLab-hosted projects' Ruby dependencies, so the watcher doesn't need to poll them? ([F-085](#f-085); Phase 5.)
-- Q19. Do confidential issues and the Code Quality report behave on a real GitLab instance as the docs say? Tested with recorded responses and in a container only ([F-079](#f-079), [F-084](#f-084)).
+- Q19. Do confidential issues and the Code Quality report behave on a real GitLab instance as the docs say? *Partly answered 2026-11-06: the component runs on gitlab.com and GitLab parses its Code Quality report with the right path and severity ([F-086](#f-086)); confidential issues and the MR widget are still untested* ([F-079](#f-079), [F-084](#f-084)).
 
 Answered:
 
@@ -992,6 +992,20 @@ Answered:
   - **Cost:** 532 GitHub requests in all (GitLab 356, because its Ruby upstreams aren't on the tracker's watchlist), 2–62 s per project.
 - **Caveats:** One run; the feed is a day old at most. Precision checks the advisory's current range with Limbowatch's own evaluator, the same one that matched. Recall is against the research pipeline, which used the same matching rules.
 - **Implication:** The watcher reproduces the October report's findings and finds about four times as many today, with no contradicted result. In GitLab CI without a GitHub token (60 requests an hour), a project like GitLab would leave most of those 356 repos unpolled and report them as checked by name only, so the docs should ask for a read-only GitHub token. Adding Ruby upstreams to the tracker's seeds (Phase 5) would cut that further.
+
+### F-086
+- **Date:** 2026-11-06 · **Status:** confirmed (observed; one pipeline on gitlab.com)
+- **Question:** Does the component run on GitLab itself, and does GitLab accept its Code Quality report as written (Q19, first half)?
+- **Method:** Created `gitlab.com/limbowatch/limbowatch-component` (public; project 88618678) and pushed `git subtree split -P integrations/gitlab` of f4424e1 as `main`. Its `.gitlab-ci.yml` includes the component from the same commit (`limbowatch@$CI_COMMIT_SHA`) with `path: tests/go-sample` (a `go.mod` pinning `andybalholm/brotli` v1.2.1) and `fail_on: none`; a `check-reports` job asserts on the artifacts. Then read GitLab's parsed report via GraphQL `project.pipeline(iid: "1") { codeQualityReportSummary codeQualityReports }`.
+- **Result:**
+  - Pipeline 3038736795 passed on gitlab.com shared runners with no extra account verification: `limbowatch` job 34 s (OSV-Scanner download with SHA-256 check, install from the GitHub source archive, scan), `check-reports` 22 s.
+  - The job found GHSA-c9gr-gmg4-2vqv (low, no CVE, fixed in 1.2.7) against the live feed of 2026-11-06 22:36 UTC.
+  - GitLab parsed the report: `count: 1`, severity `MINOR` (from `low`), `path: tests/go-sample/go.mod`, `line: 5`, description with the CC BY 4.0 attribution.
+  - The REST path `pipelines/:id/codequality_reports` returns 404; GraphQL is the way to read parsed reports.
+  - Before f4424e1, a scan of a subdirectory wrote paths relative to that directory (`go.mod`), which GitLab resolves from the repo root; caught while preparing this run and fixed for both Code Quality and SARIF.
+  - CI/CD Catalog: `catalogResourcesCreate` succeeded and `isCatalogResource` is true. Nothing is listed until a semver tag is released.
+- **Caveats:** One pipeline, on a branch, so the merge request widget and confidential issues weren't exercised. Code Quality in MRs compares against the target branch's report.
+- **Implication:** The component works on gitlab.com as written and GitLab reads its report. Q19 stays open for confidential issues and the MR widget, which need a merge request and a project access token.
 
 ## Archive
 
