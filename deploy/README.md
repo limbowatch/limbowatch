@@ -27,17 +27,17 @@ GitHub holds no credentials for the cluster. The cluster pulls from GitHub.
 
 ## Node config
 
-Every deploy leaves the previous site image on the node, so the kubelet garbage-collects images ([`node/90-image-gc.conf`](node/90-image-gc.conf)). It starts when the image disk is 75% full and stops at 65%, and it also removes images left unused for 14 days. This is kubelet config, not a cluster resource. Argo CD doesn't manage it, so install it by hand on each node (skylion, skycat):
+Every deploy leaves the previous site image on the node, so the kubelet garbage-collects images ([`node/20-image-gc.conf`](node/20-image-gc.conf)). It starts when the image disk is 75% full and stops at 65%, and it also removes images left unused for 14 days. This is kubelet config, not a cluster resource. Argo CD doesn't manage it, so install it by hand on each node (skylion, skycat):
 
 ```sh
-scp deploy/node/90-image-gc.conf root@<node>:/tmp/
-ssh root@<node> 'install -D -m 0644 /tmp/90-image-gc.conf /var/lib/rancher/k3s/agent/etc/kubelet.conf.d/90-image-gc.conf && systemctl restart k3s'
+scp deploy/node/20-image-gc.conf root@<node>:/tmp/
+ssh root@<node> 'install -D -m 0644 /tmp/20-image-gc.conf /var/lib/rancher/k3s/agent/etc/kubelet.conf.d/20-image-gc.conf && systemctl restart k3s'
 ```
 
-On an agent-only node, restart `k3s-agent` instead of `k3s`. The kubelet reads only files ending in `.conf` from that directory, and `imageMaximumGCAge` needs Kubernetes 1.30 or later. To check that the kubelet loaded it:
+skycat is an agent-only node: restart `k3s-agent` there instead of `k3s`, and run `kubectl` from skylion. Both nodes have had it since 2026-11-06 (k3s v1.36.6). The kubelet reads only files ending in `.conf` from that directory, and `imageMaximumGCAge` needs Kubernetes 1.30 or later. To check that the kubelet loaded it:
 
 ```sh
-ssh root@<node> 'kubectl get --raw /api/v1/nodes/<node>/proxy/configz' | jq '.kubeletconfig | {imageGCHighThresholdPercent, imageGCLowThresholdPercent, imageMaximumGCAge}'
+ssh root@skylion 'kubectl get --raw /api/v1/nodes/<node>/proxy/configz' | jq '.kubeletconfig | {imageGCHighThresholdPercent, imageGCLowThresholdPercent, imageMaximumGCAge}'
 ```
 
 ## Analytics
