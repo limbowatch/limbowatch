@@ -228,6 +228,15 @@ def inventory(
             typer.echo(f"  {u.source}:{u.line}  {what}  {u.reason.value}{detail}")
 
 
+def _base(path: Path) -> str:
+    """The scanned directory relative to the working directory (the repo root in CI), or "" if outside it."""
+    try:
+        rel = path.resolve().relative_to(Path.cwd().resolve()).as_posix()
+    except ValueError:
+        return ""
+    return "" if rel == "." else rel
+
+
 @app.command()
 def scan(
     path: Annotated[Path, typer.Argument(help="Project directory.")] = Path("."),
@@ -306,7 +315,8 @@ def scan(
         res, feed_at = asyncio.run(run())
     except (RuntimeError, OSError) as e:
         raise typer.Exit(_fail(str(e))) from e
-    rep = output.Report(res.findings, res.unresolved, res.stats, inv.tool, feed_at, changes, accepted)
+    base = _base(path) if sbom_file is None else ""
+    rep = output.Report(res.findings, res.unresolved, res.stats, inv.tool, feed_at, changes, accepted, base)
 
     typer.echo(output.table(rep, verbose) if fmt == "table" else output.FORMATS[fmt](rep), nl=False)
     for name, dest in targets:

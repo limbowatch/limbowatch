@@ -1,0 +1,42 @@
+# Pipeline of the component project itself (gitlab.com/limbowatch/limbowatch-component).
+# The source of truth is integrations/gitlab/ in https://github.com/limbowatch/limbowatch.
+#
+# Every pipeline runs the component from this commit against tests/go-sample. A semantic-version
+# tag (e.g. 0.1.0) then publishes that version to the CI/CD Catalog with the `release` keyword.
+
+include:
+  - component: $CI_SERVER_FQDN/$CI_PROJECT_PATH/limbowatch@$CI_COMMIT_SHA
+    inputs:
+      path: tests/go-sample
+      fail_on: none   # the sample's finding leaves limbo once GitHub reviews it; the check below doesn't depend on it
+
+stages: [test, verify, release]
+
+check-reports:
+  stage: verify
+  image: python:3.12-slim
+  needs: [limbowatch]
+  script:
+    - |
+      python3 - <<'PY'
+      import json, pathlib
+      cq = json.loads(pathlib.Path("gl-code-quality-report.json").read_text())
+      assert isinstance(cq, list), "Code Quality report must be a JSON array"
+      for item in cq:
+          assert item["location"]["path"] == "tests/go-sample/go.mod", item["location"]
+          assert {"description", "check_name", "fingerprint", "severity"} <= item.keys(), item
+      md = pathlib.Path("limbowatch.md").read_text()
+      assert "CC BY 4.0" in md, "the Markdown report must carry the attribution"
+      report = json.loads(pathlib.Path("limbowatch.json").read_text())
+      print(f"{len(cq)} Code Quality entries; report keys: {sorted(report)}")
+      PY
+
+create-release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/cli:v1.124.0
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/
+  script: echo "Releasing $CI_COMMIT_TAG"
+  release:
+    tag_name: $CI_COMMIT_TAG
+    description: "Limbowatch component $CI_COMMIT_TAG. See https://github.com/limbowatch/limbowatch/releases"

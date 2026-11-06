@@ -35,6 +35,13 @@ class Report:
     feed_generated_at: str | None = None
     changes: list[Change] | None = None
     ignored: set[str] = field(default_factory=set)  # GHSA or CVE IDs accepted by the user
+    base: str = ""  # the scanned directory relative to the repo root, for SARIF and Code Quality paths
+
+    def path(self, f: Finding) -> str:
+        """The lockfile's path from the repo root: Code Quality and SARIF resolve paths there, not from
+        the scanned directory, so a scan of `services/api` must report `services/api/go.mod`."""
+        src = f.dependency.source.removeprefix("./")
+        return f"{self.base.strip('/')}/{src}" if self.base.strip("/.") else src
 
     def is_ignored(self, f: Finding) -> bool:
         ids = {f.ghsa_id.upper(), *(c.upper() for c in f.cves)}
@@ -214,7 +221,7 @@ def sarif(r: Report) -> str:
             "message": {"text": f"{f.dependency.ecosystem}:{f.dependency.name} {f.dependency.version} is "
                                 f"{'affected' if f.affected else 'possibly affected'} by {f.ghsa_id} ({sev}), "
                                 f"fixed in {_fix(f)}. {f.evidence}"},
-            "locations": [{"physicalLocation": {"artifactLocation": {"uri": f.dependency.source},
+            "locations": [{"physicalLocation": {"artifactLocation": {"uri": r.path(f)},
                                                 "region": {"startLine": f.dependency.line}}}],
             "partialFingerprints": {"limbowatch/v1": f.key},
         })  # fmt: skip
@@ -239,7 +246,7 @@ def codequality(r: Report) -> str:
     severity, location.path and location.lines.begin (FINDINGS F-079)."""
     items = []
     for f in r.active:
-        loc = f"{f.dependency.source}:{f.dependency.line}"
+        loc = f"{r.path(f)}:{f.dependency.line}"
         items.append({
             "description": f"{f.ghsa_id} ({_sev(f)}{', possibly' if not f.affected else ''}): "
                            f"{f.dependency.name} {f.dependency.version} is in an advisory not yet in GitHub's "
@@ -247,7 +254,7 @@ def codequality(r: Report) -> str:
             "check_name": "limbowatch/advisory-in-limbo",
             "fingerprint": hashlib.sha256(f"{f.key}|{loc}".encode()).hexdigest()[:32],
             "severity": _CQ_SEVERITY.get(_sev(f), "major"),
-            "location": {"path": f.dependency.source.removeprefix("./"), "lines": {"begin": f.dependency.line}},
+            "location": {"path": r.path(f), "lines": {"begin": f.dependency.line}},
         })  # fmt: skip
     return json.dumps(items, indent=1) + "\n"
 

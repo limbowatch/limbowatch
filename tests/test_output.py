@@ -94,3 +94,15 @@ def test_ignored_findings_are_listed_not_failed() -> None:
     r = report(finding(), ignored={"GHSA-aaaa-bbbb-cccc"})
     assert "Accepted (ignored): GHSA-aaaa-bbbb-cccc" in output.table(r)
     assert json.loads(output.codequality(r)) == []
+
+
+def test_machine_formats_give_paths_from_the_repo_root() -> None:
+    """A scan of a subdirectory (the component's `path:` input) must point Code Quality and SARIF at
+    `services/api/<lockfile>`, which is where GitLab and code scanning look the file up."""
+    r = report(finding())
+    src = r.findings[0].dependency.source.removeprefix("./")
+    assert json.loads(output.codequality(r))[0]["location"]["path"] == src
+    r.base = "services/api"
+    cq = json.loads(output.codequality(r))[0]["location"]["path"]
+    uri = json.loads(output.sarif(r))["runs"][0]["results"][0]["locations"][0]["physicalLocation"]["artifactLocation"]
+    assert cq == uri["uri"] == f"services/api/{src}"

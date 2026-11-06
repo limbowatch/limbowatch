@@ -48,4 +48,8 @@ Merge request pipelines never open issues.
 
 A weekly scheduled pipeline is worth adding. Advisories are published after you merge, and the review gap lasts weeks.
 
+## Contribute
+
+This project is published from [`integrations/gitlab/`](https://github.com/limbowatch/limbowatch/tree/main/integrations/gitlab) in the Limbowatch repository on GitHub. Issues and pull requests go there.
+
 Advisory data: GitHub repository security advisories and the GitHub Advisory Database (CC BY 4.0), via limbo.watch.
