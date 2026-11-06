@@ -76,7 +76,7 @@ Open:
 - Q16. Are pending advisories published before 2026 (258 on 2026-10-28) ever reviewed, or did GitHub never backfill them? ([F-064](#f-064))
 - Q17. How many Go modules on vanity paths (k8s.io, golang.org/x, go.opentelemetry.io) can be mapped to a GitHub repo without deps.dev? 320 Kubernetes dependencies stay checked by name only ([F-085](#f-085)). blindspot keeps a verified list (`docs/go-vanity-coverage.md`, [F-072](#f-072)).
 - Q18. Should the tracker's seeds include the upstreams of popular GitLab-hosted projects' Ruby dependencies, so the watcher doesn't need to poll them? ([F-085](#f-085); Phase 5.)
-- Q19. Do confidential issues and the Code Quality report behave on a real GitLab instance as the docs say? *Partly answered 2026-11-06: the component runs on gitlab.com and GitLab parses its Code Quality report with the right path and severity ([F-086](#f-086)); confidential issues and the MR widget are still untested* ([F-079](#f-079), [F-084](#f-084)).
+- Q19. Do confidential issues and the Code Quality report behave on a real GitLab instance as the docs say? *Mostly answered 2026-11-06: the component runs on gitlab.com and GitLab parses its Code Quality report ([F-086](#f-086)); confidential issues open, update, close and reopen as designed ([F-087](#f-087)). Still untested: the merge request Code Quality widget.*
 
 Answered:
 
@@ -1006,6 +1006,16 @@ Answered:
   - CI/CD Catalog: `catalogResourcesCreate` succeeded and `isCatalogResource` is true. Nothing is listed until a semver tag is released.
 - **Caveats:** One pipeline, on a branch, so the merge request widget and confidential issues weren't exercised. Code Quality in MRs compares against the target branch's report.
 - **Implication:** The component works on gitlab.com as written and GitLab reads its report. Q19 stays open for confidential issues and the MR widget, which need a merge request and a project access token.
+
+### F-087
+- **Date:** 2026-11-06 · **Status:** confirmed (observed on gitlab.com; GitLab REST authentication docs)
+- **Question:** Do the watcher's GitLab issues work on a real GitLab (Q19, second half), and which token header does GitLab accept?
+- **Method:** `scripts/e2e_gitlab.py` against a private project `gitlab.com/limbowatch/limbowatch-e2e`, created by the script: a Go module pinned to `andybalholm/brotli` v1.2.1 (GHSA-c9gr-gmg4-2vqv), scanned with `--issues gitlab --state`, then upgraded to v1.2.7 and downgraded again. Token: glab's browser (OAuth) login, passed in `LIMBOWATCH_ISSUES_TOKEN`, never printed. Header check: `GET /api/v4/user` with the same token as `PRIVATE-TOKEN` and as `Authorization: Bearer`; [REST API authentication docs](https://docs.gitlab.com/api/rest/authentication/).
+- **Result:**
+  - `PRIVATE-TOKEN` with an OAuth token: **401**; `Authorization: Bearer`: 200. The docs say personal, project and group access tokens also work as `Bearer` ("OAuth-compliant headers"), while OAuth tokens must use it. The watcher sent `PRIVATE-TOKEN`, so glab or other OAuth tokens failed; it now sends `Bearer`.
+  - 8 of 8 checks passed: the project is private; one issue opened, **confidential: true**, labels `limbowatch`, `security`, `severity:low`, body with the hidden marker, facts and links only (no advisory text) and the CC BY 4.0 attribution; a second run added nothing; upgrading past the fix closed it with a note; downgrading reopened the same issue (#1) with "Found again in go.mod:5".
+- **Caveats:** One run, on gitlab.com (not self-managed), from a laptop rather than a CI job, with `--no-upstream`. The merge request Code Quality widget is still unexercised. The test project keeps the closed issue.
+- **Implication:** GitLab issues behave as designed on real GitLab. With F-086, Q19 is answered except for the MR widget. Any GitLab token type works now, including a project access token in CI.
 
 ## Archive
 

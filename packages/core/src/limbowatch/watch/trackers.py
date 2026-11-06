@@ -84,7 +84,9 @@ class GitLab:
     ) -> None:
         self.http, self.confidential = http, confidential
         self.api = f"{base_url.rstrip('/')}/api/v4/projects/{quote(project, safe='')}"
-        self._auth = ("PRIVATE-TOKEN", token)
+        # Bearer takes personal, project and group access tokens and OAuth tokens (glab's login);
+        # PRIVATE-TOKEN rejects OAuth tokens with 401 (FINDINGS F-087).
+        self._auth = ("Authorization", f"Bearer {token}")
         self.public = False
 
     async def _req(self, method: str, path: str, what: str, **kw: Any) -> Any:

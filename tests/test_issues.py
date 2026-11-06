@@ -95,7 +95,7 @@ async def test_gitlab_tracker(no_sleep: Any) -> None:
             await gl.set_open(found[finding().key], False)
     sent = json.loads(create.calls[0].request.content)
     assert sent["confidential"] is True and sent["labels"] == "limbowatch,security"
-    assert create.calls[0].request.headers["private-token"] == "tok"
+    assert create.calls[0].request.headers["authorization"] == "Bearer tok"
     assert json.loads(note.calls[0].request.content) == {"body": "hello"}
     assert json.loads(close.calls[0].request.content) == {"state_event": "close"}
 

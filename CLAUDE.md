@@ -62,10 +62,11 @@ uv run limbowatch publish --state tracker/state --out tracker/site
 uv run limbowatch report --state tracker/state --out tracker/reports   # daily Markdown report
 uv run limbowatch scan <project> [--state F] [--output codequality=F] [--issues gitlab|gitea]   # the watcher (docs/WATCHER.md)
 uv run python scripts/e2e_gitea.py                       # issue lifecycle against a local Gitea in Docker (network)
+LIMBOWATCH_ISSUES_TOKEN=… uv run python scripts/e2e_gitlab.py   # GitLab issues in the private project limbowatch/limbowatch-e2e (network)
 uv run --with pyyaml python scripts/check_integrations.py # GitLab component and Action in a container (network)
 ```
 
-The watcher needs OSV-Scanner 2.7.0 on PATH (the research pipeline builds one at `research/2026-10-state-of-the-gap/.cache/bin/`). The two `scripts/` need Docker and the network, so they aren't part of the test suite.
+The watcher needs OSV-Scanner 2.7.0 on PATH (the research pipeline builds one at `research/2026-10-state-of-the-gap/.cache/bin/`). The `scripts/` need Docker or a GitLab token, and the network, so they aren't part of the test suite.
 
 See [tracker/README.md](tracker/README.md) for how the live tracker works. Only `limbowatch.http` builds requests, and `limbowatch.normalize` drops advisory text and personal data before anything is stored.
 
