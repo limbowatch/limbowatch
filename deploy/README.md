@@ -25,6 +25,21 @@ GitHub holds no credentials for the cluster. The cluster pulls from GitHub.
 | `limbowatch/ghcr-pull-secret` | Pulls the private image; a copy of the cluster's existing GHCR pull secret |
 | `limbowatch/limbowatch-tls` | Let's Encrypt certificate for limbo.watch and www.limbo.watch (cert-manager, `letsencrypt-http`) |
 
+## Node config
+
+Every deploy leaves the previous site image on the node, so the kubelet garbage-collects images ([`node/90-image-gc.conf`](node/90-image-gc.conf)). It starts when the image disk is 75% full and stops at 65%, and it also removes images left unused for 14 days. This is kubelet config, not a cluster resource. Argo CD doesn't manage it, so install it by hand on each node (skylion, skycat):
+
+```sh
+scp deploy/node/90-image-gc.conf root@<node>:/tmp/
+ssh root@<node> 'install -D -m 0644 /tmp/90-image-gc.conf /var/lib/rancher/k3s/agent/etc/kubelet.conf.d/90-image-gc.conf && systemctl restart k3s'
+```
+
+On an agent-only node, restart `k3s-agent` instead of `k3s`. The kubelet reads only files ending in `.conf` from that directory, and `imageMaximumGCAge` needs Kubernetes 1.30 or later. To check that the kubelet loaded it:
+
+```sh
+ssh root@<node> 'kubectl get --raw /api/v1/nodes/<node>/proxy/configz' | jq '.kubeletconfig | {imageGCHighThresholdPercent, imageGCLowThresholdPercent, imageMaximumGCAge}'
+```
+
 ## Analytics
 
 Google Analytics is off unless the repository variable `LIMBOWATCH_GA_ID` (Settings → Secrets and variables → Actions → Variables) holds a GA4 measurement ID (`G-…`). It isn't a secret: it appears in every page.
