@@ -88,11 +88,11 @@ Open:
 - Q16. Are pending advisories published before 2026 (258 on 2026-10-28) ever reviewed, or did GitHub never backfill them? ([F-064](#f-064))
 - Q17. How many Go modules on vanity paths (k8s.io, golang.org/x, go.opentelemetry.io) can be mapped to a GitHub repo without deps.dev? 320 Kubernetes dependencies stay checked by name only ([F-085](#f-085)). blindspot keeps a verified list (`docs/go-vanity-coverage.md`, [F-072](#f-072)).
 - Q18. Should the tracker's seeds include the upstreams of popular GitLab-hosted projects' Ruby dependencies, so the watcher doesn't need to poll them? ([F-085](#f-085); Phase 5.)
-- Q21. Does checking a package's repo when the registry announces a new release find new advisories early enough to replace blind re-polling? ([F-098](#f-098); Phase 5, step 1.)
 - Q22. Does GitHub's "more than 5,000 repository advisories a week" count the same thing as the tracker (published, any ecosystem)? It sets the coverage estimate ([F-035](#f-035), [F-098](#f-098)).
 
 Answered:
 
+- ~~Q21. Are advisories published close to a release of their package?~~ **Yes: 71% within a day, 79% within 3 days; the fix release usually comes first ([F-100](#f-100)).**
 - ~~Q20. How many source repos do the top packages of each ecosystem map to, and how many are already watched?~~ **About 45,000 unwatched repos in the top 10,000 of eight ecosystems; NuGet, Packagist, Maven and RubyGems are barely covered; a sample holds 30 advisories in limbo ([F-099](#f-099)).**
 - ~~Q12 (partly). Is review throughput keeping up with inflow?~~ **Not in the weeks measured: 744 in against 68 out in the week to 2026-11-06 ([F-092](#f-092)).** Stays open above for the monthly, per-ecosystem view.
 - ~~Q19. Do confidential issues and the Code Quality report behave on a real GitLab instance as the docs say?~~ **Yes, on gitlab.com 2026-11-06: Code Quality ([F-086](#f-086)), confidential issues ([F-087](#f-087)), the merge request widget ([F-088](#f-088)).**
@@ -1166,6 +1166,21 @@ Answered:
   - Rough yield for the 45,000 unwatched top-10,000 repos, scaling each ecosystem's sample: on the order of 1,000 advisories in limbo, mostly Maven, PyPI and Go. The sample is small and a few repos hold most advisories, so this is an order of magnitude, not a count.
 - **Caveats:** ecosyste.ms ranks by dependent repositories it has indexed; its `repository_url` comes from registry metadata, unverified. 301 responses (moved repos) weren't followed here, which undercounts slightly. Packages that share a monorepo count once.
 - **Implication:** The seeds came from a few popular projects, so npm, crates.io and PyPI are well covered at the top and NuGet, Packagist, Maven and RubyGems barely at all. The unwatched repos hold real advisories in limbo in widely used packages. Watching the top 10,000 per ecosystem costs about 45,000 first polls (roughly two weeks at the tracker's current budget of 3,500 a run, or a few days with a larger one); re-checks are mostly free 304s (F-003). The top 50,000 is five times that for a long tail of packages with few users.
+
+### F-100
+- **Date:** 2026-11-07 · **Status:** confirmed for the observations; tentative for the cost model (instrumentation added the same day)
+- **Question:** What did watching the top 1,000 packages per ecosystem add on its first run, how close to a release are advisories published (Q21), and why has the tracker hit its budget every run since 2026-11-04?
+- **Method:**
+  - Tracker run 42362625877 (manual, 2026-11-07 10:08 UTC, `--max-new 2500`, budget 3,500) on the new seed `tracker/seeds/top-packages.txt`; state read back from `tracker-data`. Six of the advisories found checked with `GET /advisories/{ghsa}` and OSV `GET /v1/vulns/{ghsa}`.
+  - `research/2026-11-coverage/release_timing.py`: 300 advisories published in the 30 days to 2026-11-07 with one npm, PyPI, Go, Maven, crates.io or NuGet package; release times from deps.dev `GET /v3/systems/{system}/packages/{name}`.
+  - ETags: 350 repos (150 daily tier, 100 three-day, 100 weekly) fetched twice 90 minutes apart, the second time with `If-None-Match`; 150 ETags 16 days old from the October research cache (same token) sent back to `/repos/{repo}/security-advisories?state=published&per_page=100`, comparing advisory IDs and `updated_at` when the answer was 200. The tracker's `poll_order()` run on the current state.
+- **Result:**
+  - **First stage:** 2,500 of the 3,342 new repos checked; 58 have published advisories, **109 advisories, all unreviewed and published in 2026, 108 of them since August** (RubyGems 35, Maven 23, NuGet 17, Packagist 10, PyPI 9, Go 9; e.g. a critical one in googleapis/google-api-java-client, mongodb drivers, dalli, net-ssh, padrino). Six checked: none is in GitHub's reviewed database or OSV.
+  - **Release timing (Q21):** of 282 advisories with release data, **71% have a release of their package within a day, 79% within 3 days, 86% within 7 days**; in 82% the nearest release came first (the fix ships, then the advisory).
+  - **ETags:** GitHub's ETags depend on the token (the same repo gives different ETags to different tokens) and a weak ETag (`W/"…"`, sent when the client accepts gzip) earns a 304 like a strong one. After 90 minutes all 150 daily-tier repos returned 304. After 16 days, all 50 repos without advisories returned 304; of 100 with advisories, 52 returned 304, 12 had changed advisories, and **36 returned 200 with the same advisory IDs and `updated_at`**: something else in the list changed.
+  - **Budget:** since 2026-11-04 every run used its 3,500 counted requests, with 304 rates of 1–44% (95–98% before). 3,514 quiet seed repos were last checked on 2026-10-28 with an older token, so they have no usable ETag; they had waited 10 days for a weekly check. On the current state they come next in the order, after the 860 remaining new repos, so the next two runs refresh them.
+- **Caveats:** Run reports kept only totals, so the 2026-11-04 to 11-06 spending can't be attributed per tier after the fact; from 2026-11-07 each run records polls per tier and outcome (`by_tier`, including polls sent without a usable ETag). The 16-day ETag sample is small.
+- **Implication:** The expansion finds real advisories in limbo where coverage was weakest. Re-checks of repos with advisories aren't as free as assumed (about a third cost a full request after two weeks), and a token change makes every ETag useless until each repo is polled once. Before adding the top 10,000 (about 42,000 more repos), the per-tier numbers from the next runs set the budget and `--max-new`. Release-triggered checks would catch most new advisories within days of the fix release and cut blind re-polling; they are a candidate for the next part of Phase 5.
 
 ## Archive
 

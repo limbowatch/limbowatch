@@ -137,6 +137,9 @@ async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any) -> None:
         mock_world(router, regexp2_reviewed=True)
         r2 = await run_once(store, seed, no_sleep)
     assert r2.not_modified >= 1
+    # every poll is tallied per tier, and the 304s add up (F-100)
+    assert sum(t.get("304", 0) for t in r2.by_tier.values()) == r2.not_modified
+    assert sum(sum(v for k, v in t.items() if k != "no_etag") for t in r2.by_tier.values()) == r2.polled
     assert any(e == "GHSA-wq9v-j77v-qr26: in limbo -> reviewed" for e in r2.events)
     with store.session() as s:
         assert s.get(Repo, "dlclark/regexp2").etag_token != "anonymous"  # type: ignore[union-attr]

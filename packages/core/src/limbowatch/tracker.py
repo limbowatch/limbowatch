@@ -61,6 +61,10 @@ class RunReport:
     new_advisories: int = 0
     assessed: int = 0
     changed: int = 0
+    # Polls per schedule tier ("new" for first checks) by outcome: "304", "200", "404", "other", and "no_etag" for
+    # polls sent without a usable ETag (never polled with this token), which can't come back 304. Shows where the
+    # budget goes (FINDINGS F-100).
+    by_tier: dict[str, dict[str, int]] = field(default_factory=dict)
     events: list[str] = field(default_factory=list)
     http: dict[str, Any] = field(default_factory=dict)
 
@@ -81,6 +85,7 @@ def _cna_repos(records: list[dict[str, Any]]) -> set[str]:
 class Tracker:
     def __init__(self, store: Store, http: HttpClient, cfg: TrackerConfig) -> None:
         self.store, self.http, self.cfg = store, http, cfg
+        self._tier: dict[str, str] = {}  # schedule tier per repo, set by poll_order, for RunReport.by_tier
 
     # ------------------------------------------------------------------ watchlist
     def add_repos(self, repos: set[str], source: str) -> int:
@@ -181,6 +186,12 @@ class Tracker:
             }
 
         by_name = {r.full_name: r for r in repos}
+        self._tier = {
+            r.full_name: "new"
+            if r.last_polled_at is None
+            else schedule.tier(r.full_name in limbo_repos, r.advisory_count, r.poll_status).name.lower()
+            for r in repos
+        }
         scores = [
             (
                 r.full_name,
@@ -210,6 +221,9 @@ class Tracker:
             while not stop and not queue.empty():
                 repo = queue.get_nowait()
                 etag = repo.etag if repo.etag_token == self.http.token_fingerprint else None
+                tally = report.by_tier.setdefault(self._tier.get(repo.full_name, "unknown"), {})
+                if etag is None:
+                    tally["no_etag"] = tally.get("no_etag", 0) + 1
                 try:
                     res = await github.repo_advisories(self.http, repo.full_name, etag)
                 except BudgetExhausted:
@@ -218,6 +232,8 @@ class Tracker:
                 except DeadlineReached:
                     stop.append("deadline")
                     return
+                outcome = str(res.status) if res.status in (200, 304, 404) else "other"
+                tally[outcome] = tally.get(outcome, 0) + 1
                 self._record_poll(repo.full_name, res, report)
 
         await asyncio.gather(*(worker() for _ in range(POLL_WORKERS)))
