@@ -98,16 +98,36 @@ def parse(
     elif code not in (0, 1) and not (code == 127 and failed):
         tail = " ".join(stderr.strip().splitlines()[-3:])
         raise InventoryError(f"osv-scanner exited with {code}: {tail}")
+    skipped: list[str] = []
     for result in data.get("results") or []:
         src = Path(result["source"]["path"])
         rel = _rel(str(src), root)
-        sources.append(rel)
         text = read(src if src.is_absolute() else root / src) or ""
+        if own_report(text):  # a CycloneDX report from an earlier scan would count every finding twice
+            skipped.append(rel)
+            continue
+        sources.append(rel)
         d, u = _from_source(rel, text, result.get("packages") or [])
         deps += d
         unresolved += u
     deps = sorted(set(deps), key=lambda d: (d.source, d.line, d.ecosystem, d.name, d.version))
-    return Inventory(dependencies=tuple(deps), unresolved=tuple(unresolved), sources=tuple(sorted(sources)), tool=tool)
+    return Inventory(dependencies=tuple(deps), unresolved=tuple(unresolved), sources=tuple(sorted(sources)), tool=tool,
+                     skipped=tuple(sorted(skipped)))  # fmt: skip
+
+
+def own_report(text: str) -> bool:
+    """A CycloneDX document whose tool is Limbowatch: `limbowatch scan -o cyclonedx=…` output, not an SBOM."""
+    if '"limbowatch"' not in text or '"CycloneDX"' not in text:
+        return False
+    try:
+        doc = json.loads(text)
+    except ValueError:
+        return False
+    tools = (doc.get("metadata") or {}).get("tools") or {}
+    comps = tools.get("components", []) if isinstance(tools, dict) else tools
+    return doc.get("bomFormat") == "CycloneDX" and any(
+        c.get("name") == "limbowatch" for c in comps if isinstance(c, dict)
+    )
 
 
 def _rel(path: str, root: Path) -> str:

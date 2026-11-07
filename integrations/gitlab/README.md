@@ -5,7 +5,7 @@ Checks your dependencies against security advisories **in limbo**: published by 
 The job reads your lockfiles with OSV-Scanner (offline, so nothing about the project leaves the job). It matches them against the [limbo feed](https://limbo.watch/feed/), and against the source repos the feed doesn't cover. In a merge request, on every GitLab tier, you get:
 - **Code Quality**: each finding on its lockfile line ("Code Quality scans found 51 new findings");
 - **Test summary**: one failed test per finding at or above `fail_on` (JUnit);
-- **Limbowatch report**: a link to the `limbowatch/` artifacts, with `report.html`, `report.md`, `report.json` (schema 1), `report.csv` and `bom.cdx.json` (CycloneDX 1.6 with the vulnerabilities).
+- **Limbowatch report**: a link to the `limbowatch/` artifacts, with `report.html`, `report.md`, `report.json` (schema 1), `report.csv` and `cyclonedx.json` (CycloneDX 1.6 with the vulnerabilities).
 
 The job log shows a table per lockfile, what to upgrade, and why the job passed or failed. It fails when a finding meets `fail_on` (exit 1); exit 2 means the scan itself couldn't run.
 

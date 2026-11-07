@@ -45,7 +45,7 @@ limbowatch scan . -o table -o sarif=limbowatch.sarif -o junit=junit.xml -o html=
 limbowatch scan --sbom bom.cdx.json -f json
 ```
 
-The table groups findings by lockfile, lists the upgrade that clears each package's advisories, and ends with one line saying whether the scan passed or failed, and why:
+The table groups findings by lockfile and package, lists the upgrade that clears each package's advisories, and ends with one line saying whether the scan passed or failed, and why. A package with many advisories shows every critical, high and build-failing one, and a count of the rest (`-v` shows all). An earlier scan's CycloneDX report in the project is skipped, not read as an SBOM.
 
 ```
 web/package-lock.json
@@ -72,7 +72,7 @@ FAILED  2 findings at or above low (--fail-on low): 1 high, 1 medium.
 | `junit` | JUnit XML: test summaries in GitLab merge requests (every tier), Jenkins, Azure DevOps, CircleCI. A finding at or above `--fail-on` is a failed test; one below it, or accepted, is skipped |
 | `csv` | Spreadsheets: one row per finding, UTF-8 with a byte-order mark; cells that could run as a formula start with `'` |
 | `cyclonedx` | CycloneDX 1.6 JSON with the affected components and their vulnerabilities, for tools that ingest CycloneDX |
-| `github` | GitHub Actions annotations on the lockfile line, without code scanning (GitHub shows up to 10 of each level per step) |
+| `github` | GitHub Actions annotations on the lockfile line, without code scanning. One per affected package, because GitHub keeps only 10 of each level per step (F-096) |
 
 Every format carries the CC BY 4.0 attribution for the advisory data. SARIF 2.1.0 and CycloneDX 1.6 output are checked against the official schemas (FINDINGS F-093).
 

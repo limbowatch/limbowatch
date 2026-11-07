@@ -212,3 +212,28 @@ def test_colour_only_when_asked() -> None:
     assert "\x1b[" not in output.table(r)
     coloured = output.table(r, paint=output.Paint(color=True, links=True))
     assert "\x1b[31mHIGH" in coloured and "\x1b]8;;https://github.com/o/r/security/advisories/" in coloured
+
+
+def test_one_advisory_in_two_files_counts_once() -> None:
+    a = finding(source="go.mod")
+    b = finding(source="vendor/go.mod", line=3)  # the same package and advisory, declared twice
+    (u,) = output.upgrades(report(a, b))
+    assert u.advisories == ("GHSA-aaaa-bbbb-cccc",) and u.fixed_by_to == 1
+    assert output._upgrade_note(u) == "clears 1 advisory"
+
+
+def test_our_own_cyclonedx_report_is_not_read_as_an_sbom() -> None:
+    from limbowatch.inventory.osv_scanner import own_report
+
+    assert own_report(output.cyclonedx(report(finding())))
+    sbom = json.dumps({"bomFormat": "CycloneDX", "metadata": {"tools": {"components": [{"name": "syft"}]}}})
+    assert not own_report(sbom) and not own_report("not json limbowatch CycloneDX")
+
+
+def test_markdown_folds_long_tables() -> None:
+    many = [finding(name="scapy", ghsa=f"GHSA-{i:04d}-aaaa-bbbb", sev="high" if i < 2 else "low") for i in range(30)]
+    r = report(*many)
+    r.fail_on = "high"
+    md = output.markdown(r)
+    assert "### Findings that fail the build (2)" in md and "<details><summary>All 30 findings</summary>" in md
+    assert "findings</summary>" not in output.markdown(report(*many[:5]))

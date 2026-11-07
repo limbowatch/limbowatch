@@ -193,7 +193,8 @@ def upgrades(r: Report) -> list[Upgrade]:
         groups[(f.dependency.ecosystem, f.dependency.name, f.dependency.version)].append(f)
     out = []
     for (eco, name, ver), fs in groups.items():
-        known = [x for f in fs if (x := applicable_fix(eco, ver, f.fixed))]
+        fix_by_id = {f.ghsa_id: x for f in fs if (x := applicable_fix(eco, ver, f.fixed))}  # one advisory, many files
+        known = list(fix_by_id.values())
         to = known[0] if known and len(set(known)) == 1 else highest(eco, known) if known else None
         worst = min((_sev(f) for f in fs), key=lambda s: (*SEVERITIES, "unknown").index(s))
         where = f"{r.path(fs[0])}:{fs[0].dependency.line}"
@@ -394,6 +395,9 @@ def _md(s: str) -> str:
     return html.escape(s.replace("\n", " "), quote=False).replace("|", "\\|")
 
 
+MD_OPEN_ROWS = 20  # above this, the Markdown report folds the full table
+
+
 def markdown(r: Report) -> str:
     act = r.active
     failed, why = verdict(r)
@@ -410,13 +414,27 @@ def markdown(r: Report) -> str:
             f"- `{_md(u.name)}` {_md(u.installed)} → **{_md(u.to or '?')}**: {_upgrade_note(u)} (`{_md(u.where)}`)"
             for u in upgrades(r)
         ]
-        out += ["", "### Findings", "", "| Severity | Advisory | Package | Installed | Fixed in | CVE | Where |",
-                "|---|---|---|---|---|---|---|"]  # fmt: skip
-        for f in sorted(act, key=_rank):
-            sev = _sev(f) + ("" if f.affected is True and f.match is MatchKind.PACKAGE else " (possibly)")
-            out.append(f"| {sev} | [{f.ghsa_id}]({f.url}) | `{_md(f.dependency.ecosystem)}:{_md(f.dependency.name)}` | "
-                       f"{_md(f.dependency.version)} | {_md(_fix(f))} | {_md(', '.join(f.cves) or '–')} | "
-                       f"`{_md(r.path(f))}:{f.dependency.line}` |")  # fmt: skip
+
+        def rows(fs: list[Finding]) -> list[str]:
+            head = [
+                "| Severity | Advisory | Package | Installed | Fixed in | CVE | Where |",
+                "|---|---|---|---|---|---|---|",
+            ]
+            return head + [
+                f"| {_sev(f)}{'' if f.affected is True and f.match is MatchKind.PACKAGE else ' (possibly)'} | "
+                f"[{f.ghsa_id}]({f.url}) | `{_md(f.dependency.ecosystem)}:{_md(f.dependency.name)}` | "
+                f"{_md(f.dependency.version)} | {_md(_fix(f))} | {_md(', '.join(f.cves) or '–')} | "
+                f"`{_md(r.path(f))}:{f.dependency.line}` |"
+                for f in sorted(fs, key=_rank)
+            ]
+
+        if len(act) <= MD_OPEN_ROWS:
+            out += ["", "### Findings", "", *rows(act)]
+        else:  # a long table buries the point: show what fails the build, fold the rest
+            failing = [f for f in act if r.gated(f)]
+            if failing:
+                out += ["", f"### Findings that fail the build ({len(failing):,})", "", *rows(failing)]
+            out += ["", f"<details><summary>All {len(act):,} findings</summary>", "", *rows(act), "", "</details>"]
     if r.changes:
         out += ["", "**Since the last scan:** " + "; ".join(
             f"{c.kind.value}: {c.ghsa_id} (`{_md(c.package)}`)" for c in r.changes)]  # fmt: skip

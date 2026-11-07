@@ -85,7 +85,7 @@ def main() -> None:
         check("FAILED" in r.stdout and "To fix: upgrade" in r.stdout, "GitLab job log has the table and verdict", r.stdout)
         check(cq.exists() and "GHSA-c9gr-gmg4-2vqv" in cq.read_text(), "GitLab job writes the Code Quality report")
         check("<failure" in (out / "junit.xml").read_text(), "GitLab job writes JUnit with the failing finding")
-        check(all((out / n).exists() for n in ("report.html", "report.md", "report.json", "report.csv", "bom.cdx.json")),
+        check(all((out / n).exists() for n in ("report.html", "report.md", "report.json", "report.csv", "cyclonedx.json")),
               "GitLab job writes every report into limbowatch/")  # fmt: skip
         r = run("gitlab2", gitlab_script(local | {"fail_on": "none"}), work, {"CI_COMMIT_BRANCH": "feature"})
         check(r.returncode == 0, "GitLab job passes with fail_on none", r.stdout + r.stderr)
@@ -98,8 +98,9 @@ def main() -> None:
         check(r.returncode == 1 and "FAILED" in r.stdout, "Action fails on a finding", r.stdout + r.stderr)
         check("GHSA-c9gr-gmg4-2vqv" in (work / "proj/results.sarif").read_text(), "Action writes SARIF")
         check("GHSA-c9gr-gmg4-2vqv" in (work / "summary.md").read_text(), "Action writes the job summary")
-        check(re.search(r"^::(error|warning|notice) file=go\.mod,line=\d+,title=GHSA-c9gr-gmg4-2vqv", r.stdout, re.M)
-              is not None, "Action prints an annotation on go.mod", r.stdout)  # fmt: skip
+        annotations = re.findall(r"^::(?:error|warning|notice) file=go\.mod,line=\d+,title=github\.com/andybalholm/brotli",
+                                 r.stdout, re.M)  # fmt: skip
+        check(len(annotations) == 1, "Action prints one annotation for the package, on go.mod", r.stdout)
         outputs = (work / "gh_output").read_text()
         check("failed=true" in outputs and re.search(r"^findings=[1-9]", outputs, re.M) is not None,
               "Action sets its outputs", outputs)  # fmt: skip

@@ -149,6 +149,7 @@ class Inventory(Frozen):
     unresolved: tuple[UnresolvedDependency, ...] = ()
     sources: tuple[str, ...] = ()  # files read
     tool: str = ""  # e.g. "osv-scanner 2.7.0" or "cyclonedx"
+    skipped: tuple[str, ...] = ()  # reports Limbowatch itself wrote (CycloneDX output), not dependency sources
 
 
 class MatchKind(StrEnum):

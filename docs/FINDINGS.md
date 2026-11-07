@@ -1100,6 +1100,22 @@ Answered:
 - **Implication:** The component writes every report into `limbowatch/` and links that folder; JUnit uses the lockfile path as `classname` and the advisory, severity, package and version as the name, so names don't collide across lockfiles; the job's exit code, not the JUnit file, fails the pipeline.
 - **Sources:** [artifacts:expose_as](https://docs.gitlab.com/ci/yaml/#artifactsexpose_as), [Unit test reports](https://docs.gitlab.com/ci/testing/unit_test_reports/), [artifacts:reports:junit](https://docs.gitlab.com/ci/yaml/artifacts_reports/#artifactsreportsjunit)
 
+### F-095
+- **Date:** 2026-11-07 · **Status:** confirmed (observed; GitLab CI lint API)
+- **Question:** Why did the demo's GitLab pipelines fail before any job ran?
+- **Method:** Pipelines 3039387630 and 3039387670 on `limbowatch/demo-app` failed at creation. `POST /api/v4/projects/88619082/ci/lint` with the same `include: remote:` of the component template.
+- **Result:** "header:spec config description is too long (maximum is 256 characters)". After shortening the description, the same lint returned `valid: true`.
+- **Caveats:** GitLab's docs page for `spec:description` doesn't state the limit; it surfaced only on load.
+- **Implication:** A too-long component description breaks every pipeline that includes it, before any job runs. `tests/test_integrations.py` now checks the limit, and that every declared input is used.
+
+### F-096
+- **Date:** 2026-11-07 · **Status:** confirmed (observed on a real pull request)
+- **Question:** Does GitHub keep every workflow-command annotation a step prints?
+- **Method:** `limbowatch/demo-app` pull request #1 (67 findings), action printing one annotation per finding. `GET /repos/limbowatch/demo-app/commits/{sha}/check-runs` and `GET /repos/limbowatch/demo-app/check-runs/{id}/annotations`.
+- **Result:** The `scan` check run kept 32 annotations: 10 errors, 10 warnings, 10 notices, plus GitHub's own 2. The rest were dropped without notice, including the high-severity dnspython finding. The code scanning check run (SARIF) kept all 51 alerts for scapy.
+- **Caveats:** GitHub documents a limit of 10 per level per step; the job total may also be capped.
+- **Implication:** Annotations are now one per affected package (7 on the demo instead of 67), error if any of its findings fails the build. SARIF stays one result per finding.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

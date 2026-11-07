@@ -33,7 +33,7 @@ check-reports:
       assert report["schema_version"] == 1 and report["gate"]["fail_on"] == "none", report["gate"]
       junit = ElementTree.parse(out / "junit.xml").getroot()
       assert junit.tag == "testsuites" and junit.get("failures") == "0", junit.attrib  # fail_on none: nothing fails
-      bom = json.loads((out / "bom.cdx.json").read_text())
+      bom = json.loads((out / "cyclonedx.json").read_text())
       assert bom["specVersion"] == "1.6", bom.get("specVersion")
       print(f"{len(cq)} Code Quality entries, {junit.get('tests')} JUnit tests, {report['summary']['findings']} findings")
       PY

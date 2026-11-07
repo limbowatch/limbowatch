@@ -337,6 +337,8 @@ def scan(
         accepted |= {ln.split("#", 1)[0].strip() for ln in ignore_file.read_text().splitlines()} - {""}
     cache = cache or Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "limbowatch"
     inv = load_inventory(path, sbom_file, binary, scan_ignored)
+    for skipped in inv.skipped:
+        typer.echo(f"limbowatch: skipped {skipped}: a report from an earlier Limbowatch scan, not an SBOM", err=True)
     old = json.loads(state_file.read_text()) if state_file and state_file.exists() else None
     now = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 

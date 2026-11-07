@@ -86,7 +86,7 @@ limbowatch:
       set -- --cache .limbowatch-cache --state .limbowatch-cache/state.json --fail-on "$LW_FAIL_ON" -o table \
              -o codequality=limbowatch/gl-code-quality-report.json -o junit=limbowatch/junit.xml \
              -o html=limbowatch/report.html -o markdown=limbowatch/report.md -o json=limbowatch/report.json \
-             -o csv=limbowatch/report.csv -o cyclonedx=limbowatch/bom.cdx.json
+             -o csv=limbowatch/report.csv -o cyclonedx=limbowatch/cyclonedx.json
       [ "$LW_FAIL_ON_UNKNOWN" = "true" ] || set -- "$@" --no-fail-on-unknown
       # Issues only from the default branch or a schedule, never from merge request pipelines.
       if [ "$LW_ISSUES" = "true" ] && { [ "${CI_COMMIT_BRANCH:-}" = "${CI_DEFAULT_BRANCH:-}" ] || [ "${CI_PIPELINE_SOURCE:-}" = "schedule" ]; }; then
