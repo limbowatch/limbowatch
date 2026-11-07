@@ -1,4 +1,4 @@
 {"name":"cve_bulk","updated_at":"2026-10-28T02:31:12Z","value":"2026-10-28_all_CVEs_at_midnight.zip.zip"}
-{"name":"cve_delta","updated_at":"2026-11-07T13:14:39Z","value":"2026-11-07T12:53:56.075Z"}
+{"name":"cve_delta","updated_at":"2026-11-07T18:37:37Z","value":"2026-11-07T18:29:33.369Z"}
 {"name":"daily_report","updated_at":"2026-11-07T13:24:30Z","value":"{\"at\":\"2026-11-07T13:24:27Z\",\"event_id\":24885,\"limbo\":9127,\"permanent\":14413,\"new\":82,\"reviewed\":0,\"cve_changes\":15}"}
-{"name":"reviewed_at","updated_at":"2026-11-07T13:14:36Z","value":"2026-11-06T19:51:26Z"}
+{"name":"reviewed_at","updated_at":"2026-11-07T18:37:31Z","value":"2026-11-06T19:51:26Z"}
