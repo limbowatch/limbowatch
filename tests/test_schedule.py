@@ -60,6 +60,6 @@ def test_coverage_per_ecosystem_counts_watched_and_checked() -> None:
              Repo(full_name="b/y", sources=[], first_seen="t")]  # fmt: skip
     top = {"top": 1000, "generated": "2026-11-07", "registries": {"npmjs.org": ["A/x", "b/y", "c/z"]}}
     cov = ecosystem_coverage(repos, top)
-    assert cov == {"top": 1000, "generated": "2026-11-07",
-                   "ecosystems": {"npm": {"repos": 3, "watched": 2, "checked": 1, "with_advisories": 1}}}  # fmt: skip
+    npm = {"top": 1000, "repos": 3, "watched": 2, "checked": 1, "with_advisories": 1}
+    assert cov == {"top": 1000, "generated": "2026-11-07", "ecosystems": {"npm": npm}}
     assert ecosystem_coverage(repos, None) is None

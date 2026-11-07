@@ -59,8 +59,11 @@ jobs:
           uv run limbowatch track --state tracker-data/state --seed tracker/seeds/popular-upstreams.txt \
             --seed tracker/seeds/top100-upstreams.txt --seed tracker/seeds/top-packages.txt --max-new 2500 \
             --budget "${BUDGET_INPUT:-$budget}" --minutes 50 --max-nvd 40 $extra
+      # Only the scheduled run reports: manual runs (e.g. to speed up a watchlist expansion) would otherwise email
+      # every subscriber a partial report; the next daily report covers everything since the last one.
       - name: Report
         id: report
+        if: github.event_name == 'schedule'
         run: |
           path=$(uv run limbowatch report --state tracker-data/state --out tracker-data/reports)
           echo "path=$path" >> "$GITHUB_OUTPUT"
@@ -72,6 +75,7 @@ jobs:
           git -c user.name="limbowatch-bot" -c user.email="bot@limbo.watch" commit -q -m "tracker $(date -u +%F)" || exit 0
           git push -q "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" tracker-data
       - name: Post report to the issue
+        if: github.event_name == 'schedule'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPORT: ${{ steps.report.outputs.path }}

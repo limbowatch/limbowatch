@@ -107,10 +107,12 @@ def ecosystem_coverage(repos: list[Repo], top_packages: dict[str, Any] | None) -
     if not top_packages:
         return None
     by_name = {r.full_name.lower(): r for r in repos}
+    depth = top_packages.get("top_by_registry") or {}
     out: dict[str, Any] = {}
     for reg, names in (top_packages.get("registries") or {}).items():
         rows = [by_name.get(n.lower()) for n in names]
         out[REGISTRY_LABEL.get(reg, reg)] = {
+            "top": depth.get(reg, top_packages.get("top")),
             "repos": len(names),
             "watched": sum(1 for r in rows if r is not None),
             "checked": sum(1 for r in rows if r is not None and r.last_polled_at and r.poll_status in (200, 304)),

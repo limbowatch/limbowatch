@@ -1664,16 +1664,17 @@ def methodology(m: dict[str, Any]) -> str:
     flow_end = (flow.get("ends_at") or m["generated_at"])[:10]
     tp = cov.get("top_packages") or {}
     eco_rows = "".join(
-        f'<tr><th scope="row">{E(name)}</th><td class="n">{e["repos"]:,}</td><td class="n">{e["watched"]:,}</td>'
+        f'<tr><th scope="row">{E(name)}</th><td class="n">{e.get("top") or 0:,}</td><td class="n">{e["repos"]:,}</td>'
+        f'<td class="n">{e["watched"]:,}</td>'
         f'<td class="n">{e["checked"]:,}</td><td class="n">{e["with_advisories"]:,}</td></tr>'
         for name, e in sorted((tp.get("ecosystems") or {}).items(), key=lambda kv: kv[0].lower())
     )
     eco_table = (
-        f"<p><strong>Coverage of the most-used packages.</strong> The source repositories of the top {tp.get('top') or 0:,} "
-        "packages in each ecosystem, by dependent repositories (ranking from ecosyste.ms, "
+        "<p><strong>Coverage of the most-used packages.</strong> The source repositories of the top packages in each "
+        "ecosystem, by dependent repositories (ranking from ecosyste.ms, "
         f"{E(str(tp.get('generated') or ''))}):</p>"
-        '<table class="eco"><thead><tr><th scope="col">Ecosystem</th><th scope="col" class="n">Repositories</th>'
-        '<th scope="col" class="n">Watched</th><th scope="col" class="n">Checked</th>'
+        '<table class="eco"><thead><tr><th scope="col">Ecosystem</th><th scope="col" class="n">Top packages</th>'
+        '<th scope="col" class="n">Repositories</th><th scope="col" class="n">Watched</th><th scope="col" class="n">Checked</th>'
         '<th scope="col" class="n">With advisories</th></tr></thead>'
         f"<tbody>{eco_rows}</tbody></table>"
         if eco_rows
@@ -1723,8 +1724,9 @@ Limbowatch can only see the repositories it checks: {cov["watchlist_repos"]:,} t
 <a href="/feed/watchlist.json">watchlist.json</a> (every repository, with when it was last checked). Because it includes
 repositories chosen from <a href="https://ecosyste.ms">ecosyste.ms</a> package rankings, those two files are licensed
 CC BY-SA 4.0; advisory data stays CC BY 4.0.</li>
-<li>The most-used packages are being added in stages: the top 1,000 per ecosystem from 7 November 2026, then the top 10,000
-(FINDINGS <a href="{FINDINGS_URL}#f-099">F-099</a>). A run checks at most 2,500 new repositories, so the daily re-checks
+<li>The most-used packages are being added in stages: the top 1,000 per ecosystem on 7 November 2026, then the top 10,000,
+first for NuGet, Packagist, Maven and RubyGems, where coverage was weakest
+(FINDINGS <a href="{FINDINGS_URL}#f-099">F-099</a>, <a href="{FINDINGS_URL}#f-100">F-100</a>). A run checks at most 2,500 new repositories, so the daily re-checks
 keep their turn.</li></ul>
 <p><strong>How much that covers.</strong> In the {flow.get("days", 7)} days to {flow_end}, the tracker saw
 {flow.get("published_all_ecosystems", 0):,} newly published advisories, in every ecosystem. GitHub said in June 2026 that it

@@ -4,7 +4,8 @@
 # ///
 """Build the "top packages" seed: the GitHub source repos of the most-used packages in each ecosystem.
 
-  uv run tracker/seeds/make_top_packages.py --top 1000    # -> tracker/seeds/top-packages.txt
+  uv run tracker/seeds/make_top_packages.py --top 1000    # -> tracker/seeds/top-packages.txt (and .json)
+  uv run tracker/seeds/make_top_packages.py --top 1000 --deeper nuget.org=10000 --deeper packagist.org=10000
 
 Selection rule (PHASE0_PLAN §13.11, FINDINGS F-099): for each of npm, PyPI, Go, Maven, crates.io, NuGet, RubyGems and
 Packagist, the top N packages by dependent repositories as ranked by ecosyste.ms, keeping those whose registry
@@ -59,25 +60,34 @@ def top(client: httpx.Client, registry: str, n: int) -> list[dict]:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--top", type=int, default=1000, help="packages per ecosystem")
+    ap.add_argument("--deeper", action="append", default=[], metavar="REGISTRY=N",
+                    help="a different depth for one registry, e.g. nuget.org=10000 (repeatable)")  # fmt: skip
     a = ap.parse_args()
+    depth = {reg: a.top for reg in REGISTRIES}
+    for spec in a.deeper:
+        reg, _, n = spec.partition("=")
+        if reg not in depth or not n.isdigit():
+            raise SystemExit(f"--deeper wants REGISTRY=N with REGISTRY one of {', '.join(REGISTRIES)}")
+        depth[reg] = int(n)
     repos: set[str] = set()
     counts = []
     per_registry: dict[str, list[str]] = {}
     with httpx.Client(timeout=120, headers={"User-Agent": "limbowatch-seed (https://limbo.watch)"}) as client:
         for reg in REGISTRIES:
-            found = {r for p in top(client, reg, a.top) if (r := github_repo(p.get("repository_url")))}
-            counts.append(f"{reg} {len(found):,}")
+            found = {r for p in top(client, reg, depth[reg]) if (r := github_repo(p.get("repository_url")))}
+            counts.append(f"{reg} top {depth[reg]:,}: {len(found):,}")
             repos |= found
             per_registry[reg] = sorted(found)
     head = [
-        f"# Source repos of the top {a.top:,} packages per ecosystem by dependent repositories, as ranked by",
+        "# Source repos of the top packages per ecosystem by dependent repositories, as ranked by",
         "# ecosyste.ms (https://ecosyste.ms), GitHub repos only. Data: ecosyste.ms, CC BY-SA 4.0; this list is CC BY-SA 4.0.",
-        f"# Generated {date.today()} by tracker/seeds/make_top_packages.py --top {a.top}. Repos per registry: {'; '.join(counts)}.",
+        f"# Generated {date.today()} by tracker/seeds/make_top_packages.py. Repos per registry: {'; '.join(counts)}.",
         f"# {len(repos):,} distinct repos.",
     ]
     OUT.write_text("\n".join(head + sorted(repos)) + "\n")
-    OUT_JSON.write_text(json.dumps({"top": a.top, "generated": str(date.today()), "license": "CC BY-SA 4.0",
-                                    "source": "https://ecosyste.ms", "registries": per_registry}, indent=1) + "\n")  # fmt: skip
+    OUT_JSON.write_text(json.dumps({"top": a.top, "top_by_registry": depth, "generated": str(date.today()),
+                                    "license": "CC BY-SA 4.0", "source": "https://ecosyste.ms",
+                                    "registries": per_registry}, indent=1) + "\n")  # fmt: skip
     print(f"wrote {OUT} ({len(repos):,} repos)")
 
 
