@@ -1297,7 +1297,9 @@ def why(m: dict[str, Any]) -> str:
                    "Dependabot alerts come from the advisory, not the CVE."),
         ("11 Aug", "I follow up. GitHub is still publishing CVEs for advisories from May."),
         ("9 Sep", "After my third follow-up, the CVE is published: 85 days after the advisory."),
-        ("28 Oct", "The advisory is still not in GitHub’s Advisory Database or in OSV."),
+        ("28 Oct", "As expected, the advisory isn’t in GitHub’s Advisory Database: it covers a release .jar and a "
+                   "Docker image, not a package in an ecosystem GitHub reviews. It will stay outside the databases "
+                   "scanners read."),
     ]  # fmt: skip
     tl = "".join(
         f"<li{' class="now"' if n == len(steps) - 1 else ''}><time>{E(d)}</time><span>{E(t)}</span></li>"
@@ -1430,9 +1432,9 @@ vulnerable version get no alert until the review happens. Examples are below.</p
 C/C++ libraries and container images. No scanner that reads GitHub’s database will flag them.</p></div>
 <div><h3>CVE IDs that stay empty</h3><p>{li["rbp"]["count"]:,} advisories cite a CVE that is reserved but not published,
 so looking it up returns nothing. The CVE Program expects publication within 72 hours.</p></div>
-<div><h3>One advisory, followed for months</h3><p>A critical advisory for an NSA open-source project waited 85 days for
-its CVE. It still isn’t in GitHub’s database, and OSV lists the CVE without a package, so scanners can’t match it.
-<a href="/why/">The story</a></p></div></div></section>
+<div><h3>85 days for one CVE</h3><p>A critical advisory for an NSA open-source project waited 85 days for its CVE
+to be published. It covers a release .jar and a Docker image, so GitHub won’t review it, and OSV lists the CVE without a
+package: scanners can’t match it. <a href="/why/">The story</a></p></div></div></section>
 
 <section class="s"><h2>Examples you can check</h2><p class="sub">Critical advisories with a released fix, published this
 past year, still waiting longest. Each links to our facts page and to the maintainers’ advisory on GitHub.</p>
