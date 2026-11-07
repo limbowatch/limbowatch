@@ -6,7 +6,7 @@ import json
 import statistics
 from collections import Counter
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
@@ -33,6 +33,7 @@ AGE_BUCKETS = [
     ("2–3 months", 60, 90),
     ("> 3 months", 90, 10**6),
 ]
+FLOW_DAYS = 7
 
 
 @dataclass
@@ -95,6 +96,7 @@ def metrics(store: Store, now: datetime | None = None) -> dict[str, Any]:
         reviewed = list(s.execute(select(Reviewed)).scalars())
         runs = list(s.execute(select(Run).order_by(Run.id.desc()).limit(1)).scalars())
         events = list(s.execute(select(Event).order_by(Event.id.desc()).limit(200)).scalars())
+        exits = list(s.execute(select(Event).where(Event.event.like("in limbo -> %"))).scalars())
     limbo_repos = {i.adv.repo for i in in_limbo}
     tiers: Counter[str] = Counter()
     on_schedule = 0
@@ -116,6 +118,10 @@ def metrics(store: Store, now: datetime | None = None) -> dict[str, Any]:
         if i.facts.reviewed_at and i.adv.published_at
     ]
     rbp = [i for i in limbo if i.assessment.cve_label.name == "RESERVED"]
+    # The last 7 days in reviewable ecosystems: newly published advisories against advisories that left limbo.
+    week = now - timedelta(days=FLOW_DAYS)
+    reviewable_ids = {i.adv.ghsa_id for i in all_items if not i.assessment.likely_permanent}
+    left_week = [e for e in exits if e.ghsa_id in reviewable_ids and _at(e.at) >= week]
     sev = Counter(i.adv.severity or "unknown" for i in limbo)
     return {
         "generated_at": now.replace(microsecond=0).isoformat().replace("+00:00", "Z"),
@@ -143,6 +149,18 @@ def metrics(store: Store, now: datetime | None = None) -> dict[str, Any]:
                 "over_72h": sum(1 for i in rbp if (days_since(i.adv.published_at, now) or 0) > 3),
             },
         },
+        "flow_7d": {
+            "days": FLOW_DAYS,
+            "published": sum(
+                1
+                for i in all_items
+                if not i.assessment.likely_permanent and i.adv.published_at and i.adv.published_at >= week
+            ),
+            "left": len(left_week),
+            "reviewed": sum(1 for e in left_week if e.event == "in limbo -> reviewed"),
+            "note": "Advisories newly published in watched repos, in ecosystems GitHub reviews, against advisories "
+            "that left limbo in the same days. Both are floors: only watched repos are seen, some a few days late.",
+        },
         "likely_permanent": {
             "count": len(permanent),
             "note": "Published advisories in ecosystems GitHub doesn't review (free text, 'other', C/C++, "
@@ -166,6 +184,10 @@ def metrics(store: Store, now: datetime | None = None) -> dict[str, Any]:
         ][:50],
         "attribution": ATTRIBUTION,
     }
+
+
+def _at(iso: str) -> datetime:
+    return datetime.fromisoformat(iso.replace("Z", "+00:00"))
 
 
 def dumps(obj: Any) -> str:

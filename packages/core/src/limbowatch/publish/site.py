@@ -1,7 +1,9 @@
 """Static site for limbo.watch, built from tracker state.
 
-Pages: `/` (live count and what limbo is), `/tracker/` (every advisory, filterable), one page per
-advisory in limbo at `/advisory/<GHSA>/`, and `/feed/` (how to use the OSV feed). Self-contained:
+Pages: `/` (live count, the queue chart and what limbo is), `/tracker/` (every advisory, filterable), one page
+per advisory in limbo at `/advisory/<GHSA>/`, `/feed/` (how to use the OSV feed), `/scan/`, `/methodology/`,
+`/press/` (citable numbers, the chart as SVG, every advisory as CSV, contact), `/why/` and `/quality/`. Plus Atom
+feeds of new advisories, `sitemap.xml` and `robots.txt`. Self-contained:
 no third-party scripts, fonts or images, so the CSP can stay at 'self'. Factual metadata only
 (FINDINGS F-059): no advisory titles, descriptions or credits.
 
@@ -10,14 +12,17 @@ Amber marks "in limbo" and nothing else (brand/README.md).
 
 from __future__ import annotations
 
+import csv
 import html
+import io
 import json
 import re
+import statistics
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from limbowatch.ecosystems import PackageName, package_name
+from limbowatch.ecosystems import PackageName, package_name, reviewable
 from limbowatch.models import AdvisoryPackage, CveLabel, Status
 from limbowatch.publish import ATTRIBUTION, Item, days_since, eco_label, fixes_text
 from limbowatch.publish.quality import NAME, Problem, problems
@@ -26,6 +31,11 @@ from limbowatch.versions import fixed_versions, no_fix, osv_ranges
 REPO_URL = "https://github.com/limbowatch/limbowatch"
 REPORT_URL = f"{REPO_URL}/tree/main/research/2026-10-state-of-the-gap"
 ISSUE_URL = f"{REPO_URL}/issues/1"
+FINDINGS_URL = f"{REPO_URL}/blob/main/docs/FINDINGS.md"
+SITE = "https://limbo.watch"
+CONTACT = "blueandhack@gmail.com"
+QUEUE_UNIT = 40  # advisories per square in the queue chart
+QUEUE_WEEKS = 52  # weekly columns; the last one holds everything older
 LEFT_WINDOW = timedelta(days=30)
 LIST_ROWS = 5
 SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
@@ -68,7 +78,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--sans);f
 a{color:inherit}a:hover{color:var(--amber-text)}
 .wrap{max-width:1200px;margin:0 auto;padding:0 24px}
 .mono{font-family:var(--mono)}.muted{color:var(--muted)}.ink2{color:var(--ink2)}
-.eyebrow{margin:0;font-family:var(--mono);font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.eyebrow{margin:0;font-size:14px;color:var(--muted)}.small{font-size:14px}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+:focus-visible{outline:2px solid var(--mark);outline-offset:2px}
 /* header */
 .top{border-bottom:1px solid var(--line)}
 .bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;padding-top:14px;padding-bottom:14px}
@@ -92,7 +104,7 @@ nav.main a[aria-current]{font-weight:600;border-bottom-color:currentColor}
 .tl{margin:72px 0 0}.tl figcaption{font-size:14px;color:#A9A8A0;margin-bottom:18px}
 .tl-row{display:flex;align-items:center}.tl-cols{display:flex}
 .tl .f3{flex:3}.tl .f1{flex:1}.tl .pr{padding-right:16px}
-.tl-tag{margin:0;font-family:var(--mono);font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#F4A62A;font-weight:500}
+.tl-tag{margin:0;font-size:15px;color:#F4A62A;font-weight:600}
 .tl-note{margin:4px 0 12px;font-size:15px;color:#A9A8A0}
 .dot{width:16px;height:16px;border-radius:50%;flex:none}.dot.amber{background:#F4A62A}
 .dot.ring{border:3px solid #F3F1EA}.dot.fill{background:#F3F1EA}
@@ -119,7 +131,7 @@ h2.sm{font-size:24px;letter-spacing:-.01em}h2.xs{font-size:20px;margin-bottom:16
 .sub{margin:8px 0 0;font-size:17px;color:var(--ink2)}
 .cols{margin-top:32px;display:flex;flex-wrap:wrap;gap:24px}.cols>*{flex:1 1 460px;min-width:0}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:14px}
-.list{padding:8px 0}.list h3{margin:0;padding:16px 24px 8px;font:600 13px/1.4 var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--ink2)}
+.list{padding:8px 0}.list h3{margin:0;padding:16px 24px 8px;font-size:15px;font-weight:600;color:var(--ink2)}
 .li{display:flex;gap:16px;align-items:baseline;padding:14px 24px;border-top:1px solid var(--line2);text-decoration:none}
 .li .m{flex:1;min-width:0;overflow-wrap:anywhere}.li .m small{font:13px var(--mono);color:var(--ink2)}
 .li .r{font-size:14px;color:var(--ink2);text-align:right;white-space:nowrap}
@@ -271,6 +283,71 @@ gap:6px 12px;padding:16px;border-bottom:1px solid var(--line2)}.tbl tr:last-chil
 ol.steps li{gap:12px}pre.light{max-height:440px;overflow:auto}
 .story{padding-top:32px}.story p{font-size:17px}
 .consent div{width:100%}.consent .btn{flex:1;justify-content:center}}
+/* home: search, flow, queue */
+.find{margin-top:32px;max-width:640px}.find label{display:block;font-size:15px;font-weight:600;margin-bottom:8px}
+.find div{display:flex;gap:8px}.find input{flex:1;min-width:0;min-height:48px;padding:0 14px;border-radius:10px;border:1px solid var(--border);
+background:var(--surface);color:var(--ink);font:inherit}
+.find button{min-height:48px;padding:0 18px;border-radius:10px;border:0;background:var(--btn-bg);color:var(--btn-ink);font:inherit;font-weight:600;cursor:pointer}
+.find.dark input{background:#161A22;border-color:#3A404C;color:#F3F1EA}.find.dark input::placeholder{color:#7C818C}
+.find.dark button{background:#F3F1EA;color:#0F1218}
+.side{flex:1 1 380px;max-width:560px}.flow{margin:0 0 24px;font-size:19px;line-height:1.45;color:#C3C2B7}.flow strong{color:#F3F1EA}
+.stats.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+figure.queue{margin:64px 0 0}figure.queue svg{display:block;width:100%;height:auto}
+.qaxis{position:relative;height:22px;margin-top:10px;font-size:13px;color:#A9A8A0}
+.qaxis span{position:absolute;top:0;white-space:nowrap}.qaxis span.end{transform:translateX(-80%)}
+figure.queue figcaption{margin-top:14px;font-size:14px;color:#A9A8A0;max-width:760px}
+@media (prefers-reduced-motion:no-preference){figure.queue g g{animation:settle .7s cubic-bezier(.2,.7,.3,1) both;
+animation-delay:calc(var(--c) * 14ms)}@keyframes settle{from{opacity:0;transform:translateY(-24px)}to{opacity:1;transform:none}}}
+/* home: proof */
+.proof{display:flex;flex-wrap:wrap;gap:32px 64px;align-items:center}.ptext{flex:3 1 480px;min-width:0}.ptext .sub{max-width:640px}
+.links{display:flex;flex-wrap:wrap;gap:4px 24px;margin:16px 0 0}.links a{display:inline-flex;align-items:center;min-height:44px;font-weight:600}
+.vs{flex:2 1 320px;display:flex;flex-direction:column;gap:12px}
+.vs>div{position:relative;display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border:1px solid var(--line);
+border-radius:12px;background:var(--surface);overflow:hidden}
+.vs span{position:relative;z-index:1;font-size:15px}.vs b{position:relative;z-index:1;font-size:32px;font-weight:650;letter-spacing:-.02em}
+.vs b.zero{color:var(--muted)}.vs .lw{border-color:var(--mark)}.vs .lw b{color:var(--amber-text)}
+.vs i{position:absolute;inset:0 auto 0 0;background:var(--pill-bg);opacity:.6}
+/* home: ecosystems, CVE split, paths */
+.two{display:flex;flex-wrap:wrap;gap:48px 64px}.two>div{flex:1 1 420px;min-width:0}
+table.eco{margin-top:20px;min-width:0;font-size:15px}table.eco th,table.eco td{padding:9px 8px;border-bottom:1px solid var(--line2)}
+table.eco th:first-child{padding-left:0;font-weight:500;color:var(--ink);font-size:15px}table.eco td:last-child,table.eco th:last-child{padding-right:0}
+table.eco thead th{color:var(--muted);font-size:13px;font-weight:500}.n{text-align:right;white-space:nowrap}
+td.ebar{width:45%}td.ebar span{display:block;height:10px;border-radius:2px;background:var(--mark)}
+.split{display:flex;height:28px;margin-top:24px;border-radius:6px;overflow:hidden;gap:2px}
+.s0{background:var(--ink)}.s1{background:var(--ink2)}.s2{background:var(--muted)}.s3{background:var(--border)}
+ul.keys{margin:20px 0 0;padding:0;list-style:none}ul.keys li{position:relative;padding:10px 0 10px 28px;border-bottom:1px solid var(--line2)}
+ul.keys i{position:absolute;left:0;top:15px;width:14px;height:14px;border-radius:3px}ul.keys span{display:block;font-size:14px;color:var(--ink2)}
+.paths{margin-top:32px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:32px 48px}
+.paths>div{border-top:2px solid var(--ink);padding-top:20px}.paths h3{margin:0;font-size:19px;font-weight:600}
+.paths p{margin:10px 0 0;color:var(--ink2)}.paths .links{flex-direction:column;gap:0;margin-top:8px}
+/* footer */
+.fcols{display:grid;grid-template-columns:2fr repeat(3,1fr);gap:32px;padding:48px 0;border-top:1px solid var(--line)}
+.fabout{color:var(--ink)}.fabout p{margin:12px 0 0;max-width:320px;color:var(--ink2);font-size:14px}
+.fcols h2{font-size:13px;font-weight:600;color:var(--ink);letter-spacing:0}.fcols ul{margin:10px 0 0;padding:0;list-style:none}
+.fcols li a{display:inline-flex;min-height:32px;align-items:center;color:var(--ink2);text-decoration:none;font-size:14px;overflow-wrap:anywhere}
+.fcols li a:hover{color:var(--amber-text);text-decoration:underline}
+/* press */
+.lead{max-width:680px;font-size:18px}.contact{flex:0 1 360px;padding:24px}.contact p{margin:6px 0 16px;color:var(--ink2);font-size:15px}
+.contact .btn{width:100%;justify-content:center;overflow-wrap:anywhere}
+ol.quotes{margin:24px 0 16px;padding:0;list-style:none;counter-reset:q;max-width:860px}
+ol.quotes li{padding:20px 0;border-top:1px solid var(--line)}ol.quotes p{margin:0;font-size:19px;line-height:1.5}
+ol.quotes a{display:inline-flex;min-height:36px;align-items:center;font-size:14px;color:var(--ink2)}
+.poster{margin-top:24px;padding:8px 32px 28px;background:#0F1218;border-radius:14px}.poster figure.queue{margin-top:24px}
+pre.wrapcode{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:16px}
+ul.kit{margin:16px 0 0;padding:0;list-style:none}ul.kit a{display:inline-flex;min-height:40px;align-items:center}
+.tbl td.n,.tbl th.n{text-align:right}
+/* methodology */
+.doc{display:grid;grid-template-columns:minmax(220px,1fr) minmax(0,2.4fr);gap:48px;padding-top:48px}
+.doc>div:first-child{position:sticky;top:24px;align-self:start}
+.toc ol{margin:24px 0 0;padding:0;list-style:none}.toc a{display:flex;min-height:36px;align-items:center;color:var(--ink2);text-decoration:none;font-size:15px}
+.toc a:hover{color:var(--amber-text)}
+.prose{max-width:720px}.prose section{padding:8px 0 32px;border-bottom:1px solid var(--line2);margin-bottom:24px;scroll-margin-top:16px}
+.prose h2{margin-bottom:12px}.prose p,.prose li{color:var(--ink2);line-height:1.7}.prose strong{color:var(--ink)}.prose ul{padding-left:20px}
+@media (max-width:900px){.fcols{grid-template-columns:1fr 1fr}.fabout{grid-column:1/-1}.doc{grid-template-columns:1fr;gap:24px}
+.doc>div:first-child{position:static}}
+@media (max-width:640px){.find div{flex-direction:column}.find button{width:100%}.flow{font-size:17px}
+.stats.three{grid-template-columns:repeat(3,minmax(0,1fr))}figure.queue{margin-top:40px}.qaxis span:nth-child(3){display:none}
+.vs b{font-size:26px}.poster{padding:4px 16px 20px}ol.quotes p{font-size:17px}.fcols{grid-template-columns:1fr;gap:24px}}
 /* data quality */
 .qrepo{margin-top:32px}.qrepo h3{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;margin:0 0 10px;font-size:17px;overflow-wrap:anywhere}
 .qrepo h3 small{color:var(--muted);font-weight:400;font-size:14px}.qrepo .card{padding:0}
@@ -305,6 +382,7 @@ $('#filters').addEventListener('submit',e=>e.preventDefault());
 $('#ftoggle').addEventListener('click',()=>{const o=$('#filters').classList.toggle('open');$('#ftoggle').setAttribute('aria-expanded',String(o));});
 ['#q','#eco','#sev','#cve','#pub','#sort'].forEach(s=>$(s).addEventListener('input',()=>{page=0;render();}));
 $('#prev').addEventListener('click',()=>{page--;render();});$('#next').addEventListener('click',()=>{page++;render();});
+const q0=new URLSearchParams(location.search).get('q');if(q0)$('#q').value=q0;
 fetch('/tracker/data.json').then(r=>r.json()).then(d=>{D=d;const ecos=[...new Set([...d.pending,...d.permanent].map(x=>x.eco))].sort();
  $('#eco').insertAdjacentHTML('beforeend',ecos.map(e=>`<option>${esc(e)}</option>`).join(''));render();})
  .catch(()=>{$('#rows').innerHTML='<tr><td colspan="6">Couldn\\'t load the data. <a href="/feed/">Use the feed instead.</a></td></tr>';});
@@ -324,8 +402,8 @@ def mark(stroke: str, dot: str, size: int = 30) -> str:
 
 def header(active: str, dark: bool = False) -> str:
     links = [("tracker", "/tracker/", "Tracker"), ("scan", "/scan/", "Scan your project"), ("feed", "/feed/", "Feed"),
-             ("report", "/#report", "October report"),
-             ("about", "/#about", "About"), ("why", "/why/", "Why"), ("", REPO_URL, "GitHub ↗")]  # fmt: skip
+             ("methodology", "/methodology/", "Methodology"), ("press", "/press/", "Press"), ("why", "/why/", "Why"),
+             ("", REPO_URL, "GitHub ↗")]  # fmt: skip
     current = ' aria-current="page"'
     nav = "".join(
         f'<a href="{href}"{current if key and key == active else ""}>{label}</a>' for key, href, label in links
@@ -343,8 +421,23 @@ def header(active: str, dark: bool = False) -> str:
 
 
 def footer(extra: str = "") -> str:
+    cols = [
+        ("Use it", [("/tracker/", "Tracker"), ("/scan/", "Scan your project"), ("/feed/", "Limbo feed (OSV)"),
+                    ("/feed/critical.atom", "Atom: new critical and high"), ("/quality/", "Data quality")]),
+        ("Learn", [("/methodology/", "Methodology"), (REPORT_URL, "October 2026 report"), ("/why/", "Why I built it"),
+                   (FINDINGS_URL, "Research log")]),
+        ("Contact", [("/press/", "Press and research"), (f"mailto:{CONTACT}", CONTACT), (REPO_URL, "GitHub"),
+                     (ISSUE_URL, "Daily report by email")]),
+    ]  # fmt: skip
+    nav = "".join(
+        f"<div><h2>{h}</h2><ul>{''.join(f'<li><a href="{E(u)}">{E(t)}</a></li>' for u, t in links)}</ul></div>"
+        for h, links in cols
+    )
     return (
-        f'<footer class="wrap"><div class="f"><p>{extra}{E(ATTRIBUTION)}</p>'
+        f'<footer class="wrap"><div class="fcols"><div class="fabout">{mark("currentColor", "var(--mark)", 26)}'
+        "<p>Limbowatch tracks security advisories that maintainers have published but scanners can’t see yet. "
+        "Open source, open data.</p></div>"
+        f'{nav}</div><div class="f"><p>{extra}{E(ATTRIBUTION)}</p>'
         f'<p>limbo.watch · <a href="{REPO_URL}">Source</a> · Apache-2.0</p></div></footer>'
     )
 
@@ -355,13 +448,25 @@ MENU_JS = (
 )
 
 
-def page(title: str, description: str, body: str) -> str:
+def page(title: str, description: str, body: str, path: str = "/", jsonld: dict[str, Any] | None = None) -> str:
+    """A full HTML page, with the tags link previews and search engines read (Open Graph, canonical URL,
+    the Atom feed and, where given, schema.org JSON-LD)."""
+    url = SITE + path
+    ld = json.dumps(jsonld, separators=(",", ":")).replace("</", "<\\/") if jsonld else ""
     return (
         '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         f'<title>{E(title)}</title>\n<meta name="description" content="{E(description)}">\n'
+        f'<link rel="canonical" href="{E(url)}">\n'
+        '<meta property="og:type" content="website">\n<meta property="og:site_name" content="limbo.watch">\n'
+        f'<meta property="og:title" content="{E(title)}">\n<meta property="og:description" content="{E(description)}">\n'
+        f'<meta property="og:url" content="{E(url)}">\n<meta property="og:image" content="{SITE}/assets/social.png">\n'
+        '<meta property="og:image:width" content="1280">\n<meta property="og:image:height" content="640">\n'
+        '<meta name="twitter:card" content="summary_large_image">\n'
+        '<link rel="alternate" type="application/atom+xml" title="New advisories in limbo" href="/feed/limbo.atom">\n'
         '<link rel="icon" href="/favicon.svg" type="image/svg+xml">\n<link rel="stylesheet" href="/assets/site.css">\n'
-        f"</head>\n<body>\n{body}\n{MENU_JS}</body>\n</html>\n"
+        + (f'<script type="application/ld+json">{ld}</script>\n' if ld else "")
+        + f"</head>\n<body>\n{body}\n{MENU_JS}</body>\n</html>\n"
     )
 
 
@@ -422,15 +527,209 @@ def row(i: Item, now: datetime) -> dict[str, Any]:
     }
 
 
+# --- charts -----------------------------------------------------------------------------------------
+
+
+def queue_cols(pend: list[Item], now: datetime) -> tuple[list[tuple[int, int]], int]:
+    """Advisories in limbo by whole weeks waiting: (all, critical or high) per week, the last column holding
+    everything older than a year, plus the count with no publication date (shown, never dropped)."""
+    cols = [[0, 0] for _ in range(QUEUE_WEEKS + 1)]
+    undated = 0
+    for i in pend:
+        a = days_since(i.adv.published_at, now)
+        if a is None:
+            undated += 1
+            continue
+        c = cols[min(int(max(a, 0) // 7), QUEUE_WEEKS)]
+        c[0] += 1
+        c[1] += (i.adv.severity or "").lower() in ("critical", "high")
+    return [(a, b) for a, b in cols], undated
+
+
+QUEUE_TICKS = [(0, "This week"), (4, "1 month"), (13, "3 months"), (26, "6 months"), (QUEUE_WEEKS, "Over a year")]
+_PITCH, _GRAIN, _GAP = 13, 10, 2  # square pitch and size, and the blank columns before "over a year"
+
+
+def _queue_x(col: int) -> int:
+    return (col + (_GAP if col == QUEUE_WEEKS else 0)) * _PITCH
+
+
+def queue_svg(cols: list[tuple[int, int]], label: str) -> tuple[str, int, int]:
+    """The queue: one square per QUEUE_UNIT advisories, stacked by weeks waiting, critical and high at the bottom
+    (solid amber), the rest dim. A remainder is drawn as a partial square on top, so heights stay exact.
+    Returns the shapes (inside a <g>) and the drawing's width and height."""
+    width = _queue_x(QUEUE_WEEKS) + _GRAIN
+    tallest = max([-(-total // QUEUE_UNIT) for total, _ in cols] + [1])
+    height = tallest * _PITCH
+    groups = []
+    for col, (total, severe) in enumerate(cols):
+        x = _queue_x(col)
+        full, rest = divmod(total, QUEUE_UNIT)
+        solid = min(full, round(severe / QUEUE_UNIT))
+        rects = []
+        for k in range(full + (1 if rest else 0)):
+            h = _GRAIN if k < full else max(2.0, _GRAIN * rest / QUEUE_UNIT)
+            y = height - k * _PITCH - h
+            dim = "" if k < solid else ' fill-opacity=".3"'
+            rects.append(f'<rect x="{x}" y="{y:g}" width="{_GRAIN}" height="{h:g}" rx="2" fill="#F4A62A"{dim}/>')
+        groups.append(f'<g style="--c:{col}">{"".join(rects)}</g>')
+    return f'<g role="img" aria-label="{E(label)}">{"".join(groups)}</g>', width, height
+
+
+def queue_label(cols: list[tuple[int, int]]) -> str:
+    total = sum(a for a, _ in cols)
+    month = sum(a for a, _ in cols[:4])
+    year = cols[QUEUE_WEEKS][0]
+    return (
+        f"Chart of {total:,} advisories in limbo by weeks waiting: {month:,} published in the last 4 weeks, "
+        f"{year:,} waiting more than a year."
+    )
+
+
+def queue_figure(cols: list[tuple[int, int]], undated: int) -> str:
+    shapes, w, h = queue_svg(cols, queue_label(cols))
+    ticks = "".join(
+        f'<span style="left:{100 * _queue_x(c) / w:.2f}%"{' class="end"' if c == QUEUE_WEEKS else ""}>{E(t)}</span>'
+        for c, t in QUEUE_TICKS
+    )
+    note = f" {undated:,} advisories have no publication date and aren’t drawn." if undated else ""
+    return (
+        f'<figure class="queue"><svg viewBox="0 0 {w} {h}" >{shapes}</svg>'
+        f'<div class="qaxis" aria-hidden="true">{ticks}</div>'
+        f"<figcaption>Every advisory in limbo, by how long it has waited. Each square is {QUEUE_UNIT} advisories; "
+        f'solid squares are critical or high.{note} <a href="/press/queue.svg">Download the chart</a></figcaption></figure>'
+    )
+
+
+def queue_poster(cols: list[tuple[int, int]], m: dict[str, Any]) -> str:
+    """The queue as a standalone SVG for reporters, with title, legend and source."""
+    li = m["in_limbo"]
+    shapes, w, h = queue_svg(cols, queue_label(cols))
+    scale = 1080 / w
+    ticks = "".join(
+        f'<text x="{60 + _queue_x(c) * scale:.1f}" y="{180 + h * scale + 30:.1f}" fill="#A9A8A0" font-size="16"'
+        f"{' text-anchor="end"' if c == QUEUE_WEEKS else ''}>{E(t)}</text>"
+        for c, t in QUEUE_TICKS
+    )
+    tick_last = _queue_x(QUEUE_WEEKS) * scale + 60 + _GRAIN * scale
+    ticks = ticks.replace(f'x="{60 + _queue_x(QUEUE_WEEKS) * scale:.1f}"', f'x="{tick_last:.1f}"')
+    total_h = int(180 + h * scale + 120)
+    date = m["generated_at"][:10]
+    font = "Helvetica Neue, Helvetica, Arial, sans-serif"
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 {total_h}" width="1200" height="{total_h}" '
+        f'font-family="{font}"><rect width="1200" height="{total_h}" fill="#0F1218"/>'
+        f'<text x="60" y="76" fill="#F3F1EA" font-size="38" font-weight="600">{li["count"]:,} security advisories waiting for review</text>'
+        f'<text x="60" y="114" fill="#A9A8A0" font-size="19">Published by maintainers on GitHub, not yet in GitHub’s reviewed database '
+        f"or OSV, so most scanners can’t see them.</text>"
+        f'<text x="60" y="144" fill="#A9A8A0" font-size="19">By weeks waiting. Each square is {QUEUE_UNIT} advisories; '
+        f'<tspan fill="#F4A62A">solid squares</tspan> are critical or high.</text>'
+        f'<g transform="translate(60 180) scale({scale:.4f})">{shapes}</g>{ticks}'
+        f'<text x="60" y="{total_h - 30}" fill="#7C818C" font-size="14">Source: limbo.watch, {date}. A floor: only watched '
+        f"repositories are counted. Advisory data: GitHub Advisory Database (CC BY 4.0). Chart: Limbowatch, CC BY 4.0.</text></svg>\n"
+    )
+
+
+def eco_table(pend: list[Item], now: datetime) -> str:
+    """Advisories in limbo per ecosystem, with the median wait so far."""
+    ages: dict[str, list[float]] = defaultdict(list)
+    counts: dict[str, int] = defaultdict(int)
+    for i in pend:
+        a = days_since(i.adv.published_at, now)
+        for e in {eco_label(x) for x in i.assessment.ecosystems if reviewable(x)}:
+            counts[e] += 1
+            if a is not None:
+                ages[e].append(a)
+    rows = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    top = max(counts.values(), default=1)
+    body = "".join(
+        f'<tr><th scope="row">{E(e)}</th><td class="ebar"><span style="width:{100 * n / top:.1f}%"></span></td>'
+        f'<td class="n">{n:,}</td><td class="n">{fmt_days(statistics.median(ages[e])) if ages[e] else "–"}</td></tr>'
+        for e, n in rows
+    )
+    return (
+        '<table class="eco"><thead><tr><th scope="col">Ecosystem</th><th scope="col"><span class="vh">Share</span></th>'
+        '<th scope="col" class="n">In limbo</th><th scope="col" class="n">Median wait</th></tr></thead>'
+        f"<tbody>{body}</tbody></table>"
+    )
+
+
+CVE_PARTS = [
+    (CveLabel.NONE, "No CVE anywhere", "Neither CVE-based nor GitHub-based tools know these exist."),
+    (CveLabel.RESERVED, "CVE reserved, not published", "The ID is public, but looking it up returns nothing."),
+    (CveLabel.PUBLISHED_UNCITED, "CVE from another CNA", "Another CNA published a CVE the advisory doesn’t cite."),
+    (
+        CveLabel.PUBLISHED_CITED,
+        "CVE published",
+        "CVE-based tools can find these; GitHub- and OSV-based scanners can’t.",
+    ),
+]
+
+
+def cve_split(m: dict[str, Any]) -> str:
+    by = m["in_limbo"]["by_cve"]
+    total = sum(by.values()) or 1
+    other = total - sum(by.get(k.value, 0) for k, _, _ in CVE_PARTS)
+    segs = "".join(
+        f'<span class="s{n}" style="flex:{by.get(k.value, 0)}"></span>' for n, (k, _, _) in enumerate(CVE_PARTS)
+    )
+    keys = "".join(
+        f'<li><i class="s{n}" aria-hidden="true"></i><strong>{by.get(k.value, 0):,}</strong> {E(t)}'
+        f"<span>{E(d)}</span></li>"
+        for n, (k, t, d) in enumerate(CVE_PARTS)
+    )
+    extra = f'<p class="muted small">{other:,} cite a CVE in another state.</p>' if other else ""
+    return f'<div class="split" aria-hidden="true">{segs}</div><ul class="keys">{keys}</ul>{extra}'
+
+
 # --- home -------------------------------------------------------------------------------------------
+
+DEMO_PR = "https://github.com/limbowatch/demo-app/pull/1"
+WATCHER_DOC = f"{REPO_URL}/blob/main/docs/WATCHER.md"
+EVIDENCE = f"{REPO_URL}/tree/main/research/2026-11-demo-evidence"
+SEARCH_JS = (
+    "<script>document.querySelectorAll('form.find').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();"
+    "const q=f.querySelector('input').value.trim();location.href='/tracker/'+(q?'?q='+encodeURIComponent(q):'');}));</script>"
+)
+
+
+def find_form(dark: bool = False) -> str:
+    return (
+        f'<form class="find{" dark" if dark else ""}" role="search"><label for="find-q">Is a package you use waiting?</label>'
+        '<div><input id="find-q" name="q" type="search" placeholder="Package, repository, GHSA or CVE ID" autocomplete="off">'
+        '<button type="submit">Search the tracker</button></div></form>'
+    )
+
+
+def dataset_ld(m: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "@context": "https://schema.org",
+        "@type": "Dataset",
+        "name": "Limbowatch: security advisories in limbo",
+        "description": "Security advisories published by maintainers on GitHub but not yet in GitHub’s reviewed "
+        "Advisory Database or OSV, so most dependency scanners can’t see them. Rebuilt daily.",
+        "url": SITE + "/",
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "isAccessibleForFree": True,
+        "creator": {"@type": "Organization", "name": "Limbowatch", "url": SITE},
+        "dateModified": m["generated_at"],
+        "keywords": ["security advisories", "vulnerabilities", "GHSA", "CVE", "OSV", "software supply chain"],
+        "distribution": [
+            {"@type": "DataDownload", "encodingFormat": "application/zip", "contentUrl": f"{SITE}/feed/all.zip"},
+            {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": f"{SITE}/metrics.json"},
+            {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": f"{SITE}/tracker/data.json"},
+        ],
+    }
 
 
 def home(items: list[Item], m: dict[str, Any], now: datetime) -> str:
     li, cov = m["in_limbo"], m["coverage"]
+    flow = m.get("flow_7d") or {}
     pend = pending(items)
     ages = [a for i in pend if (a := days_since(i.adv.published_at, now)) is not None]
     sev = li["by_severity"]
     pct = 100 * cov["on_schedule"] / cov["watchlist_repos"] if cov["watchlist_repos"] else 0
+    cols, undated = queue_cols(pend, now)
     fresh = sorted(pend, key=lambda i: i.adv.published_at or now, reverse=True)[:LIST_ROWS]
     # Old advisories GitHub never backfilled would fill this list (some date from 2019), so it covers the last year.
     recent = [i for i in pend if (days_since(i.adv.published_at, now) or 0) <= 365]
@@ -441,7 +740,7 @@ def home(items: list[Item], m: dict[str, Any], now: datetime) -> str:
             "".join(
                 f'<a class="li" href="/advisory/{E(i.adv.ghsa_id)}/"><span class="adot" aria-hidden="true"></span>'
                 f'<span class="m"><strong>{E(pkg_names(i))}</strong> <span class="muted">{E(eco_names(i))}</span><br>'
-                f'<small><span>{E(i.adv.ghsa_id)}</span><span class="sep"> · </span>'
+                f'<small><span>{E(i.adv.ghsa_id)}</span><span class="sep">, </span>'
                 f"<span>{E(cves(i) or CVE_TEXT[CVE_KEY[i.assessment.cve_label]].lower())}</span></small></span>"
                 f'<span class="r">{E((i.adv.severity or "unknown").capitalize())}<br>{fmt_days(days_since(i.adv.published_at, now))}</span></a>'
                 for i in rows
@@ -451,22 +750,23 @@ def home(items: list[Item], m: dict[str, Any], now: datetime) -> str:
         return f'<div class="card list"><h3>{title}</h3>{body}</div>'
 
     updated = stamp(m["generated_at"])
+    flow_html = (
+        f'<p class="flow"><strong>{flow["published"]:,}</strong> new advisories were published in the last '
+        f"{flow['days']} days. GitHub reviewed <strong>{flow['reviewed']:,}</strong> of the ones waiting.</p>"
+        if flow
+        else ""
+    )
     body = f"""<div class="hero">{header("", dark=True)}
 <section class="wrap hero-body">
-<p class="eyebrow">Live<span class="dt"> · re-checked every day</span> · updated {E(updated)}</p>
+<p class="eyebrow">Live, re-checked every day. Updated {E(updated)}.</p>
 <h1>Published. Often fixed. Invisible to your scanner.</h1>
-<p class="lede">Maintainers publish security advisories on GitHub every day. Most scanners can’t see them until GitHub
-reviews them into its Advisory Database, and that review now takes weeks. Limbowatch tracks every advisory stuck in between.</p>
-<div class="count-row"><div><div class="big">{li["count"]:,}</div><div class="big-label">advisories in limbo right now</div></div>
-<dl class="stats">
-<div><dt>Critical or high</dt><dd>{sev["critical"] + sev["high"]:,}</dd></div>
-<div><dt>No CVE anywhere</dt><dd>{li["by_cve"].get(CveLabel.NONE.value, 0):,}</dd></div>
-<div><dt>Median wait so far</dt><dd>{fmt_days(li["age_days_median"])}</dd></div>
-<div><dt>Waiting over 90 days</dt><dd>{sum(1 for x in ages if x > 90):,}</dd></div>
-</dl></div>
+<p class="lede">Maintainers publish security advisories on GitHub every day. Dependabot, npm audit and OSV-Scanner can’t
+see them until GitHub reviews them into its Advisory Database, and that review now takes weeks. Limbowatch tracks every
+advisory stuck in between.</p>
+{find_form(dark=True)}
 <figure class="tl"><figcaption>Where an advisory waits</figcaption>
-<div class="tl-cols"><div class="f3 pr"><p class="tl-tag">In limbo</p><p class="tl-note">Public and often already fixed, but Dependabot,
-npm audit, pip-audit and OSV-Scanner report nothing.</p></div><div class="f1"></div></div>
+<div class="tl-cols"><div class="f3 pr"><p class="tl-tag">In limbo</p><p class="tl-note">Public and often already fixed, but
+scanners report nothing.</p></div><div class="f1"></div></div>
 <div class="tl-row" aria-hidden="true"><span class="dot amber"></span><span class="seg f3"></span><span class="dot ring"></span>
 <span class="seg thin f1"></span><span class="dot fill"></span></div>
 <div class="tl-cols tl-labels"><div class="f3 pr"><strong>Maintainer publishes</strong><br><span>a repository advisory</span></div>
@@ -474,53 +774,62 @@ npm audit, pip-audit and OSV-Scanner report nothing.</p></div><div class="f1"></
 <div class="r"><strong>Scanners see it</strong><br><span>via OSV, hours later</span></div></div></div>
 <ol class="tl-v">
 <li class="pub"><b aria-hidden="true"></b><strong>Maintainer publishes</strong><span>a repository advisory</span></li>
-<li class="limbo"><p class="tl-tag">In limbo</p><span>Public and often already fixed, but Dependabot, npm audit, pip-audit and
-OSV-Scanner report nothing.</span></li>
+<li class="limbo"><p class="tl-tag">In limbo</p><span>Public and often already fixed, but scanners report nothing.</span></li>
 <li class="rev"><b aria-hidden="true"></b><strong>GitHub reviews it</strong><span>global Advisory DB</span></li>
-<li class="seen"><b aria-hidden="true"></b><strong>Scanners see it</strong><span>via OSV, hours later</span></li></ol>
-<p class="tl-foot">A CVE can arrive before, after, or never. We track it separately.</p></figure>
-<div class="ctas"><a class="btn light" href="/tracker/">See all {li["count"]:,} in limbo</a>
+<li class="seen"><b aria-hidden="true"></b><strong>Scanners see it</strong><span>via OSV, hours later</span></li></ol></figure>
+<div class="count-row"><div><div class="big">{li["count"]:,}</div><div class="big-label">advisories in limbo right now</div></div>
+<div class="side">{flow_html}
+<dl class="stats three">
+<div><dt>Critical or high</dt><dd>{sev["critical"] + sev["high"]:,}</dd></div>
+<div><dt>Median wait so far</dt><dd>{fmt_days(li["age_days_median"])}</dd></div>
+<div><dt>Waiting over 90 days</dt><dd>{sum(1 for x in ages if x > 90):,}</dd></div>
+</dl></div></div>
+{queue_figure(cols, undated)}
+<div class="ctas"><a class="btn light" href="/tracker/">See all {li["count"]:,} in the tracker</a>
 <a class="btn ghost" href="/scan/">Scan your project</a></div>
 </section></div>
 <div class="strip"><div class="wrap"><span><strong>Every number is a floor.</strong> We watch {cov["watchlist_repos"]:,} upstream
 repositories; {cov["on_schedule"]:,} are up to date. Repos with an advisory in limbo are re-checked daily, the rest every 3 to 7 days.</span>
 <span class="meter" role="img" aria-label="{pct:.0f}% of the watchlist up to date"><span style="width:{min(pct, 100):.0f}%"></span></span>
-<a href="/#about">How coverage works</a></div></div>
+<a href="/methodology/#coverage">How coverage works</a></div></div>
 <main>
+<section class="wrap s proof"><div class="ptext"><h2>Your scanner says clean. It isn’t.</h2>
+<p class="sub">We gave three tools the same demo app, with real npm, Go, pip and Bundler lockfiles, in November 2026.
+GitHub’s Dependabot alerts and OSV-Scanner reported none of the 16 advisories in limbo that affect it. All 16 were
+then rechecked against GitHub and OSV, independently of Limbowatch’s own code.</p>
+<p class="sub">It isn’t only demos: in the projects behind our October report, Limbowatch found <strong>269 affected
+package-versions in 13 of 14 projects</strong> that scanners reading GitHub’s database or OSV report as clean.</p>
+<p class="links"><a href="{EVIDENCE}">The 16 findings, rechecked</a><a href="{FINDINGS_URL}#f-085">The 269, checked live</a></p></div>
+<div class="vs" role="img" aria-label="Findings on the same project: Dependabot alerts 0, OSV-Scanner 0, Limbowatch 16">
+<div><span>GitHub Dependabot alerts</span><b class="zero">0</b></div>
+<div><span>OSV-Scanner 2.7.0</span><b class="zero">0</b></div>
+<div class="lw"><span>Limbowatch</span><b>16</b><i style="width:100%"></i></div></div></section>
+<section class="wrap s"><div class="two"><div><h2 class="sm">Every ecosystem GitHub reviews</h2>
+<p class="sub">Advisories in limbo by package ecosystem, and how long they’ve waited so far.</p>{eco_table(pend, now)}</div>
+<div><h2 class="sm">Most have no CVE to fall back on</h2>
+<p class="sub">Scanners that start from CVEs can’t fill the gap either.</p>{cve_split(m)}</div></div></section>
 <section class="wrap s"><h2>In limbo now</h2><p class="sub">Facts only. Each advisory’s full text stays on GitHub.</p>
 <div class="cols">{lst("Newly published", fresh)}{lst("Longest waiting, published this past year", oldest)}</div></section>
-<section class="wrap s" id="report"><p class="eyebrow">State of the Gap · October 2026 · snapshot 2026-10-22</p>
-<h2 class="lg">We measured the gap behind fifteen popular open-source projects.</h2>
-<div class="facts3"><div><div class="n">1 in 6</div><p>upstream advisories were in limbo: <strong>415 of 2,517</strong>, in neither
-GitHub’s reviewed database nor OSV.</p></div>
-<div><div class="n">23 days</div><p>median wait for review. <strong>44%</strong> of 990 recently reviewed advisories waited more than 30 days.</p></div>
-<div><div class="n">105</div><p>affected package-versions shipped by <strong>13 of 14</strong> projects, which OSV-Scanner reported as clean.</p></div></div>
-<a class="more" href="{REPORT_URL}">Read the full report →</a></section>
-<section class="wrap s"><h2>Close the gap in your own pipeline</h2><div class="cards3">
-<div class="card"><h3>Scan your project in CI</h3><p>The Limbowatch watcher checks your lockfiles against every advisory in
-limbo and shows the result in merge requests, pull requests and issues. GitLab, GitHub, Gitea and Forgejo.</p>
-<pre>limbowatch scan .</pre><a class="more" href="/scan/">How to set it up →</a></div>
-<div class="card"><h3>Scan with the limbo feed</h3><p>Every advisory in limbo as OSV-schema records, rebuilt daily. Feed it to the tools that already read OSV.</p>
-<pre>curl -O https://limbo.watch/feed/all.zip</pre><a class="more" href="/feed/">Feed docs →</a></div>
-</div><p class="sub" style="margin-top:24px">Daily report: what entered limbo, what left it and which CVEs changed.
-<a href="{ISSUE_URL}">Subscribe on GitHub</a>. Maintainers: request a CVE when you publish, and give both the affected range
-and the fixed version.</p></section>
-<section class="wrap s" id="about"><div class="about"><h2 class="sm">How it works</h2><div>
-<p>Every day, Limbowatch checks the published advisories of the upstream repositories behind popular open-source projects:
-the dependencies of the 100 most-starred GitHub projects, of the projects in our October report, and of every repository
-where a reviewed advisory originated. For each advisory it records independent facts: is it in GitHub’s reviewed database,
-is it in OSV, which CVE does it cite, is that CVE published, and has another CNA published a CVE that points to it.</p>
-<p>Advisories in ecosystems GitHub doesn’t review (C/C++, container images, free text) are counted separately as
-<a href="/tracker/">likely permanent</a>: {m["likely_permanent"]["count"]:,} right now.</p>
-<p>We don’t copy advisory titles or descriptions; we link to them. Version ranges are as entered by the maintainer and
-haven’t been reviewed. Limbowatch is open source under Apache-2.0.</p>
-<p><a href="/why/">Why I built it →</a></p></div></div></section>
+<section class="wrap s"><h2>What to do about it</h2><div class="paths">
+<div><h3>If you run security for a team</h3><p>Check your lockfiles in CI against everything in limbo. Findings show up in
+merge requests, pull requests and issues, on GitLab, GitHub, Gitea and Forgejo.</p>
+<p class="links"><a href="/scan/">Set up the scan</a><a href="/feed/critical.atom">Subscribe to new critical and high</a>
+<a href="/feed/">Download the OSV feed</a></p></div>
+<div><h3>If you maintain a project</h3><p>Request a CVE when you publish, and fill in both the affected range and the fixed
+version, so scanners can match your advisory the day it’s reviewed.</p>
+<p class="links"><a href="/quality/">Advisories scanners can’t match</a><a href="/methodology/#maintainers">What helps</a></p></div>
+<div><h3>If you’re writing about it</h3><p>Live numbers you can cite, charts you can reuse, the method behind every
+number, and a person to talk to.</p>
+<p class="links"><a href="/press/">Press and research</a><a href="/why/">The story behind it</a></p></div></div></section>
 </main>
-{footer()}"""
+{footer()}{SEARCH_JS}"""
     return page(
-        "limbo.watch · security advisories your scanner can’t see yet",
-        f"{li['count']:,} published security advisories are waiting for GitHub review, invisible to most dependency scanners.",
+        "limbo.watch: security advisories your scanner can’t see yet",
+        f"{li['count']:,} published security advisories are waiting for GitHub review, invisible to Dependabot, npm audit "
+        "and OSV-Scanner. Live tracker, open feed and CI scan.",
         body,
+        "/",
+        dataset_ld(m),
     )
 
 
@@ -600,6 +909,7 @@ reviewed database or OSV.</p></div>
         "Tracker · limbo.watch",
         f"{li['count']:,} security advisories published on GitHub and waiting for review: filter by package, ecosystem, severity and CVE state.",
         body,
+        "/tracker/",
     )
 
 
@@ -746,6 +1056,7 @@ def advisory(i: Item, events: list[dict[str, Any]], now: datetime) -> str:
         f"{a.ghsa_id} ({name}) · limbo.watch",
         f"{a.ghsa_id} for {name}: published on GitHub {fmt_days(age)} ago and not yet visible to scanners that read GitHub’s Advisory Database.",
         body,
+        f"/advisory/{a.ghsa_id}/",
     )
 
 
@@ -807,15 +1118,14 @@ have <span class="mono">name_valid: false</span>. Each record’s <span class="m
 </ul></div></section></div></main>
 {footer()}"""
     return page(
-        "The limbo feed · limbo.watch", "Every security advisory in limbo as OSV-schema records, rebuilt daily.", body
+        "The limbo feed · limbo.watch",
+        "Every security advisory in limbo as OSV-schema records, rebuilt daily.",
+        body,
+        "/feed/",
     )
 
 
 # --- scan: the watcher -----------------------------------------------------------------------------
-
-DEMO_PR = "https://github.com/limbowatch/demo-app/pull/1"
-WATCHER_DOC = f"{REPO_URL}/blob/main/docs/WATCHER.md"
-EVIDENCE = f"{REPO_URL}/tree/main/research/2026-11-demo-evidence"
 
 
 def scan(m: dict[str, Any]) -> str:
@@ -884,6 +1194,7 @@ possible, never silently passed.</li>
         "Scan your project · limbo.watch",
         "Check your dependencies against security advisories your scanner can’t see yet, in GitLab, GitHub, Gitea or Forgejo CI.",
         body,
+        "/scan/",
     )
 
 
@@ -969,6 +1280,7 @@ covered. Scanners that read GitHub’s database only get it when the advisory it
         "Advisories scanners can’t match · limbo.watch",
         "Published security advisories whose package name or version range scanners can’t use, with the fix for each.",
         body,
+        "/quality/",
     )
 
 
@@ -1024,7 +1336,279 @@ both the affected range and the fixed version. If you run a scanner, <a href="/f
         "Why I built Limbowatch · limbo.watch",
         "One critical advisory, 85 days waiting for its CVE and still invisible to scanners: the story behind limbo.watch.",
         body,
+        "/why/",
     )
+
+
+# --- press and methodology --------------------------------------------------------------------------
+
+
+def notable(items: list[Item], now: datetime, n: int = 6) -> list[Item]:
+    """Critical advisories with a fixed version, published this past year, waiting longest: the clearest cases."""
+    rows = [
+        i
+        for i in pending(items)
+        if (i.adv.severity or "").lower() == "critical"
+        and any(fixed_versions(p.patched_versions or "") for p in i.adv.packages)
+        and (days_since(i.adv.published_at, now) or 0) <= 365
+    ]
+    return sorted(rows, key=lambda i: i.adv.published_at or now)[:n]
+
+
+def press(items: list[Item], m: dict[str, Any], now: datetime) -> str:
+    li, perm, flow = m["in_limbo"], m["likely_permanent"], m.get("flow_7d") or {}
+    sev = li["by_severity"]
+    date = now.strftime("%-d %B %Y")
+    pend = pending(items)
+    ages = [a for i in pend if (a := days_since(i.adv.published_at, now)) is not None]
+    cols, undated = queue_cols(pend, now)
+    facts = [
+        (f"On {date}, <strong>{li['count']:,}</strong> security advisories published by maintainers on GitHub were waiting "
+         f"for GitHub’s review, invisible to scanners that read GitHub’s Advisory Database or OSV. "
+         f"{sev['critical'] + sev['high']:,} are rated critical or high.", "/tracker/", "Live tracker"),
+        (f"In the {flow.get('days', 7)} days to {date}, maintainers published <strong>{flow.get('published', 0):,}</strong> "
+         f"new advisories in the repositories we watch. GitHub reviewed <strong>{flow.get('reviewed', 0):,}</strong> of "
+         "the ones waiting.", "/methodology/#flow", "How the weekly flow is counted"),
+        (f"The advisories in limbo have waited a median of <strong>{fmt_days(li['age_days_median'])}</strong> so far. "
+         f"{sum(1 for x in ages if x > 90):,} have waited more than 3 months, and {sum(1 for x in ages if x > 365):,} more "
+         "than a year.", "/methodology/#wait", "How waits are measured"),
+        (f"<strong>{li['by_cve'].get(CveLabel.NONE.value, 0):,}</strong> of them have no CVE at all, so scanners that "
+         "start from CVEs can’t see them either.", "/tracker/", "CVE states in the tracker"),
+        (f"Another <strong>{perm['count']:,}</strong> published advisories are in ecosystems GitHub doesn’t review, such as "
+         "C/C++ and container images. Scanners that read GitHub’s database will probably never see them.",
+         "/methodology/#permanent", "What “likely permanent” means"),
+        ("In October 2026, <strong>1 in 6</strong> upstream advisories behind 15 popular open-source projects was in "
+         "limbo, and the median wait for GitHub’s review was 23 days.", REPORT_URL, "State of the Gap, October 2026"),
+        ("On a demo app with real lockfiles, Limbowatch found <strong>16</strong> advisories in limbo that GitHub’s "
+         "Dependabot alerts and OSV-Scanner did not report (7 November 2026). Each was rechecked against GitHub and OSV.",
+         EVIDENCE, "The evidence"),
+    ]  # fmt: skip
+    facts_html = "".join(f'<li><p>{t}</p><a href="{E(u)}">{E(lbl)}</a></li>' for t, u, lbl in facts)
+    examples = "".join(
+        f'<tr><td><a href="/advisory/{E(i.adv.ghsa_id)}/"><strong>{E(pkg_names(i))}</strong></a><small>{E(eco_names(i))}</small></td>'
+        f'<td class="mono"><a href="{E(i.adv.html_url)}">{E(i.adv.ghsa_id)}</a></td><td class="mono">{E(fixes(i)[:40])}</td>'
+        f'<td class="n">{fmt_days(days_since(i.adv.published_at, now))}</td></tr>'
+        for i in notable(items, now)
+    )
+    cite = (
+        f"Limbowatch (limbo.watch), data as of {now:%Y-%m-%d}. Advisory data from GitHub repository security "
+        "advisories and the GitHub Advisory Database, CC BY 4.0."
+    )
+    kit = "".join(
+        f'<li><a href="/press/kit/{f}">{E(t)}</a></li>'
+        for f, t in [("wordmark-on-dark.png", "Wordmark on dark (PNG)"), ("wordmark-on-light.png", "Wordmark on light (PNG)"),
+                     ("mark.svg", "Mark (SVG)"), ("avatar.png", "Square icon (PNG)")]
+    )  # fmt: skip
+    body = f"""<header class="top">{header("press")}</header>
+<main class="wrap">
+<div class="head"><div><p class="eyebrow">For reporters and researchers. Numbers updated {E(stamp(m["generated_at"]))}.</p>
+<h1 class="page">Press and research</h1>
+<p class="sub lead">Limbowatch measures how long published security advisories wait before scanners can see them.
+Everything here is free to cite with credit, and every number links to how it was measured.</p></div>
+<div class="contact card"><h2 class="xs">Talk to us</h2><p>Yujia Lin built Limbowatch and answers questions about the data
+and the method.</p><a class="btn solid" href="mailto:{CONTACT}?subject=limbo.watch%20press%20question">{CONTACT}</a></div></div>
+
+<section class="s"><h2>The numbers today</h2><p class="sub">Ready to quote. They update every day; please give the date.</p>
+<ol class="quotes">{facts_html}</ol>
+<p class="muted small">Every live number is a floor: Limbowatch sees only the {m["coverage"]["watchlist_repos"]:,} repositories
+it watches. <a href="/methodology/">Methodology</a></p></section>
+
+<section class="s"><h2>The queue, as a chart</h2><p class="sub">Free to republish with credit. The SVG scales to any size.</p>
+<div class="poster">{queue_figure(cols, undated)}</div>
+<p class="links"><a href="/press/queue.svg" download>Download the chart (SVG)</a><a href="/press/limbo.csv" download>Every advisory
+in limbo (CSV)</a><a href="/metrics.json">Today’s counts (JSON)</a></p></section>
+
+<section class="s"><h2>Stories in the data</h2><div class="paths">
+<div><h3>The queue grows faster than it drains</h3><p>In the last {flow.get("days", 7)} days, maintainers published
+{flow.get("published", 0):,} new advisories and GitHub reviewed {flow.get("reviewed", 0):,} of those waiting. The
+<a href="{ISSUE_URL}">daily report</a> shows what entered and left each day.</p></div>
+<div><h3>Critical, fixed, and still invisible</h3><p>Maintainers often ship the fix with the advisory. Users of the
+vulnerable version get no alert until the review happens. Examples are below.</p></div>
+<div><h3>Advisories nobody will review</h3><p>{perm["count"]:,} advisories are in ecosystems outside GitHub’s review, like
+C/C++ libraries and container images. No scanner that reads GitHub’s database will flag them.</p></div>
+<div><h3>CVE IDs that stay empty</h3><p>{li["rbp"]["count"]:,} advisories cite a CVE that is reserved but not published,
+so looking it up returns nothing. The CVE Program expects publication within 72 hours.</p></div>
+<div><h3>One advisory, followed for months</h3><p>A critical advisory for an NSA open-source project waited 85 days for
+its CVE. It still isn’t in GitHub’s database, and OSV lists the CVE without a package, so scanners can’t match it.
+<a href="/why/">The story</a></p></div></div></section>
+
+<section class="s"><h2>Examples you can check</h2><p class="sub">Critical advisories with a released fix, published this
+past year, still waiting longest. Each links to our facts page and to the maintainers’ advisory on GitHub.</p>
+<div class="tbl"><table><thead><tr><th scope="col">Package</th><th scope="col">Advisory</th><th scope="col">Fixed in</th>
+<th scope="col" class="n">Waiting</th></tr></thead><tbody>{examples or '<tr><td colspan="4" class="muted">None right now.</td></tr>'}</tbody></table></div></section>
+
+<section class="s two"><div><h2 class="sm">How to cite</h2><pre class="light wrapcode">{E(cite)}</pre>
+<p class="sub">Data is licensed CC BY 4.0. Advisory facts come from GitHub; we don’t republish advisory text, so quote
+the maintainers’ advisory directly.</p></div>
+<div><h2 class="sm">Logo</h2><p class="sub">An hourglass whose last grain is stuck in the neck: published above, not yet
+reviewed below.</p><ul class="kit">{kit}</ul></div></section>
+
+<section class="s"><div class="note"><h3>About Limbowatch</h3><ul>
+<li>An independent open-source project, created by Yujia Lin after the advisory for a vulnerability Yujia reported spent
+months invisible to scanners. Not affiliated with GitHub, OSV, MITRE or NIST.</li>
+<li>It reads only public data: published advisories, GitHub’s reviewed database, OSV, the CVE List and NVD.</li>
+<li>The people reviewing advisories are doing their jobs. The point is the length of the queue, not who is in it.</li>
+<li>Code under Apache-2.0 and data under CC BY 4.0, both on <a href="{REPO_URL}">GitHub</a>.</li></ul></div></section>
+</main>
+{footer()}"""
+    return page(
+        "Press and research · limbo.watch",
+        "Live, citable numbers on security advisories waiting for GitHub review, with charts, examples, methodology and contact.",
+        body,
+        "/press/",
+        dataset_ld(m),
+    )
+
+
+def methodology(m: dict[str, Any]) -> str:
+    cov, flow = m["coverage"], m.get("flow_7d") or {}
+    sections = [
+        ("limbo", "What “in limbo” means", """<p>An advisory is in limbo when all of these are true:</p><ul>
+<li>A maintainer has published it as a GitHub repository security advisory.</li>
+<li>It isn’t in GitHub’s reviewed Advisory Database, either under its own ID or as a duplicate: an already reviewed
+advisory for the same CVE.</li>
+<li>It isn’t in OSV.</li>
+<li>Its package is in an ecosystem GitHub reviews, such as npm, PyPI, Maven, Go, RubyGems, crates.io, NuGet or Packagist.</li></ul>
+<p>Dependabot alerts, npm audit, pip-audit, OSV-Scanner and most tools built on them read GitHub’s reviewed database or
+OSV, so they don’t report these advisories until GitHub reviews them.</p>"""),
+        ("permanent", "Likely permanent", f"""<p>Advisories in ecosystems GitHub doesn’t review (C/C++, container images,
+free-text package names, “other”) are counted separately, as likely permanent: {m["likely_permanent"]["count"]:,} today.
+Scanners that read GitHub’s database will probably never see them. They aren’t in the headline number.</p>"""),
+        ("sources", "Sources", """<ul>
+<li><strong>GitHub repository security advisories</strong>, read through the GitHub REST API from each watched repository.</li>
+<li><strong>GitHub’s reviewed Advisory Database</strong>, synced every day.</li>
+<li><strong>OSV.dev</strong>, queried by advisory ID.</li>
+<li><strong>The CVE List</strong> (cvelistV5) and CVE Services, for whether a CVE is reserved or published, and for CVEs
+other CNAs published that point to an advisory.</li>
+<li><strong>The NVD API</strong>, for NVD’s status. This product uses the NVD API but is not endorsed or certified by the NVD.</li></ul>
+<p>Facts are recorded only when they change, and each change is kept as an event, so every advisory page shows its history.</p>"""),
+        ("coverage", "Coverage: every number is a floor", f"""<p>GitHub has no public list of every repository advisory,
+so Limbowatch watches a list of repositories: {cov["watchlist_repos"]:,} today. It includes every repository where a
+reviewed advisory originated, the dependencies of the 100 most-starred GitHub projects and of the projects in our
+October report, and repositories named in CVEs GitHub assigned.</p><ul>
+<li>Repositories with an advisory in limbo are re-checked daily, those with other advisories every 3 days, and the rest weekly.
+{cov["on_schedule"]:,} are up to date on that schedule right now.</li>
+<li>An advisory in a repository nobody watches isn’t counted. The real numbers are higher.</li>
+<li>When the watchlist grows, older advisories are found for the first time. The daily report separates these from newly
+published ones, so coverage growth isn’t mistaken for new limbo.</li></ul>"""),
+        ("flow", "The weekly flow", f"""<p>“Published in the last 7 days” counts advisories whose maintainer published them in
+that window, in watched repositories and ecosystems GitHub reviews: {flow.get("published", 0):,} this week. “Reviewed”
+counts advisories that left limbo in the same window because GitHub reviewed them: {flow.get("reviewed", 0):,}.
+{flow.get("left", 0):,} left limbo in total, including duplicates and withdrawals. Both counts are floors, and a
+repository checked every few days can add its new advisories a few days late.</p>"""),
+        ("wait", "How waits are measured", """<p>A wait runs from the maintainer’s publication time on GitHub. “Median wait so
+far” is for advisories still waiting, so it understates how long they will wait in the end. Completed waits, from
+publication to review, are in the <a href="/tracker/">tracker’s “left limbo” tab</a> and the October report, which
+measured a median of 23 days for 990 reviewed advisories.</p>"""),
+        ("accuracy", "How we check ourselves", f"""<ul>
+<li>Findings are checked against primary sources only (GitHub, OSV, the CVE List, NVD), never web search or AI summaries.</li>
+<li>In November 2026 we rechecked 657 project findings live: none was contradicted (<a href="{FINDINGS_URL}#f-085">F-085</a>).
+The 16 demo findings were rechecked one by one (<a href="{EVIDENCE}">evidence</a>).</li>
+<li>Version ranges are as entered by maintainers and haven’t been reviewed. A range that contradicts its own fix is reported as
+“possibly affected”, never as certain. Versions are compared with each ecosystem’s own rules, never as text.</li>
+<li>Package names are cleaned only where the fix is certain (stray spaces, a URL around the name, canonical spelling), and
+the original is kept. <a href="/quality/">Advisories scanners can’t match</a> lists the rest.</li>
+<li>Everything we learn goes into a public <a href="{FINDINGS_URL}">research log</a>, with method, sample and caveats.</li></ul>"""),
+        ("publish", "What we publish, and what we don’t", """<p>Facts only: IDs, repository, package, ecosystem, version
+range, fixed version, severity, CVE state, dates and links. We don’t copy advisory titles, descriptions, authors or credits;
+every record links to the maintainers’ advisory.</p>"""),
+        ("maintainers", "What helps, if you maintain a project", """<ul>
+<li>Request a CVE when you publish the advisory, so CVE-based tools have something to find.</li>
+<li>Fill in both the affected range and the fixed version, with the package’s exact name in the right ecosystem.</li>
+<li>Check <a href="/quality/">advisories scanners can’t match</a>: a typo in a package name keeps an advisory invisible
+even after it’s reviewed.</li></ul>"""),
+        ("corrections", "Corrections", f"""<p>If a number or an advisory page is wrong, email <a href="mailto:{CONTACT}">{CONTACT}</a>
+or open an issue on <a href="{REPO_URL}/issues">GitHub</a>. Corrections are fixed in the code and logged in the research log.</p>"""),
+        ("reproduce", "Reproduce it", f"""<p>The tracker, the site and the analysis are open source under Apache-2.0. The tracker’s
+daily state is committed to the <a href="{REPO_URL}/tree/tracker-data">tracker-data branch</a>, so any number here can be
+recomputed. The data is CC BY 4.0.</p>"""),
+    ]  # fmt: skip
+    toc = "".join(f'<li><a href="#{k}">{E(t)}</a></li>' for k, t, _ in sections)
+    secs = "".join(f'<section id="{k}"><h2 class="sm">{E(t)}</h2>{b}</section>' for k, t, b in sections)
+    body = f"""<header class="top">{header("methodology")}</header>
+<main class="wrap"><div class="doc">
+<div><p class="eyebrow">How every number on limbo.watch is made</p><h1 class="page">Methodology</h1>
+<nav class="toc" aria-label="On this page"><ol>{toc}</ol></nav></div>
+<article class="prose">{secs}</article></div></main>
+{footer()}"""
+    return page(
+        "Methodology · limbo.watch",
+        "How limbo.watch decides an advisory is in limbo, where the data comes from, what it covers and how it’s checked.",
+        body,
+        "/methodology/",
+    )
+
+
+# --- machine-readable extras ------------------------------------------------------------------------
+
+
+def _iso(d: datetime) -> str:
+    return d.astimezone(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def atom(rows: list[Item], now: datetime, path: str, title: str, subtitle: str) -> str:
+    """An Atom feed of advisories entering limbo, newest first. Facts only, like the pages."""
+    entries = []
+    for i in sorted(rows, key=lambda i: i.adv.published_at or now, reverse=True)[:100]:
+        a = i.adv
+        when = _iso(a.published_at or now)
+        fix = fixes(i) or "not stated"
+        cve = cves(i) or CVE_TEXT[CVE_KEY[i.assessment.cve_label]].lower()
+        summary = (
+            f"{(a.severity or 'unknown').capitalize()} advisory for {pkg_names(i)} ({eco_names(i)}), published in {a.repo}. "
+            f"Fixed in: {fix}. CVE: {cve}. Not yet in GitHub’s reviewed database or OSV, so most scanners don’t report it."
+        )
+        entries.append(
+            f"<entry><id>{SITE}/advisory/{E(a.ghsa_id)}/</id><title>{E((a.severity or 'unknown').capitalize())}: "
+            f"{E(pkg_names(i))} ({E(eco_names(i))}), {E(a.ghsa_id)}</title><updated>{when}</updated><published>{when}</published>"
+            f'<link rel="alternate" type="text/html" href="{SITE}/advisory/{E(a.ghsa_id)}/"/>'
+            f'<link rel="related" type="text/html" href="{E(a.html_url)}"/><summary>{E(summary)}</summary></entry>'
+        )
+    return (
+        '<?xml version="1.0" encoding="utf-8"?>\n<feed xmlns="http://www.w3.org/2005/Atom">'
+        f"<id>{SITE}{path}</id><title>{E(title)}</title><subtitle>{E(subtitle)}</subtitle><updated>{_iso(now)}</updated>"
+        f'<link rel="self" href="{SITE}{path}"/><link rel="alternate" type="text/html" href="{SITE}/tracker/"/>'
+        f"<author><name>Limbowatch</name><uri>{SITE}</uri></author><rights>{E(ATTRIBUTION)}</rights>"
+        + "".join(entries)
+        + "</feed>\n"
+    )
+
+
+def _cell(v: str) -> str:
+    """Spreadsheets run a cell that starts with = + - @ as a formula; maintainer-entered names could, so quote those."""
+    return f"'{v}" if v[:1] in ("=", "+", "-", "@", "\t", "\r") else v
+
+
+def limbo_csv(items: list[Item], now: datetime) -> str:
+    """Every advisory in limbo as CSV, for spreadsheets. Text cells that would start a formula get a leading '."""
+    buf = io.StringIO()
+    w = csv.writer(buf, lineterminator="\n")
+    w.writerow(["ghsa_id", "status", "package", "ecosystem", "repository", "severity", "cve_state", "cves",
+                "published", "days_waiting", "fixed_in", "advisory_url", "limbo_url"])  # fmt: skip
+    for kind, rows in (("pending review", pending(items)), ("likely permanent", permanent(items))):
+        for i in sorted(rows, key=lambda i: i.adv.published_at or now):
+            a = days_since(i.adv.published_at, now)
+            w.writerow([_cell(str(v)) for v in [i.adv.ghsa_id, kind, pkg_names(i), eco_names(i), i.adv.repo, i.adv.severity or "unknown",
+                        CVE_TEXT[CVE_KEY[i.assessment.cve_label]], cves(i),
+                        _iso(i.adv.published_at) if i.adv.published_at else "", "" if a is None else f"{a:.1f}",
+                        fixes(i), i.adv.html_url, f"{SITE}/advisory/{i.adv.ghsa_id}/"]])  # fmt: skip
+    return buf.getvalue()
+
+
+SITEMAP_PAGES = ["/", "/tracker/", "/scan/", "/feed/", "/methodology/", "/press/", "/why/", "/quality/"]
+
+
+def sitemap(advisories: list[str], now: datetime) -> str:
+    day = now.strftime("%Y-%m-%d")
+    urls = [*SITEMAP_PAGES, *(f"/advisory/{g}/" for g in sorted(advisories))]
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "".join(f"<url><loc>{SITE}{E(u)}</loc><lastmod>{day}</lastmod></url>\n" for u in urls)
+        + "</urlset>\n"
+    )
+
+
+ROBOTS = f"User-agent: *\nAllow: /\nSitemap: {SITE}/sitemap.xml\n"
 
 
 # Google Analytics 4 with Consent Mode: every storage type is denied until the visitor accepts, so a visitor who
@@ -1080,6 +1664,26 @@ def build(
         "scan/index.html": scan(metrics),
         "why/index.html": why(metrics),
         "quality/index.html": quality(items),
+        "methodology/index.html": methodology(metrics),
+        "press/index.html": press(items, metrics, now),
+        "press/queue.svg": queue_poster(queue_cols(pending(items), now)[0], metrics),
+        "press/limbo.csv": limbo_csv(items, now),
+        "feed/limbo.atom": atom(
+            pending(items),
+            now,
+            "/feed/limbo.atom",
+            "New advisories in limbo · limbo.watch",
+            "Security advisories published on GitHub that scanners can’t see yet, newest first.",
+        ),
+        "feed/critical.atom": atom(
+            [i for i in pending(items) if (i.adv.severity or "").lower() in ("critical", "high")],
+            now,
+            "/feed/critical.atom",
+            "New critical and high advisories in limbo · limbo.watch",
+            "Critical and high security advisories published on GitHub that scanners can’t see yet.",
+        ),
+        "sitemap.xml": sitemap([i.adv.ghsa_id for i in items if i.assessment.status is Status.LIMBO], now),
+        "robots.txt": ROBOTS,
         "assets/site.css": CSS,
         "assets/tracker.js": TRACKER_JS,
     }

@@ -19,7 +19,7 @@ A daily job that counts published GitHub security advisories still **in limbo**:
    It stores a fact snapshot only when something changed, plus a readable event ("in limbo -> reviewed", "CVE-X RESERVED -> PUBLISHED").
 5. **Publish.** `limbowatch publish` writes:
    - `index.html`;
-   - `metrics.json`;
+   - `metrics.json`, including `flow_7d`: advisories published in the last 7 days against those that left limbo (F-092);
    - `feed/all.zip`: OSV schema, one `<GHSA>.json` per advisory in limbo, same layout as OSV's bulk exports;
      - package names are cleaned only where the result is certain (stray spaces, URL wrappers, PyPI's PEP 503 form, lowercase Packagist names); the original is kept in `name_as_entered`, and names that still don't fit the ecosystem's rules get `name_valid: false`;
      - a range that can't be converted exactly is left as text (`range_converted: false`), never published open-ended when a fix is listed;
@@ -29,6 +29,9 @@ A daily job that counts published GitHub security advisories still **in limbo**:
    - `feed/watchlist.json`: every watched repo with when the tracker last checked it, so the watcher polls only the rest (PHASE0_PLAN §13.9);
    - `feed/repos.txt`: every watched repo with at least one published advisory, one `owner/repo` per line, names only, for trackers that poll repos (F-075, F-077);
    - `quality/`: advisories in limbo whose package name or range scanners can't use, grouped by repo, with the fix for each (F-077);
+   - `feed/limbo.atom` and `feed/critical.atom`: the newest 100 advisories in limbo (all, or critical and high), for feed readers;
+   - `press/`: citable numbers and a contact for reporters, the queue chart as `queue.svg`, and every advisory in limbo as `limbo.csv` (cells that would start a spreadsheet formula get a leading `'`);
+   - `methodology/`, `sitemap.xml` and `robots.txt`; every page carries Open Graph tags, and the home and press pages a schema.org `Dataset`;
    - `osv/limbo-db.zip`: those zips laid out as OSV-Scanner's cache, so `osv-scanner scan source --offline-vulnerabilities --local-db-path <unzipped dir> -r .` scans against the feed (F-076).
 
 ## Seeds

@@ -155,8 +155,17 @@ def publish(
     ).items():
         (out / path).parent.mkdir(parents=True, exist_ok=True)
         (out / path).write_text(text)
-    for name, target in (("favicon.svg", "favicon.svg"), ("avatar-500.png", "avatar-500.png")):
+    for name, target in (
+        ("favicon.svg", "favicon.svg"),
+        ("avatar-500.png", "avatar-500.png"),
+        ("social-preview-1280x640.png", "assets/social.png"),  # og:image on every page
+        ("wordmark-on-dark.png", "press/kit/wordmark-on-dark.png"),
+        ("wordmark-on-light.png", "press/kit/wordmark-on-light.png"),
+        ("mark-on-light.svg", "press/kit/mark.svg"),
+        ("avatar-1024.png", "press/kit/avatar.png"),
+    ):
         if (assets / name).exists():
+            (out / target).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(assets / name, out / target)
     typer.echo(f"published {len(records)} advisories in limbo to {out}")
 

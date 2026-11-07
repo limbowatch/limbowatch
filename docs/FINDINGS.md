@@ -35,7 +35,7 @@ Current understanding at the end of Phase 4 (2026-11-05), with entries linked. P
 
 15. **The gap at scale is far bigger than the sample.** On 2026-10-31, over a watchlist of 18,656 repos (every one polled at least once): **7,988 advisories pending review** in ecosystems GitHub reviews (861 critical, 3,191 high; median wait so far 57 days; 4,055 with no CVE anywhere), plus **13,852 likely permanent** in ecosystems GitHub doesn't review. Every number is a floor: only watched repos are seen ([F-064](#f-064), [F-070](#f-070)).
 16. **Where the watchlist comes from matters.** Dependency upstreams of popular projects, origin repos of reviewed advisories, and every repo named by a GitHub-CNA CVE ([F-057](#f-057), [F-063](#f-063), [F-066](#f-066)). Adding the last source on 10-31 closed a 2,113-repo gap, mostly applications whose advisories are likely permanent ([F-068](#f-068), [F-070](#f-070)).
-17. **The backlog isn't shrinking yet (tentative).** On 10-29 and 10-30, fresh inflow was 93 and 71 advisories, review outflow 88 and 20, and the median wait grew a day per day. Advisories that did get reviewed had waited a median 11 days. Two weeks of data from 2026-11-01 are needed before claiming a trend ([F-067](#f-067), [F-070](#f-070)).
+17. **The backlog is growing (tentative).** In the week to 2026-11-06, 744 advisories were published into limbo and 68 were reviewed out, about 11 in for each 1 out; over 14 days, 1,475 in and 172 out ([F-092](#f-092)). Earlier single days (10-29, 10-30) showed inflow of 93 and 71 against outflow of 88 and 20 ([F-067](#f-067), [F-070](#f-070)). Advisories that did get reviewed had waited a median 11 days. A rate, not yet a trend: the site shows the weekly numbers with their date.
 18. **A published CVE doesn't mean scanners can see it.** One critical advisory's GitHub-CNA CVE took 85 days to publish; 134 days after publication (2026-10-28) the advisory was still in no package database, because it has no ecosystem ([F-066](#f-066)).
 19. **Names, more than ranges, decide whether the feed matches.** OSV-Scanner's local matching compares names exactly. 359 names were unmatchable until cleaned; 406 are still malformed and flagged. 95.8% of ranges convert, and a range is left open only when the advisory says there's no fix. An entry with no usable range never matches, so it can miss but never false-alarm ([F-069](#f-069)).
 20. **Running it cheaply.** A stable PAT plus conditional requests make an unchanged repo free to re-poll ([F-058](#f-058), [F-071](#f-071)). The scheduled run fires about 6 h 50 min late, consistently ([F-065](#f-065), [F-067](#f-067)). The tracker needs canonical repo identities and checkpoints ([F-060](#f-060)) and works on `GITHUB_TOKEN` alone, only slowly ([F-062](#f-062)).
@@ -69,7 +69,7 @@ Open:
 - Q7. How do we reliably detect packaging/recipe repos (conan-center-index, homebrew-core, distro packaging) so they aren't treated as upstream? ([F-021](#f-021)) Not addressed in Phase 2: the tracker's seeds come from the research mapper, which has no such filter.
 - Q8. How do we detect that a limbo advisory was reviewed under a different GHSA ID when no CVE is shared? The tracker proves duplicates by shared CVE only ([F-048](#f-048)).
 - Q10. Under what terms may repository advisory content be redistributed? *Partly answered 2026-10-26: GitHub's terms are silent on repository advisories in limbo; the feed carries factual metadata only* ([F-059](#f-059)). Ask GitHub during outreach.
-- Q12. Is review throughput keeping up with inflow? Needs about two weeks of daily runs from 2026-11-01, split by ecosystem and severity ([F-067](#f-067), [F-070](#f-070)).
+- Q12. Is review throughput keeping up with inflow? So far no: 744 in against 68 out in the week to 2026-11-06 ([F-092](#f-092)). Still open: whether that holds over a month, split by ecosystem and severity ([F-067](#f-067), [F-070](#f-070)).
 - Q13. Do OSV-Scanner's other matching paths (the osv.dev API) normalize package names beyond PyPI? ([F-069](#f-069))
 - Q14. Do the feed's well-formed names exist in their registries? A registry check would catch wrong-but-valid names ([F-069](#f-069)).
 - Q15. Can per-branch ranges like `< 1.2.5, < 2.0.3` be converted without guessing where each branch starts, e.g. from the registry's version list? ([F-069](#f-069))
@@ -1069,6 +1069,17 @@ Answered:
   - Context from the live tracker the same morning: 8,803 in limbo, median wait so far 57 days, 2,844 over 3 months.
 - **Caveats:** The demo's versions were chosen to be affected, so it shows the mechanism, not prevalence (F-085 is the prevalence evidence). Ranges are as entered by maintainers.
 - **Implication:** Every finding Limbowatch reported on the demo is a real, fixed, unreviewed advisory that GitHub's alerts and OSV can't match yet. Evidence and reproduction: `research/2026-11-demo-evidence/`.
+
+### F-092
+- **Date:** 2026-11-07 · **Status:** tentative (two weeks of tracker data; a floor)
+- **Question:** Is the limbo queue growing or draining: how many advisories enter it per week, and how many leave?
+- **Method:** Tracker state at the 2026-11-06 14:35 UTC run (`tracker-data` branch). Inflow: advisories in ecosystems GitHub reviews whose maintainer `published_at` falls in the window, any status. Outflow: `in limbo -> …` events in the window for the same population. Windows of 7 and 14 days ending at the run. Now computed daily as `metrics.json` `flow_7d` and shown on limbo.watch.
+- **Result:**
+  - 7 days: **744 published** (743 still in limbo, 1 reviewed) against **68 reviewed** out of limbo. About 11 in for every 1 out.
+  - 14 days: 1,475 published (1,428 still in limbo, 46 reviewed, 1 duplicate) against 172 reviewed.
+  - Of the 744 published in the last week, 743 were still waiting at the end of it.
+- **Caveats:** Only watched repos are seen (F-067); a repo polled every 3 to 7 days adds its new advisories late, so the latest days' inflow is undercounted. Outflow counts only advisories the tracker had seen in limbo; GitHub also reviews advisories from other sources. Two weeks is too short to call a trend; this is a rate, not a trajectory.
+- **Implication:** At current rates the backlog grows by roughly 600 to 700 advisories a week in the watched repos alone. The site and press page state the weekly numbers with their date instead of a general claim.
 
 ## Archive
 

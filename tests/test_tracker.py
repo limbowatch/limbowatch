@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import csv
 import io
 import json
 import zipfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from xml.etree import ElementTree
 
 import httpx
 import pytest
@@ -30,6 +32,14 @@ PAGES = (
     "feed/index.html",
     "scan/index.html",
     "why/index.html",
+    "methodology/index.html",
+    "press/index.html",
+    "press/queue.svg",
+    "press/limbo.csv",
+    "feed/limbo.atom",
+    "feed/critical.atom",
+    "sitemap.xml",
+    "robots.txt",
 )
 
 
@@ -158,6 +168,15 @@ async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any) -> None:
     left = json.loads(pages["tracker/data.json"])["left"]
     assert [r["id"] for r in left] == ["GHSA-wq9v-j77v-qr26"] and left[0]["to"] == "Reviewed by GitHub"
     assert all("REDACTED" not in text for text in pages.values())
+    for path in ("feed/limbo.atom", "feed/critical.atom", "sitemap.xml", "press/queue.svg"):
+        ElementTree.fromstring(pages[path])  # well-formed XML
+    assert "<loc>https://limbo.watch/advisory/GHSA-f9j4-qggq-h239/</loc>" in pages["sitemap.xml"]
+    assert "https://limbo.watch/advisory/GHSA-f9j4-qggq-h239/" in pages["feed/limbo.atom"]
+    assert [r[0] for r in csv.reader(io.StringIO(pages["press/limbo.csv"]))] == ["ghsa_id", "GHSA-f9j4-qggq-h239"]
+    assert '<link rel="canonical" href="https://limbo.watch/press/">' in pages["press/index.html"]
+    assert '"@type":"Dataset"' in pages["index.html"]
+    flow = metrics(store, datetime.now(UTC))["flow_7d"]  # regexp2 was reviewed just now
+    assert flow["reviewed"] == 1 and flow["left"] == 1
     assert "analytics.js" not in pages["index.html"] and "assets/analytics.js" not in pages  # off unless configured
     tagged = site.build(items(store), m, datetime.now(UTC), analytics_id="G-ABC123XYZ")
     assert all('data-id="G-ABC123XYZ"' in v for k, v in tagged.items() if k.endswith(".html"))
