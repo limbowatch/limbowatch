@@ -164,7 +164,12 @@ async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any) -> None:
     assert set(PAGES) <= set(pages)
     adv = pages["advisory/GHSA-f9j4-qggq-h239/index.html"]
     assert "CVE-2026-110858" in adv and "published by another CNA" in adv
-    assert "advisory/GHSA-wq9v-j77v-qr26/index.html" not in pages  # reviewed: no longer in limbo
+    left_page = pages["advisory/GHSA-wq9v-j77v-qr26/index.html"]  # reviewed: left limbo, but its link still works
+    assert "Left limbo: reviewed by GitHub after" in left_page and "/feed/GHSA-wq9v-j77v-qr26.json" not in left_page
+    assert (
+        "can report it" in left_page
+        and "<loc>https://limbo.watch/advisory/GHSA-wq9v-j77v-qr26/</loc>" in pages["sitemap.xml"]
+    )
     left = json.loads(pages["tracker/data.json"])["left"]
     assert [r["id"] for r in left] == ["GHSA-wq9v-j77v-qr26"] and left[0]["to"] == "Reviewed by GitHub"
     assert all("REDACTED" not in text for text in pages.values())

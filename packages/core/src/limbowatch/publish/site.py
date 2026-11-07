@@ -194,6 +194,7 @@ td.p{max-width:300px;overflow-wrap:anywhere}td small{display:block;font-size:13p
 .adv-head{margin-top:24px;display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;justify-content:space-between}
 .pill{margin:0;display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:var(--pill-bg);color:var(--pill-ink);font-size:14px;font-weight:600}
 .pill i{width:8px;height:8px;border-radius:50%;background:var(--mark)}
+.pill.done{background:var(--sunk);color:var(--ink2)}.pill.done i{background:var(--muted)}
 h1.ghsa{margin:16px 0 0;font:500 clamp(26px,4vw,40px)/1.2 var(--mono);letter-spacing:-.02em;overflow-wrap:anywhere}
 .adv-body{margin-top:40px;display:flex;flex-wrap:wrap;gap:32px}.adv-body>section{min-width:0}
 .facts{margin:0}.facts>div{display:flex;flex-wrap:wrap;gap:4px 24px;padding:16px 20px;border-bottom:1px solid var(--line2)}
@@ -966,6 +967,18 @@ def advisory(i: Item, events: list[dict[str, Any]], now: datetime) -> str:
     age = days_since(a.published_at, now)
     perm = s.likely_permanent
     pill = "Likely permanent: GitHub doesn’t review this ecosystem" if perm else f"In limbo for {fmt_days(age)}"
+    # An advisory that left limbo keeps its page (links to it never break) and says how it left, and when
+    gone = s.status is not Status.LIMBO
+    exits = sorted((e for e in events if e["event"].startswith("in limbo -> ")), key=lambda e: e["at"])
+    left_at = datetime.fromisoformat(exits[-1]["at"].replace("Z", "+00:00")) if exits else None
+    waited = (left_at - a.published_at).total_seconds() / 86400 if left_at and a.published_at else None
+    if gone:
+        pill = {
+            Status.REVIEWED: f"Left limbo: reviewed by GitHub after {fmt_days(waited)}",
+            Status.DUPLICATE: f"Left limbo after {fmt_days(waited)}: duplicate of a reviewed advisory",
+            Status.WITHDRAWN: "Left limbo: withdrawn by the maintainers",
+            Status.NOT_PUBLISHED: "Left limbo: no longer published",
+        }.get(s.status, f"Left limbo: {s.status.value}")
     pkgs = [p for p in a.packages if package_name(p.ecosystem, p.name)]
     first = pkgs[0] if pkgs else None
     first_name = _name(first).name if first else ""
@@ -1039,23 +1052,29 @@ def advisory(i: Item, events: list[dict[str, Any]], now: datetime) -> str:
     if a.published_at:
         steps.append(("done", a.published_at.strftime("%Y-%m-%d %H:%M UTC"), "Published by the maintainers",
                       f"Cites {E(f.cited_cve)}" if f.cited_cve else "No CVE cited"))  # fmt: skip
-    for e in sorted(events, key=lambda e: e["at"]):
-        if e["event"] != "first seen":
-            steps.append(("done", stamp(e["at"]), "Change recorded", E(e["event"])))
     seen = stamp(i.first_seen)
+    if gone:
+        steps.append(("done", seen, "First seen by Limbowatch", "In limbo"))
+    for e in sorted(events, key=lambda e: e["at"]):
+        if e["event"].startswith("in limbo -> "):
+            how = LEFT_TEXT.get(e["event"].removeprefix("in limbo -> "), e["event"])
+            steps.append(("done", stamp(e["at"]), how, f"Left limbo after {fmt_days(waited)}" if waited else ""))
+        elif e["event"] != "first seen":
+            steps.append(("done", stamp(e["at"]), "Change recorded", E(e["event"])))
     state_bits = [
         "CVE still reserved" if f.cited_cve_state == "RESERVED" else "",
         "not reviewed" if not f.reviewed else "",
         "not in OSV" if f.in_osv is False else "",
     ]
-    steps.append(("now", seen, "First seen by Limbowatch", " · ".join(b for b in state_bits if b)))
-    if f.cited_cve_state == "RESERVED":
-        steps.append(("todo", "Waiting", "CVE record published", ""))
-    if perm:
-        steps.append(("todo", "Not expected", "Reviewed by GitHub", "GitHub doesn’t review this ecosystem"))
-    else:
-        steps.append(("todo", "Waiting", "Reviewed by GitHub", ""))
-        steps.append(("todo", "Waiting", "In OSV; scanners can see it", ""))
+    if not gone:
+        steps.append(("now", seen, "First seen by Limbowatch", " · ".join(b for b in state_bits if b)))
+        if f.cited_cve_state == "RESERVED":
+            steps.append(("todo", "Waiting", "CVE record published", ""))
+        if perm:
+            steps.append(("todo", "Not expected", "Reviewed by GitHub", "GitHub doesn’t review this ecosystem"))
+        else:
+            steps.append(("todo", "Waiting", "Reviewed by GitHub", ""))
+            steps.append(("todo", "Waiting", "In OSV; scanners can see it", ""))
     lis = []
     for n, (kind, when, head, detail) in enumerate(steps):
         last = n == len(steps) - 1
@@ -1081,25 +1100,38 @@ def advisory(i: Item, events: list[dict[str, Any]], now: datetime) -> str:
     else:
         advice = "The advisory doesn’t name a package. Check it for the affected component."
     scanners = "probably never will" if perm else "won’t flag this yet"
+    tail = f"Dependabot, npm audit and OSV-Scanner {scanners}."
+    if s.status in (Status.REVIEWED, Status.DUPLICATE):
+        tail = "It’s in GitHub’s reviewed database now, so Dependabot, npm audit and OSV-Scanner can report it."
+    elif s.status is Status.WITHDRAWN:
+        advice, tail = "The maintainers withdrew this advisory.", "Check it on GitHub for why."
+    elif s.status is Status.NOT_PUBLISHED:
+        advice, tail = "This advisory is no longer published on GitHub.", ""
+    record = (
+        ""
+        if gone
+        else '<p class="muted" style="margin-top:24px;font-size:13px">Machine-readable record: '
+        f'<a class="mono" href="/feed/{E(a.ghsa_id)}.json">feed/{E(a.ghsa_id)}.json</a></p>'
+    )
     who = f"If you use {E(first_name)} {E(first.vulnerable_version_range or '')}" if first else "If you’re affected"
     body = f"""<header class="top">{header("tracker")}</header>
 <main class="wrap">
 <nav class="crumb" aria-label="Breadcrumb"><a href="/tracker/">Tracker</a>{f" / {E(eco_label(first.ecosystem))} / {E(first_name)}" if first else ""}</nav>
-<div class="adv-head"><div style="min-width:0"><p class="pill"><i aria-hidden="true"></i>{E(pill)}</p>
+<div class="adv-head"><div style="min-width:0"><p class="pill{" done" if gone else ""}"><i aria-hidden="true"></i>{E(pill)}</p>
 <h1 class="ghsa">{E(a.ghsa_id)}</h1><p class="sub">{sub}</p></div>
 <a class="btn solid" style="min-height:48px" href="{E(a.html_url)}">Read the advisory on GitHub ↗</a></div>
 <div class="adv-body">
 <section style="flex:3 1 560px"><h2 class="xs">Facts</h2><dl class="facts card">{facts_html}</dl>
-<div class="advice"><h2>{who.strip()}</h2><p>{advice} Dependabot, npm audit and OSV-Scanner {scanners}.</p></div></section>
-<section style="flex:2 1 340px"><h2 class="xs">Timeline</h2><ol class="steps">{"".join(lis)}</ol>
-<p class="muted" style="margin-top:24px;font-size:13px">Machine-readable record:
-<a class="mono" href="/feed/{E(a.ghsa_id)}.json">feed/{E(a.ghsa_id)}.json</a></p></section>
+<div class="advice"><h2>{who.strip()}</h2><p>{advice} {tail}</p></div></section>
+<section style="flex:2 1 340px"><h2 class="xs">Timeline</h2><ol class="steps">{"".join(lis)}</ol>{record}</section>
 </div></main>
 {footer("We show facts only; the advisory’s title, description and credits are on GitHub. ")}"""
     name = first_name or a.repo
     return page(
         f"{a.ghsa_id} ({name}) · limbo.watch",
-        f"{a.ghsa_id} for {name}: published on GitHub {fmt_days(age)} ago and not yet visible to scanners that read GitHub’s Advisory Database.",
+        f"{a.ghsa_id} for {name}: {pill.lower()}."
+        if gone
+        else f"{a.ghsa_id} for {name}: published on GitHub {fmt_days(age)} ago and not yet visible to scanners that read GitHub’s Advisory Database.",
         body,
         f"/advisory/{a.ghsa_id}/",
     )
@@ -1823,6 +1855,9 @@ def build(
     for e in events:
         by_ghsa[e["ghsa_id"]].append(e)
     data = tracker_data(items, events, now)
+    # Every advisory that is or was in limbo has a page, so links (the tracker's "left limbo" tab, shared links) never break
+    was_in_limbo = {e["ghsa_id"] for e in events if e["event"].startswith("in limbo -> ")}
+    with_page = [i for i in items if i.assessment.status is Status.LIMBO or i.adv.ghsa_id in was_in_limbo]
     out = {
         "index.html": home(items, metrics, now),
         "tracker/index.html": tracker(metrics, data),
@@ -1849,14 +1884,13 @@ def build(
             "New critical and high advisories in limbo · limbo.watch",
             "Critical and high security advisories published on GitHub that scanners can’t see yet.",
         ),
-        "sitemap.xml": sitemap([i.adv.ghsa_id for i in items if i.assessment.status is Status.LIMBO], now),
+        "sitemap.xml": sitemap([i.adv.ghsa_id for i in with_page], now),
         "robots.txt": ROBOTS,
         "assets/site.css": CSS,
         "assets/tracker.js": TRACKER_JS,
     }
-    for i in items:
-        if i.assessment.status is Status.LIMBO:
-            out[f"advisory/{i.adv.ghsa_id}/index.html"] = advisory(i, by_ghsa.get(i.adv.ghsa_id, []), now)
+    for i in with_page:
+        out[f"advisory/{i.adv.ghsa_id}/index.html"] = advisory(i, by_ghsa.get(i.adv.ghsa_id, []), now)
     if analytics_id:
         tag = (
             f'<script src="/assets/analytics.js?v={_v(ANALYTICS_JS)}" data-id="{analytics_id}" defer></script>\n</head>'
