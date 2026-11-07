@@ -36,6 +36,7 @@ class Repo(Base):
     etag: Mapped[str | None] = mapped_column(String(200), default=None)
     etag_token: Mapped[str | None] = mapped_column(String(32), default=None)  # token fingerprint (F-058)
     advisory_count: Mapped[int] = mapped_column(Integer, default=0)
+    released_at: Mapped[str | None] = mapped_column(String(32), default=None)  # latest release of its package seen
 
 
 class Advisory(Base):

@@ -101,6 +101,12 @@ def track(
     max_new: Annotated[
         int | None, typer.Option(help="First-time polls per run, so a large seed list can't starve due re-checks.")
     ] = None,
+    releases: Annotated[
+        bool, typer.Option(help="Check a repo after its package releases (docs/RELEASE_CHECKS.md).")
+    ] = True,
+    release_min_dependents: Annotated[
+        int, typer.Option(help="Watch a released package's repo if this many repositories depend on it; 0: never.")
+    ] = 100,
     nvd: Annotated[bool, typer.Option(help="Look up NVD status for published CVEs.")] = True,
     max_nvd: Annotated[int, typer.Option(help="NVD lookups per run.")] = 150,
     cve_list: Annotated[
@@ -112,7 +118,8 @@ def track(
     logging.basicConfig(level=logging.INFO if verbose else logging.WARNING, format="%(levelname)s %(name)s %(message)s")
     store = _load(state)
     cfg = TrackerConfig(seeds=seed or [], nvd=nvd, max_nvd=max_nvd, checkpoint=lambda: store.export_jsonl(state),
-                        max_new=max_new)  # fmt: skip
+                        max_new=max_new, releases=releases,
+                        release_min_dependents=release_min_dependents or None)  # fmt: skip
 
     if cve_list is not None:
         with tempfile.TemporaryDirectory() as tmp:

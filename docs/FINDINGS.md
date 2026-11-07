@@ -1192,6 +1192,17 @@ Answered:
 - **Caveats:** Volumes are from one hour or one page; they vary by weekday. ecosyste.ms is a third party (CC BY-SA data, anonymous limit 5,000/h) and its version-level endpoints failed here.
 - **Implication:** A daily run can collect every release in all eight ecosystems with about 40 requests to ecosyste.ms plus paging the Go index and Packagist's feed. Release-triggered checks are feasible; the design is in `docs/RELEASE_CHECKS.md`.
 
+### F-102
+- **Date:** 2026-11-07 · **Status:** confirmed (one live collection; a single day)
+- **Question:** What does release collection cost, and how many releases hit the watchlist each day?
+- **Method:** `Tracker.collect_releases` on a copy of the tracker state (44,460 repos, tracker-data 2026-11-07 18:43), against the live feeds for the 24 hours to about 19:20 UTC, `release_min_dependents=100`; then `poll_order()` on the result.
+- **Result:**
+  - 55,661 releases in 304 seconds, every feed complete: npm 22,888, Go 19,020 (tagged versions), PyPI 5,381, NuGet 4,715, crates.io 1,553, Packagist 1,538, RubyGems 470, Maven 96.
+  - **375 watched repos released** (npm 124, Go 79, PyPI 78, Packagist 51 by name, RubyGems 18, NuGet 13, crates.io 11, Maven 1); 73 of their checks were already due.
+  - **76 unwatched repos** whose packages have at least 100 dependent repositories released (npm 58, PyPI 17, crates.io 1) and would join the watchlist.
+- **Caveats:** One day. Maven's count is far below the 660 a day in F-101's page span, so it varies or ecosyste.ms lags for Maven. Go and Packagist give no dependent counts, so their unwatched repos aren't added.
+- **Implication:** Release-triggered checks cost a few hundred GitHub requests a day and about 5 minutes of run time. Checking popular unwatched packages adds tens of repos a day, not thousands.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

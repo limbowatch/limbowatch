@@ -24,7 +24,7 @@ from limbowatch.http import BudgetExhausted, DeadlineReached, HttpClient
 from limbowatch.models import GITHUB_CNA, CveInfo, Facts, RepoAdvisory
 from limbowatch.normalize import ts
 from limbowatch.sources import cve as cve_src
-from limbowatch.sources import github, nvd, osv
+from limbowatch.sources import github, nvd, osv, releases
 from limbowatch.store import Advisory, Cve, Event, FactSnapshot, Nvd, Repo, Reviewed, Run, Store, now_iso
 
 log = logging.getLogger(__name__)
@@ -46,6 +46,10 @@ class TrackerConfig:
     # First-time polls per run. Never-checked repos outrank anything merely due, so a large seed list would
     # otherwise use the whole budget for days and starve the daily re-checks of repos with advisories in limbo.
     max_new: int | None = None
+    # Release-triggered checks (docs/RELEASE_CHECKS.md): collect releases since the last run and check a repo after
+    # its package releases. Packages not yet watched join the watchlist when this many repositories depend on them.
+    releases: bool = False
+    release_min_dependents: int | None = 100
 
 
 @dataclass
@@ -65,6 +69,9 @@ class RunReport:
     # polls sent without a usable ETag (never polled with this token), which can't come back 304. Shows where the
     # budget goes (FINDINGS F-100).
     by_tier: dict[str, dict[str, int]] = field(default_factory=dict)
+    # Per release feed: releases collected, how many hit a watched repo, repos added, and whether the feed reached
+    # the previous run (docs/RELEASE_CHECKS.md).
+    releases: dict[str, dict[str, Any]] = field(default_factory=dict)
     events: list[str] = field(default_factory=list)
     http: dict[str, Any] = field(default_factory=dict)
 
@@ -189,6 +196,8 @@ class Tracker:
         self._tier = {
             r.full_name: "new"
             if r.last_polled_at is None
+            else "release"
+            if schedule.release_due(_parse(r.last_polled_at), _parse(r.released_at), now)
             else schedule.tier(r.full_name in limbo_repos, r.advisory_count, r.poll_status).name.lower()
             for r in repos
         }
@@ -200,6 +209,7 @@ class Tracker:
                     _parse(r.last_polled_at),
                     _parse(r.first_seen),
                     now,
+                    _parse(r.released_at),
                 ),
             )
             for r in repos
@@ -234,7 +244,10 @@ class Tracker:
                     return
                 outcome = str(res.status) if res.status in (200, 304, 404) else "other"
                 tally[outcome] = tally.get(outcome, 0) + 1
-                self._record_poll(repo.full_name, res, report)
+                before = report.new_advisories
+                self._record_poll(repo.full_name, res, report)  # synchronous: no other worker runs in between
+                if report.new_advisories > before:  # what each tier finds: release-triggered vs routine checks
+                    tally["new_advisories"] = tally.get("new_advisories", 0) + report.new_advisories - before
 
         await asyncio.gather(*(worker() for _ in range(POLL_WORKERS)))
         report.stopped_early = stop[0] if stop else None
@@ -390,6 +403,62 @@ class Tracker:
                 self._merge([row])
                 nvds[c] = row
 
+    # ------------------------------------------------------------------ releases
+    async def collect_releases(self, report: RunReport) -> None:
+        """Releases since the last run, from every feed: mark watched repos as released, and add the repos of
+        packages enough projects depend on. Feeds run in parallel; one failing doesn't stop the others."""
+        now = datetime.now(UTC)
+        first = now - timedelta(days=1)
+
+        def since(name: str) -> datetime:
+            return _parse(self.store.cursor(f"releases:{name}")) or first
+
+        feeds = await asyncio.gather(
+            *(releases.ecosystems(self.http, reg, since(reg)) for reg in releases.ECOSYSTEMS_REGISTRIES),
+            releases.go_index(self.http, since("proxy.golang.org")),
+            releases.packagist(self.http, since("packagist.org")),
+            return_exceptions=True,
+        )
+        with self.store.session() as s:
+            watched = {r.full_name: r for r in s.execute(select(Repo)).scalars()}
+        for feed in feeds:
+            if isinstance(feed, BaseException):
+                if isinstance(feed, BudgetExhausted | DeadlineReached):
+                    raise feed
+                report.releases[type(feed).__name__] = {"error": str(feed)[:200]}
+                continue
+            hit: dict[str, datetime] = {}
+            new: set[str] = set()
+            for rel in feed.releases:
+                # Packagist names packages, not repos: a watched repo with the same owner/name is the match
+                repo = rel.repo or (rel.package.lower() if feed.source == "packagist.org" else None)
+                if not repo:
+                    continue
+                if repo in watched or repo in new:
+                    hit[repo] = max(hit.get(repo, rel.published_at), rel.published_at)
+                elif (
+                    self.cfg.release_min_dependents is not None
+                    and rel.repo
+                    and (rel.dependents or 0) >= self.cfg.release_min_dependents
+                ):
+                    new.add(repo)
+                    hit[repo] = max(hit.get(repo, rel.published_at), rel.published_at)
+            if new:
+                self.add_repos(new, f"release:{feed.source}")
+            with self.store.session() as s:
+                for row in s.execute(select(Repo).where(Repo.full_name.in_(hit))).scalars():
+                    stamp = _iso(hit[row.full_name])
+                    if stamp and (row.released_at is None or stamp > row.released_at):
+                        row.released_at = stamp
+            report.releases[feed.source] = {
+                "releases": len(feed.releases), "watched": len(hit) - len(new), "added": len(new),
+                "complete": feed.complete,
+            }  # fmt: skip
+            # A complete feed moves on to now (or the feed's own position); a partial one keeps its place
+            if feed.complete:
+                self.store.set_cursor(f"releases:{feed.source}", feed.cursor or _iso(now) or "")
+        log.info("releases collected", extra={"feeds": report.releases})
+
     # ------------------------------------------------------------------ run
     def _checkpoint(self) -> None:
         if self.cfg.checkpoint:
@@ -400,7 +469,8 @@ class Tracker:
         t0 = time.monotonic()
         self.load_seeds()
         self.watch_cna_repos()
-        for step in (self.sync_reviewed, self.sync_cve_delta):
+        steps = [self.sync_reviewed, self.sync_cve_delta] + ([self.collect_releases] if self.cfg.releases else [])
+        for step in steps:
             try:
                 await step(report)
             except (BudgetExhausted, DeadlineReached) as e:

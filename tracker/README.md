@@ -11,13 +11,14 @@ A daily job that counts published GitHub security advisories still **in limbo**:
    - each run polls only repos that are due, most overdue first (time since the last check ÷ the interval). If the budget can't cover everything due, every tier slows down by the same factor. Never-polled repos rank above repos that are merely due;
    - conditional requests: an unchanged repo returns 304, which is free;
    - coverage is reported as "up to date on schedule" (site, daily report, `metrics.json` `coverage.on_schedule`).
-4. **Assessment.** For each advisory not yet reviewed:
+4. **Releases** (docs/RELEASE_CHECKS.md). Collects every release since the last run from ecosyste.ms (npm, PyPI, NuGet, crates.io, Maven, RubyGems), the Go module index and Packagist's change feed. A watched repo whose package released is checked about a day and about three days later, ahead of routine checks; an unwatched repo whose package has at least 100 dependent repositories joins the watchlist. `--no-releases` turns it off.
+5. **Assessment.** For each advisory not yet reviewed:
    - checks OSV and the cited CVE's state (re-checks reserved CVEs about daily);
    - looks for CVEs from other CNAs that reference it, and for duplicates (the same CVE already reviewed under another GHSA);
    - looks up NVD status (capped per run).
 
    It stores a fact snapshot only when something changed, plus a readable event ("in limbo -> reviewed", "CVE-X RESERVED -> PUBLISHED").
-5. **Publish.** `limbowatch publish` writes:
+6. **Publish.** `limbowatch publish` writes:
    - `index.html`;
    - `metrics.json`, including `flow_7d`: advisories published in the last 7 days against those that left limbo (F-092);
    - `feed/all.zip`: OSV schema, one `<GHSA>.json` per advisory in limbo, same layout as OSV's bulk exports;

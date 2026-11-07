@@ -1,6 +1,6 @@
 # Design: check a repository when its package releases
 
-Status: **proposal for review** (Phase 5, step 1; 2026-11-07). Nothing here is built yet.
+Status (2026-11-07): **approved; steps 1 and 2 built and running, including releases of unwatched packages with at least 100 dependent repositories.** The week of measurement (step 3) starts with the first run; the routine schedule (step 4) is unchanged until then. First live collection: FINDINGS F-102.
 
 ## Why
 
@@ -35,7 +35,14 @@ Advisories follow releases. Of 282 recent advisories with release data, **71% ha
 
 Before relaxing any schedule: run release collection alongside the current schedule for a week. Record, for every new advisory the tracker finds, whether a release-triggered check would have found it, and how much sooner or later. Relax the weekly tier only if release checks catch at least as much, sooner.
 
-## Decisions for you
+## Decisions (2026-11-07)
 
-1. Build it in that order (collect, then trigger checks, then measure for a week, then relax the schedule)?
-2. Check releases of unwatched packages too, above a usage threshold (e.g. 100 dependent repositories)? This is the cheap route towards "all packages", at roughly 1,000–2,000 extra polls a day (to be measured).
+1. Build it in that order: collect, trigger checks, measure for a week, then relax the schedule. **Approved.**
+2. Also check releases of unwatched packages with at least 100 dependent repositories (`--release-min-dependents`). **Approved.** Measured on the first collection: 76 such repos in a day, not the 1,000–2,000 guessed, because most popular packages are already watched (F-102).
+
+## Built
+
+- `limbowatch.sources.releases`: the three feeds; each reports whether it reached the previous run, and a partial feed keeps its cursor.
+- `Tracker.collect_releases`: marks `Repo.released_at`, adds popular unwatched repos (source `release:<registry>`), records per feed in the run report (`releases`).
+- `schedule.release_due`: checks at about 20 hours and about 3 days after a release, ahead of routine checks; a repo added because it just released goes before a seed list's backlog.
+- Per-tier counts in each run report include a `release` tier and the new advisories each tier finds, which is the week's measurement.
