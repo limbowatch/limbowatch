@@ -1182,6 +1182,16 @@ Answered:
 - **Caveats:** Run reports kept only totals, so the 2026-11-04 to 11-06 spending can't be attributed per tier after the fact; from 2026-11-07 each run records polls per tier and outcome (`by_tier`, including polls sent without a usable ETag). The 16-day ETag sample is small.
 - **Implication:** The expansion finds real advisories in limbo where coverage was weakest. Re-checks of repos with advisories aren't as free as assumed (about a third cost a full request after two weeks), and a token change makes every ETag useless until each repo is polled once. Before adding the top 10,000 (about 42,000 more repos), the per-tier numbers from the next runs set the budget and `--max-new`. Release-triggered checks would catch most new advisories within days of the fix release and cut blind re-polling; they are a candidate for the next part of Phase 5.
 
+### F-101
+- **Date:** 2026-11-07 · **Status:** confirmed (live probes, about 18:45 UTC)
+- **Question:** Is there a source of "this package just released" for each ecosystem, so the tracker could check a repo after its package releases (Q21, F-100)?
+- **Method:** `GET https://packages.ecosyste.ms/api/v1/registries/{registry}/packages?sort=latest_release_published_at&order=desc&per_page=1000` for the eight registries (span of the latest 1,000 packages); `GET https://index.golang.org/index?since={1h ago}&limit=2000`; `GET https://packagist.org/metadata/changes.json?since={1h ago, in 1/10,000 s}`. Also tried ecosyste.ms `/registries/pypi.org/versions` (500 after 30 s) and `/recent_versions` (404).
+- **Result:**
+  - ecosyste.ms's `latest_release_published_at` sort is current to within minutes for npm (the latest 1,000 packages span 1.1 h: about 22,000 releasing packages a day), PyPI (7,600/day), NuGet (5,000/day), crates.io (1,700/day), Maven (660/day) and RubyGems (400/day); 76–99% of those packages name a GitHub repo.
+  - For Go and Packagist that sort is useless (the latest 1,000 span years). Their own feeds work: the Go module index returned 2,000 module versions for the last hour (including pseudo-versions such as `v0.0.0-20261107174219-…`, which aren't releases), and Packagist's change feed 375 `update`/`delete` actions (including `~dev` branches).
+- **Caveats:** Volumes are from one hour or one page; they vary by weekday. ecosyste.ms is a third party (CC BY-SA data, anonymous limit 5,000/h) and its version-level endpoints failed here.
+- **Implication:** A daily run can collect every release in all eight ecosystems with about 40 requests to ecosyste.ms plus paging the Go index and Packagist's feed. Release-triggered checks are feasible; the design is in `docs/RELEASE_CHECKS.md`.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
