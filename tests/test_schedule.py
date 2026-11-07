@@ -50,3 +50,16 @@ def test_a_large_seed_list_cannot_starve_due_rechecks() -> None:
     assert order[:2] == ["new/r0", "new/r1"] and order[2:] == ["due/quiet"]  # 2 new first, the due one still runs
     t.cfg.max_new = None
     assert len(t.poll_order()) == 6
+
+
+def test_coverage_per_ecosystem_counts_watched_and_checked() -> None:
+    from limbowatch.publish import ecosystem_coverage
+    from limbowatch.store import Repo
+
+    repos = [Repo(full_name="a/x", sources=[], first_seen="t", last_polled_at="t", poll_status=200, advisory_count=2),
+             Repo(full_name="b/y", sources=[], first_seen="t")]  # fmt: skip
+    top = {"top": 1000, "generated": "2026-11-07", "registries": {"npmjs.org": ["A/x", "b/y", "c/z"]}}
+    cov = ecosystem_coverage(repos, top)
+    assert cov == {"top": 1000, "generated": "2026-11-07",
+                   "ecosystems": {"npm": {"repos": 3, "watched": 2, "checked": 1, "with_advisories": 1}}}  # fmt: skip
+    assert ecosystem_coverage(repos, None) is None

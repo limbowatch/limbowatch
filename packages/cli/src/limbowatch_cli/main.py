@@ -144,6 +144,9 @@ def publish(
     out: Annotated[Path, typer.Option(help="Output directory for the site and feed.")] = Path("tracker/site"),
     assets: Annotated[Path, typer.Option(help="Brand assets to copy (favicon, avatar).")] = Path("brand/assets"),
     screenshots: Annotated[Path, typer.Option(help="Screenshots for the scan page (PNG).")] = Path("docs/screenshots"),
+    top_packages: Annotated[
+        Path, typer.Option(help="Top packages per ecosystem (make_top_packages.py), for coverage per ecosystem.")
+    ] = Path("tracker/seeds/top-packages.json"),
     analytics_id: Annotated[
         str | None,
         typer.Option(
@@ -155,7 +158,7 @@ def publish(
     store = _load(state)
     now = datetime.now(UTC)
     all_items = items(store)
-    m = metrics(store, now)
+    m = metrics(store, now, json.loads(top_packages.read_text()) if top_packages.exists() else None)
     modified = m["generated_at"]
     records, zipped = feed_mod.build(all_items, modified)
     (out / "feed").mkdir(parents=True, exist_ok=True)

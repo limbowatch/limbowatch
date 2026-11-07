@@ -1662,6 +1662,23 @@ def methodology(m: dict[str, Any]) -> str:
     cov, flow = m["coverage"], m.get("flow_7d") or {}
     by_source = cov.get("by_source") or {}
     flow_end = (flow.get("ends_at") or m["generated_at"])[:10]
+    tp = cov.get("top_packages") or {}
+    eco_rows = "".join(
+        f'<tr><th scope="row">{E(name)}</th><td class="n">{e["repos"]:,}</td><td class="n">{e["watched"]:,}</td>'
+        f'<td class="n">{e["checked"]:,}</td><td class="n">{e["with_advisories"]:,}</td></tr>'
+        for name, e in sorted((tp.get("ecosystems") or {}).items(), key=lambda kv: kv[0].lower())
+    )
+    eco_table = (
+        f"<p><strong>Coverage of the most-used packages.</strong> The source repositories of the top {tp.get('top') or 0:,} "
+        "packages in each ecosystem, by dependent repositories (ranking from ecosyste.ms, "
+        f"{E(str(tp.get('generated') or ''))}):</p>"
+        '<table class="eco"><thead><tr><th scope="col">Ecosystem</th><th scope="col" class="n">Repositories</th>'
+        '<th scope="col" class="n">Watched</th><th scope="col" class="n">Checked</th>'
+        '<th scope="col" class="n">With advisories</th></tr></thead>'
+        f"<tbody>{eco_rows}</tbody></table>"
+        if eco_rows
+        else ""
+    )
     watch_table = (
         '<table class="eco"><thead><tr><th scope="col">Why a repository is watched</th><th scope="col" class="n">Repositories</th>'
         "</tr></thead><tbody>"
@@ -1715,6 +1732,7 @@ receives more than 5,000 repository advisories a week, so Limbowatch sees roughl
 (FINDINGS <a href="{FINDINGS_URL}#f-098">F-098</a>, an estimate). Coverage of what real projects depend on is far
 higher: the upstreams of the projects in our October report were almost all already watched
 (<a href="{FINDINGS_URL}#f-085">F-085</a>).</p>
+{eco_table}
 <p><strong>What it can’t see.</strong> A repository whose first advisory has no CVE, hasn’t been reviewed, and isn’t a
 dependency of a project we follow. It appears once a CVE or a review reveals it. When the list grows, older advisories are
 found for the first time; the daily report counts these separately, so coverage growth isn’t mistaken for new limbo.</p>"""),

@@ -15,6 +15,7 @@ ecosyste.ms data under CC BY-SA 4.0, so this file and the published watchlist ca
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import time
 from datetime import date
@@ -23,6 +24,7 @@ from pathlib import Path
 import httpx
 
 OUT = Path(__file__).resolve().parent / "top-packages.txt"
+OUT_JSON = OUT.with_suffix(".json")  # the same repos per registry, for coverage per ecosystem on limbo.watch
 REGISTRIES = ["npmjs.org", "pypi.org", "proxy.golang.org", "repo1.maven.org", "crates.io", "nuget.org",
               "rubygems.org", "packagist.org"]  # fmt: skip
 GITHUB = re.compile(r"^(?:git\+)?(?:https?|git|ssh)://(?:[^@/]+@)?(?:www\.)?github\.com[/:]([\w.-]+)/([\w.-]+?)(?:\.git)?(?:[/#?].*)?$", re.I)
@@ -60,11 +62,13 @@ def main() -> None:
     a = ap.parse_args()
     repos: set[str] = set()
     counts = []
+    per_registry: dict[str, list[str]] = {}
     with httpx.Client(timeout=120, headers={"User-Agent": "limbowatch-seed (https://limbo.watch)"}) as client:
         for reg in REGISTRIES:
             found = {r for p in top(client, reg, a.top) if (r := github_repo(p.get("repository_url")))}
             counts.append(f"{reg} {len(found):,}")
             repos |= found
+            per_registry[reg] = sorted(found)
     head = [
         f"# Source repos of the top {a.top:,} packages per ecosystem by dependent repositories, as ranked by",
         "# ecosyste.ms (https://ecosyste.ms), GitHub repos only. Data: ecosyste.ms, CC BY-SA 4.0; this list is CC BY-SA 4.0.",
@@ -72,6 +76,8 @@ def main() -> None:
         f"# {len(repos):,} distinct repos.",
     ]
     OUT.write_text("\n".join(head + sorted(repos)) + "\n")
+    OUT_JSON.write_text(json.dumps({"top": a.top, "generated": str(date.today()), "license": "CC BY-SA 4.0",
+                                    "source": "https://ecosyste.ms", "registries": per_registry}, indent=1) + "\n")  # fmt: skip
     print(f"wrote {OUT} ({len(repos):,} repos)")
 
 

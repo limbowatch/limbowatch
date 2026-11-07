@@ -90,7 +90,36 @@ def days_since(d: datetime | None, now: datetime) -> float | None:
     return None if d is None else (now - d).total_seconds() / 86400
 
 
-def metrics(store: Store, now: datetime | None = None) -> dict[str, Any]:
+REGISTRY_LABEL = {
+    "npmjs.org": "npm",
+    "pypi.org": "PyPI",
+    "proxy.golang.org": "Go",
+    "repo1.maven.org": "Maven",
+    "crates.io": "crates.io",
+    "nuget.org": "NuGet",
+    "rubygems.org": "RubyGems",
+    "packagist.org": "Packagist",
+}
+
+
+def ecosystem_coverage(repos: list[Repo], top_packages: dict[str, Any] | None) -> dict[str, Any] | None:
+    """For each ecosystem, how many source repos of its top packages are watched and already checked (F-099)."""
+    if not top_packages:
+        return None
+    by_name = {r.full_name.lower(): r for r in repos}
+    out: dict[str, Any] = {}
+    for reg, names in (top_packages.get("registries") or {}).items():
+        rows = [by_name.get(n.lower()) for n in names]
+        out[REGISTRY_LABEL.get(reg, reg)] = {
+            "repos": len(names),
+            "watched": sum(1 for r in rows if r is not None),
+            "checked": sum(1 for r in rows if r is not None and r.last_polled_at and r.poll_status in (200, 304)),
+            "with_advisories": sum(1 for r in rows if r is not None and r.advisory_count),
+        }
+    return {"top": top_packages.get("top"), "generated": top_packages.get("generated"), "ecosystems": out}
+
+
+def metrics(store: Store, now: datetime | None = None, top_packages: dict[str, Any] | None = None) -> dict[str, Any]:
     now = now or datetime.now(UTC)
     all_items = items(store)
     in_limbo = [i for i in all_items if i.assessment.status is Status.LIMBO]
@@ -143,6 +172,8 @@ def metrics(store: Store, now: datetime | None = None) -> dict[str, Any]:
             "repos_with_advisories": sum(1 for r in repos if r.advisory_count),
             # why repos are on the watchlist; a repo can have several reasons (FINDINGS F-098)
             "by_source": dict(Counter(src for r in repos for src in set(r.sources or [])).most_common()),
+            # the top packages per ecosystem (tracker/seeds/top-packages.json): watched and checked
+            "top_packages": ecosystem_coverage(repos, top_packages),
             "reviewed_advisories_known": len(reviewed),
             "note": "Every number is a floor: only repositories on the watchlist are seen.",
         },
