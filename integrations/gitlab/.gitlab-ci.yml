@@ -2,7 +2,7 @@
 # The source of truth is integrations/gitlab/ in https://github.com/limbowatch/limbowatch.
 #
 # Every pipeline runs the component from this commit against tests/go-sample. A semantic-version
-# tag (e.g. 0.1.0) then publishes that version to the CI/CD Catalog with the `release` keyword.
+# tag (e.g. 0.1.0-alpha.1) then publishes that version to the CI/CD Catalog with the `release` keyword.
 
 include:
   - component: $CI_SERVER_FQDN/$CI_PROJECT_PATH/limbowatch@$CI_COMMIT_SHA

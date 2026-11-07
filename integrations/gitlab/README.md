@@ -11,7 +11,7 @@ The job log shows a table per lockfile, what to upgrade, and why the job passed 
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.1
     inputs:
       fail_on: high
       issues: true          # confidential issues from the default branch and schedules

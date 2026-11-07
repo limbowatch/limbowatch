@@ -20,7 +20,7 @@ When a maintainer publishes a security advisory in their GitHub repository, Depe
 ```yaml
 # GitLab CI
 include:
-  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.1
     inputs:
       fail_on: high
 ```
@@ -28,7 +28,7 @@ include:
 ```yaml
 # GitHub, Gitea or Forgejo Actions
 - uses: actions/checkout@v4
-- uses: limbowatch/limbowatch/integrations/action@v0.1.0
+- uses: limbowatch/limbowatch/integrations/action@v0.1.0a1
   with:
     fail-on: high
     sarif: limbowatch.sarif
@@ -39,7 +39,14 @@ What it finds, measured 2026-11-05 to 11-07 against the live feed:
 - **269 affected package-versions in 13 of 14 popular projects** (GitLab alone 125), which scanners reading GitHub's database or OSV report as clean. Of 657 findings checked live, none was contradicted.
 - **16 vs 0 on a demo app** with real npm, Go, pip and Bundler lockfiles: Limbowatch found 16 advisories in limbo; OSV-Scanner and GitHub's Dependabot alerts reported none of them. See the [demo pull request](https://github.com/limbowatch/demo-app/pull/1): 51 new alerts, inline on the line that adds the package. [Evidence: all 16 rechecked against GitHub and OSV](research/2026-11-demo-evidence/), 1.6 to 23.5 days in limbo.
 
-Guide: [docs/WATCHER.md](docs/WATCHER.md) · [limbo.watch/scan](https://limbo.watch/scan/). Version 0.1.0 is being released to PyPI and the GitLab CI/CD Catalog; until then, install from GitHub as the guide shows.
+<img src="docs/screenshots/terminal.png" width="720" alt="limbowatch scan output: a table of findings per lockfile, a To fix list of upgrades, and the verdict FAILED, 9 findings at or above high">
+
+In a GitHub pull request (code scanning alerts inline) and a GitLab merge request (Code Quality, test summary, report link):
+
+<img src="docs/screenshots/github-pr-inline.png" width="720" alt="A GitHub pull request diff with a code scanning alert on the added scapy line">
+<img src="docs/screenshots/gitlab-mr-widgets.png" width="560" alt="A GitLab merge request: Code Quality scans found 51 new findings; Test summary: 9 failed, 67 total tests; a Limbowatch report link">
+
+Guide: [docs/WATCHER.md](docs/WATCHER.md) · [limbo.watch/scan](https://limbo.watch/scan/). The current release is an alpha, 0.1.0a1: `pipx install limbowatch-cli==0.1.0a1`. Options and formats may still change before 0.1.0.
 
 ## Why this exists
 
@@ -79,7 +86,7 @@ The methods, open dataset (CC BY 4.0) and scripts to reproduce it are in the [re
 | 1. "State of the Gap" report | draft for review |
 | 2. Live Limbo Tracker and an open **limbo feed** (OSV schema) | **live** at [limbo.watch](https://limbo.watch) |
 | 3. Contributions to existing tools ([blindspot](https://github.com/munimtechnologies/advisory-import-census), OSV-Scanner) | prepared, not sent ([drafts](docs/outreach/)) |
-| 4. Limbowatch watcher for GitLab and Gitea: CI component, issues that update as advisories move through review | **released** as 0.1.0 ([PyPI](https://pypi.org/project/limbowatch-cli/), [GitLab CI/CD Catalog](https://gitlab.com/explore/catalog/limbowatch/limbowatch-component)) |
+| 4. Limbowatch watcher for GitLab and Gitea: CI component, issues that update as advisories move through review | **released** as 0.1.0a1, an alpha ([PyPI](https://pypi.org/project/limbowatch-cli/), [GitLab CI/CD Catalog](https://gitlab.com/explore/catalog/limbowatch/limbowatch-component)) |
 | 5. Org-wide watch, more ecosystems (Maven/Gradle first) | planned |
 | 6. C/C++ and vendored code | planned |
 

@@ -81,4 +81,6 @@ jobs:
           # shellcheck disable=SC2016 # the backticks are Markdown, not command substitution
           printf '\n**Install:** `pipx install limbowatch-cli==%s` · [PyPI](https://pypi.org/project/limbowatch-cli/%s/) · provenance: `gh attestation verify <file> -R %s`\n' \
             "$v" "$v" "$GITHUB_REPOSITORY" >> notes.md
-          gh release create "$GITHUB_REF_NAME" dist/core/* dist/cli/* --verify-tag --title "Limbowatch $v" --notes-file notes.md
+          pre=""; case "$v" in *a*|*b*|*rc*) pre="--prerelease" ;; esac   # PEP 440 alpha, beta, release candidate
+          # shellcheck disable=SC2086 # $pre is empty or one flag
+          gh release create "$GITHUB_REF_NAME" dist/core/* dist/cli/* --verify-tag $pre --title "Limbowatch $v" --notes-file notes.md

@@ -139,6 +139,7 @@ def publish(
     state: StateDir = Path("tracker/state"),
     out: Annotated[Path, typer.Option(help="Output directory for the site and feed.")] = Path("tracker/site"),
     assets: Annotated[Path, typer.Option(help="Brand assets to copy (favicon, avatar).")] = Path("brand/assets"),
+    screenshots: Annotated[Path, typer.Option(help="Screenshots for the scan page (PNG).")] = Path("docs/screenshots"),
     analytics_id: Annotated[
         str | None,
         typer.Option(
@@ -203,6 +204,9 @@ def publish(
         if (assets / name).exists():
             (out / target).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(assets / name, out / target)
+    for shot in sorted(screenshots.glob("*.png")) if screenshots.is_dir() else []:
+        (out / "assets/screens").mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(shot, out / "assets/screens" / shot.name)
     typer.echo(f"published {len(records)} advisories in limbo to {out}")
 
 
@@ -377,7 +381,7 @@ def scan(
         raise typer.Exit(_fail(str(e))) from e
     base = _base(path) if sbom_file is None else ""
     rep = output.Report(res.findings, res.unresolved, res.stats, inv.tool, feed_at, changes, accepted, base,
-                        fail_on, fail_on_unknown, now, str(sbom_file or path))  # fmt: skip
+                        fail_on, fail_on_unknown, now, str(sbom_file or path.resolve().name or path))  # fmt: skip
 
     for name, dest in targets:
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -385,7 +389,9 @@ def scan(
     for line in log_lines:
         typer.echo(line, err=True)
     if stdout_fmt == "table" and not quiet:
-        typer.echo(output.table(rep, verbose, output.Paint(*_color(color))), nl=False)
+        on, links = _color(color)
+        # click strips ANSI codes when stdout isn't a terminal unless told otherwise: CI logs are such a case
+        typer.echo(output.table(rep, verbose, output.Paint(on, links)), nl=False, color=on)
     elif not quiet:
         typer.echo(output.FORMATS[stdout_fmt](rep), nl=False)
     if stdout_fmt != "table" or quiet:  # the verdict still reaches the CI log

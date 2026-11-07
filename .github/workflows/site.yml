@@ -14,6 +14,7 @@ on:
       - "packages/core/src/limbowatch/publish/**"
       - "packages/cli/src/limbowatch_cli/**"
       - "brand/assets/**"
+      - "docs/screenshots/**"
       - ".github/workflows/site.yml"
   workflow_dispatch:
 permissions:

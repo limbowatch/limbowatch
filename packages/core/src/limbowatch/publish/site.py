@@ -354,6 +354,12 @@ ul.kit{margin:16px 0 0;padding:0;list-style:none}ul.kit a{display:inline-flex;mi
 @media (max-width:640px){.find div{flex-direction:column}.find button{width:100%}.flow{font-size:17px}
 .stats.three{grid-template-columns:repeat(3,minmax(0,1fr))}figure.queue{margin-top:40px}.qaxis span:nth-child(3){display:none}
 .vs b{font-size:26px}.poster{padding:4px 16px 20px}ol.quotes p{font-size:17px}.fcols{grid-template-columns:1fr;gap:24px}}
+/* scan: screenshots */
+figure.shot{margin:24px 0 0}figure.shot a{display:block;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0F1218}
+figure.shot img{display:block;width:100%;height:auto}figure.shot figcaption{margin-top:10px;font-size:14px;color:var(--ink2)}
+figure.shot.narrow{max-width:820px}.shots2{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:24px;align-items:start}
+table.fmts th{font-size:14px;width:130px;color:var(--ink)}table.fmts td{color:var(--ink2)}
+@media (max-width:640px){.shots2{grid-template-columns:1fr}}
 /* data quality */
 .qrepo{margin-top:32px}.qrepo h3{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;margin:0 0 10px;font-size:17px;overflow-wrap:anywhere}
 .qrepo h3 small{color:var(--muted);font-weight:400;font-size:14px}.qrepo .card{padding:0}
@@ -1167,57 +1173,160 @@ have <span class="mono">name_valid: false</span>. Each record’s <span class="m
 # --- scan: the watcher -----------------------------------------------------------------------------
 
 
+RELEASE = "0.1.0a1"  # the current release (an alpha): PyPI version, action ref v{RELEASE}
+COMPONENT = "0.1.0-alpha.1"  # the same release in the GitLab CI/CD Catalog, which needs semantic versions
+# Screenshots from the demo app (docs/screenshots/, copied to assets/screens/ by `limbowatch publish`)
+SCREENS = {
+    "terminal": (
+        1600,
+        1749,
+        "Terminal output of limbowatch scan: a table of findings per lockfile with severity, package, "
+        "installed and fixed version and advisory; a To fix list of seven upgrades; and the verdict FAILED, "
+        "9 findings at or above high.",
+    ),
+    "github-pr-inline": (
+        1568,
+        712,
+        "A GitHub pull request diff adding scapy==2.7.0 to requirements.txt, with a code scanning "
+        "alert inline on the added line: GHSA-c547-xwrv-q9jm, published advisory not yet in GitHub's "
+        "database or OSV.",
+    ),
+    "github-job-summary": (
+        1288,
+        939,
+        "The GitHub Actions job summary: Failed, 9 findings at or above high; 67 advisories in "
+        "limbo; a To fix list; and a table of the findings that fail the build.",
+    ),
+    "gitlab-mr-widgets": (
+        1486,
+        812,
+        "A GitLab merge request: a Limbowatch report artifact link, 'Code Quality scans found 51 "
+        "new findings', and 'Test summary: 9 failed, 67 total tests'.",
+    ),
+    "html-report": (
+        1600,
+        1455,
+        "The standalone HTML report: Failed, 9 findings at or above high; a To fix list; and a table "
+        "per lockfile with severity badges, versions, advisory links and affected ranges.",
+    ),
+}
+
+
+def shot(name: str, caption: str, narrow: bool = False) -> str:
+    w, h, alt = SCREENS[name]
+    src = f"/assets/screens/{name}.png"
+    return (
+        f'<figure class="shot{" narrow" if narrow else ""}"><a href="{src}"><img src="{src}" width="{w}" height="{h}" loading="lazy" '
+        f'alt="{E(alt)}"></a><figcaption>{caption}</figcaption></figure>'
+    )
+
+
 def scan(m: dict[str, Any]) -> str:
     li = m["in_limbo"]
+    formats = "".join(
+        f"<tr><th scope=\"row\" class=\"mono\">{f}</th><td>{E(d)}</td></tr>"
+        for f, d in [
+            ("table", "The terminal and CI logs, coloured; one verdict line at the end"),
+            ("json", "Automation: findings, upgrades, summary and gate result (schema_version 1)"),
+            ("markdown", "Pull request comments and job summaries"),
+            ("html", "A standalone report to keep as a CI artifact"),
+            ("sarif", "GitHub code scanning and other SARIF 2.1.0 tools"),
+            ("codequality", "GitLab Code Quality in merge requests, every tier"),
+            ("junit", "Test summaries in GitLab, Jenkins, Azure DevOps, CircleCI"),
+            ("csv", "Spreadsheets"),
+            ("cyclonedx", "CycloneDX 1.6 with vulnerabilities, for SBOM tools"),
+            ("github", "Annotations on the pull request, one per package, no code scanning needed"),
+        ]
+    )  # fmt: skip
     body = f"""<header class="top">{header("scan")}</header>
 <main class="wrap">
-<div style="padding-top:48px"><p class="eyebrow">The Limbowatch watcher · open source · GitLab, GitHub, Gitea, Forgejo</p>
+<div class="head"><div><p class="eyebrow">Open source. GitLab, GitHub, Gitea and Forgejo. Release {
+        RELEASE
+    }, an alpha.</p>
 <h1 class="page">Find what your scanner can’t see yet.</h1>
-<p class="sub" style="max-width:720px;font-size:18px"><span class="mono">limbowatch scan</span> checks your lockfiles against
-all {li["count"]:,} advisories in limbo, the ones Dependabot, npm audit and OSV-Scanner don’t report yet, and shows what it
-finds where your team already looks: the merge request, the pull request, the issue tracker.</p></div>
+<p class="sub lead"><span class="mono">limbowatch scan</span> checks your lockfiles against all {
+        li["count"]:,} advisories in
+limbo, the ones Dependabot, npm audit and OSV-Scanner don’t report yet. It shows what it finds where your team already
+looks, and tells you which upgrade clears it.</p></div>
+<div class="contact card"><h2 class="xs">Try it</h2><pre>pipx install limbowatch-cli=={RELEASE}
+limbowatch scan .</pre><p class="small" style="margin:12px 0 0">Needs <a href="https://google.github.io/osv-scanner/installation/">OSV-Scanner</a>
+2.7.0. <a href="{WATCHER_DOC}">Guide</a></p></div></div>
 
-<section class="s" style="padding-top:40px"><h2>What it finds</h2><div class="facts3">
+<section class="s"><h2>In your terminal</h2><p class="sub">One table per lockfile, the upgrade that clears each package, and a
+verdict. This is the <a href="{DEMO_PR}">demo pull request</a> that adds <span class="mono">scapy==2.7.0</span>.</p>
+{
+        shot(
+            "terminal",
+            "51 advisories in limbo for scapy alone: the table shows the 4 high ones and folds the rest; "
+            "<span class='mono'>-v</span> lists all of them.",
+        )
+    }</section>
+
+<section class="s"><h2>In your pull request</h2><p class="sub">The GitHub action writes SARIF for code scanning, annotates each
+affected package without it, and adds a summary to the run.</p>
+<div class="shots2">{shot("github-pr-inline", "Code scanning alerts on the line the pull request adds.")}
+{
+        shot(
+            "github-job-summary", "The job summary: the verdict, what to upgrade, and the findings that fail the build."
+        )
+    }</div></section>
+
+<section class="s"><h2>In your merge request</h2><p class="sub">The GitLab CI/CD component works on every tier, Free included.</p>
+{
+        shot(
+            "gitlab-mr-widgets",
+            "Code Quality shows the 51 new findings, the test summary the 9 that fail the build, and "
+            "“Limbowatch report” links every report.",
+            narrow=True,
+        )
+    }</section>
+
+<section class="s"><div class="two"><div><h2 class="sm">Every report from one scan</h2>
+<p class="sub">Write as many as you need: <span class="mono">-o table -o sarif=x.sarif -o junit=junit.xml -o html=report.html</span>.
+Exit codes: 0 passed, 1 a finding meets <span class="mono">--fail-on</span>, 2 the scan couldn’t run.</p>
+<table class="eco fmts"><tbody>{formats}</tbody></table></div>
+<div>{
+        shot("html-report", "The HTML report: no scripts, nothing loaded from elsewhere, safe to keep as an artifact.")
+    }</div></div></section>
+
+<section class="s"><h2>What it finds</h2><div class="facts3">
 <div><div class="n">269</div><p>affected package-versions in <strong>13 of 14</strong> popular projects, GitLab alone 125, that
-scanners reading GitHub’s database or OSV report as clean. Checked live: 630 of 657 findings in the advisory’s current
+scanners reading GitHub’s database or OSV didn’t report. Checked live: 630 of 657 findings in the advisory’s current
 range, 12 possible, <strong>none contradicted</strong>.</p></div>
 <div><div class="n">16 vs 0</div><p>on a demo app with real npm, Go, pip and Bundler lockfiles: Limbowatch found 16 advisories
-in limbo in six packages (undici, rack, nokogiri, pgx, chi, dnspython). OSV-Scanner and GitHub’s Dependabot alerts
-reported <strong>none of them</strong>.</p></div>
-<div><div class="n">51</div><p>new findings flagged when a change adds one affected package: in GitLab’s merge request
-widget, and on GitHub inline on the changed lockfile line.</p></div></div>
-<p class="sub">Measured 2026-11-05 to 2026-11-07 against the live feed; every advisory checked against GitHub and OSV.
-<a href="{EVIDENCE}">All 16 findings, rechecked →</a> · <a href="{DEMO_PR}">The pull request →</a></p></section>
-
-<section class="s"><h2>Where findings show up</h2><div class="cards3">
-<div class="card"><h3>GitLab merge requests</h3><p>A CI/CD component writes a Code Quality report, which works on every GitLab
-tier: “Code Quality scans found 51 new findings”. Optionally, one confidential issue per finding, updated when a CVE is
-assigned and closed when you upgrade.</p></div>
-<div class="card"><h3>GitHub pull requests</h3><p>The action writes SARIF, so findings become code scanning alerts, annotated on
-the lockfile line a pull request changes, and a table in the job summary.</p></div>
-<div class="card"><h3>Gitea and Forgejo</h3><p>The same action runs on Gitea and Forgejo Actions, and keeps one issue per
-finding up to date. It won’t open issues in a public repo unless you allow it.</p></div></div></section>
+in limbo in six packages. OSV-Scanner and GitHub’s Dependabot alerts reported <strong>none of them</strong>.</p></div>
+<div><div class="n">51</div><p>new findings when a change adds one affected package, in GitLab’s merge request and inline on
+GitHub.</p></div></div>
+<p class="links"><a href="{EVIDENCE}">The 16 findings, rechecked</a><a href="{
+        FINDINGS_URL
+    }#f-085">The 269, checked live</a></p></section>
 
 <section class="s"><h2>Use it</h2><ol class="steps" style="display:flex;flex-direction:column;gap:20px;max-width:860px">
 <li><span class="num">1</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">GitLab CI</p>
 <pre>include:
-  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@{COMPONENT}
     inputs:
       fail_on: high</pre></div></li>
 <li><span class="num">2</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">GitHub, Gitea or Forgejo Actions</p>
-<pre>- uses: actions/checkout@v4
-- uses: limbowatch/limbowatch/integrations/action@v0.1.0
-  with:
-    fail-on: high
-    sarif: limbowatch.sarif</pre></div></li>
+<pre>permissions:
+  contents: read
+  security-events: write   # for the SARIF upload
+steps:
+  - uses: actions/checkout@v4
+  - uses: limbowatch/limbowatch/integrations/action@v{RELEASE}
+    with:
+      fail-on: high
+      sarif: limbowatch.sarif
+  - if: always()
+    uses: github/codeql-action/upload-sarif@v4
+    with: {{ sarif_file: limbowatch.sarif, category: limbowatch }}</pre></div></li>
 <li><span class="num">3</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">On your machine</p>
-<pre>pipx install limbowatch-cli      # needs OSV-Scanner 2.7.0
+<pre>pipx install limbowatch-cli=={RELEASE}   # needs OSV-Scanner 2.7.0
 limbowatch scan .</pre>
-<p class="ink2" style="margin:10px 0 10px;font-size:15px">Version 0.1.0 is being released. Until it’s on PyPI and in
-the GitLab CI/CD Catalog, install from GitHub:</p>
-<pre>uv tool install "limbowatch-cli @ git+{REPO_URL}#subdirectory=packages/cli" \\
-  --with "limbowatch @ git+{REPO_URL}#subdirectory=packages/core"</pre>
-<p class="ink2" style="margin:10px 0 0;font-size:15px"><a href="{WATCHER_DOC}">Full guide →</a></p></div></li></ol></section>
+<p class="ink2" style="margin:10px 0 0;font-size:15px">This is an alpha: options and formats may change before 0.1.0.
+<a href="{WATCHER_DOC}">Full guide</a> · <a href="{
+        REPO_URL
+    }/blob/main/CHANGELOG.md">Changelog</a></p></div></li></ol></section>
 
 <section class="s"><div class="note" style="max-width:860px"><h3>What it does, and what it doesn’t</h3><ul>
 <li>Reads lockfiles with OSV-Scanner, offline. The feed is downloaded whole, so limbo.watch learns nothing about your project.</li>
@@ -1231,7 +1340,8 @@ possible, never silently passed.</li>
 {footer()}"""
     return page(
         "Scan your project · limbo.watch",
-        "Check your dependencies against security advisories your scanner can’t see yet, in GitLab, GitHub, Gitea or Forgejo CI.",
+        "See what Limbowatch shows in your terminal, GitHub pull requests and GitLab merge requests: security advisories "
+        "your scanner can’t see yet, and the upgrade that clears them.",
         body,
         "/scan/",
     )
