@@ -88,12 +88,12 @@ Open:
 - Q16. Are pending advisories published before 2026 (258 on 2026-10-28) ever reviewed, or did GitHub never backfill them? ([F-064](#f-064))
 - Q17. How many Go modules on vanity paths (k8s.io, golang.org/x, go.opentelemetry.io) can be mapped to a GitHub repo without deps.dev? 320 Kubernetes dependencies stay checked by name only ([F-085](#f-085)). blindspot keeps a verified list (`docs/go-vanity-coverage.md`, [F-072](#f-072)).
 - Q18. Should the tracker's seeds include the upstreams of popular GitLab-hosted projects' Ruby dependencies, so the watcher doesn't need to poll them? ([F-085](#f-085); Phase 5.)
-- Q20. How many source repos do the top packages of each ecosystem map to, how many are already watched, and what would a first polling pass and a weekly re-check cost in GitHub API requests? ([F-098](#f-098); Phase 5, step 1.)
 - Q21. Does checking a package's repo when the registry announces a new release find new advisories early enough to replace blind re-polling? ([F-098](#f-098); Phase 5, step 1.)
 - Q22. Does GitHub's "more than 5,000 repository advisories a week" count the same thing as the tracker (published, any ecosystem)? It sets the coverage estimate ([F-035](#f-035), [F-098](#f-098)).
 
 Answered:
 
+- ~~Q20. How many source repos do the top packages of each ecosystem map to, and how many are already watched?~~ **About 45,000 unwatched repos in the top 10,000 of eight ecosystems; NuGet, Packagist, Maven and RubyGems are barely covered; a sample holds 30 advisories in limbo ([F-099](#f-099)).**
 - ~~Q12 (partly). Is review throughput keeping up with inflow?~~ **Not in the weeks measured: 744 in against 68 out in the week to 2026-11-06 ([F-092](#f-092)).** Stays open above for the monthly, per-ecosystem view.
 - ~~Q19. Do confidential issues and the Code Quality report behave on a real GitLab instance as the docs say?~~ **Yes, on gitlab.com 2026-11-06: Code Quality ([F-086](#f-086)), confidential issues ([F-087](#f-087)), the merge request widget ([F-088](#f-088)).**
 - ~~Q1. While a CVE is reserved but not yet published, does the repo advisory API already expose `cve_id`?~~ **Yes. Detectable via `cveawg /api/cve-id/{id}` ([F-029](#f-029)).**
@@ -1153,6 +1153,19 @@ Answered:
   - Newly published advisories seen, all ecosystems: 1,188 in the 7 days to 2026-11-06, 2,496 in 14 days, 4,507 in 28 days: about 1,100 to 1,250 a week. Against GitHub's "more than 5,000/week", that is roughly **1 in 4**.
 - **Caveats:** GitHub's figure is from June 2026 and may count differently (for example, advisories later withdrawn). Repos checked every 3 to 7 days add new advisories late, so the latest week is undercounted. Coverage of what real projects depend on is much higher than 1 in 4: the October projects' upstreams were almost all watched (F-085).
 - **Implication:** Most advisories are found through earlier advisory activity (CVEs GitHub assigned, reviewed advisories), not through the dependency seeds. The blind spot is a repo whose first advisory has no CVE and isn't reviewed yet. The site states the watchlist by source and this estimate, with its date.
+
+### F-099
+- **Date:** 2026-11-07 · **Status:** tentative (sample of about 1,000 repos; yields vary widely by repo)
+- **Question:** How many source repos do the top packages of each ecosystem map to, how many are already watched, and what would the rest add (Q20)?
+- **Method:** `research/2026-11-coverage/measure.py`. Top 50,000 packages per ecosystem from `GET https://packages.ecosyste.ms/api/v1/registries/{registry}/packages?sort=dependent_repos_count&order=desc&per_page=1000` (npm, PyPI, Go, Maven, crates.io, NuGet, RubyGems, Packagist; anonymous, 5,000/h); `repository_url` parsed for GitHub; compared with the tracker watchlist (tracker-data, 18,678 repos). A seeded random sample of 150 unwatched repos per ecosystem from the top 10,000, polled with `GET /repos/{repo}/security-advisories?state=published`; each advisory found checked with `GET /advisories/{ghsa}` and OSV `GET /v1/vulns/{ghsa}`.
+- **Result:**
+  - Already watched, top 1,000 / 10,000 / 50,000: npm 97/58/19%, crates.io 86/27/6%, PyPI 59/21/5%, Go 43/12/3%, RubyGems 26/5/1%, Maven 12/5/3%, Packagist 6/2/1%, NuGet 3/1/0%.
+  - Not watched: about 3,300 repos in the top 1,000s, 45,000 in the top 10,000s, 250,000 in the top 50,000s (per ecosystem, before removing repos shared across ecosystems).
+  - Usage falls fast: the 10,000th PyPI package has 61 dependent repos, the 50,000th has 3.
+  - Sample (1,048 answered; 103 returned 301 because the repo moved, 41 returned 404): 8 repos with published advisories, **30 advisories, all 30 absent from both GitHub's reviewed database and OSV**; 23 in reviewable ecosystems, 7 with none. By ecosystem: Maven 21 (commonmark-java 8, zstd-jni 12, mxparser 1), PyPI 5 (svglib), Go 3 (go-slug, phonenumbers), RubyGems 1 (jekyll-feed); npm, crates.io, NuGet and Packagist 0.
+  - Rough yield for the 45,000 unwatched top-10,000 repos, scaling each ecosystem's sample: on the order of 1,000 advisories in limbo, mostly Maven, PyPI and Go. The sample is small and a few repos hold most advisories, so this is an order of magnitude, not a count.
+- **Caveats:** ecosyste.ms ranks by dependent repositories it has indexed; its `repository_url` comes from registry metadata, unverified. 301 responses (moved repos) weren't followed here, which undercounts slightly. Packages that share a monorepo count once.
+- **Implication:** The seeds came from a few popular projects, so npm, crates.io and PyPI are well covered at the top and NuGet, Packagist, Maven and RubyGems barely at all. The unwatched repos hold real advisories in limbo in widely used packages. Watching the top 10,000 per ecosystem costs about 45,000 first polls (roughly two weeks at the tracker's current budget of 3,500 a run, or a few days with a larger one); re-checks are mostly free 304s (F-003). The top 50,000 is five times that for a long tail of packages with few users.
 
 ## Archive
 

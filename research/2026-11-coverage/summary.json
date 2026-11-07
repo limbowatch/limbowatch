@@ -1,0 +1,360 @@
+{
+ "method": "Phase 5, step 1 (FINDINGS Q20): what would watching the source repos of the most-used packages add?",
+ "top": 50000,
+ "watchlist": 18678,
+ "ecosystems": {
+  "npm": {
+   "registry": "npmjs.org",
+   "packages_fetched": 50000,
+   "buckets": {
+    "1000": {
+     "packages": 1000,
+     "with_github_repo": 993,
+     "distinct_repos": 661,
+     "already_watched": 640,
+     "not_watched": 21,
+     "min_dependent_repos": 1341557
+    },
+    "10000": {
+     "packages": 10000,
+     "with_github_repo": 9775,
+     "distinct_repos": 6874,
+     "already_watched": 3983,
+     "not_watched": 2891,
+     "min_dependent_repos": 8476
+    },
+    "50000": {
+     "packages": 50000,
+     "with_github_repo": 47162,
+     "distinct_repos": 32911,
+     "already_watched": 6265,
+     "not_watched": 26646,
+     "min_dependent_repos": 118
+    }
+   },
+   "sample": {
+    "from": "top 10,000, not watched",
+    "repos": 150,
+    "polled_ok": 135,
+    "status": {
+     "200": 135,
+     "301": 11,
+     "404": 4
+    },
+    "repos_with_advisories": 0,
+    "advisories": 0,
+    "not_in_reviewed_list": 0,
+    "not_in_reviewed_list_since_2026": 0
+   }
+  },
+  "pip": {
+   "registry": "pypi.org",
+   "packages_fetched": 50000,
+   "buckets": {
+    "1000": {
+     "packages": 1000,
+     "with_github_repo": 915,
+     "distinct_repos": 881,
+     "already_watched": 523,
+     "not_watched": 358,
+     "min_dependent_repos": 3059
+    },
+    "10000": {
+     "packages": 10000,
+     "with_github_repo": 8913,
+     "distinct_repos": 8176,
+     "already_watched": 1702,
+     "not_watched": 6474,
+     "min_dependent_repos": 61
+    },
+    "50000": {
+     "packages": 50000,
+     "with_github_repo": 41518,
+     "distinct_repos": 38730,
+     "already_watched": 2024,
+     "not_watched": 36706,
+     "min_dependent_repos": 3
+    }
+   },
+   "sample": {
+    "from": "top 10,000, not watched",
+    "repos": 150,
+    "polled_ok": 125,
+    "status": {
+     "200": 125,
+     "301": 22,
+     "404": 3
+    },
+    "repos_with_advisories": 2,
+    "advisories": 5,
+    "not_in_reviewed_list": 5,
+    "not_in_reviewed_list_since_2026": 5
+   }
+  },
+  "go": {
+   "registry": "proxy.golang.org",
+   "packages_fetched": 50000,
+   "buckets": {
+    "1000": {
+     "packages": 1000,
+     "with_github_repo": 970,
+     "distinct_repos": 859,
+     "already_watched": 370,
+     "not_watched": 489,
+     "min_dependent_repos": 6207
+    },
+    "10000": {
+     "packages": 10000,
+     "with_github_repo": 9645,
+     "distinct_repos": 7853,
+     "already_watched": 906,
+     "not_watched": 6947,
+     "min_dependent_repos": 32
+    },
+    "50000": {
+     "packages": 50000,
+     "with_github_repo": 46413,
+     "distinct_repos": 40071,
+     "already_watched": 1213,
+     "not_watched": 38858,
+     "min_dependent_repos": 1
+    }
+   },
+   "sample": {
+    "from": "top 10,000, not watched",
+    "repos": 150,
+    "polled_ok": 134,
+    "status": {
+     "200": 134,
+     "301": 11,
+     "404": 5
+    },
+    "repos_with_advisories": 2,
+    "advisories": 3,
+    "not_in_reviewed_list": 3,
+    "not_in_reviewed_list_since_2026": 3
+   }
+  },
+  "maven": {
+   "registry": "repo1.maven.org",
+   "packages_fetched": 50000,
+   "buckets": {
+    "1000": {
+     "packages": 1000,
+     "with_github_repo": 750,
+     "distinct_repos": 393,
+     "already_watched": 47,
+     "not_watched": 346,
+     "min_dependent_repos": 2703
+    },
+    "10000": {
+     "packages": 10000,
+     "with_github_repo": 7389,
+     "distinct_repos": 2915,
+     "already_watched": 152,
+     "not_watched": 2763,
+     "min_dependent_repos": 97
+    },
+    "50000": {
+     "packages": 50000,
+     "with_github_repo": 36924,
+     "distinct_repos": 11733,
+     "already_watched": 296,
+     "not_watched": 11437,
+     "min_dependent_repos": 7
+    }
+   },
+   "sample": {
+    "from": "top 10,000, not watched",
+    "repos": 150,
+    "polled_ok": 121,
+    "status": {
+     "200": 121,
+     "301": 20,
+     "404": 9
+    },
+    "repos_with_advisories": 3,
+    "advisories": 21,
+    "not_in_reviewed_list": 21,
+    "not_in_reviewed_list_since_2026": 21
+   }
+  },
+  "rust": {
+   "registry": "crates.io",
+   "packages_fetched": 50000,
+   "buckets": {
+    "1000": {
+     "packages": 1000,
+     "with_github_repo": 973,
+     "distinct_repos": 674,
+     "already_watched": 583,
+     "not_watched": 91,
+     "min_dependent_repos": 2934
+    },
+    "10000": {
+     "packages": 10000,
+     "with_github_repo": 9426,
+     "distinct_repos": 5649,
+     "already_watched": 1535,
+     "not_watched": 4114,
+     "min_dependent_repos": 12
+    },
+    "50000": {
+     "packages": 50000,
+     "with_github_repo": 43891,
+     "distinct_repos": 29024,
+     "already_watched": 1820,
+     "not_watched": 27204,
+     "min_dependent_repos": 0
+    }
+   },
+   "sample": {
+    "from": "top 10,000, not watched",
+    "repos": 150,
+    "polled_ok": 141,
+    "status": {
+     "200": 141,
+     "301": 6,
+     "404": 3
+    },
+    "repos_with_advisories": 0,
+    "advisories": 0,
+    "not_in_reviewed_list": 0,
+    "not_in_reviewed_list_since_2026": 0
+   }
+  },
+  "nuget": {
+   "registry": "nuget.org",
+   "packages_fetched": 50000,
+   "buckets": {
+    "1000": {
+     "packages": 1000,
+     "with_github_repo": 623,
+     "distinct_repos": 457,
+     "already_watched": 13,
+     "not_watched": 444,
+     "min_dependent_repos": 53
+    },
+    "10000": {
+     "packages": 10000,
+     "with_github_repo": 6610,
+     "distinct_repos": 4925,
+     "already_watched": 62,
+     "not_watched": 4863,
+     "min_dependent_repos": 4
+    },
+    "50000": {
+     "packages": 50000,
+     "with_github_repo": 32718,
+     "distinct_repos": 22875,
+     "already_watched": 95,
+     "not_watched": 22780,
+     "min_dependent_repos": 0
+    }
+   },
+   "sample": {
+    "from": "top 10,000, not watched",
+    "repos": 150,
+    "polled_ok": 124,
+    "status": {
+     "200": 124,
+     "301": 18,
+     "404": 8
+    },
+    "repos_with_advisories": 0,
+    "advisories": 0,
+    "not_in_reviewed_list": 0,
+    "not_in_reviewed_list_since_2026": 0
+   }
+  },
+  "rubygems": {
+   "registry": "rubygems.org",
+   "packages_fetched": 50000,
+   "buckets": {
+    "1000": {
+     "packages": 1000,
+     "with_github_repo": 949,
+     "distinct_repos": 890,
+     "already_watched": 228,
+     "not_watched": 662,
+     "min_dependent_repos": 3104
+    },
+    "10000": {
+     "packages": 10000,
+     "with_github_repo": 8818,
+     "distinct_repos": 8054,
+     "already_watched": 395,
+     "not_watched": 7659,
+     "min_dependent_repos": 19
+    },
+    "50000": {
+     "packages": 50000,
+     "with_github_repo": 41465,
+     "distinct_repos": 39317,
+     "already_watched": 424,
+     "not_watched": 38893,
+     "min_dependent_repos": 1
+    }
+   },
+   "sample": {
+    "from": "top 10,000, not watched",
+    "repos": 150,
+    "polled_ok": 122,
+    "status": {
+     "200": 122,
+     "301": 21,
+     "404": 7
+    },
+    "repos_with_advisories": 1,
+    "advisories": 1,
+    "not_in_reviewed_list": 1,
+    "not_in_reviewed_list_since_2026": 1
+   }
+  },
+  "composer": {
+   "registry": "packagist.org",
+   "packages_fetched": 50000,
+   "buckets": {
+    "1000": {
+     "packages": 1000,
+     "with_github_repo": 997,
+     "distinct_repos": 993,
+     "already_watched": 60,
+     "not_watched": 933,
+     "min_dependent_repos": 1306
+    },
+    "10000": {
+     "packages": 10000,
+     "with_github_repo": 9908,
+     "distinct_repos": 9794,
+     "already_watched": 212,
+     "not_watched": 9582,
+     "min_dependent_repos": 21
+    },
+    "50000": {
+     "packages": 50000,
+     "with_github_repo": 48855,
+     "distinct_repos": 48352,
+     "already_watched": 280,
+     "not_watched": 48072,
+     "min_dependent_repos": 4
+    }
+   },
+   "sample": {
+    "from": "top 10,000, not watched",
+    "repos": 150,
+    "polled_ok": 146,
+    "status": {
+     "200": 146,
+     "301": 2,
+     "404": 2
+    },
+    "repos_with_advisories": 0,
+    "advisories": 0,
+    "not_in_reviewed_list": 0,
+    "not_in_reviewed_list_since_2026": 0
+   }
+  }
+ },
+ "not_watched_union_top": 249717
+}
