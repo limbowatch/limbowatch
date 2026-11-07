@@ -131,8 +131,8 @@ def test_gate_follows_the_report_and_json_says_so() -> None:
     r.fail_on = "high"
     assert r.failed and output.verdict(r) == (True, "1 finding at or above high (--fail-on high): 1 high.")
     doc = json.loads(output.as_json(r))
-    assert doc["schema_version"] == 1 and doc["gate"] == {"fail_on": "high", "fail_on_unknown": True, "failed": True,
-                                                          "failing_findings": 1}  # fmt: skip
+    assert doc["schema_version"] == 1 and doc["gate"]["failed"] and doc["gate"]["failing_findings"] == 1
+    assert doc["gate"]["message"] == "1 finding at or above high (--fail-on high): 1 high."
     assert doc["summary"]["by_severity"] == {"critical": 0, "high": 1, "medium": 0, "low": 1, "unknown": 0}
     assert [f["fails_build"] for f in doc["findings"]] == [True, False]
     r.fail_on = "none"
@@ -177,9 +177,34 @@ def test_cyclonedx_links_each_vulnerability_to_its_components() -> None:
 
 
 def test_github_annotations_escape_properties() -> None:
-    f = finding(source="a,b/package-lock.json")
-    (line,) = output.github(report(f)).splitlines()
-    assert line.startswith("::error file=a%2Cb/package-lock.json,line=7,title=GHSA-aaaa-bbbb-cccc (high)%3A lodash")
+    (line,) = output.github(report(finding(source="a,b/package-lock.json"))).splitlines()
+    assert line.startswith("::error file=a%2Cb/package-lock.json,line=7,title=lodash 4.17.20%3A 1 advisory in limbo")
+    assert "Upgrade to 4.17.21" in line
+
+
+def test_github_annotations_are_one_per_package() -> None:
+    """GitHub keeps 10 annotations per level per step (F-096): 51 findings in one package must be one annotation."""
+    many = [finding(name="scapy", ghsa=f"GHSA-{i:04d}-aaaa-bbbb", sev="medium" if i else "high") for i in range(51)]
+    r = report(*many, finding(name="qs", ghsa="GHSA-1111-2222-3333", sev="low"))
+    r.fail_on = "high"
+    lines = output.github(r).splitlines()
+    assert len(lines) == 2
+    assert lines[0].startswith("::error ")
+    assert "scapy 4.17.20%3A 51 advisories in limbo (1 high%2C 50 medium)" in lines[0]
+    assert "and 43 more" in lines[0]
+    assert lines[1].startswith("::notice ")  # low, below --fail-on
+
+
+def test_table_cuts_long_packages_but_keeps_what_matters() -> None:
+    many = [finding(name="scapy", ghsa=f"GHSA-{i:04d}-aaaa-bbbb", sev="high" if i < 4 else "low") for i in range(51)]
+    r = report(*many)
+    r.fail_on = "high"
+    text = output.table(r)
+    assert all(f"GHSA-000{i}-aaaa-bbbb" in text for i in range(4))  # every high row is shown
+    assert "+47 more for scapy 4.17.20 (47 low); -v lists them" in text
+    assert "+47 more" not in output.table(r, verbose=True)
+    few = report(*many[:4], many[4])  # one left over: shown, not cut
+    assert "more for scapy" not in output.table(few)
 
 
 def test_colour_only_when_asked() -> None:

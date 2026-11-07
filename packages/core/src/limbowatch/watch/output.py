@@ -154,6 +154,7 @@ def gate_result(r: Report) -> dict[str, Any]:
         "fail_on_unknown": r.fail_on_unknown,
         "failed": r.failed,
         "failing_findings": sum(1 for f in r.active if r.gated(f)),
+        "message": verdict(r)[1],
     }
 
 
@@ -237,6 +238,17 @@ class Paint:
         return f"\x1b]8;;{url}\x1b\\{text}\x1b]8;;\x1b\\" if self.links and url else text
 
 
+ROWS_PER_PACKAGE = 3  # without -v, a package shows its critical, high and failing findings, and at least this many
+
+
+def _shown_rows(r: Report, fs: list[Finding]) -> int:
+    """How many of a package's findings (sorted worst first) the table shows: every one that fails the build or is
+    critical or high, at least ROWS_PER_PACKAGE, and all of them when only one more would be left over."""
+    must = sum(1 for f in fs if r.gated(f) or _sev(f) in ("critical", "high"))
+    n = max(must, ROWS_PER_PACKAGE)
+    return len(fs) if len(fs) - n <= 1 else n
+
+
 def table(r: Report, verbose: bool = False, paint: Paint | None = None) -> str:
     p = paint or Paint()
     act = r.active
@@ -265,18 +277,34 @@ def table(r: Report, verbose: bool = False, paint: Paint | None = None) -> str:
                 p("1", path),
                 "  " + p("2", "  ".join(c.ljust(w) for c, w in zip(cols, widths, strict=True)).rstrip()),
             ]
-            for f, cells in sorted(by_file[path], key=lambda fc: _rank(fc[0])):
-                padded = [c.ljust(w) for c, w in zip(cells, widths, strict=True)]
-                padded[0] = p.sev(_sev(f), padded[0])
-                padded[4] = p.link(f.url, padded[4])
-                out.append(("  " + "  ".join(padded)).rstrip())
-                indent = "  " + " " * (widths[0] + 2)
-                if verbose:
-                    out.append(indent + p("2", f.url))
-                    out.append(indent + p("2", f"affected: {f.vulnerable_range or 'not stated'}; {f.cve.value}"))
-                if verbose or f.affected is not True or f.match is MatchKind.REPOSITORY:
-                    note = "possibly affected: " if f.affected is not True else ""
-                    out.append(indent + p("2", f"{note}{f.evidence}"))
+            # One package at a time, worst first; a package with many advisories is cut to the ones that matter
+            groups: dict[tuple[str, str], list[tuple[Finding, tuple[str, ...]]]] = defaultdict(list)
+            for f, cells in by_file[path]:
+                groups[(f.dependency.name, f.dependency.version)].append((f, cells))
+            indent = "  " + " " * (widths[0] + 2)
+            for g in sorted(
+                groups.values(), key=lambda g: (min(_rank(f) for f, _ in g)[0], g[0][0].dependency.name.lower())
+            ):
+                g.sort(key=lambda fc: _rank(fc[0]))
+                shown = g if verbose else g[: _shown_rows(r, [f for f, _ in g])]
+                for f, cells in shown:
+                    padded = [c.ljust(w) for c, w in zip(cells, widths, strict=True)]
+                    padded[0] = p.sev(_sev(f), padded[0])
+                    padded[4] = p.link(f.url, padded[4])
+                    out.append(("  " + "  ".join(padded)).rstrip())
+                    if verbose:
+                        out.append(indent + p("2", f.url))
+                        out.append(indent + p("2", f"affected: {f.vulnerable_range or 'not stated'}; {f.cve.value}"))
+                    if verbose or f.affected is not True or f.match is MatchKind.REPOSITORY:
+                        note = "possibly affected: " if f.affected is not True else ""
+                        out.append(indent + p("2", f"{note}{f.evidence}"))
+                rest = [f for f, _ in g[len(shown) :]]
+                if rest:
+                    d = rest[0].dependency
+                    out.append(
+                        indent
+                        + p("2", f"+{len(rest):,} more for {d.name} {d.version} ({_breakdown(rest)}); -v lists them")
+                    )
         ups = upgrades(r)
         fix_rows = [(u.name, f"{u.installed} → {u.to or '?'}", _upgrade_note(u), u.where) for u in ups]
         w = [max(len(row[k]) for row in fix_rows) for k in range(3)]
@@ -688,8 +716,6 @@ def cyclonedx(r: Report) -> str:
 
 # --- GitHub workflow annotations ---------------------------------------------------------------------
 
-_GH_LEVEL = {"critical": "error", "high": "error", "medium": "warning", "low": "notice", "unknown": "warning"}
-
 
 def _gh_data(s: str) -> str:
     return s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
@@ -700,15 +726,32 @@ def _gh_prop(s: str) -> str:
 
 
 def github(r: Report) -> str:
-    """GitHub Actions workflow commands: one annotation per finding on its lockfile line, shown in the pull
-    request's changed files. Works without code scanning. GitHub shows at most 10 of each level per step."""
+    """GitHub Actions workflow commands: one annotation per affected package, on its lockfile line, shown in the pull
+    request's changed files. Works without code scanning. GitHub keeps at most 10 annotations of each level per step
+    (FINDINGS F-096), so findings are grouped by package: error if one fails the build, else warning for medium and
+    above, else notice."""
+    groups: dict[tuple[str, str, str, str, int], list[Finding]] = defaultdict(list)
+    for f in r.active:
+        d = f.dependency
+        groups[(r.path(f), d.ecosystem, d.name, d.version, d.line)].append(f)
+    ups = {(u.ecosystem, u.name, u.installed): u for u in upgrades(r)}
+    order = (*SEVERITIES, "unknown")
     lines = []
-    for f in sorted(r.active, key=_rank):
-        title = f"{f.ghsa_id} ({_sev(f)}): {f.dependency.name} {f.dependency.version}"
-        msg = (f"{f.dependency.name} {f.dependency.version} is {'affected' if f.affected else 'possibly affected'} by an "
-               f"advisory in limbo, not yet in GitHub's database or OSV. Fixed in {_fix(f)}. {f.url}")  # fmt: skip
-        lines.append(f"::{_GH_LEVEL[_sev(f)]} file={_gh_prop(r.path(f))},line={f.dependency.line},"
-                     f"title={_gh_prop(title)}::{_gh_data(msg)}")  # fmt: skip
+    for (path, eco, name, version, line), fs in sorted(
+        groups.items(), key=lambda kv: (min(_rank(f) for f in kv[1])[0], kv[0])
+    ):
+        fs.sort(key=_rank)
+        worst = min((_sev(f) for f in fs), key=order.index)
+        level = "error" if any(r.gated(f) for f in fs) else "warning" if order.index(worst) <= 2 else "notice"
+        u = ups.get((eco, name, version))
+        fix = (
+            f"Upgrade to {u.to}: {_upgrade_note(u)}." if u and u.to else "No fixed version listed; see the advisories."
+        )
+        title = f"{name} {version}: {_plural(len(fs), 'advisory', 'advisories')} in limbo ({_breakdown(fs)})"
+        ids = ", ".join(f.ghsa_id for f in fs[:8]) + (f" and {len(fs) - 8:,} more" if len(fs) > 8 else "")
+        msg = (f"{fix} Not yet in GitHub's reviewed database or OSV, so Dependabot doesn't report these. {ids}. "
+               f"Worst: {fs[0].url}")  # fmt: skip
+        lines.append(f"::{level} file={_gh_prop(path)},line={line},title={_gh_prop(title)}::{_gh_data(msg)}")
     return "".join(f"{x}\n" for x in lines)
 
 

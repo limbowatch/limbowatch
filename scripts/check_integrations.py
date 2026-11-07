@@ -9,6 +9,7 @@ Limbowatch is installed from `git archive HEAD`, served as a local file in place
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -45,7 +46,8 @@ def action_script(inputs: dict[str, str]) -> str:
         env = {k: re.sub(r"\$\{\{ inputs\.([\w-]+) \}\}", lambda m: values[m.group(1)], str(v))
                for k, v in (step.get("env") or {}).items()}  # fmt: skip
         env = {k: ("main" if "default_branch" in v else v) for k, v in env.items()}
-        out.append("(\n" + "".join(f"export {k}='{v}'\n" for k, v in env.items()) + step["run"] + "\n)")
+        run = step["run"].replace("${{ github.action_path }}", "/work/action")
+        out.append("(\n" + "".join(f"export {k}='{v}'\n" for k, v in env.items()) + run + "\n)")
     return "set -e\n" + "\n".join(out)
 
 
@@ -71,6 +73,7 @@ def main() -> None:
         r = sh("git", "-C", str(ROOT), "archive", "--prefix=limbowatch-main/", "-o", str(work / "src/main.tar.gz"), "HEAD")
         if r.returncode:
             sys.exit(r.stderr)
+        shutil.copytree(ROOT / "integrations/action", work / "action")
         (work / "proj").mkdir()
         (work / "proj/go.mod").write_text(GO_MOD)
         local = {"limbowatch_source": "file:///work/src", "limbowatch_ref": "main"}
@@ -101,6 +104,7 @@ def main() -> None:
         check("failed=true" in outputs and re.search(r"^findings=[1-9]", outputs, re.M) is not None,
               "Action sets its outputs", outputs)  # fmt: skip
         check((work / "proj/limbowatch-report/report.html").exists(), "Action writes the reports directory")
+        check(r.stdout.rstrip().splitlines()[-1].startswith("FAILED  "), "Action ends its log with the verdict", r.stdout[-500:])
     print("integrations passed")
 
 
