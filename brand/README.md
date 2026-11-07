@@ -1,14 +1,14 @@
 # Limbowatch brand
 
-<img src="assets/avatar-500.png" width="120" alt="Limbowatch mark: a watch dial at 3:00 whose hands form an L, with the 1 o'clock mark replaced by an amber dot">
+<img src="assets/avatar-500.png" width="120" alt="Limbowatch mark: an hourglass with a solid top bulb, an empty bottom bulb and an amber grain stuck in the neck">
 
-## The mark: "Missing Hour"
+## The mark: "Suspended"
 
-A watch dial showing 3:00:
+An hourglass whose last grain is stuck in the neck:
 
-- **The hands form an L**, for Limbowatch.
-- **The dial is a watch:** watching, and time passing while advisories wait.
-- **The 1 o'clock mark has turned amber.** That's the advisory in limbo: published, but missing from what scanners see.
+- **The full top bulb** is the advisory, published by its maintainer.
+- **The empty bottom bulb** is the reviewed databases that scanners read. Nothing has arrived yet.
+- **The amber grain** is the advisory in limbo, stuck between the two. The hourglass also says what Limbowatch measures: how long it has been waiting.
 
 ## Files (`assets/`)
 
@@ -42,17 +42,17 @@ The SVG wordmarks use live text (Helvetica Neue / Helvetica / Arial). Use the PN
 | Paper (light background) | `#F7F6F2` |
 | Muted text | `#7C818C` |
 
-Amber is reserved for "in limbo": the missing hour, the dot in *limbo.watch*, and items still waiting. Don't use it decoratively.
+Amber is reserved for "in limbo": the grain, the dot in *limbo.watch*, and items still waiting. Don't use it decoratively.
 
 ## Usage
 
-**Sizes.** Use the small mark from 24 to 48 px. At 16 px, the favicon automatically switches to the L and amber dot only. Below 16 px, don't use the mark.
+**Sizes.** Use the small mark (heavier outline, bigger grain) from 24 to 48 px. At 16 px, the favicon switches to a heavier version still, so the empty bulb keeps its hole. Below 16 px, don't use the mark.
 
-**Clear space.** Keep at least the amber dot's diameter on every side.
+**Clear space.** Keep at least the amber grain's diameter on every side.
 
 **Don't:**
-- rotate the hands (the time is always 3:00);
-- move or recolor the amber hour;
+- turn the hourglass over or rotate it (the full bulb is always on top);
+- fill the bottom bulb, or move or recolor the amber grain;
 - add outlines, shadows or gradients;
 - put the mark on busy images;
 - stretch the wordmark.
@@ -62,3 +62,5 @@ Amber is reserved for "in limbo": the missing hour, the dot in *limbo.watch*, an
 ## History
 
 Rejected concepts are kept in `concepts/` (eye variants, the L-gap, Out of Frame, Threshold). The eye concepts were dropped because eye marks are crowded in security. See `concepts/round3-board.png`.
+
+The first mark, "Missing Hour" (round 3: a watch dial at 3:00 whose hands formed an L, with the 1 o'clock mark turned amber), was replaced on 2026-11-07. Its dashed ring read as a loading spinner, it had no solid outline, and below 32 px it fell apart into specks. Round 4 (`concepts/round4-board.png`, `make_concepts4.py`) tried a solid Missing Hour, Elapsed, Stopwatch and Suspended; Suspended was the only one that says *stuck* rather than just *time*, and it holds up at 16 px.

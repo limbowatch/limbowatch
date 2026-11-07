@@ -2,10 +2,11 @@
 # requires-python = ">=3.12"
 # dependencies = ["resvg-py", "pillow"]
 # ///
-"""Limbowatch brand assets: the "Missing Hour" mark.
+"""Limbowatch brand assets: the "Suspended" mark.
 
-A watch dial at 3:00. The hands form an L (Limbowatch); the dial is a watch (looking, and time
-passing); the 1 o'clock mark has turned amber: the advisory waiting in limbo.
+An hourglass whose last grain is stuck in the neck. The full top is the advisory, published by its
+maintainer; the empty bottom is the reviewed databases scanners read; the amber grain is the advisory
+in limbo, between the two.
 
 Run: uv run brand/make_brand.py  ->  brand/assets/
 """
@@ -13,7 +14,6 @@ Run: uv run brand/make_brand.py  ->  brand/assets/
 from __future__ import annotations
 
 import io
-import math
 from pathlib import Path
 
 import resvg_py
@@ -30,40 +30,23 @@ C = 256
 FONT = "Helvetica Neue, Helvetica, Arial, sans-serif"
 
 
-def pt(r: float, clock_deg: float) -> tuple[float, float]:
-    a = math.radians(90 - clock_deg)
-    return C + r * math.cos(a), C - r * math.sin(a)
-
-
 def mark(fg: str = LIGHT, accent: str = AMBER, small: bool = False, tiny: bool = False) -> str:
     """The mark on a 512 grid, no background.
 
-    small: optical version for 24-48 px (only the 6 and 9 marks; 12 and 3 would fuse with the hands).
-    tiny:  16 px (the L and the amber hour only).
+    small: optical version for 24-48 px (heavier outline, bigger grain, wider neck).
+    tiny:  16 px (heavier still, so the empty bulb keeps a visible hole).
     """
     small = small or tiny
-    parts = []
-    for h in range(12):
-        if h == 1:
-            continue  # the missing hour
-        major = h % 3 == 0
-        if small and (h not in (6, 9) or tiny):
-            continue
-        r_in = (160 if small else 170) if major else 180
-        x1, y1 = pt(r_in, h * 30)
-        x2, y2 = pt(200, h * 30)
-        w = (34 if small else 22) if major else 16
-        parts.append(f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="{fg}" stroke-width="{w}" stroke-linecap="round"/>')
-    ax, ay = pt(184, 30)
-    if tiny:
-        ax, ay = pt(150, 38)
-    parts.append(f'<circle cx="{ax:.1f}" cy="{ay:.1f}" r="{56 if tiny else 38 if small else 28}" fill="{accent}"/>')
-    hand_w = 64 if tiny else 46 if small else 34
-    top, right = (96, 376) if tiny else (112, 370) if small else (118, 362)
-    ox, oy = (-24, 40) if tiny else (0, 0)  # tiny: re-centre the L + dot in the tile
-    parts.append(f'<path d="M {256 + ox} {top + oy} L {256 + ox} {256 + oy} L {right + ox} {256 + oy}" fill="none" stroke="{fg}" '
-                 f'stroke-width="{hand_w}" stroke-linecap="round" stroke-linejoin="round"/>')
-    return "".join(parts)
+    sw = 64 if tiny else 52 if small else 40     # outline weight; also rounds the corners
+    top, bot = 72, 440                           # outer edges of the bulbs
+    left, right = 124, 388
+    neck = 66 if tiny else 58 if small else 52   # each tip stops this far from the centre
+    grain = 34 if tiny else 28 if small else 23
+    return (f'<path d="M {left} {top} L {right} {top} L {C} {C - neck} Z" fill="{fg}" stroke="{fg}" '
+            f'stroke-width="{sw}" stroke-linejoin="round"/>'
+            f'<path d="M {left} {bot} L {right} {bot} L {C} {C + neck} Z" fill="none" stroke="{fg}" '
+            f'stroke-width="{sw}" stroke-linejoin="round"/>'
+            f'<circle cx="{C}" cy="{C}" r="{grain}" fill="{accent}"/>')
 
 
 def doc(w: int, h: int, body: str, title: str) -> str:
@@ -124,7 +107,7 @@ def main() -> None:
     def lockup(bg: str | None, fg: str, accent: str, dot: str) -> str:
         back = f'<rect width="1200" height="320" rx="0" fill="{bg}"/>' if bg else ""
         return doc(1200, 320, back +
-                   f'<g transform="translate(64,64) scale({192 / 512})">{mark(fg, accent)}</g>'
+                   f'<g transform="translate(100,64) scale({192 / 512})">{mark(fg, accent)}</g>'
                    f'<text x="300" y="196" font-family="{FONT}" font-size="128" font-weight="600" fill="{fg}" letter-spacing="-2">'
                    f'limbo<tspan fill="{dot}">.</tspan>watch</text>', "limbo.watch")
     for name, args in (("wordmark-on-dark", (INK, LIGHT, AMBER, AMBER)), ("wordmark-on-light", (PAPER, INK, AMBER_DEEP, AMBER_DEEP)),
@@ -141,7 +124,7 @@ def main() -> None:
     social = doc(1280, 640,
                  f'<rect width="1280" height="640" fill="{INK}"/>'
                  f'<g transform="translate(0,604)">{ticks}</g>'
-                 f'<g transform="translate(96,136) scale({368 / 512})">{mark()}</g>'
+                 f'<g transform="translate(160,136) scale({368 / 512})">{mark()}</g>'
                  f'<text x="540" y="290" font-family="{FONT}" font-size="104" font-weight="600" fill="{LIGHT}" letter-spacing="-2">'
                  f'limbo<tspan fill="{AMBER}">.</tspan>watch</text>'
                  f'<text x="546" y="370" font-family="{FONT}" font-size="38" fill="{MUTED}">Published. Not reviewed. Not scanned.</text>'

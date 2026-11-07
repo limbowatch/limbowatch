@@ -313,12 +313,12 @@ fetch('/tracker/data.json').then(r=>r.json()).then(d=>{D=d;const ecos=[...new Se
 
 
 def mark(stroke: str, dot: str, size: int = 30) -> str:
+    """The "Suspended" mark (brand/make_brand.py, small version): an hourglass whose grain is stuck in the neck."""
     return (
-        f'<svg width="{size}" height="{size}" viewBox="0 0 512 512" aria-hidden="true"><g transform="translate(48,48) scale(0.8125)">'
-        f'<line x1="256" y1="416" x2="256" y2="456" stroke="{stroke}" stroke-width="34" stroke-linecap="round"/>'
-        f'<line x1="96" y1="256" x2="56" y2="256" stroke="{stroke}" stroke-width="34" stroke-linecap="round"/>'
-        f'<circle cx="348" cy="96.7" r="38" fill="{dot}"/>'
-        f'<path d="M 256 112 L 256 256 L 370 256" fill="none" stroke="{stroke}" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g></svg>'
+        f'<svg width="{size}" height="{size}" viewBox="0 0 512 512" aria-hidden="true">'
+        f'<path d="M 124 72 L 388 72 L 256 198 Z" fill="{stroke}" stroke="{stroke}" stroke-width="52" stroke-linejoin="round"/>'
+        f'<path d="M 124 440 L 388 440 L 256 314 Z" fill="none" stroke="{stroke}" stroke-width="52" stroke-linejoin="round"/>'
+        f'<circle cx="256" cy="256" r="28" fill="{dot}"/></svg>'
     )
 
 
