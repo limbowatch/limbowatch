@@ -832,10 +832,11 @@ finds where your team already looks: the merge request, the pull request, the is
 scanners reading GitHub’s database or OSV report as clean. Checked live: 630 of 657 findings in the advisory’s current
 range, 12 possible, <strong>none contradicted</strong>.</p></div>
 <div><div class="n">16 vs 0</div><p>on a demo app with real npm, Go, pip and Bundler lockfiles: Limbowatch found 16 advisories
-in limbo in six packages (undici, rack, nokogiri, pgx, chi, dnspython). OSV-Scanner reported <strong>none of them</strong>.</p></div>
+in limbo in six packages (undici, rack, nokogiri, pgx, chi, dnspython). OSV-Scanner and GitHub’s Dependabot alerts
+reported <strong>none of them</strong>.</p></div>
 <div><div class="n">51</div><p>new findings flagged when a change adds one affected package: in GitLab’s merge request
 widget, and on GitHub inline on the changed lockfile line.</p></div></div>
-<p class="sub">Measured 2026-11-05 and 2026-11-06 against the live feed; every advisory checked against GitHub and OSV.
+<p class="sub">Measured 2026-11-05 to 2026-11-07 against the live feed; every advisory checked against GitHub and OSV.
 <a href="{DEMO_PR}">See the pull request →</a></p></section>
 
 <section class="s"><h2>Where findings show up</h2><div class="cards3">

@@ -1046,6 +1046,18 @@ Answered:
 - **Caveats:** One repo; alerts close only when a later analysis no longer reports them, which wasn't exercised.
 - **Implication:** On GitHub, the watcher's findings appear where reviewers look: as code scanning alerts and inline on the lockfile line a PR changes. Code scanning needs a public repo or GitHub Code Security.
 
+### F-090
+- **Date:** 2026-11-07 · **Status:** confirmed (observed; one public repo)
+- **Question:** Without Limbowatch, would GitHub's own dependency alerts (Dependabot) have reported any of the demo's 16 findings (F-088)?
+- **Method:** On the public `github.com/limbowatch/demo-app`, turned on Dependabot alerts (`PUT /repos/limbowatch/demo-app/vulnerability-alerts`). The dependency graph stayed empty ("No dependencies found") until a commit changed the manifests; then read `GET /repos/limbowatch/demo-app/dependency-graph/sbom` and `GET /repos/limbowatch/demo-app/dependabot/alerts`. Cross-checked each version with `GET /advisories?type=reviewed&ecosystem=…&affects=<pkg>@<version>`.
+- **Result:**
+  - Dependency graph: 16 entries, the direct dependencies from each manifest (npm express, lodash, undici; Go chi, pgx, uuid and three indirect modules; pip dnspython, requests, and flask and requests-oauthlib with no version; RubyGems nokogiri, rack). npm's 68 transitive packages from `package-lock.json` weren't listed.
+  - **Dependabot alerts: 0.** Limbowatch, on the same tree: 16 advisories in limbo in six of those packages.
+  - The reviewed database has no active advisory for any of the demo's versions, scapy 2.7.0 included. `affects=express@5.1.0` returns GHSA-pj86-cfqh-vqx6, but it was withdrawn on 2025-12-02, so no alert is correct.
+  - A repo made public doesn't get a dependency graph until a push changes a manifest; an empty commit didn't trigger it.
+- **Caveats:** One repo, Dependabot alerts only (not security updates). GitLab's own Dependency Scanning wasn't compared: it uses the GitLab Advisory Database, which Limbowatch must not query.
+- **Implication:** For this project, GitHub's native alerts and OSV-Scanner both report nothing for the 16 advisories Limbowatch finds; the gap is exactly the review backlog. It closes as GitHub reviews them, which is what the watcher's "now visible to scanners" change reports.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
