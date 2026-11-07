@@ -4,11 +4,11 @@
 
 What we've verified or measured while building Limbowatch. Maintenance rules are in [CLAUDE.md](../CLAUDE.md#findings-report-docsfindingsmd).
 
-Last summarized: 2026-11-05 (end of Phase 4, the watcher: built and checked on real projects)
+Last summarized: 2026-11-07 (end of Phase 4: the watcher, tested in real CI and released as 0.1.0a1; Phase 5 approved)
 
 ## Summary
 
-Current understanding at the end of Phase 4 (2026-11-05), with entries linked. Points 1–14 come from the Phase 1 research (2026-10-21 to 10-25), 15–20 from the live tracker (Phase 2), 21 from Phase 3, 22–26 from the watcher (Phase 4). Numbers are dated; review backlogs drift.
+Current understanding at the end of Phase 4 (2026-11-07), with entries linked. Points 1–14 come from the Phase 1 research (2026-10-21 to 10-25), 15–20 and 32 from the live tracker (Phase 2, measured again 2026-11-07), 21 from Phase 3, 22–31 from the watcher (Phase 4). Numbers are dated; review backlogs drift.
 
 **Phase 1: the gap in a sample of real projects**
 
@@ -57,6 +57,18 @@ Current understanding at the end of Phase 4 (2026-11-05), with entries linked. P
     - The GitLab component and the Action fail, report and summarize correctly in a container ([F-084](#f-084)).
     - The issue lifecycle (open, idempotent, close on upgrade, reopen, refuse public repos) works against a real Gitea ([F-083](#f-083)).
     - GitLab issues are confidential; Gitea's can't be, so public repos get none by default ([F-079](#f-079), [F-080](#f-080)).
+27. **It works in real CI, on real hosts (2026-11-06/07).**
+    - GitLab, every tier: Code Quality shows findings on the lockfile line and "51 new findings" in a merge request; a JUnit test summary counts what fails the build; `expose_as` links the report folder; confidential issues work with any token sent as `Bearer` ([F-086](#f-086), [F-087](#f-087), [F-088](#f-088), [F-094](#f-094)).
+    - GitHub: SARIF becomes code scanning alerts inline on the changed line (public repos, or with GitHub Code Security; needs `actions: read`) ([F-089](#f-089)).
+    - Limits found only by running it: a component description over 256 characters breaks every including pipeline ([F-095](#f-095)); GitHub keeps 10 annotations per level per step and drops the rest silently, so annotations are one per package ([F-096](#f-096)); click strips colour off pipes ([F-097](#f-097)).
+28. **Without Limbowatch, nothing reports these.** On the demo app, GitHub's Dependabot alerts and OSV-Scanner reported 0 of the 16 advisories Limbowatch found; all 16 were rechecked against primary sources and are real, fixed and unreviewed, 1.6 to 23.5 days in limbo ([F-090](#f-090), [F-091](#f-091)).
+29. **The outputs are standard.** SARIF 2.1.0 and CycloneDX 1.6 validate against the official schemas ([F-093](#f-093)).
+30. **Released as an alpha, 0.1.0a1 (2026-11-07).** PyPI with PEP 740 attestations; GitHub pre-release; the CI/CD Catalog accepts the pre-release `0.1.0-alpha.1` ([F-097](#f-097)).
+31. **Both demos stay as live regression tests:** `limbowatch/demo-app` on GitHub (public, PR #1) and GitLab (private, MR !1) run the released action and component ([F-088](#f-088), [F-097](#f-097)).
+
+**Coverage (measured 2026-11-07)**
+
+32. **The tracker sees roughly 1 in 4 of all repository advisories.** About 1,100 to 1,250 newly published a week, in all ecosystems, against GitHub's "more than 5,000/week". 18,678 watched repos; most advisories come from repos found through earlier advisory activity (GitHub-assigned CVEs, reviewed-advisory origins), not from the dependency seeds. Coverage of what real projects depend on is much higher ([F-098](#f-098), [F-085](#f-085)). Raising it is Phase 5's first step.
 
 ## Open questions
 
@@ -76,9 +88,13 @@ Open:
 - Q16. Are pending advisories published before 2026 (258 on 2026-10-28) ever reviewed, or did GitHub never backfill them? ([F-064](#f-064))
 - Q17. How many Go modules on vanity paths (k8s.io, golang.org/x, go.opentelemetry.io) can be mapped to a GitHub repo without deps.dev? 320 Kubernetes dependencies stay checked by name only ([F-085](#f-085)). blindspot keeps a verified list (`docs/go-vanity-coverage.md`, [F-072](#f-072)).
 - Q18. Should the tracker's seeds include the upstreams of popular GitLab-hosted projects' Ruby dependencies, so the watcher doesn't need to poll them? ([F-085](#f-085); Phase 5.)
+- Q20. How many source repos do the top packages of each ecosystem map to, how many are already watched, and what would a first polling pass and a weekly re-check cost in GitHub API requests? ([F-098](#f-098); Phase 5, step 1.)
+- Q21. Does checking a package's repo when the registry announces a new release find new advisories early enough to replace blind re-polling? ([F-098](#f-098); Phase 5, step 1.)
+- Q22. Does GitHub's "more than 5,000 repository advisories a week" count the same thing as the tracker (published, any ecosystem)? It sets the coverage estimate ([F-035](#f-035), [F-098](#f-098)).
 
 Answered:
 
+- ~~Q12 (partly). Is review throughput keeping up with inflow?~~ **Not in the weeks measured: 744 in against 68 out in the week to 2026-11-06 ([F-092](#f-092)).** Stays open above for the monthly, per-ecosystem view.
 - ~~Q19. Do confidential issues and the Code Quality report behave on a real GitLab instance as the docs say?~~ **Yes, on gitlab.com 2026-11-06: Code Quality ([F-086](#f-086)), confidential issues ([F-087](#f-087)), the merge request widget ([F-088](#f-088)).**
 - ~~Q1. While a CVE is reserved but not yet published, does the repo advisory API already expose `cve_id`?~~ **Yes. Detectable via `cveawg /api/cve-id/{id}` ([F-029](#f-029)).**
 - ~~Q2. Was the 55-day median a backlog being cleared on Oct 15–16, or the normal state?~~ **A backlog batch; the median was 23–27 days ([F-042](#f-042), [F-055](#f-055)).** Kept under watch as Q12.
