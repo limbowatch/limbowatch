@@ -1116,6 +1116,17 @@ Answered:
 - **Caveats:** GitHub documents a limit of 10 per level per step; the job total may also be capped.
 - **Implication:** Annotations are now one per affected package (7 on the demo instead of 67), error if any of its findings fails the build. SARIF stays one result per finding.
 
+### F-097
+- **Date:** 2026-11-07 · **Status:** confirmed (observed)
+- **Question:** What did the first release (0.1.0a1) and its demo screenshots turn up?
+- **Method:** `limbowatch scan --color always` piped to a file; the release workflow on tag `v0.1.0a1`; PyPI JSON API and `GET https://pypi.org/integrity/limbowatch/0.1.0a1/limbowatch-0.1.0a1-py3-none-any.whl/provenance`; GitLab GraphQL `ciCatalogResource(fullPath: "limbowatch/limbowatch-component") { versions }` after pushing tag `0.1.0-alpha.1`.
+- **Result:**
+  - `click.echo` (under `typer.echo`) strips ANSI codes when stdout isn't a terminal, unless called with `color=True`. CI logs are pipes, so the table had no colour in GitHub Actions or GitLab CI despite `--color`. Fixed by passing the colour decision through.
+  - PyPI serves both packages as 0.1.0a1 with "Development Status :: 3 - Alpha"; the provenance endpoint returns 200 (PEP 740 attestations from trusted publishing). The GitHub release is marked as a pre-release.
+  - The CI/CD Catalog accepts a pre-release semantic version: `versions` lists `0.1.0-alpha.1`, and `@0.1.0-alpha.1` includes it.
+- **Caveats:** Catalog search and `~latest` may prefer full releases; pin the alpha version explicitly.
+- **Implication:** The alpha is installable as `pipx install limbowatch-cli==0.1.0a1`, `limbowatch/limbowatch/integrations/action@v0.1.0a1` and `limbowatch-component/limbowatch@0.1.0-alpha.1`; both demos now use these.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
