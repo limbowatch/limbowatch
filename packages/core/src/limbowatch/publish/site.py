@@ -815,6 +815,7 @@ have <span class="mono">name_valid: false</span>. Each record’s <span class="m
 
 DEMO_PR = "https://github.com/limbowatch/demo-app/pull/1"
 WATCHER_DOC = f"{REPO_URL}/blob/main/docs/WATCHER.md"
+EVIDENCE = f"{REPO_URL}/tree/main/research/2026-11-demo-evidence"
 
 
 def scan(m: dict[str, Any]) -> str:
@@ -837,7 +838,7 @@ reported <strong>none of them</strong>.</p></div>
 <div><div class="n">51</div><p>new findings flagged when a change adds one affected package: in GitLab’s merge request
 widget, and on GitHub inline on the changed lockfile line.</p></div></div>
 <p class="sub">Measured 2026-11-05 to 2026-11-07 against the live feed; every advisory checked against GitHub and OSV.
-<a href="{DEMO_PR}">See the pull request →</a></p></section>
+<a href="{EVIDENCE}">All 16 findings, rechecked →</a> · <a href="{DEMO_PR}">The pull request →</a></p></section>
 
 <section class="s"><h2>Where findings show up</h2><div class="cards3">
 <div class="card"><h3>GitLab merge requests</h3><p>A CI/CD component writes a Code Quality report, which works on every GitLab

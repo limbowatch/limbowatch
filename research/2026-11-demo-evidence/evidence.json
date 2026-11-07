@@ -1,0 +1,400 @@
+{
+ "checked_at": "2026-11-07T01:33:03+00:00",
+ "in_limbo": 16,
+ "total": 16,
+ "findings": [
+  {
+   "ghsa": "GHSA-5v64-555j-wjxm",
+   "repo": "rack/rack",
+   "ecosystem": "RubyGems",
+   "package": "rack",
+   "version": "2.2.24",
+   "state": "published",
+   "withdrawn_at": null,
+   "published_at": "2026-10-30T02:18:55Z",
+   "days_in_limbo": 8.0,
+   "severity": "high",
+   "cve": null,
+   "ranges": [
+    "< 2.2.25",
+    ">= 3.0, < 3.1.23",
+    ">= 3.2, < 3.2.8"
+   ],
+   "fixed": [
+    "2.2.25",
+    "3.1.23",
+    "3.2.8"
+   ],
+   "github_reviewed_by_id": false,
+   "github_reviewed_by_cve": [],
+   "osv_by_id": 404,
+   "osv_by_package_version": []
+  },
+  {
+   "ghsa": "GHSA-wvg4-6p58-3gh3",
+   "repo": "rack/rack",
+   "ecosystem": "RubyGems",
+   "package": "rack",
+   "version": "2.2.24",
+   "state": "published",
+   "withdrawn_at": null,
+   "published_at": "2026-10-30T02:18:56Z",
+   "days_in_limbo": 8.0,
+   "severity": "medium",
+   "cve": null,
+   "ranges": [
+    "< 2.2.25",
+    ">= 3.0, < 3.1.23",
+    ">= 3.2, < 3.2.8"
+   ],
+   "fixed": [
+    "2.2.25",
+    "3.1.23",
+    "3.2.8"
+   ],
+   "github_reviewed_by_id": false,
+   "github_reviewed_by_cve": [],
+   "osv_by_id": 404,
+   "osv_by_package_version": []
+  },
+  {
+   "ghsa": "GHSA-p8x9-v4hv-2w4g",
+   "repo": "rack/rack",
+   "ecosystem": "RubyGems",
+   "package": "rack",
+   "version": "2.2.24",
+   "state": "published",
+   "withdrawn_at": null,
+   "published_at": "2026-10-30T02:19:00Z",
+   "days_in_limbo": 8.0,
+   "severity": "low",
+   "cve": null,
+   "ranges": [
+    "< 2.2.25",
+    ">= 3.0, < 3.1.23",
+    ">= 3.2, < 3.2.8"
+   ],
+   "fixed": [
+    "2.2.25",
+    "3.1.23",
+    "3.2.8"
+   ],
+   "github_reviewed_by_id": false,
+   "github_reviewed_by_cve": [],
+   "osv_by_id": 404,
+   "osv_by_package_version": []
+  },
+  {
+   "ghsa": "GHSA-3w22-6jfg-527w",
+   "repo": "sparklemotion/nokogiri",
+   "ecosystem": "RubyGems",
+   "package": "nokogiri",
+   "version": "1.19.4",
+   "state": "published",
+   "withdrawn_at": null,
+   "published_at": "2026-11-02T03:45:36Z",
+   "days_in_limbo": 4.9,
+   "severity": "low",
+   "cve": null,
+   "ranges": [
+    "< 1.19.5"
+   ],
+   "fixed": [
+    "1.19.5"
+   ],
+   "github_reviewed_by_id": false,
+   "github_reviewed_by_cve": [],
+   "osv_by_id": 404,
+   "osv_by_package_version": []
+  },
+  {
+   "ghsa": "GHSA-4p39-36wj-23h4",
+   "repo": "sparklemotion/nokogiri",
+   "ecosystem": "RubyGems",
+   "package": "nokogiri",
+   "version": "1.19.4",
+   "state": "published",
+   "withdrawn_at": null,
+   "published_at": "2026-11-02T03:45:42Z",
+   "days_in_limbo": 4.9,
+   "severity": "low",
+   "cve": null,
+   "ranges": [
+    ">= 1.12.0, < 1.19.5"
+   ],
+   "fixed": [
+    "1.19.5"
+   ],
+   "github_reviewed_by_id": false,
+   "github_reviewed_by_cve": [],
+   "osv_by_id": 404,
+   "osv_by_package_version": []
+  },
+  {
+   "ghsa": "GHSA-v995-44v6-5fqm",
+   "repo": "sparklemotion/nokogiri",
+   "ecosystem": "RubyGems",
+   "package": "nokogiri",
+   "version": "1.19.4",
+   "state": "published",
+   "withdrawn_at": null,
+   "published_at": "2026-11-02T03:45:47Z",
+   "days_in_limbo": 4.9,
+   "severity": "low",
+   "cve": null,
+   "ranges": [
+    "< 1.19.5"
+   ],
+   "fixed": [
+    "1.19.5"
+   ],
+   "github_reviewed_by_id": false,
+   "github_reviewed_by_cve": [],
+   "osv_by_id": 404,
+   "osv_by_package_version": []
+  },
+  {
+   "ghsa": "GHSA-95fj-3fxw-g62g",
+   "repo": "jackc/pgx",
+   "ecosystem": "Go",
+   "package": "github.com/jackc/pgx/v5",
+   "version": "5.11.0",
+   "state": "published",
+   "withdrawn_at": null,
+   "published_at": "2026-10-31T00:55:55Z",
+   "days_in_limbo": 7.0,
+   "severity": "high",
+   "cve": null,
+   "ranges": [
+    ">= 5.9.0"
+   ],
+   "fixed": [
+    "5.12.0"
+   ],
+   "github_reviewed_by_id": false,
+   "github_reviewed_by_cve": [],
+   "osv_by_id": 404,
+   "osv_by_package_version": []
+  },
+  {
+   "ghsa": "GHSA-j38q-h3ph-jjpq",
+   "repo": "jackc/pgx",
+   "ecosystem": "Go",
+   "package": "github.com/jackc/pgx/v5",
+   "version": "5.11.0",
+   "state": "published",
+   "withdrawn_at": null,
+   "published_at": "2026-10-31T00:54:23Z",
+   "days_in_limbo": 7.0,
+   "severity": "high",
+   "cve": null,
+   "ranges": [
+    ">= 5.0.0"
+   ],
+   "fixed": [
+    "5.12.0"
+   ],
+   "github_reviewed_by_id": false,
+   "github_reviewed_by_cve": [],
+   "osv_by_id": 404,
+   "osv_by_package_version": []
+  },
+  {
+   "ghsa": "GHSA-rqrp-8cg2-5958",
+   "repo": "go-chi/chi",
+   "ecosystem": "Go",
+   "package": "github.com/go-chi/chi/v5",
+   "version": "5.4.0",
+   "state": "published",
+   "withdrawn_at": null,
+   "published_at": "2026-10-14T13:24:10Z",
+   "days_in_limbo": 23.5,
+   "severity": "low",
+   "cve": null,
+   "ranges": [
+    "<=5.4.0"
+   ],
+   "fixed": [
+    "5.5.0"
+   ],
+   "github_reviewed_by_id": false,
+   "github_reviewed_by_cve": [],
+   "osv_by_id": 404,
+   "osv_by_package_version": []
+  },
+  {
+   "ghsa": "GHSA-mqg3-3v4r-cm32",
+   "repo": "nodejs/undici",
+   "ecosystem": "npm",
+   "package": "undici",
+   "version": "7.30.1",
+   "state": "published",
+   "withdrawn_at": null,
+   "published_at": "2026-11-05T10:27:17Z",
+   "days_in_limbo": 1.6,
+   "severity": "high",
+   "cve": "CVE-2026-116592",
+   "ranges": [
+    ">= 7.30.1, < 7.30.2",
+    ">= 8.12.2, < 8.12.4"
+   ],
+   "fixed": [
+    "7.30.2",
+    "8.12.4"
+   ],
+   "github_reviewed_by_id": false,
+   "github_reviewed_by_cve": [],
+   "osv_by_id": 404,
+   "osv_by_package_version": []
+  },
+  {
+   "ghsa": "GHSA-3g9m-rv3r-w5w2",
+   "repo": "nodejs/undici",
+   "ecosystem": "npm",
+   "package": "undici",
+   "version": "7.30.1",
+   "state": "published",
+   "withdrawn_at": null,
+   "published_at": "2026-11-05T10:26:09Z",
+   "days_in_limbo": 1.6,
+   "severity": "medium",
+   "cve": "CVE-2026-120222",
+   "ranges": [
+    ">= 7.0.0, < 7.30.2",
+    ">= 8.0.0, < 8.12.4"
+   ],
+   "fixed": [
+    "7.30.2",
+    "8.12.4"
+   ],
+   "github_reviewed_by_id": false,
+   "github_reviewed_by_cve": [],
+   "osv_by_id": 404,
+   "osv_by_package_version": []
+  },
+  {
+   "ghsa": "GHSA-5rm8-gv32-r954",
+   "repo": "nodejs/undici",
+   "ecosystem": "npm",
+   "package": "undici",
+   "version": "7.30.1",
+   "state": "published",
+   "withdrawn_at": null,
+   "published_at": "2026-11-05T10:28:24Z",
+   "days_in_limbo": 1.6,
+   "severity": "medium",
+   "cve": "CVE-2026-116630",
+   "ranges": [
+    ">= 7.0.0, < 7.30.2",
+    ">= 8.0.0, < 8.12.4"
+   ],
+   "fixed": [
+    "7.30.2",
+    "8.12.4"
+   ],
+   "github_reviewed_by_id": false,
+   "github_reviewed_by_cve": [],
+   "osv_by_id": 404,
+   "osv_by_package_version": []
+  },
+  {
+   "ghsa": "GHSA-7xg3-fphp-28hg",
+   "repo": "nodejs/undici",
+   "ecosystem": "npm",
+   "package": "undici",
+   "version": "7.30.1",
+   "state": "published",
+   "withdrawn_at": null,
+   "published_at": "2026-11-05T10:25:43Z",
+   "days_in_limbo": 1.6,
+   "severity": "medium",
+   "cve": "CVE-2026-120474",
+   "ranges": [
+    ">= 7.0.0, < 7.30.2",
+    ">= 8.0.0, < 8.12.4"
+   ],
+   "fixed": [
+    "7.30.2",
+    "8.12.4"
+   ],
+   "github_reviewed_by_id": false,
+   "github_reviewed_by_cve": [],
+   "osv_by_id": 404,
+   "osv_by_package_version": []
+  },
+  {
+   "ghsa": "GHSA-9v6h-8rgp-m69f",
+   "repo": "nodejs/undici",
+   "ecosystem": "npm",
+   "package": "undici",
+   "version": "7.30.1",
+   "state": "published",
+   "withdrawn_at": null,
+   "published_at": "2026-11-05T10:28:01Z",
+   "days_in_limbo": 1.6,
+   "severity": "medium",
+   "cve": "CVE-2026-120415",
+   "ranges": [
+    ">= 7.0.0, < 7.30.2",
+    ">= 8.0.0, < 8.12.4"
+   ],
+   "fixed": [
+    "7.30.2",
+    "8.12.4"
+   ],
+   "github_reviewed_by_id": false,
+   "github_reviewed_by_cve": [],
+   "osv_by_id": 404,
+   "osv_by_package_version": []
+  },
+  {
+   "ghsa": "GHSA-r4pc-4jcp-7pqc",
+   "repo": "nodejs/undici",
+   "ecosystem": "npm",
+   "package": "undici",
+   "version": "7.30.1",
+   "state": "published",
+   "withdrawn_at": null,
+   "published_at": "2026-11-05T10:27:40Z",
+   "days_in_limbo": 1.6,
+   "severity": "medium",
+   "cve": "CVE-2026-120423",
+   "ranges": [
+    ">= 7.15.0, < 7.30.2",
+    ">= 8.0.0, < 8.12.4"
+   ],
+   "fixed": [
+    "7.30.2",
+    "8.12.4"
+   ],
+   "github_reviewed_by_id": false,
+   "github_reviewed_by_cve": [],
+   "osv_by_id": 404,
+   "osv_by_package_version": []
+  },
+  {
+   "ghsa": "GHSA-vvf4-9x63-8xvv",
+   "repo": "rthalley/dnspython",
+   "ecosystem": "PyPI",
+   "package": "dnspython",
+   "version": "2.9.1",
+   "state": "published",
+   "withdrawn_at": null,
+   "published_at": "2026-11-04T00:04:35Z",
+   "days_in_limbo": 3.1,
+   "severity": "high",
+   "cve": null,
+   "ranges": [
+    "<2.9.2"
+   ],
+   "fixed": [
+    "2.9.2"
+   ],
+   "github_reviewed_by_id": false,
+   "github_reviewed_by_cve": [],
+   "osv_by_id": 404,
+   "osv_by_package_version": []
+  }
+ ],
+ "attribution": "GitHub repository security advisories and the GitHub Advisory Database (CC BY 4.0); OSV.dev"
+}

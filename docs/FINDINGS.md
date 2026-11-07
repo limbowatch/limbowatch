@@ -1058,6 +1058,18 @@ Answered:
 - **Caveats:** One repo, Dependabot alerts only (not security updates). GitLab's own Dependency Scanning wasn't compared: it uses the GitLab Advisory Database, which Limbowatch must not query.
 - **Implication:** For this project, GitHub's native alerts and OSV-Scanner both report nothing for the 16 advisories Limbowatch finds; the gap is exactly the review backlog. It closes as GitHub reviews them, which is what the watcher's "now visible to scanners" change reports.
 
+### F-091
+- **Date:** 2026-11-07 · **Status:** confirmed (primary sources; 16 findings)
+- **Question:** Are the demo's 16 findings (F-088) real, and how long had they been in limbo?
+- **Method:** `research/2026-11-demo-evidence/verify.py`: for each finding, `GET /repos/{repo}/security-advisories/{ghsa}`, `GET /advisories/{ghsa}`, `GET /advisories?type=reviewed&cve_id=…`, OSV `GET /v1/vulns/{ghsa}` and `POST /v1/query` by package and version. Version-in-range checked independently of Limbowatch with each ecosystem's own library (npm `semver`, `packaging.specifiers`, `Gem::Requirement` in `ruby:3.4-slim`, `golang.org/x/mod/semver`). Fixed versions looked up in each registry. chi's uncited CVE checked in CVE Services and OSV.
+- **Result:**
+  - 16 of 16: published, not withdrawn, in the upstream's own repository, naming the package; installed version in range and fixed version out of range by the ecosystem's rules; fixed version released; absent from GitHub's reviewed database (by ID and by cited CVE) and from OSV (by ID and by package and version).
+  - CVEs: the six undici advisories cite published CVEs; chi has CVE-2026-118681 from VulnCheck (published 2026-10-28), which it doesn't cite and which OSV holds only as a GIT-range record with no package; the other nine have no CVE.
+  - Days in limbo at 2026-11-07 01:33 UTC: 1.6 (undici ×6) to 23.5 (chi), median 4.9. Young because the demo's versions were picked from recent advisories.
+  - Context from the live tracker the same morning: 8,803 in limbo, median wait so far 57 days, 2,844 over 3 months.
+- **Caveats:** The demo's versions were chosen to be affected, so it shows the mechanism, not prevalence (F-085 is the prevalence evidence). Ranges are as entered by maintainers.
+- **Implication:** Every finding Limbowatch reported on the demo is a real, fixed, unreviewed advisory that GitHub's alerts and OSV can't match yet. Evidence and reproduction: `research/2026-11-demo-evidence/`.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

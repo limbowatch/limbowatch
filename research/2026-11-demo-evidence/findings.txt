@@ -1,0 +1,16 @@
+GHSA-5v64-555j-wjxm rack/rack RubyGems rack 2.2.24
+GHSA-wvg4-6p58-3gh3 rack/rack RubyGems rack 2.2.24
+GHSA-p8x9-v4hv-2w4g rack/rack RubyGems rack 2.2.24
+GHSA-3w22-6jfg-527w sparklemotion/nokogiri RubyGems nokogiri 1.19.4
+GHSA-4p39-36wj-23h4 sparklemotion/nokogiri RubyGems nokogiri 1.19.4
+GHSA-v995-44v6-5fqm sparklemotion/nokogiri RubyGems nokogiri 1.19.4
+GHSA-95fj-3fxw-g62g jackc/pgx Go github.com/jackc/pgx/v5 5.11.0
+GHSA-j38q-h3ph-jjpq jackc/pgx Go github.com/jackc/pgx/v5 5.11.0
+GHSA-rqrp-8cg2-5958 go-chi/chi Go github.com/go-chi/chi/v5 5.4.0
+GHSA-mqg3-3v4r-cm32 nodejs/undici npm undici 7.30.1
+GHSA-3g9m-rv3r-w5w2 nodejs/undici npm undici 7.30.1
+GHSA-5rm8-gv32-r954 nodejs/undici npm undici 7.30.1
+GHSA-7xg3-fphp-28hg nodejs/undici npm undici 7.30.1
+GHSA-9v6h-8rgp-m69f nodejs/undici npm undici 7.30.1
+GHSA-r4pc-4jcp-7pqc nodejs/undici npm undici 7.30.1
+GHSA-vvf4-9x63-8xvv rthalley/dnspython PyPI dnspython 2.9.1

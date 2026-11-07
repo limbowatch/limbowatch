@@ -37,7 +37,7 @@ include:
 What it finds, measured 2026-11-05 to 11-07 against the live feed:
 
 - **269 affected package-versions in 13 of 14 popular projects** (GitLab alone 125), which scanners reading GitHub's database or OSV report as clean. Of 657 findings checked live, none was contradicted.
-- **16 vs 0 on a demo app** with real npm, Go, pip and Bundler lockfiles: Limbowatch found 16 advisories in limbo; OSV-Scanner and GitHub's Dependabot alerts reported none of them. See the [demo pull request](https://github.com/limbowatch/demo-app/pull/1): 51 new alerts, inline on the line that adds the package.
+- **16 vs 0 on a demo app** with real npm, Go, pip and Bundler lockfiles: Limbowatch found 16 advisories in limbo; OSV-Scanner and GitHub's Dependabot alerts reported none of them. See the [demo pull request](https://github.com/limbowatch/demo-app/pull/1): 51 new alerts, inline on the line that adds the package. [Evidence: all 16 rechecked against GitHub and OSV](research/2026-11-demo-evidence/), 1.6 to 23.5 days in limbo.
 
 Guide: [docs/WATCHER.md](docs/WATCHER.md) · [limbo.watch/scan](https://limbo.watch/scan/). Version 0.1.0 is being released to PyPI and the GitLab CI/CD Catalog; until then, install from GitHub as the guide shows.
 
