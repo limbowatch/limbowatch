@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Check out tracker-data
         run: |
           if git ls-remote --exit-code --heads origin tracker-data >/dev/null; then
@@ -32,7 +32,7 @@ jobs:
             mkdir -p tracker-data && git -C tracker-data init -q -b tracker-data
           fi
           mkdir -p tracker-data/state tracker-data/reports
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
       - run: uv sync --locked
       - name: CVE List bootstrap (first run only)
         env:
@@ -55,6 +55,7 @@ jobs:
           if [ -n "$PAT" ]; then export LIMBOWATCH_GITHUB_TOKEN="$PAT"; budget=3500
           else export LIMBOWATCH_GITHUB_TOKEN="$ACTIONS_TOKEN"; budget=900; fi
           extra=""; [ -n "${CVE_LIST:-}" ] && extra="--cve-list $CVE_LIST"
+          # shellcheck disable=SC2086 # $extra is either empty or two arguments
           uv run limbowatch track --state tracker-data/state --seed tracker/seeds/popular-upstreams.txt \
             --seed tracker/seeds/top100-upstreams.txt \
             --budget "${BUDGET_INPUT:-$budget}" --minutes 50 --max-nvd 40 $extra

@@ -60,7 +60,7 @@ The methods, open dataset (CC BY 4.0) and scripts to reproduce it are in the [re
 
 - **[limbo.watch](https://limbo.watch):** the live tracker. It lists every advisory in limbo across about 18,600 watched repos, updated daily.
 - **[The limbo feed](https://limbo.watch/feed/):** the same advisories as OSV-schema records. The released OSV-Scanner can already scan against it.
-- **The watcher**, `limbowatch scan`: checks your project's dependencies against advisories in limbo, in CI or locally. It writes Code Quality, SARIF, Markdown or JSON, and keeps one issue per finding up to date in GitLab or Gitea/Forgejo. `pip install limbowatch-cli`. See the [guide](docs/WATCHER.md), the [GitLab CI/CD component](https://gitlab.com/limbowatch/limbowatch-component) and the [Actions action](integrations/action/action.yml).
+- **The watcher**, `limbowatch scan`: checks your project's dependencies against advisories in limbo, in CI or locally. One scan writes any of ten formats (table, JSON, Markdown, HTML, SARIF, GitLab Code Quality, JUnit, CSV, CycloneDX, GitHub annotations), and it keeps one issue per finding up to date in GitLab or Gitea/Forgejo. `pip install limbowatch-cli`. See the [guide](docs/WATCHER.md), the [GitLab CI/CD component](https://gitlab.com/limbowatch/limbowatch-component) and the [Actions action](integrations/action/action.yml).
 
 ## Terms
 

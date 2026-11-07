@@ -23,6 +23,7 @@ from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from limbowatch.csvsafe import cell
 from limbowatch.ecosystems import PackageName, package_name, reviewable
 from limbowatch.models import AdvisoryPackage, CveLabel, Status
 from limbowatch.publish import ATTRIBUTION, Item, days_since, eco_label, fixes_text
@@ -66,15 +67,16 @@ E = html.escape
 
 CSS = """:root{color-scheme:light;--bg:#F7F6F2;--surface:#FCFCFB;--sunk:#EFEDE6;--ink:#0F1218;--ink2:#4A4D55;--muted:#6B6F78;
 --line:#E1E0D9;--line2:#ECEBE5;--border:#C9C7BD;--mark:#B87400;--amber-text:#8F5A00;--pill-bg:#F6E7C8;--pill-ink:#5E3B00;
---code-bg:#0F1218;--code-ink:#F3F1EA;--btn-bg:#0F1218;--btn-ink:#F7F6F2;
+--code-bg:#0F1218;--code-ink:#F3F1EA;--btn-bg:#0F1218;--btn-ink:#F7F6F2;--btn-hover:#2A303B;--soft:#555861;--faint:#6B6F78;
 --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
 --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0F1218;--surface:#161A22;
 --sunk:#1B2029;--ink:#F3F1EA;--ink2:#C3C2B7;--muted:#9A998F;--line:#2A303B;--line2:#232833;--border:#3A404C;--mark:#F4A62A;
---amber-text:#F4A62A;--pill-bg:#3A2A0A;--pill-ink:#F7C66B;--code-bg:#0A0C10;--btn-bg:#F3F1EA;--btn-ink:#0F1218}}
-:root[data-theme="dark"]{color-scheme:dark;--bg:#0F1218;--surface:#161A22;--sunk:#1B2029;--ink:#F3F1EA;--ink2:#C3C2B7;
+--amber-text:#F4A62A;--pill-bg:#3A2A0A;--pill-ink:#F7C66B;--code-bg:#0A0C10;--btn-bg:#F3F1EA;--btn-ink:#0F1218;--btn-hover:#fff;
+--soft:#A9A8A0;--faint:#7C818C}}
+:root[data-theme="dark"],.poster{color-scheme:dark;--bg:#0F1218;--surface:#161A22;--sunk:#1B2029;--ink:#F3F1EA;--ink2:#C3C2B7;
 --muted:#9A998F;--line:#2A303B;--line2:#232833;--border:#3A404C;--mark:#F4A62A;--amber-text:#F4A62A;--pill-bg:#3A2A0A;
---pill-ink:#F7C66B;--code-bg:#0A0C10;--btn-bg:#F3F1EA;--btn-ink:#0F1218}
+--pill-ink:#F7C66B;--code-bg:#0A0C10;--btn-bg:#F3F1EA;--btn-ink:#0F1218;--btn-hover:#fff;--soft:#A9A8A0;--faint:#7C818C}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--sans);font-variant-numeric:tabular-nums}
 a{color:inherit}a:hover{color:var(--amber-text)}
@@ -92,32 +94,36 @@ nav.main{display:flex;flex-wrap:wrap;gap:0 24px;font-size:15px}
 nav.main a{text-decoration:none;padding:10px 0;border-bottom:2px solid transparent}
 nav.main a[aria-current]{font-weight:600;border-bottom-color:currentColor}
 .menu,.tl-v,.ftoggle,.tabs .sm{display:none}
-/* hero (always dark) */
-.hero{background:#0F1218;color:#F3F1EA;border-bottom:1px solid #2A303B}
-.hero a:hover{color:#F4A62A}.hero .brand b{color:#F4A62A}.hero .eyebrow{color:#A9A8A0}
+/* theme switch */
+.bar-end{display:flex;align-items:center;gap:8px 24px}
+.theme{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border:0;border-radius:10px;background:none;color:inherit;cursor:pointer}
+.theme[hidden]{display:none}.theme:hover{background:var(--sunk);color:var(--amber-text)}.theme svg{display:block}
+.theme[data-t="dark"] .moon,.theme:not([data-t="dark"]) .sun{display:none}
+/* hero */
+.hero{background:var(--bg);color:var(--ink);border-bottom:1px solid var(--line)}.hero .eyebrow{color:var(--soft)}
 .hero-body{padding-top:64px;padding-bottom:80px}
 .hero h1{margin:0;max-width:900px;font-size:clamp(38px,6vw,76px);line-height:1.03;letter-spacing:-.035em;font-weight:650}
-.lede{margin:24px 0 0;max-width:680px;font-size:19px;color:#A9A8A0}
+.lede{margin:24px 0 0;max-width:680px;font-size:19px;color:var(--soft)}
 .count-row{margin-top:56px;display:flex;flex-wrap:wrap;gap:40px 64px;align-items:flex-end}
-.big{font-size:clamp(88px,13vw,168px);line-height:.85;font-weight:650;letter-spacing:-.05em;color:#F4A62A}
+.big{font-size:clamp(88px,13vw,168px);line-height:.85;font-weight:650;letter-spacing:-.05em;color:var(--mark)}
 .big-label{margin-top:14px;font-size:18px;font-weight:500}
 .stats{margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 48px;flex:1 1 360px;max-width:520px}
-.stats dt{font-size:14px;color:#A9A8A0}.stats dd{margin:4px 0 0;font-size:28px;font-weight:600}
-.tl{margin:72px 0 0}.tl figcaption{font-size:14px;color:#A9A8A0;margin-bottom:18px}
+.stats dt{font-size:14px;color:var(--soft)}.stats dd{margin:4px 0 0;font-size:28px;font-weight:600}
+.tl{margin:72px 0 0}.tl figcaption{font-size:14px;color:var(--soft);margin-bottom:18px}
 .tl-row{display:flex;align-items:center}.tl-cols{display:flex}
 .tl .f3{flex:3}.tl .f1{flex:1}.tl .pr{padding-right:16px}
-.tl-tag{margin:0;font-size:15px;color:#F4A62A;font-weight:600}
-.tl-note{margin:4px 0 12px;font-size:15px;color:#A9A8A0}
-.dot{width:16px;height:16px;border-radius:50%;flex:none}.dot.amber{background:#F4A62A}
-.dot.ring{border:3px solid #F3F1EA}.dot.fill{background:#F3F1EA}
-.seg{height:6px;background:#F4A62A}.seg.thin{height:2px;background:#3A404C}
-.tl-labels{margin-top:14px;font-size:15px;line-height:1.4}.tl-labels span{color:#A9A8A0}
+.tl-tag{margin:0;font-size:15px;color:var(--amber-text);font-weight:600}
+.tl-note{margin:4px 0 12px;font-size:15px;color:var(--soft)}
+.dot{width:16px;height:16px;border-radius:50%;flex:none}.dot.amber{background:var(--mark)}
+.dot.ring{border:3px solid var(--ink)}.dot.fill{background:var(--ink)}
+.seg{height:6px;background:var(--mark)}.seg.thin{height:2px;background:var(--border)}
+.tl-labels{margin-top:14px;font-size:15px;line-height:1.4}.tl-labels span{color:var(--soft)}
 .tl-labels .f1{display:flex;justify-content:space-between;gap:12px}.tl-labels .r{text-align:right}
-.tl-foot{margin:20px 0 0;font-size:14px;color:#A9A8A0}
+.tl-foot{margin:20px 0 0;font-size:14px;color:var(--soft)}
 .ctas{margin-top:56px;display:flex;flex-wrap:wrap;gap:12px}
 .btn{display:inline-flex;align-items:center;min-height:48px;padding:0 22px;border-radius:10px;text-decoration:none;font-weight:600;font-size:16px;border:1px solid transparent}
-.btn.light{background:#F3F1EA;color:#0F1218}.btn.light:hover{color:#0F1218;background:#fff}
-.btn.ghost{border-color:#3A404C;color:#F3F1EA;font-weight:500}
+.btn.light{background:var(--btn-bg);color:var(--btn-ink)}.btn.light:hover{color:var(--btn-ink);background:var(--btn-hover)}
+.btn.ghost{border-color:var(--border);color:var(--ink);font-weight:500}
 .btn.solid{background:var(--btn-bg);color:var(--btn-ink);min-height:44px;font-size:15px;padding:0 18px}.btn.solid:hover{color:var(--btn-ink)}
 .btn.line{border-color:var(--border);min-height:44px;font-size:15px;padding:0 18px}
 /* coverage strip */
@@ -225,7 +231,7 @@ border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.25);font-size:14px;line-he
 @media (max-width:640px){.wrap{padding-left:16px;padding-right:16px}
 /* header: one row, menu in a panel */
 .bar{position:relative;flex-wrap:nowrap;padding-top:8px;padding-bottom:8px}nav.main{display:none}
-.menu{display:block}.menu summary{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;margin-right:-12px;
+.bar-end{gap:4px}.menu{display:block}.menu summary{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;margin-right:-12px;
 list-style:none;cursor:pointer;font-size:15px;font-weight:500;-webkit-tap-highlight-color:transparent}
 .menu summary::-webkit-details-marker{display:none}
 .burger,.burger:before,.burger:after{display:block;width:18px;height:2px;border-radius:1px;background:currentColor;transition:transform .15s}
@@ -236,17 +242,16 @@ list-style:none;cursor:pointer;font-size:15px;font-weight:500;-webkit-tap-highli
 background:var(--bg);border-bottom:1px solid var(--line);box-shadow:0 16px 32px rgba(0,0,0,.18)}
 .menu nav a{display:flex;align-items:center;min-height:52px;border-bottom:1px solid var(--line2);text-decoration:none;font-size:18px}
 .menu nav a:last-child{border-bottom:0}.menu nav a[aria-current]{font-weight:600;color:var(--amber-text)}
-.hero .menu nav{background:#0F1218;border-color:#2A303B}.hero .menu nav a{border-color:#232833}
 /* home */
 .hero-body{padding-top:32px;padding-bottom:48px}.hero .eyebrow .dt{display:none}.hero h1{margin-top:12px}.lede{font-size:17px;margin-top:18px}
 .count-row{margin-top:40px;gap:28px}.stats{gap:18px 24px}.stats dd{font-size:24px}
 .tl{margin-top:48px}.tl-row,.tl-cols{display:none}
 .tl-v{display:block;margin:0;padding:0;list-style:none}.tl-v li{position:relative;padding:0 0 20px 34px;font-size:15px;line-height:1.45}
-.tl-v li:before{content:"";position:absolute;left:5px;top:10px;bottom:-10px;width:6px;background:#F4A62A}
-.tl-v li.rev:before{left:7px;width:2px;background:#3A404C}.tl-v li.seen:before{display:none}
-.tl-v b{position:absolute;left:0;top:2px;width:16px;height:16px;border-radius:50%}.tl-v .pub b{background:#F4A62A}
-.tl-v .rev b{background:#0F1218;border:3px solid #F3F1EA}.tl-v .seen b{background:#F3F1EA}
-.tl-v span{display:block;color:#A9A8A0}.tl-v .limbo{padding-top:4px;padding-bottom:28px}.tl-v .limbo .tl-tag{margin-bottom:4px}
+.tl-v li:before{content:"";position:absolute;left:5px;top:10px;bottom:-10px;width:6px;background:var(--mark)}
+.tl-v li.rev:before{left:7px;width:2px;background:var(--border)}.tl-v li.seen:before{display:none}
+.tl-v b{position:absolute;left:0;top:2px;width:16px;height:16px;border-radius:50%}.tl-v .pub b{background:var(--mark)}
+.tl-v .rev b{background:var(--bg);border:3px solid var(--ink)}.tl-v .seen b{background:var(--ink)}
+.tl-v span{display:block;color:var(--soft)}.tl-v .limbo{padding-top:4px;padding-bottom:28px}.tl-v .limbo .tl-tag{margin-bottom:4px}
 .tl-foot{margin-top:4px}
 .ctas{margin-top:40px;flex-direction:column}.ctas .btn{justify-content:center}
 .strip .wrap{flex-direction:column;align-items:stretch;gap:12px}.meter{flex:none;max-width:none}
@@ -288,16 +293,14 @@ ol.steps li{gap:12px}pre.light{max-height:440px;overflow:auto}
 /* home: search, flow, queue */
 .find{margin-top:32px;max-width:640px}.find label{display:block;font-size:15px;font-weight:600;margin-bottom:8px}
 .find div{display:flex;gap:8px}.find input{flex:1;min-width:0;min-height:48px;padding:0 14px;border-radius:10px;border:1px solid var(--border);
-background:var(--surface);color:var(--ink);font:inherit}
+background:var(--surface);color:var(--ink);font:inherit}.find input::placeholder{color:var(--faint)}
 .find button{min-height:48px;padding:0 18px;border-radius:10px;border:0;background:var(--btn-bg);color:var(--btn-ink);font:inherit;font-weight:600;cursor:pointer}
-.find.dark input{background:#161A22;border-color:#3A404C;color:#F3F1EA}.find.dark input::placeholder{color:#7C818C}
-.find.dark button{background:#F3F1EA;color:#0F1218}
-.side{flex:1 1 380px;max-width:560px}.flow{margin:0 0 24px;font-size:19px;line-height:1.45;color:#C3C2B7}.flow strong{color:#F3F1EA}
+.side{flex:1 1 380px;max-width:560px}.flow{margin:0 0 24px;font-size:19px;line-height:1.45;color:var(--ink2)}.flow strong{color:var(--ink)}
 .stats.three{grid-template-columns:repeat(3,minmax(0,1fr))}
 figure.queue{margin:64px 0 0}figure.queue svg{display:block;width:100%;height:auto}
-.qaxis{position:relative;height:22px;margin-top:10px;font-size:13px;color:#A9A8A0}
+.qaxis{position:relative;height:22px;margin-top:10px;font-size:13px;color:var(--soft)}
 .qaxis span{position:absolute;top:0;white-space:nowrap}.qaxis span.end{transform:translateX(-80%)}
-figure.queue figcaption{margin-top:14px;font-size:14px;color:#A9A8A0;max-width:760px}
+figure.queue figcaption{margin-top:14px;font-size:14px;color:var(--soft);max-width:760px}figure.queue rect{fill:var(--mark)}
 @media (prefers-reduced-motion:no-preference){figure.queue g g{animation:settle .7s cubic-bezier(.2,.7,.3,1) both;
 animation-delay:calc(var(--c) * 14ms)}@keyframes settle{from{opacity:0;transform:translateY(-24px)}to{opacity:1;transform:none}}}
 /* home: proof */
@@ -335,7 +338,7 @@ ul.keys i{position:absolute;left:0;top:15px;width:14px;height:14px;border-radius
 ol.quotes{margin:24px 0 16px;padding:0;list-style:none;counter-reset:q;max-width:860px}
 ol.quotes li{padding:20px 0;border-top:1px solid var(--line)}ol.quotes p{margin:0;font-size:19px;line-height:1.5}
 ol.quotes a{display:inline-flex;min-height:36px;align-items:center;font-size:14px;color:var(--ink2)}
-.poster{margin-top:24px;padding:8px 32px 28px;background:#0F1218;border-radius:14px}.poster figure.queue{margin-top:24px}
+.poster{margin-top:24px;padding:8px 32px 28px;background:var(--bg);color:var(--ink);border-radius:14px}.poster figure.queue{margin-top:24px}
 pre.wrapcode{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:16px}
 ul.kit{margin:16px 0 0;padding:0;list-style:none}ul.kit a{display:inline-flex;min-height:40px;align-items:center}
 .tbl td.n,.tbl th.n{text-align:right}
@@ -409,7 +412,7 @@ def mark(stroke: str, dot: str, size: int = 30) -> str:
     )
 
 
-def header(active: str, dark: bool = False) -> str:
+def header(active: str) -> str:
     links = [("tracker", "/tracker/", "Tracker"), ("scan", "/scan/", "Scan your project"), ("feed", "/feed/", "Feed"),
              ("methodology", "/methodology/", "Methodology"), ("press", "/press/", "Press"), ("why", "/why/", "Why"),
              ("", REPO_URL, "GitHub ↗")]  # fmt: skip
@@ -417,7 +420,7 @@ def header(active: str, dark: bool = False) -> str:
     nav = "".join(
         f'<a href="{href}"{current if key and key == active else ""}>{label}</a>' for key, href, label in links
     )
-    logo = mark("#F3F1EA", "#F4A62A") if dark else mark("currentColor", "var(--mark)")
+    logo = mark("currentColor", "var(--mark)")
     # Phones get the same links in a disclosure panel; only one of the two navs is ever displayed.
     menu = (
         '<details class="menu"><summary><span class="burger" aria-hidden="true"></span>Menu</summary>'
@@ -425,7 +428,7 @@ def header(active: str, dark: bool = False) -> str:
     )
     return (
         f'<div class="wrap bar"><a class="brand" href="/">{logo}<span>limbo<b>.</b>watch</span></a>'
-        f'<nav class="main" aria-label="Main">{nav}</nav>{menu}</div>'
+        f'<div class="bar-end"><nav class="main" aria-label="Main">{nav}</nav>{THEME_BUTTON}{menu}</div></div>'
     )
 
 
@@ -451,9 +454,34 @@ def footer(extra: str = "") -> str:
     )
 
 
+# Light or dark: the page follows the system setting until the visitor picks the other one with the switch in
+# the header. The pick is kept in localStorage (cleared again once it matches the system) and applied in <head>
+# before the stylesheet, so the page never flashes the wrong theme. Without JavaScript the switch stays hidden.
+THEME_HEAD_JS = (
+    "<script>try{const t=localStorage.getItem('lw-theme');"
+    "if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>\n"
+)
+_SUN = (
+    '<svg class="sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+    'stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4'
+    'M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'
+)
+_MOON = (
+    '<svg class="moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+    'stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>'
+)
+THEME_BUTTON = f'<button class="theme" type="button" hidden>{_SUN}{_MOON}</button>'
 MENU_JS = (
     "<script>document.addEventListener('click',e=>{const m=document.querySelector('details.menu[open]');"
-    "if(m&&(!m.contains(e.target)||e.target.closest('a')))m.open=false});</script>\n"
+    "if(m&&(!m.contains(e.target)||e.target.closest('a')))m.open=false});\n"
+    "(()=>{const r=document.documentElement,K='lw-theme',q=matchMedia('(prefers-color-scheme: dark)'),"
+    "sys=()=>q.matches?'dark':'light',cur=()=>r.dataset.theme||sys(),bs=document.querySelectorAll('button.theme'),"
+    "show=()=>bs.forEach(b=>{const t=cur(),n=t==='dark'?'light':'dark';b.dataset.t=t;b.title='Switch to '+n+' theme';"
+    "b.setAttribute('aria-label','Switch to '+n+' theme')});"
+    "bs.forEach(b=>{b.hidden=false;b.addEventListener('click',()=>{const t=cur()==='dark'?'light':'dark';"
+    "try{if(t===sys()){delete r.dataset.theme;localStorage.removeItem(K)}else{r.dataset.theme=t;localStorage.setItem(K,t)}}"
+    "catch(e){r.dataset.theme=t}show()})});"
+    "q.addEventListener('change',show);show()})();</script>\n"
 )
 
 
@@ -473,7 +501,8 @@ def page(title: str, description: str, body: str, path: str = "/", jsonld: dict[
         '<meta property="og:image:width" content="1280">\n<meta property="og:image:height" content="640">\n'
         '<meta name="twitter:card" content="summary_large_image">\n'
         '<link rel="alternate" type="application/atom+xml" title="New advisories in limbo" href="/feed/limbo.atom">\n'
-        f'<link rel="icon" href="/favicon.svg" type="image/svg+xml">\n<link rel="stylesheet" href="/assets/site.css?v={_v(CSS)}">\n'
+        f'<link rel="icon" href="/favicon.svg" type="image/svg+xml">\n{THEME_HEAD_JS}'
+        f'<link rel="stylesheet" href="/assets/site.css?v={_v(CSS)}">\n'
         + (f'<script type="application/ld+json">{ld}</script>\n' if ld else "")
         + f"</head>\n<body>\n{body}\n{MENU_JS}</body>\n</html>\n"
     )
@@ -702,9 +731,9 @@ SEARCH_JS = (
 )
 
 
-def find_form(dark: bool = False) -> str:
+def find_form() -> str:
     return (
-        f'<form class="find{" dark" if dark else ""}" role="search"><label for="find-q">Is a package you use waiting?</label>'
+        '<form class="find" role="search"><label for="find-q">Is a package you use waiting?</label>'
         '<div><input id="find-q" name="q" type="search" placeholder="Package, repository, GHSA or CVE ID" autocomplete="off">'
         '<button type="submit">Search the tracker</button></div></form>'
     )
@@ -765,14 +794,14 @@ def home(items: list[Item], m: dict[str, Any], now: datetime) -> str:
         if flow
         else ""
     )
-    body = f"""<div class="hero">{header("", dark=True)}
+    body = f"""<div class="hero">{header("")}
 <section class="wrap hero-body">
 <p class="eyebrow">Live, re-checked every day. Updated {E(updated)}.</p>
 <h1>Published. Often fixed. Invisible to most scanners.</h1>
 <p class="lede">Maintainers publish security advisories on GitHub every day. Dependabot, npm audit and OSV-Scanner can’t
 see them until GitHub reviews them into its Advisory Database, and that review often takes weeks. Limbowatch tracks the
 advisories waiting in between.</p>
-{find_form(dark=True)}
+{find_form()}
 <figure class="tl"><figcaption>Where an advisory waits</figcaption>
 <div class="tl-cols"><div class="f3 pr"><p class="tl-tag">In limbo</p><p class="tl-note">Public and often already fixed, but
 scanners report nothing.</p></div><div class="f1"></div></div>
@@ -1592,18 +1621,6 @@ def atom(rows: list[Item], now: datetime, path: str, title: str, subtitle: str) 
     )
 
 
-_CALLS = re.compile(r"[()|!\"'&\[\]{}$\t\r\n]")  # what a formula needs to call a function, a link or DDE
-
-
-def _cell(v: str) -> str:
-    """Spreadsheets treat a cell starting with = + - @ as a formula. Maintainers enter these fields, so a cell
-    starting with = gets a leading ', and so does one starting with + - @ that could call anything. An npm scope
-    like `@scope/pkg; other` or a number like -1 stays as entered."""
-    if v[:1] in ("=", "\t", "\r") or (v[:1] in ("+", "-", "@") and _CALLS.search(v)):
-        return f"'{v}"
-    return v
-
-
 CSV_COLUMNS = ["ghsa_id", "status", "severity", "cvss_score", "ecosystem", "packages", "affected_versions", "fixed_in",
                "cve_state", "cves", "published", "days_waiting", "repository", "advisory_url", "limbo_url"]  # fmt: skip
 
@@ -1631,7 +1648,7 @@ def limbo_csv(items: list[Item], now: datetime) -> str:
                    eco_names(i), "; ".join(names), ranges, fixes(i), CVE_TEXT[CVE_KEY[i.assessment.cve_label]], cves(i),
                    i.adv.published_at.strftime("%Y-%m-%d") if i.adv.published_at else "", "" if a is None else str(int(a)),
                    i.adv.repo, i.adv.html_url, f"{SITE}/advisory/{i.adv.ghsa_id}/"]  # fmt: skip
-            w.writerow([_cell(v) for v in row])
+            w.writerow([cell(v) for v in row])
     return buf.getvalue()
 
 

@@ -1081,6 +1081,25 @@ Answered:
 - **Caveats:** Only watched repos are seen (F-067); a repo polled every 3 to 7 days adds its new advisories late, so the latest days' inflow is undercounted. Outflow counts only advisories the tracker had seen in limbo; GitHub also reviews advisories from other sources. Two weeks is too short to call a trend; this is a rate, not a trajectory.
 - **Implication:** At current rates the backlog grows by roughly 600 to 700 advisories a week in the watched repos alone. The site and press page state the weekly numbers with their date instead of a general claim.
 
+### F-093
+- **Date:** 2026-11-07 · **Status:** confirmed (validated against official schemas)
+- **Question:** Do the watcher's SARIF and CycloneDX outputs pass their official schemas?
+- **Method:** `limbowatch scan` on the demo app (16 findings, F-091) with `-o sarif=… -o cyclonedx=…`. CycloneDX: `cyclonedx-python-lib` 9.1.0 `JsonStrictValidator(SchemaVersion.V1_6)`, which bundles the official 1.6 schema. SARIF: `jsonschema` Draft 7 against `https://json.schemastore.org/sarif-2.1.0.json` (fetched 2026-11-07).
+- **Result:** Both valid. CycloneDX: 6 components with package URLs and 16 vulnerabilities, each `affects` pointing at a component `bom-ref`; severities from the CycloneDX enum.
+- **Caveats:** Valid against the schema is not the same as accepted by every consumer; Dependency-Track, for one, takes its own vulnerability data and uses imported vulnerabilities mainly for analysis states.
+- **Implication:** SARIF and CycloneDX can be handed to strict tools. Re-run the check when either format changes.
+
+### F-094
+- **Date:** 2026-11-07 · **Status:** confirmed (GitLab docs)
+- **Question:** How do `artifacts:expose_as` and JUnit reports behave in GitLab merge requests, and on which tier?
+- **Method:** GitLab docs: CI/CD YAML reference (`artifacts:expose_as`), "Unit test reports", and "artifacts:reports:junit".
+- **Result:**
+  - `expose_as`: "If artifacts:paths only includes a single file, the link opens the file directly. In all other cases, the link opens the artifacts browser." Once per job, at most 10 jobs per merge request; no globs; a directory needs a trailing slash; paths with CI/CD variables aren't shown. Files download unless GitLab Pages is enabled, which lets some types preview in the browser.
+  - JUnit: Free, Premium and Ultimate; shown in the merge request Test summary and the pipeline Tests tab. GitLab reads `testcase` `classname` (shown as the suite name), `name`, `file` and `time`, the content of `failure`, `error` and `skipped`, and `system-out` inside a test case. It doesn't read `testsuite` counts, `timestamp` or `line`. "If you have duplicate test names, only the first test is used." Files under 30 MB each, 100 MB per job. Reports don't change the job's status.
+- **Caveats:** The docs don't say whether skipped tests are listed in the Test summary.
+- **Implication:** The component writes every report into `limbowatch/` and links that folder; JUnit uses the lockfile path as `classname` and the advisory, severity, package and version as the name, so names don't collide across lockfiles; the job's exit code, not the JUnit file, fails the pipeline.
+- **Sources:** [artifacts:expose_as](https://docs.gitlab.com/ci/yaml/#artifactsexpose_as), [Unit test reports](https://docs.gitlab.com/ci/testing/unit_test_reports/), [artifacts:reports:junit](https://docs.gitlab.com/ci/yaml/artifacts_reports/#artifactsreportsjunit)
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

@@ -20,15 +20,22 @@ check-reports:
     - |
       python3 - <<'PY'
       import json, pathlib
-      cq = json.loads(pathlib.Path("gl-code-quality-report.json").read_text())
+      from xml.etree import ElementTree
+      out = pathlib.Path("limbowatch")
+      cq = json.loads((out / "gl-code-quality-report.json").read_text())
       assert isinstance(cq, list), "Code Quality report must be a JSON array"
       for item in cq:
           assert item["location"]["path"] == "tests/go-sample/go.mod", item["location"]
           assert {"description", "check_name", "fingerprint", "severity"} <= item.keys(), item
-      md = pathlib.Path("limbowatch.md").read_text()
-      assert "CC BY 4.0" in md, "the Markdown report must carry the attribution"
-      report = json.loads(pathlib.Path("limbowatch.json").read_text())
-      print(f"{len(cq)} Code Quality entries; report keys: {sorted(report)}")
+      for name in ("report.md", "report.html"):
+          assert "CC BY 4.0" in (out / name).read_text(), f"{name} must carry the attribution"
+      report = json.loads((out / "report.json").read_text())
+      assert report["schema_version"] == 1 and report["gate"]["fail_on"] == "none", report["gate"]
+      junit = ElementTree.parse(out / "junit.xml").getroot()
+      assert junit.tag == "testsuites" and junit.get("failures") == "0", junit.attrib  # fail_on none: nothing fails
+      bom = json.loads((out / "bom.cdx.json").read_text())
+      assert bom["specVersion"] == "1.6", bom.get("specVersion")
+      print(f"{len(cq)} Code Quality entries, {junit.get('tests')} JUnit tests, {report['summary']['findings']} findings")
       PY
 
 create-release:

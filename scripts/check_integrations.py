@@ -76,21 +76,31 @@ def main() -> None:
         local = {"limbowatch_source": "file:///work/src", "limbowatch_ref": "main"}
 
         r = run("gitlab", gitlab_script(local), work, {"CI_COMMIT_BRANCH": "feature", "CI_DEFAULT_BRANCH": "main"})
-        cq = work / "proj/gl-code-quality-report.json"
+        out = work / "proj/limbowatch"
+        cq = out / "gl-code-quality-report.json"
         check(r.returncode == 1, "GitLab job fails on a finding (fail_on low)", r.stdout + r.stderr)
+        check("FAILED" in r.stdout and "To fix: upgrade" in r.stdout, "GitLab job log has the table and verdict", r.stdout)
         check(cq.exists() and "GHSA-c9gr-gmg4-2vqv" in cq.read_text(), "GitLab job writes the Code Quality report")
-        check("limbowatch.md" in sh("ls", str(work / "proj")).stdout, "GitLab job writes the Markdown report")
+        check("<failure" in (out / "junit.xml").read_text(), "GitLab job writes JUnit with the failing finding")
+        check(all((out / n).exists() for n in ("report.html", "report.md", "report.json", "report.csv", "bom.cdx.json")),
+              "GitLab job writes every report into limbowatch/")  # fmt: skip
         r = run("gitlab2", gitlab_script(local | {"fail_on": "none"}), work, {"CI_COMMIT_BRANCH": "feature"})
         check(r.returncode == 0, "GitLab job passes with fail_on none", r.stdout + r.stderr)
 
-        a = action_script({"limbowatch-source": "file:///work/src", "sarif": "results.sarif"})
+        a = action_script({"limbowatch-source": "file:///work/src", "limbowatch-ref": "main", "sarif": "results.sarif"})
         env = {"RUNNER_TEMP": "/tmp/rt", "GITHUB_PATH": "/tmp/gh_path", "GITHUB_STEP_SUMMARY": "/work/summary.md",
-               "GITHUB_REF_NAME": "feature"}  # fmt: skip
+               "GITHUB_OUTPUT": "/work/gh_output", "GITHUB_REF_NAME": "feature"}  # fmt: skip
         r = run("action", "mkdir -p /tmp/rt && touch /tmp/gh_path && export PATH=/tmp/rt/limbowatch-bin:$PATH\n" + a,
                 work, env)  # fmt: skip
-        check(r.returncode == 1, "Action fails on a finding", r.stdout + r.stderr)
+        check(r.returncode == 1 and "FAILED" in r.stdout, "Action fails on a finding", r.stdout + r.stderr)
         check("GHSA-c9gr-gmg4-2vqv" in (work / "proj/results.sarif").read_text(), "Action writes SARIF")
         check("GHSA-c9gr-gmg4-2vqv" in (work / "summary.md").read_text(), "Action writes the job summary")
+        check(re.search(r"^::(error|warning|notice) file=go\.mod,line=\d+,title=GHSA-c9gr-gmg4-2vqv", r.stdout, re.M)
+              is not None, "Action prints an annotation on go.mod", r.stdout)  # fmt: skip
+        outputs = (work / "gh_output").read_text()
+        check("failed=true" in outputs and re.search(r"^findings=[1-9]", outputs, re.M) is not None,
+              "Action sets its outputs", outputs)  # fmt: skip
+        check((work / "proj/limbowatch-report/report.html").exists(), "Action writes the reports directory")
     print("integrations passed")
 
 

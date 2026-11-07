@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 
+from limbowatch.csvsafe import cell
 from limbowatch.publish import site
 
 
@@ -23,13 +24,13 @@ def test_queue_heights_are_exact() -> None:
 
 
 def test_csv_cells_cannot_start_a_formula() -> None:
-    assert site._cell("=HYPERLINK(1)") == "'=HYPERLINK(1)"
-    assert site._cell("= 1.2.3") == "'= 1.2.3"
-    assert site._cell("@SUM(1+1)*cmd|' /C calc'!A0") == "'@SUM(1+1)*cmd|' /C calc'!A0"
-    assert site._cell("+cmd|x") == "'+cmd|x"
+    assert cell("=HYPERLINK(1)") == "'=HYPERLINK(1)"
+    assert cell("= 1.2.3") == "'= 1.2.3"
+    assert cell("@SUM(1+1)*cmd|' /C calc'!A0") == "'@SUM(1+1)*cmd|' /C calc'!A0"
+    assert cell("+cmd|x") == "'+cmd|x"
     # nothing to call: left as entered
-    assert site._cell("@scope/pkg") == "@scope/pkg"
-    assert site._cell("@sync-in/server; syncin/server") == "@sync-in/server; syncin/server"
-    assert site._cell("-1") == "-1"
-    assert site._cell("lodash") == "lodash"
-    assert site._cell(">= 1.0, < 2.0") == ">= 1.0, < 2.0"
+    assert cell("@scope/pkg") == "@scope/pkg"
+    assert cell("@sync-in/server; syncin/server") == "@sync-in/server; syncin/server"
+    assert cell("-1") == "-1"
+    assert cell("lodash") == "lodash"
+    assert cell(">= 1.0, < 2.0") == ">= 1.0, < 2.0"

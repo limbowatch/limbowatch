@@ -206,6 +206,33 @@ def already_fixed(ghsa_ecosystem: str, version: str, patched: str | None) -> boo
         return None
 
 
+def applicable_fix(ghsa_ecosystem: str, version: str, patched: str | None) -> str | None:
+    """The fixed version that applies to `version`: the one on its major.minor line when the advisory lists one
+    per release line, else the only one. None when that isn't certain."""
+    fixes = fixed_versions(patched)
+    if not fixes:
+        return None
+
+    def line(s: str) -> str:
+        return ".".join(s.lstrip("v").split(".")[:2])
+
+    same = [f for f in fixes if line(f) == line(version)]
+    if len(same) == 1:
+        return same[0]
+    return fixes[0] if len(fixes) == 1 else None
+
+
+def highest(ghsa_ecosystem: str, versions: list[str]) -> str | None:
+    """The highest of `versions` by the ecosystem's own ordering; None if they can't all be compared."""
+    cls = VERSION_CLASS.get(ghsa_ecosystem)
+    if cls is None or not versions:
+        return None
+    try:
+        return max(versions, key=lambda v: _mk(cls, v))
+    except Exception:
+        return None
+
+
 def norm_name(ghsa_ecosystem: str, name: str) -> str:
     if ghsa_ecosystem == "pip":
         return re.sub(r"[-_.]+", "-", name).lower()

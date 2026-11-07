@@ -60,7 +60,7 @@ uv run pytest -q                 # recorded fixtures only; tests never hit the n
 uv run limbowatch track --state tracker/state --seed tracker/seeds/popular-upstreams.txt --seed tracker/seeds/top100-upstreams.txt --budget 4000
 uv run limbowatch publish --state tracker/state --out tracker/site
 uv run limbowatch report --state tracker/state --out tracker/reports   # daily Markdown report
-uv run limbowatch scan <project> [--state F] [--output codequality=F] [--issues gitlab|gitea]   # the watcher (docs/WATCHER.md)
+uv run limbowatch scan <project> [--state F] [-o FORMAT=FILE ...] [--issues gitlab|gitea]   # the watcher (docs/WATCHER.md); exit 0/1/2
 uv run python scripts/e2e_gitea.py                       # issue lifecycle against a local Gitea in Docker (network)
 LIMBOWATCH_ISSUES_TOKEN=… uv run python scripts/e2e_gitlab.py   # GitLab issues in the private project limbowatch/limbowatch-e2e (network)
 uv run --with pyyaml python scripts/check_integrations.py # GitLab component and Action in a container (network)

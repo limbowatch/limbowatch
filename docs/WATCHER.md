@@ -41,15 +41,47 @@ pipx install limbowatch-cli     # or: uv tool install limbowatch-cli, or pip ins
 
 limbowatch inventory .                       # what would be checked, and what can't be
 limbowatch scan .                            # table on stdout; exit 1 if a finding meets --fail-on
-limbowatch scan . --state .limbowatch/state.json \
-  --output codequality=gl-code-quality-report.json --output sarif=limbowatch.sarif
-limbowatch scan --sbom bom.cdx.json --format json
+limbowatch scan . -o table -o sarif=limbowatch.sarif -o junit=junit.xml -o html=report.html   # one scan, many reports
+limbowatch scan --sbom bom.cdx.json -f json
 ```
+
+The table groups findings by lockfile, lists the upgrade that clears each package's advisories, and ends with one line saying whether the scan passed or failed, and why:
+
+```
+web/package-lock.json
+  SEVERITY  PACKAGE  INSTALLED  FIXED IN  ADVISORY             CVE
+  HIGH      undici   7.30.1     7.30.2    GHSA-mqg3-3v4r-cm32  CVE-2026-116592
+  MEDIUM    undici   7.30.1     7.30.2    GHSA-3g9m-rv3r-w5w2  CVE-2026-120222
+
+To fix: upgrade 1 package
+  undici  7.30.1 → 7.30.2  clears 2 advisories  web/package-lock.json:879
+
+FAILED  2 findings at or above low (--fail-on low): 1 high, 1 medium.
+```
+
+### Output formats
+
+| Format | What it's for |
+|---|---|
+| `table` | People: the terminal and CI logs. Coloured on a terminal and in GitHub Actions and GitLab CI logs |
+| `json` | Machines: findings, upgrades, unchecked dependencies, a summary and the gate result. `schema_version` 1; new fields may be added, breaking changes bump it |
+| `markdown` | Pull request comments and job summaries |
+| `html` | A standalone report (no scripts, no external files) to keep as a CI artifact |
+| `sarif` | SARIF 2.1.0, for GitHub code scanning and other SARIF tools |
+| `codequality` | GitLab Code Quality: findings on the lockfile line in merge requests, every tier |
+| `junit` | JUnit XML: test summaries in GitLab merge requests (every tier), Jenkins, Azure DevOps, CircleCI. A finding at or above `--fail-on` is a failed test; one below it, or accepted, is skipped |
+| `csv` | Spreadsheets: one row per finding, UTF-8 with a byte-order mark; cells that could run as a formula start with `'` |
+| `cyclonedx` | CycloneDX 1.6 JSON with the affected components and their vulnerabilities, for tools that ingest CycloneDX |
+| `github` | GitHub Actions annotations on the lockfile line, without code scanning (GitHub shows up to 10 of each level per step) |
+
+Every format carries the CC BY 4.0 attribution for the advisory data. SARIF 2.1.0 and CycloneDX 1.6 output are checked against the official schemas (FINDINGS F-093).
 
 | Option | |
 |---|---|
-| `--format` | `table` (default), `json`, `markdown`, `sarif`, `codequality` on stdout |
-| `--output FORMAT=FILE` | Also write a format to a file; repeatable |
+| `-o`, `--output FORMAT[=FILE]` | Repeatable. `FORMAT=FILE` writes a file; `FORMAT` alone (or `FILE` `-`) writes to stdout. One scan, every report |
+| `-f`, `--format FORMAT` | The format on stdout (default `table`) |
+| `-q`, `--quiet` | Nothing on stdout; files and the exit code only (the verdict still goes to stderr) |
+| `--color auto\|always\|never` | `auto` colours a terminal and GitHub Actions and GitLab CI logs; `NO_COLOR` turns it off, `FORCE_COLOR` on |
 | `--fail-on` | `critical`, `high`, `medium`, `low` (default) or `none` |
 | `--fail-on-unknown` / `--no-fail-on-unknown` | Fail on findings with no severity (default: fail) |
 | `--ignore ID`, `--ignore-file` | Accept an advisory by GHSA or CVE ID; it's listed, but doesn't fail the build |
@@ -58,7 +90,13 @@ limbowatch scan --sbom bom.cdx.json --format json
 | `--scan-ignored` | Also read lockfiles a `.gitignore` excludes, including an enclosing repo's (F-085) |
 | `-v` | Show the evidence for every finding, and every dependency checked by name only |
 
-Exit codes: **0** means nothing meets `--fail-on`; **1** means something does; **2** means an error.
+| Exit code | Meaning |
+|---|---|
+| **0** | Passed: nothing meets `--fail-on` |
+| **1** | Failed: at least one finding meets `--fail-on` |
+| **2** | Error: the scan couldn't run (no OSV-Scanner, no network, a bad option), so nothing was judged |
+
+When stdout isn't the table (`-f json`, `-q`), a one-line verdict goes to stderr, so CI logs still say why the job passed or failed.
 
 **GitHub token.** Polling source repos uses the GitHub API. Without a token GitHub allows 60 requests an hour, and a large project can need hundreds (GitLab needed 356 in F-085). Set `LIMBOWATCH_GITHUB_TOKEN`, or `GITHUB_TOKEN`, to any token that can read public repos. Repos that can't be polled are reported, not skipped.
 
@@ -72,6 +110,8 @@ include:
     inputs:
       fail_on: high
 ```
+
+In the merge request, on every tier: Code Quality findings on the lockfile lines, a test summary with one failed test per finding at or above `fail_on`, and a **Limbowatch report** link to the `limbowatch/` artifacts (HTML, Markdown, JSON, CSV and CycloneDX). The job log has the table.
 
 On a GitLab instance other than gitlab.com, mirror the component project first (GitLab's docs: "Use a GitLab.com component on GitLab Self-Managed").
 
@@ -95,7 +135,16 @@ steps:
     with: { sarif_file: limbowatch.sarif, category: limbowatch }
 ```
 
-The Markdown report also goes to the job summary.
+The action annotates each finding on its lockfile line in the pull request (`annotations: true`, no code scanning needed), adds the Markdown report to the job summary, and writes every report into `limbowatch-report/` (`reports:` input). Its outputs `findings`, `failing`, `failed` and `report` let later steps act on the result:
+
+```yaml
+  - uses: limbowatch/limbowatch/integrations/action@v0.1.0
+    id: limbo
+    with: { fail-on: none }
+  - if: steps.limbo.outputs.findings != '0'
+    uses: actions/upload-artifact@v4
+    with: { name: limbowatch-report, path: limbowatch-report/ }
+```
 
 ## Issues
 

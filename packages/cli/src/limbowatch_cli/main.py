@@ -1,5 +1,5 @@
-"""`limbowatch track` runs the live tracker; `limbowatch publish` writes the feed, metrics and site;
-`limbowatch inventory` lists what a project depends on and what can't be checked."""
+"""`limbowatch scan` checks a project against advisories in limbo; `limbowatch inventory` lists what a project
+depends on and what can't be checked; `limbowatch track`, `publish` and `report` run the live tracker."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ import logging
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from datetime import UTC, datetime
@@ -33,7 +34,41 @@ from limbowatch.watch import output, trackers
 from limbowatch.watch import scan as watch_scan
 from limbowatch.watch import state as watch_state
 
-app = typer.Typer(no_args_is_help=True, add_completion=False)
+app = typer.Typer(
+    no_args_is_help=True,
+    add_completion=False,
+    help="Find dependencies affected by security advisories in limbo: published by maintainers on GitHub, not yet "
+    "in the databases scanners read. https://limbo.watch",
+)
+
+
+def _version(value: bool) -> None:
+    if value:
+        from limbowatch import __version__
+
+        typer.echo(f"limbowatch {__version__}")
+        raise typer.Exit()
+
+
+@app.callback()
+def _main(
+    version: Annotated[
+        bool | None, typer.Option("--version", callback=_version, is_eager=True, help="Show the version and exit.")
+    ] = None,
+) -> None:
+    """Find dependencies affected by security advisories in limbo. https://limbo.watch"""
+
+
+def _color(mode: str) -> tuple[bool, bool]:
+    """(colour, links) for the terminal table. auto: colour on a terminal and in GitHub Actions and GitLab CI,
+    whose logs render it; NO_COLOR turns it off and FORCE_COLOR on. Links (OSC 8) only on a real terminal."""
+    tty = sys.stdout.isatty()
+    if mode == "never" or (mode == "auto" and os.environ.get("NO_COLOR")):
+        return False, False
+    ci = bool(os.environ.get("GITHUB_ACTIONS") or os.environ.get("GITLAB_CI") or os.environ.get("FORCE_COLOR"))
+    on = mode == "always" or tty or ci
+    return on, on and tty and not os.environ.get("CI")
+
 
 StateDir = Annotated[Path, typer.Option(help="Directory of JSONL state files (read, then rewritten).")]
 
@@ -251,10 +286,23 @@ def _base(path: Path) -> str:
 def scan(
     path: Annotated[Path, typer.Argument(help="Project directory.")] = Path("."),
     sbom_file: Annotated[Path | None, typer.Option("--sbom", help="CycloneDX or SPDX JSON instead of a tree.")] = None,
-    fmt: Annotated[str, typer.Option("--format", help=f"Output on stdout: {', '.join(output.FORMATS)}.")] = "table",
-    outputs: Annotated[
-        list[str] | None, typer.Option("--output", help="FORMAT=FILE, repeatable, e.g. codequality=gl-cq.json.")
+    fmt: Annotated[
+        str | None,
+        typer.Option("--format", "-f", help=f"Format on stdout [default: table]: {', '.join(output.FORMATS)}."),
     ] = None,
+    outputs: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--output",
+            "-o",
+            help="FORMAT or FORMAT=FILE, repeatable: one scan, many reports, e.g. -o table -o sarif=out.sarif "
+            "-o junit=junit.xml. FORMAT alone (or FILE '-') writes to stdout.",
+        ),
+    ] = None,
+    color: Annotated[
+        str, typer.Option(help="Colour the table: auto, always or never (NO_COLOR is honoured).")
+    ] = "auto",
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Nothing on stdout; files and exit code only.")] = False,
     state_file: Annotated[Path | None, typer.Option("--state", help="JSON state file: report what changed.")] = None,
     fail_on: Annotated[str, typer.Option(help="Fail at or above: critical, high, medium, low, or none.")] = "low",
     fail_on_unknown: Annotated[bool, typer.Option(help="Fail on findings with no severity.")] = True,
@@ -275,15 +323,15 @@ def scan(
     issues_confidential: Annotated[bool, typer.Option(help="GitLab: open confidential issues.")] = True,
     issues_dry_run: Annotated[bool, typer.Option(help="Print the issue changes instead of making them.")] = False,
 ) -> None:
-    """Check a project's dependencies against advisories in limbo. Exit 1 when --fail-on is met, 2 on errors."""
-    if fmt not in output.FORMATS or fail_on not in (*output.SEVERITIES, "none"):
-        raise typer.BadParameter(f"unknown --format {fmt!r} or --fail-on {fail_on!r}")
-    targets: list[tuple[str, Path]] = []
-    for o in outputs or []:
-        name, _, file = o.partition("=")
-        if name not in output.FORMATS or not file:
-            raise typer.BadParameter(f"--output wants FORMAT=FILE with FORMAT one of {', '.join(output.FORMATS)}")
-        targets.append((name, Path(file)))
+    """Check a project's dependencies against advisories in limbo.
+
+    Exit codes: 0 passed, 1 a finding at or above --fail-on, 2 an error (nothing was judged).
+    """
+    if fail_on not in (*output.SEVERITIES, "none"):
+        raise typer.BadParameter(f"--fail-on wants one of {', '.join((*output.SEVERITIES, 'none'))}, not {fail_on!r}")
+    if color not in ("auto", "always", "never"):
+        raise typer.BadParameter("--color wants auto, always or never")
+    stdout_fmt, targets = _outputs(fmt, outputs or [])
     accepted = set(ignore or [])
     if ignore_file is not None:
         accepted |= {ln.split("#", 1)[0].strip() for ln in ignore_file.read_text().splitlines()} - {""}
@@ -326,16 +374,45 @@ def scan(
     except (RuntimeError, OSError) as e:
         raise typer.Exit(_fail(str(e))) from e
     base = _base(path) if sbom_file is None else ""
-    rep = output.Report(res.findings, res.unresolved, res.stats, inv.tool, feed_at, changes, accepted, base)
+    rep = output.Report(res.findings, res.unresolved, res.stats, inv.tool, feed_at, changes, accepted, base,
+                        fail_on, fail_on_unknown, now, str(sbom_file or path))  # fmt: skip
 
-    typer.echo(output.table(rep, verbose) if fmt == "table" else output.FORMATS[fmt](rep), nl=False)
     for name, dest in targets:
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(output.FORMATS[name](rep))
     for line in log_lines:
         typer.echo(line, err=True)
-    if output.gate(rep, fail_on, fail_on_unknown):
+    if stdout_fmt == "table" and not quiet:
+        typer.echo(output.table(rep, verbose, output.Paint(*_color(color))), nl=False)
+    elif not quiet:
+        typer.echo(output.FORMATS[stdout_fmt](rep), nl=False)
+    if stdout_fmt != "table" or quiet:  # the verdict still reaches the CI log
+        failed, why = output.verdict(rep)
+        typer.echo(f"limbowatch: {'FAILED' if failed else 'PASSED'}: {why}", err=True)
+    if rep.failed:
         raise typer.Exit(1)
+
+
+def _outputs(fmt: str | None, specs: list[str]) -> tuple[str, list[tuple[str, Path]]]:
+    """The stdout format and the FORMAT=FILE targets from --format and repeated --output."""
+    known = ", ".join(output.FORMATS)
+    stdout = [fmt] if fmt else []
+    files: list[tuple[str, Path]] = []
+    for spec in specs:
+        name, eq, file = spec.partition("=")
+        if name not in output.FORMATS or (eq and not file):
+            raise typer.BadParameter(f"--output wants FORMAT or FORMAT=FILE, with FORMAT one of {known}; got {spec!r}")
+        if not eq or file == "-":
+            stdout.append(name)
+        else:
+            files.append((name, Path(file)))
+    if fmt is not None and fmt not in output.FORMATS:
+        raise typer.BadParameter(f"--format wants one of {known}; got {fmt!r}")
+    if len(stdout) > 1:
+        raise typer.BadParameter(
+            f"only one format can go to stdout; got {', '.join(stdout)}. Send the others to files."
+        )
+    return (stdout[0] if stdout else "table"), files
 
 
 async def _sync_issues(

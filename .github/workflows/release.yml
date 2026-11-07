@@ -1,5 +1,6 @@
 name: release
-# Publishes both packages to PyPI with trusted publishing (no tokens) when a v* tag is pushed.
+# On a v* tag: test, build, check and attest both packages, publish them to PyPI with trusted publishing
+# (no tokens; PEP 740 attestations on by default), then create the GitHub release with the changelog notes.
 # PyPI pending publishers: limbowatch -> environment "pypi", limbowatch-cli -> environment "pypi-cli".
 on:
   push:
@@ -9,20 +10,35 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write       # build provenance
+      attestations: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
       - run: uv sync --locked
       - run: uv run ruff check packages tests && uv run mypy && uv run lint-imports && uv run pytest -q
-      - name: Tag matches both package versions
+      - name: Tag matches both package versions and the changelog
         run: |
           for p in core cli; do
             v=$(uv run python -c "import tomllib;print(tomllib.load(open('packages/$p/pyproject.toml','rb'))['project']['version'])")
             [ "v$v" = "$GITHUB_REF_NAME" ] || { echo "packages/$p is $v, tag is $GITHUB_REF_NAME"; exit 1; }
           done
+          grep -q "^## ${GITHUB_REF_NAME#v} " CHANGELOG.md || { echo "CHANGELOG.md has no section for ${GITHUB_REF_NAME#v}"; exit 1; }
       - run: uv build --package limbowatch --out-dir dist/core && uv build --package limbowatch-cli --out-dir dist/cli
-      - uses: actions/upload-artifact@v4
+      - run: uvx twine check --strict dist/core/* dist/cli/*
+      - name: The wheels install into a clean environment and run
+        run: |
+          uv venv /tmp/smoke
+          uv pip install --python /tmp/smoke/bin/python dist/core/*.whl dist/cli/*.whl
+          [ "$(/tmp/smoke/bin/limbowatch --version)" = "limbowatch ${GITHUB_REF_NAME#v}" ]
+      - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-path: "dist/*/*"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with: { name: dist, path: dist/ }
+
   publish-core:
     needs: build
     runs-on: ubuntu-latest
@@ -30,10 +46,11 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with: { name: dist, path: dist/ }
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with: { packages-dir: dist/core/ }
+
   publish-cli:
     needs: publish-core
     runs-on: ubuntu-latest
@@ -41,7 +58,27 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with: { name: dist, path: dist/ }
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with: { packages-dir: dist/cli/ }
+
+  github-release:
+    needs: publish-cli
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with: { name: dist, path: dist/ }
+      - name: Release with the changelog section as notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          awk -v v="$v" '$0 ~ "^## " v " " {on=1; next} /^## / && on {exit} on' CHANGELOG.md > notes.md
+          # shellcheck disable=SC2016 # the backticks are Markdown, not command substitution
+          printf '\n**Install:** `pipx install limbowatch-cli==%s` · [PyPI](https://pypi.org/project/limbowatch-cli/%s/) · provenance: `gh attestation verify <file> -R %s`\n' \
+            "$v" "$v" "$GITHUB_REPOSITORY" >> notes.md
+          gh release create "$GITHUB_REF_NAME" dist/core/* dist/cli/* --verify-tag --title "Limbowatch $v" --notes-file notes.md

@@ -6,13 +6,21 @@ license = "Apache-2.0"
 requires-python = ">=3.12"
 readme = "README.md"
 authors = [{ name = "Limbowatch contributors" }]
-keywords = ["security", "advisories", "ghsa", "osv", "dependencies", "supply-chain"]
+keywords = ["security", "advisories", "vulnerabilities", "ghsa", "osv", "sca", "dependencies", "supply-chain", "sarif", "cyclonedx"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "Programming Language :: Python :: 3",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: System Administrators",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+    "Typing :: Typed",
 ]
 dependencies = [
     "httpx>=0.27",
@@ -26,6 +34,8 @@ Homepage = "https://limbo.watch"
 Source = "https://github.com/limbowatch/limbowatch"
 Documentation = "https://github.com/limbowatch/limbowatch/blob/main/docs/WATCHER.md"
 Issues = "https://github.com/limbowatch/limbowatch/issues"
+Changelog = "https://github.com/limbowatch/limbowatch/blob/main/CHANGELOG.md"
+Tracker = "https://limbo.watch/tracker/"
 
 [build-system]
 requires = ["hatchling"]

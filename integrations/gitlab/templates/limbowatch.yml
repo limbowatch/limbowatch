@@ -1,8 +1,8 @@
 spec:
   description: >-
     Check dependencies against security advisories in limbo: published by maintainers on GitHub, not yet
-    in the databases scanners read. Code Quality report on every pipeline; optional issues from the
-    default branch.
+    in the databases scanners read. Merge requests get a Code Quality report and a test summary (all tiers)
+    and a link to the full report; optional issues from the default branch.
   inputs:
     stage:
       default: test
@@ -17,6 +17,10 @@ spec:
       default: true
       type: boolean
       description: Also fail for findings with no severity.
+    allow_failure:
+      default: false
+      type: boolean
+      description: Let the pipeline pass even when the job fails (findings still show in the merge request).
     issues:
       default: false
       type: boolean
@@ -43,6 +47,7 @@ spec:
 limbowatch:
   stage: $[[ inputs.stage ]]
   image: $[[ inputs.image ]]
+  allow_failure: $[[ inputs.allow_failure ]]
   variables:
     LW_OSV_VERSION: $[[ inputs.osv_scanner_version ]]
     LW_SOURCE: $[[ inputs.limbowatch_source ]]
@@ -77,9 +82,11 @@ limbowatch:
       chmod +x /usr/local/bin/osv-scanner
       src="${LW_SOURCE}/${LW_REF}.tar.gz"  # both packages from the same pinned source, never from PyPI by name
       pip install --quiet "limbowatch @ ${src}#subdirectory=packages/core" "limbowatch-cli @ ${src}#subdirectory=packages/cli"
-      set -- --cache .limbowatch-cache --state .limbowatch-cache/state.json \
-             --output codequality=gl-code-quality-report.json --output markdown=limbowatch.md \
-             --output json=limbowatch.json --fail-on "$LW_FAIL_ON"
+      # One scan, every report: the table in the job log, the rest in limbowatch/ (linked from the merge request).
+      set -- --cache .limbowatch-cache --state .limbowatch-cache/state.json --fail-on "$LW_FAIL_ON" -o table \
+             -o codequality=limbowatch/gl-code-quality-report.json -o junit=limbowatch/junit.xml \
+             -o html=limbowatch/report.html -o markdown=limbowatch/report.md -o json=limbowatch/report.json \
+             -o csv=limbowatch/report.csv -o cyclonedx=limbowatch/bom.cdx.json
       [ "$LW_FAIL_ON_UNKNOWN" = "true" ] || set -- "$@" --no-fail-on-unknown
       # Issues only from the default branch or a schedule, never from merge request pipelines.
       if [ "$LW_ISSUES" = "true" ] && { [ "${CI_COMMIT_BRANCH:-}" = "${CI_DEFAULT_BRANCH:-}" ] || [ "${CI_PIPELINE_SOURCE:-}" = "schedule" ]; }; then
@@ -89,7 +96,10 @@ limbowatch:
       limbowatch scan "$LW_PATH" "$@" $LW_EXTRA
   artifacts:
     when: always
+    # expose_as links the folder from the merge request; one link per job, trailing slash required (FINDINGS F-094)
+    expose_as: Limbowatch report
+    paths: [limbowatch/]
     reports:
-      codequality: gl-code-quality-report.json
-    paths: [limbowatch.md, limbowatch.json, gl-code-quality-report.json]
+      codequality: limbowatch/gl-code-quality-report.json
+      junit: limbowatch/junit.xml
     expire_in: 30 days

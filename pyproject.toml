@@ -34,6 +34,7 @@ ignore = ["RUF001", "RUF002", "RUF003"]
 
 [tool.ruff.lint.per-file-ignores]
 "packages/core/src/limbowatch/publish/site.py" = ["E501"]  # embedded HTML/CSS/JS template
+"packages/core/src/limbowatch/watch/output.py" = ["E501"]  # report templates (HTML, Markdown, XML)
 
 [tool.mypy]
 strict = true
@@ -62,7 +63,7 @@ forbidden_modules = ["limbowatch_cli"]
 [[tool.importlinter.contracts]]
 name = "Pure modules do no I/O"
 type = "forbidden"
-source_modules = ["limbowatch.versions", "limbowatch.classify", "limbowatch.normalize", "limbowatch.ecosystems", "limbowatch.models", "limbowatch.schedule"]
+source_modules = ["limbowatch.versions", "limbowatch.classify", "limbowatch.normalize", "limbowatch.ecosystems", "limbowatch.models", "limbowatch.schedule", "limbowatch.csvsafe", "limbowatch.watch.output"]
 forbidden_modules = ["httpx", "sqlalchemy", "limbowatch.http", "limbowatch.store", "limbowatch.sources"]
 allow_indirect_imports = true
 

@@ -63,7 +63,9 @@ def test_formats_carry_findings_unresolved_and_attribution() -> None:
     )
     text = output.table(r)
     assert "2 advisories in limbo affect 2 packages" in text and "HIGH?" in text  # ? marks a possible finding
-    assert "other/package-lock.json:3, package-lock.json:7" in text
+    assert "\nother/package-lock.json\n" in text and "\npackage-lock.json\n" in text  # one table per lockfile
+    assert "To fix: upgrade 2 packages" in text and "lodash  4.17.20 → 4.17.21" in text
+    assert text.rstrip().endswith("FAILED  3 findings at or above low (--fail-on low): 3 high.")
     assert "1 dependency can't be checked; 1 was checked by name only." in text
     assert output.ATTRIBUTION in text
     md = output.markdown(r)
@@ -87,7 +89,8 @@ def test_formats_carry_findings_unresolved_and_attribution() -> None:
 
 def test_fixed_version_for_the_release_line() -> None:
     f = finding(name="@sinclair/typebox", version="0.27.10", fixed="0.26.9, 0.27.12, 0.28.22")
-    assert "0.27.12 (for 0.27.x)" in output.table(report(f))
+    text = output.table(report(f))
+    assert "@sinclair/typebox  0.27.10 → 0.27.12" in text and "0.26.9" not in text
 
 
 def test_ignored_findings_are_listed_not_failed() -> None:
@@ -111,3 +114,76 @@ def test_machine_formats_give_paths_from_the_repo_root() -> None:
 def test_unchecked_line_agrees_in_number() -> None:
     assert output._unchecked_line(2, 0) == "2 dependencies can't be checked; 0 were checked by name only."
     assert output._unchecked_line(1, 1) == "1 dependency can't be checked; 1 was checked by name only."
+
+
+def test_upgrade_target_is_the_highest_fix_by_version_not_text() -> None:
+    a = finding(fixed="4.17.9", ghsa="GHSA-1111-1111-1111", version="4.17.8")
+    b = finding(fixed="4.17.10", ghsa="GHSA-2222-2222-2222", version="4.17.8")  # "4.17.10" < "4.17.9" as text
+    (u,) = output.upgrades(report(a, b))
+    assert u.to == "4.17.10" and u.fixed_by_to == 2 and u.advisories == ("GHSA-1111-1111-1111", "GHSA-2222-2222-2222")
+    c = finding(fixed="tbd", ghsa="GHSA-3333-3333-3333", version="4.17.8")
+    (u,) = output.upgrades(report(a, c))
+    assert u.to == "4.17.9" and u.fixed_by_to == 1 and "check the rest" in output._upgrade_note(u)
+
+
+def test_gate_follows_the_report_and_json_says_so() -> None:
+    r = report(finding(sev="low"), finding(name="qs", ghsa="GHSA-1111-2222-3333", sev="high"))
+    r.fail_on = "high"
+    assert r.failed and output.verdict(r) == (True, "1 finding at or above high (--fail-on high): 1 high.")
+    doc = json.loads(output.as_json(r))
+    assert doc["schema_version"] == 1 and doc["gate"] == {"fail_on": "high", "fail_on_unknown": True, "failed": True,
+                                                          "failing_findings": 1}  # fmt: skip
+    assert doc["summary"]["by_severity"] == {"critical": 0, "high": 1, "medium": 0, "low": 1, "unknown": 0}
+    assert [f["fails_build"] for f in doc["findings"]] == [True, False]
+    r.fail_on = "none"
+    assert output.verdict(r) == (False, "2 findings; --fail-on none never fails the build.")
+    assert output.verdict(report()) == (False, "No dependency is affected by an advisory in limbo.")
+
+
+def test_junit_fails_only_what_fails_the_build() -> None:
+    from xml.etree import ElementTree
+
+    r = report(finding(sev="low"), finding(name="qs", ghsa="GHSA-1111-2222-3333", sev="high"),
+               finding(name="ok", ghsa="GHSA-9999-9999-9999"), ignored={"GHSA-9999-9999-9999"})  # fmt: skip
+    r.fail_on = "high"
+    root = ElementTree.fromstring(output.junit(r))
+    assert (root.get("tests"), root.get("failures"), root.get("skipped")) == ("3", "1", "2")
+    (failure,) = root.iter("failure")
+    assert failure.get("type") == "high" and "upgrade qs to 4.17.21" in (failure.get("message") or "")
+    empty = ElementTree.fromstring(output.junit(report()))
+    assert (empty.get("tests"), empty.get("failures")) == ("1", "0")
+
+
+def test_csv_html_markdown_escape_maintainer_text() -> None:
+    page = output.as_html(report(finding(name="<script>x</script>")))
+    assert "<script>x" not in page and "&lt;script&gt;x" in page
+    md = output.markdown(report(finding(fixed="1.0 | see notes")))  # not plain versions: shown as entered
+    assert "1.0 \\| see notes" in md  # a raw pipe would split the table row
+    rows = output.as_csv(report(finding(fixed="=HYPERLINK(1)"))).removeprefix("\ufeff").splitlines()
+    assert rows[0].startswith("severity,fails_build,advisory") and "'=HYPERLINK(1)" in rows[1]
+
+
+def test_cyclonedx_links_each_vulnerability_to_its_components() -> None:
+    r = report(finding(), finding(name="qs", ghsa="GHSA-1111-2222-3333"),
+               finding(name="qs", ghsa="GHSA-aaaa-bbbb-cccc"))  # fmt: skip
+    doc = json.loads(output.cyclonedx(r))
+    assert doc["bomFormat"] == "CycloneDX" and doc["specVersion"] == "1.6"
+    refs = {c["bom-ref"] for c in doc["components"]}
+    assert refs == {"pkg:npm/lodash@4.17.20", "pkg:npm/qs@4.17.20"}
+    by_id = {v["id"]: v for v in doc["vulnerabilities"]}
+    assert sorted(by_id) == ["GHSA-1111-2222-3333", "GHSA-aaaa-bbbb-cccc"]
+    assert {a["ref"] for a in by_id["GHSA-aaaa-bbbb-cccc"]["affects"]} == refs
+    assert all(a["ref"] in refs for v in doc["vulnerabilities"] for a in v["affects"])
+
+
+def test_github_annotations_escape_properties() -> None:
+    f = finding(source="a,b/package-lock.json")
+    (line,) = output.github(report(f)).splitlines()
+    assert line.startswith("::error file=a%2Cb/package-lock.json,line=7,title=GHSA-aaaa-bbbb-cccc (high)%3A lodash")
+
+
+def test_colour_only_when_asked() -> None:
+    r = report(finding())
+    assert "\x1b[" not in output.table(r)
+    coloured = output.table(r, paint=output.Paint(color=True, links=True))
+    assert "\x1b[31mHIGH" in coloured and "\x1b]8;;https://github.com/o/r/security/advisories/" in coloured
