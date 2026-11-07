@@ -145,6 +145,7 @@ async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any) -> None:
     m = metrics(store, datetime(2099, 1, 2, tzinfo=UTC))
     assert m["in_limbo"]["count"] == 1
     assert m["left_limbo"]["reviewed"] == 1
+    assert sum(m["coverage"]["by_source"].values()) >= m["coverage"]["watchlist_repos"] > 0  # every repo has a reason
 
     # the feed: OSV-schema records for what's in limbo, factual fields only
     records, zipped = feed.build(items(store), m["generated_at"])

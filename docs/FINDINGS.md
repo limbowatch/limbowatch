@@ -1127,6 +1127,17 @@ Answered:
 - **Caveats:** Catalog search and `~latest` may prefer full releases; pin the alpha version explicitly.
 - **Implication:** The alpha is installable as `pipx install limbowatch-cli==0.1.0a1`, `limbowatch/limbowatch/integrations/action@v0.1.0a1` and `limbowatch-component/limbowatch@0.1.0-alpha.1`; both demos now use these.
 
+### F-098
+- **Date:** 2026-11-07 · **Status:** tentative (one month of tracker data; GitHub's figure is from June 2026)
+- **Question:** How much of GitHub's repository-advisory volume does the tracker see, and where does what it sees come from?
+- **Method:** Tracker state at the 2026-11-06 14:35 UTC run (`tracker-data` branch): `repos.jsonl` (`sources` per repo, poll status, advisory count) and `advisories.jsonl` (`published_at`, all ecosystems). Weekly volume compared with GitHub's statement in F-035 ("more than 5,000/week").
+- **Result:**
+  - Watchlist 18,678 repos, all polled at least once (200: 13,430; 304: 4,968; 404: 280). By source (a repo can have several): dependencies of the 100 most-starred projects 12,406 (7,538 only from there); upstreams of the October report's projects 5,613 (965 only); named in a GitHub-assigned CVE 5,037 (2,242 only); origin of a reviewed advisory 3,617 (783 only).
+  - 5,571 watched repos have at least one published advisory, 43,044 advisories in all. By the source of their repo: GitHub-assigned CVEs 36,276, reviewed-advisory origins 27,313, top-100 dependencies 4,251, October-report upstreams 2,704 (overlapping).
+  - Newly published advisories seen, all ecosystems: 1,188 in the 7 days to 2026-11-06, 2,496 in 14 days, 4,507 in 28 days: about 1,100 to 1,250 a week. Against GitHub's "more than 5,000/week", that is roughly **1 in 4**.
+- **Caveats:** GitHub's figure is from June 2026 and may count differently (for example, advisories later withdrawn). Repos checked every 3 to 7 days add new advisories late, so the latest week is undercounted. Coverage of what real projects depend on is much higher than 1 in 4: the October projects' upstreams were almost all watched (F-085).
+- **Implication:** Most advisories are found through earlier advisory activity (CVEs GitHub assigned, reviewed advisories), not through the dependency seeds. The blind spot is a repo whose first advisory has no CVE and isn't reviewed yet. The site states the watchlist by source and this estimate, with its date.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

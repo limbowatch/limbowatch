@@ -134,6 +134,8 @@ def metrics(store: Store, now: datetime | None = None) -> dict[str, Any]:
             "on_schedule": on_schedule,
             "by_schedule": {t.value: tiers.get(t.value, 0) for t in schedule.Tier},
             "repos_with_advisories": sum(1 for r in repos if r.advisory_count),
+            # why repos are on the watchlist; a repo can have several reasons (FINDINGS F-098)
+            "by_source": dict(Counter(src for r in repos for src in set(r.sources or [])).most_common()),
             "reviewed_advisories_known": len(reviewed),
             "note": "Every number is a floor: only repositories on the watchlist are seen.",
         },
@@ -159,6 +161,9 @@ def metrics(store: Store, now: datetime | None = None) -> dict[str, Any]:
                 if not i.assessment.likely_permanent and i.adv.published_at and week <= i.adv.published_at <= end
             ),
             "ends_at": end.replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+            "published_all_ecosystems": sum(
+                1 for i in all_items if i.adv.published_at and week <= i.adv.published_at <= end
+            ),
             "left": len(left_week),
             "reviewed": sum(1 for e in left_week if e.event == "in limbo -> reviewed"),
             "note": "Advisories newly published in watched repos, in ecosystems GitHub reviews, against advisories "

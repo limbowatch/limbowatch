@@ -1649,8 +1649,30 @@ months invisible to scanners. Not affiliated with GitHub, OSV, MITRE or NIST.</l
     )
 
 
+WATCH_SOURCES = [
+    ("github-cna-cve", "Named in a CVE that GitHub assigned", "GitHub’s CNA publishes CVEs for repository advisories; the CVE List shows which repository"),
+    ("reviewed-origin", "Origin of a reviewed advisory", "Every advisory in GitHub’s reviewed database that came from a repository"),
+    ("seed:top100-upstreams", "Dependency of a top-100 project", "Source repositories of the dependencies of the 100 most-starred GitHub projects with a lockfile"),
+    ("seed:popular-upstreams", "Dependency of an October-report project", "Source repositories of the dependencies of the 15 projects we measured in October"),
+]  # fmt: skip
+
+
 def methodology(m: dict[str, Any]) -> str:
     cov, flow = m["coverage"], m.get("flow_7d") or {}
+    by_source = cov.get("by_source") or {}
+    flow_end = (flow.get("ends_at") or m["generated_at"])[:10]
+    watch_table = (
+        '<table class="eco"><thead><tr><th scope="col">Why a repository is watched</th><th scope="col" class="n">Repositories</th>'
+        "</tr></thead><tbody>"
+        + "".join(
+            f'<tr><th scope="row">{E(label)}<small class="muted" style="display:block;font-weight:400">{E(why)}</small></th>'
+            f'<td class="n">{by_source.get(key, 0):,}</td></tr>'
+            for key, label, why in WATCH_SOURCES
+        )
+        + '</tbody></table><p class="muted small">A repository can be on the list for several reasons, so these add up to more '
+        "than the total. Repositories found through earlier advisory activity (the first two rows) publish most of the "
+        "advisories we see.</p>"
+    )
     sections = [
         ("limbo", "What “in limbo” means", """<p>An advisory is in limbo when all of these are true:</p><ul>
 <li>A maintainer has published it as a GitHub repository security advisory.</li>
@@ -1672,14 +1694,24 @@ other CNAs published that point to an advisory.</li>
 <li><strong>The NVD API</strong>, for NVD’s status. This product uses the NVD API but is not endorsed or certified by the NVD.</li></ul>
 <p>Facts are recorded only when they change, and each change is kept as an event, so every advisory page shows its history.</p>"""),
         ("coverage", "Coverage: every number is a floor", f"""<p>GitHub has no public list of every repository advisory,
-so Limbowatch watches a list of repositories: {cov["watchlist_repos"]:,} today. It includes every repository where a
-reviewed advisory originated, the dependencies of the 100 most-starred GitHub projects and of the projects in our
-October report, and repositories named in CVEs GitHub assigned.</p><ul>
+and an advisory waiting for review isn’t in its global database, not even as “unreviewed” (FINDINGS F-012). So
+Limbowatch can only see the repositories it checks: {cov["watchlist_repos"]:,} today, chosen by this logic:</p>
+{watch_table}
+<ul>
+<li>Once a repository is on the list it stays, and every advisory it publishes is tracked.</li>
 <li>Repositories with an advisory in limbo are re-checked daily, those with other advisories every 3 days, and the rest weekly.
-{cov["on_schedule"]:,} are up to date on that schedule right now.</li>
-<li>An advisory in a repository nobody watches isn’t counted. The real numbers are higher.</li>
-<li>When the watchlist grows, older advisories are found for the first time. The daily report separates these from newly
-published ones, so coverage growth isn’t mistaken for new limbo.</li></ul>"""),
+{cov["on_schedule"]:,} are up to date on that schedule right now. Unchanged repositories cost nothing to re-check.</li>
+<li>The full list is public: <a href="/feed/repos.txt">repos.txt</a> (those with advisories) and
+<a href="/feed/watchlist.json">watchlist.json</a> (every repository, with when it was last checked).</li></ul>
+<p><strong>How much that covers.</strong> In the {flow.get("days", 7)} days to {flow_end}, the tracker saw
+{flow.get("published_all_ecosystems", 0):,} newly published advisories, in every ecosystem. GitHub said in June 2026 that it
+receives more than 5,000 repository advisories a week, so Limbowatch sees roughly one in four of everything published
+(FINDINGS <a href="{FINDINGS_URL}#f-098">F-098</a>, an estimate). Coverage of what real projects depend on is far
+higher: the upstreams of the projects in our October report were almost all already watched
+(<a href="{FINDINGS_URL}#f-085">F-085</a>).</p>
+<p><strong>What it can’t see.</strong> A repository whose first advisory has no CVE, hasn’t been reviewed, and isn’t a
+dependency of a project we follow. It appears once a CVE or a review reveals it. When the list grows, older advisories are
+found for the first time; the daily report counts these separately, so coverage growth isn’t mistaken for new limbo.</p>"""),
         ("flow", "The weekly flow", f"""<p>“Published in the last 7 days” counts advisories whose maintainer published them in
 that window, in watched repositories and ecosystems GitHub reviews: {flow.get("published", 0):,} this week. “Reviewed”
 counts advisories that left limbo in the same window because GitHub reviewed them: {flow.get("reviewed", 0):,}.
