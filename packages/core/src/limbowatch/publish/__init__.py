@@ -119,9 +119,11 @@ def metrics(store: Store, now: datetime | None = None) -> dict[str, Any]:
     ]
     rbp = [i for i in limbo if i.assessment.cve_label.name == "RESERVED"]
     # The last 7 days in reviewable ecosystems: newly published advisories against advisories that left limbo.
-    week = now - timedelta(days=FLOW_DAYS)
+    # The window ends at the last tracker run, not at publish time: nothing newer has been looked at yet.
+    end = min(now, _at(runs[0].finished_at)) if runs and runs[0].finished_at else now
+    week = end - timedelta(days=FLOW_DAYS)
     reviewable_ids = {i.adv.ghsa_id for i in all_items if not i.assessment.likely_permanent}
-    left_week = [e for e in exits if e.ghsa_id in reviewable_ids and _at(e.at) >= week]
+    left_week = [e for e in exits if e.ghsa_id in reviewable_ids and week <= _at(e.at) <= end]
     sev = Counter(i.adv.severity or "unknown" for i in limbo)
     return {
         "generated_at": now.replace(microsecond=0).isoformat().replace("+00:00", "Z"),
@@ -154,8 +156,9 @@ def metrics(store: Store, now: datetime | None = None) -> dict[str, Any]:
             "published": sum(
                 1
                 for i in all_items
-                if not i.assessment.likely_permanent and i.adv.published_at and i.adv.published_at >= week
+                if not i.assessment.likely_permanent and i.adv.published_at and week <= i.adv.published_at <= end
             ),
+            "ends_at": end.replace(microsecond=0).isoformat().replace("+00:00", "Z"),
             "left": len(left_week),
             "reviewed": sum(1 for e in left_week if e.event == "in limbo -> reviewed"),
             "note": "Advisories newly published in watched repos, in ecosystems GitHub reviews, against advisories "

@@ -1359,6 +1359,8 @@ def press(items: list[Item], m: dict[str, Any], now: datetime) -> str:
     li, perm, flow = m["in_limbo"], m["likely_permanent"], m.get("flow_7d") or {}
     sev = li["by_severity"]
     date = now.strftime("%-d %B %Y")
+    ends = flow.get("ends_at")
+    flow_date = datetime.fromisoformat(ends.replace("Z", "+00:00")).strftime("%-d %B %Y") if ends else date
     pend = pending(items)
     ages = [a for i in pend if (a := days_since(i.adv.published_at, now)) is not None]
     cols, undated = queue_cols(pend, now)
@@ -1366,7 +1368,7 @@ def press(items: list[Item], m: dict[str, Any], now: datetime) -> str:
         (f"On {date}, <strong>{li['count']:,}</strong> security advisories published by maintainers on GitHub were waiting "
          f"for GitHub’s review, invisible to scanners that read GitHub’s Advisory Database or OSV. "
          f"{sev['critical'] + sev['high']:,} are rated critical or high.", "/tracker/", "Live tracker"),
-        (f"In the {flow.get('days', 7)} days to {date}, maintainers published <strong>{flow.get('published', 0):,}</strong> "
+        (f"In the {flow.get('days', 7)} days to {flow_date}, maintainers published <strong>{flow.get('published', 0):,}</strong> "
          f"new advisories in the repositories we watch. GitHub reviewed <strong>{flow.get('reviewed', 0):,}</strong> of "
          "the ones waiting.", "/methodology/#flow", "How the weekly flow is counted"),
         (f"The advisories in limbo have waited a median of <strong>{fmt_days(li['age_days_median'])}</strong> so far. "
