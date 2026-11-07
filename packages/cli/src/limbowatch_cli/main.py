@@ -98,6 +98,9 @@ def track(
     seed: Annotated[list[Path] | None, typer.Option(help="Seed file(s): one owner/repo per line.")] = None,
     budget: Annotated[int, typer.Option(help="Max GitHub requests this run (304s are free).")] = 4000,
     minutes: Annotated[float, typer.Option(help="Wall-clock limit for the run.")] = 50,
+    max_new: Annotated[
+        int | None, typer.Option(help="First-time polls per run, so a large seed list can't starve due re-checks.")
+    ] = None,
     nvd: Annotated[bool, typer.Option(help="Look up NVD status for published CVEs.")] = True,
     max_nvd: Annotated[int, typer.Option(help="NVD lookups per run.")] = 150,
     cve_list: Annotated[
@@ -108,7 +111,8 @@ def track(
     """Run the tracker once: sync reviews and CVEs, poll repos within the budget, record changes."""
     logging.basicConfig(level=logging.INFO if verbose else logging.WARNING, format="%(levelname)s %(name)s %(message)s")
     store = _load(state)
-    cfg = TrackerConfig(seeds=seed or [], nvd=nvd, max_nvd=max_nvd, checkpoint=lambda: store.export_jsonl(state))
+    cfg = TrackerConfig(seeds=seed or [], nvd=nvd, max_nvd=max_nvd, checkpoint=lambda: store.export_jsonl(state),
+                        max_new=max_new)  # fmt: skip
 
     if cve_list is not None:
         with tempfile.TemporaryDirectory() as tmp:

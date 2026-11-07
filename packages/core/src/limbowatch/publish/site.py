@@ -1654,6 +1654,7 @@ WATCH_SOURCES = [
     ("reviewed-origin", "Origin of a reviewed advisory", "Every advisory in GitHub’s reviewed database that came from a repository"),
     ("seed:top100-upstreams", "Dependency of a top-100 project", "Source repositories of the dependencies of the 100 most-starred GitHub projects with a lockfile"),
     ("seed:popular-upstreams", "Dependency of an October-report project", "Source repositories of the dependencies of the 15 projects we measured in October"),
+    ("seed:top-packages", "Source of a most-used package", "The top packages of npm, PyPI, Go, Maven, crates.io, NuGet, RubyGems and Packagist by dependent repositories, ranked by ecosyste.ms"),
 ]  # fmt: skip
 
 
@@ -1702,7 +1703,12 @@ Limbowatch can only see the repositories it checks: {cov["watchlist_repos"]:,} t
 <li>Repositories with an advisory in limbo are re-checked daily, those with other advisories every 3 days, and the rest weekly.
 {cov["on_schedule"]:,} are up to date on that schedule right now. Unchanged repositories cost nothing to re-check.</li>
 <li>The full list is public: <a href="/feed/repos.txt">repos.txt</a> (those with advisories) and
-<a href="/feed/watchlist.json">watchlist.json</a> (every repository, with when it was last checked).</li></ul>
+<a href="/feed/watchlist.json">watchlist.json</a> (every repository, with when it was last checked). Because it includes
+repositories chosen from <a href="https://ecosyste.ms">ecosyste.ms</a> package rankings, those two files are licensed
+CC BY-SA 4.0; advisory data stays CC BY 4.0.</li>
+<li>The most-used packages are being added in stages: the top 1,000 per ecosystem from 7 November 2026, then the top 10,000
+(FINDINGS <a href="{FINDINGS_URL}#f-099">F-099</a>). A run checks at most 2,500 new repositories, so the daily re-checks
+keep their turn.</li></ul>
 <p><strong>How much that covers.</strong> In the {flow.get("days", 7)} days to {flow_end}, the tracker saw
 {flow.get("published_all_ecosystems", 0):,} newly published advisories, in every ecosystem. GitHub said in June 2026 that it
 receives more than 5,000 repository advisories a week, so Limbowatch sees roughly one in four of everything published

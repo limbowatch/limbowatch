@@ -315,3 +315,4 @@ Recommended defaults are in bold.
     2. **Watcher completeness:** repo mapping for Composer (Packagist), Hex, Pub and Swift (ecosyste.ms), a Maven `<scm>` fallback, and the missing comparators.
     3. **Org-wide mode** (§13.7): a GitLab group or Gitea org with shared polling.
     4. **A container image** with OSV-Scanner built in.
+12. **Decided 2026-11-07 (step 1):** the watchlist grows by the source repos of the most-used packages per ecosystem (F-099): the top 1,000 now (`tracker/seeds/top-packages.txt`, 5,797 repos, 3,342 new), the top 10,000 next, the top 50,000 only if the 10,000 prove worth it. The ranking is ecosyste.ms data (CC BY-SA 4.0): the seed file and the published watchlist (`feed/repos.txt`, `feed/watchlist.json`) are licensed CC BY-SA 4.0 with attribution; the feed and other advisory data stay CC BY 4.0. A run polls at most 2,500 never-checked repos (`--max-new`), so the daily re-checks aren't starved.

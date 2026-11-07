@@ -12,8 +12,9 @@ repo gets a target interval from what it has published:
 A run checks only repos that are due, most overdue first, where "overdue" is time since the
 last check divided by the target interval. When the budget can't cover everything that's due,
 every tier slows down by the same factor instead of the quiet repos never being checked.
-Never-checked repos rank above anything merely due, so a new seed list is covered within days
-without starving the daily tier.
+Never-checked repos rank above anything merely due, so a new seed list is covered within days. A
+large list is capped per run (`TrackerConfig.max_new`, `limbowatch track --max-new`), so its first
+polls can't use the whole budget and starve the daily tier.
 """
 
 from __future__ import annotations

@@ -24,6 +24,13 @@ ATTRIBUTION = (
     "(this product uses the NVD API but is not endorsed or certified by the NVD). "
     "Compiled by Limbowatch (https://limbo.watch), CC BY 4.0."
 )
+# The watchlist includes repos chosen from ecosyste.ms package rankings (CC BY-SA 4.0), so the two files that list it
+# carry that license and attribution (PHASE0_PLAN §13.12); advisory data stays CC BY 4.0.
+WATCHLIST_LICENSE = "CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)"
+WATCHLIST_ATTRIBUTION = (
+    "includes source repositories of the most-used packages per ecosystem, ranked by ecosyste.ms "
+    "(https://ecosyste.ms, CC BY-SA 4.0)."
+)
 AGE_BUCKETS = [
     ("< 3 days", 0, 3),
     ("3–7 days", 3, 7),
@@ -216,7 +223,8 @@ def repos_with_advisories(store: Store, generated_at: str) -> str:
         f"# From the limbo.watch tracker's watchlist of {len(repos):,} repositories; {len(names):,} listed.\n"
         f"# Generated {generated_at}, refreshed daily. Repos the tracker doesn't watch are missing.\n"
         "# Names as polled, lower case; a renamed repo may appear under its old name.\n"
-        "# Facts only, no advisory or CVE IDs. CC BY 4.0, Limbowatch (https://limbo.watch).\n"
+        "# Facts only, no advisory or CVE IDs. Limbowatch (https://limbo.watch). The list includes repos chosen from\n"
+        f"# ecosyste.ms package rankings, so it is licensed {WATCHLIST_LICENSE}.\n"
     )
     return head + "".join(f"{n}\n" for n in names)
 
@@ -229,4 +237,5 @@ def watchlist(store: Store, generated_at: str) -> dict[str, Any]:
     with store.session() as s:
         repos = list(s.execute(select(Repo)).scalars())
     checked = {r.full_name.lower(): r.last_polled_at for r in repos if r.last_polled_at and r.poll_status in (200, 304)}
-    return {"generated_at": generated_at, "repos": dict(sorted(checked.items())), "attribution": ATTRIBUTION}
+    return {"generated_at": generated_at, "repos": dict(sorted(checked.items())), "license": WATCHLIST_LICENSE,
+            "attribution": f"{ATTRIBUTION} Watchlist: {WATCHLIST_ATTRIBUTION}"}  # fmt: skip

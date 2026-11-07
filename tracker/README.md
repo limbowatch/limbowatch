@@ -37,6 +37,7 @@ A daily job that counts published GitHub security advisories still **in limbo**:
 ## Seeds
 
 - `seeds/popular-upstreams.txt`: upstream repos of the 15 projects in the October report.
+- `seeds/top-packages.txt`: source repos of the most-used packages per ecosystem (npm, PyPI, Go, Maven, crates.io, NuGet, RubyGems, Packagist), ranked by dependent repositories on ecosyste.ms (F-099). Regenerate with `uv run tracker/seeds/make_top_packages.py --top 1000` (10000 next). The ranking is CC BY-SA 4.0, so this file and the published watchlist files are too. A run polls at most `--max-new` never-checked repos (2,500 in CI), so a large list can't starve the daily re-checks.
 - `seeds/top100-upstreams.txt`: upstream repos of the dependencies of `seeds/top100-projects.txt`, the 100 most-starred GitHub repos with a readable lockfile (FINDINGS F-063). To regenerate:
 
 ```sh

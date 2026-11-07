@@ -43,6 +43,9 @@ class TrackerConfig:
     max_nvd: int = 150  # NVD lookups per run (6.5 s each without an API key)
     checkpoint: Callable[[], None] | None = None  # persist state; called after each step and every 500 polls
     checkpoint_every: int = 500
+    # First-time polls per run. Never-checked repos outrank anything merely due, so a large seed list would
+    # otherwise use the whole budget for days and starve the daily re-checks of repos with advisories in limbo.
+    max_new: int | None = None
 
 
 @dataclass
@@ -190,7 +193,12 @@ class Tracker:
             )
             for r in repos
         ]
-        return [by_name[n] for n in schedule.due_order(scores)]
+        order = [by_name[n] for n in schedule.due_order(scores)]
+        if self.cfg.max_new is None:
+            return order
+        new = [r for r in order if r.last_polled_at is None][: self.cfg.max_new]
+        keep = {r.full_name for r in new}
+        return [r for r in order if r.last_polled_at is not None or r.full_name in keep]
 
     async def poll(self, report: RunReport) -> None:
         queue: asyncio.Queue[Repo] = asyncio.Queue()
