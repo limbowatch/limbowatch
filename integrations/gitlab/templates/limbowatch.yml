@@ -1,8 +1,8 @@
 spec:
+  # GitLab rejects a spec description over 256 characters (FINDINGS F-095); tests/test_integrations.py checks it.
   description: >-
-    Check dependencies against security advisories in limbo: published by maintainers on GitHub, not yet
-    in the databases scanners read. Merge requests get a Code Quality report and a test summary (all tiers)
-    and a link to the full report; optional issues from the default branch.
+    Find dependencies affected by security advisories in limbo, not yet in the databases scanners read.
+    Code Quality, a test summary and a report link in merge requests; optional issues.
   inputs:
     stage:
       default: test
