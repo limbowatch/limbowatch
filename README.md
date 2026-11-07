@@ -9,9 +9,37 @@
 
 **Published. Not reviewed. Not scanned. In limbo.**
 
-Limbowatch measures, and will help close, the gap between a maintainer publishing a security advisory and your scanner being able to see it.
+Limbowatch measures the gap between a maintainer publishing a security advisory and your scanner being able to see it, and closes it in your CI.
 
 When a maintainer publishes a security advisory in their GitHub repository, Dependabot, npm audit, OSV-Scanner and most other dependency scanners stay silent until GitHub reviews that advisory into its global Advisory Database. Until then, the advisory is **in limbo**: public, usually already fixed upstream, and invisible to the tools teams rely on.
+
+## Scan your project
+
+`limbowatch scan` checks your lockfiles against every advisory in limbo and shows what it finds where your team already looks: GitLab merge requests (Code Quality), GitHub pull requests (code scanning), and issues in GitLab, Gitea or Forgejo.
+
+```yaml
+# GitLab CI
+include:
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0
+    inputs:
+      fail_on: high
+```
+
+```yaml
+# GitHub, Gitea or Forgejo Actions
+- uses: actions/checkout@v4
+- uses: limbowatch/limbowatch/integrations/action@v0.1.0
+  with:
+    fail-on: high
+    sarif: limbowatch.sarif
+```
+
+What it finds, measured 2026-11-05 and 11-06 against the live feed:
+
+- **269 affected package-versions in 13 of 14 popular projects** (GitLab alone 125), which scanners reading GitHub's database or OSV report as clean. Of 657 findings checked live, none was contradicted.
+- **16 vs 0 on a demo app** with real npm, Go, pip and Bundler lockfiles: Limbowatch found 16 advisories in limbo; OSV-Scanner reported none of them. See the [demo pull request](https://github.com/limbowatch/demo-app/pull/1): 51 new alerts, inline on the line that adds the package.
+
+Guide: [docs/WATCHER.md](docs/WATCHER.md) · [limbo.watch/scan](https://limbo.watch/scan/). Version 0.1.0 is being released to PyPI and the GitLab CI/CD Catalog; until then, install from GitHub as the guide shows.
 
 ## Why this exists
 

@@ -34,6 +34,9 @@ It can keep one issue per finding up to date in GitLab or Gitea/Forgejo.
 
 ```sh
 pipx install limbowatch-cli     # or: uv tool install limbowatch-cli, or pip install limbowatch-cli
+# before 0.1.0 is on PyPI:
+# uv tool install "limbowatch-cli @ git+https://github.com/limbowatch/limbowatch#subdirectory=packages/cli" \
+#   --with "limbowatch @ git+https://github.com/limbowatch/limbowatch#subdirectory=packages/core"
 # needs OSV-Scanner 2.7.0 on PATH: https://google.github.io/osv-scanner/installation/
 
 limbowatch inventory .                       # what would be checked, and what can't be

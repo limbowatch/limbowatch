@@ -323,7 +323,8 @@ def mark(stroke: str, dot: str, size: int = 30) -> str:
 
 
 def header(active: str, dark: bool = False) -> str:
-    links = [("tracker", "/tracker/", "Tracker"), ("feed", "/feed/", "Feed"), ("report", "/#report", "October report"),
+    links = [("tracker", "/tracker/", "Tracker"), ("scan", "/scan/", "Scan your project"), ("feed", "/feed/", "Feed"),
+             ("report", "/#report", "October report"),
              ("about", "/#about", "About"), ("why", "/why/", "Why"), ("", REPO_URL, "GitHub ↗")]  # fmt: skip
     current = ' aria-current="page"'
     nav = "".join(
@@ -479,7 +480,7 @@ OSV-Scanner report nothing.</span></li>
 <li class="seen"><b aria-hidden="true"></b><strong>Scanners see it</strong><span>via OSV, hours later</span></li></ol>
 <p class="tl-foot">A CVE can arrive before, after, or never. We track it separately.</p></figure>
 <div class="ctas"><a class="btn light" href="/tracker/">See all {li["count"]:,} in limbo</a>
-<a class="btn ghost" href="/feed/">Add the feed to your scanner</a></div>
+<a class="btn ghost" href="/scan/">Scan your project</a></div>
 </section></div>
 <div class="strip"><div class="wrap"><span><strong>Every number is a floor.</strong> We watch {cov["watchlist_repos"]:,} upstream
 repositories; {cov["on_schedule"]:,} are up to date. Repos with an advisory in limbo are re-checked daily, the rest every 3 to 7 days.</span>
@@ -496,13 +497,14 @@ GitHub’s reviewed database nor OSV.</p></div>
 <div><div class="n">105</div><p>affected package-versions shipped by <strong>13 of 14</strong> projects, which OSV-Scanner reported as clean.</p></div></div>
 <a class="more" href="{REPORT_URL}">Read the full report →</a></section>
 <section class="wrap s"><h2>Close the gap in your own pipeline</h2><div class="cards3">
+<div class="card"><h3>Scan your project in CI</h3><p>The Limbowatch watcher checks your lockfiles against every advisory in
+limbo and shows the result in merge requests, pull requests and issues. GitLab, GitHub, Gitea and Forgejo.</p>
+<pre>limbowatch scan .</pre><a class="more" href="/scan/">How to set it up →</a></div>
 <div class="card"><h3>Scan with the limbo feed</h3><p>Every advisory in limbo as OSV-schema records, rebuilt daily. Feed it to the tools that already read OSV.</p>
 <pre>curl -O https://limbo.watch/feed/all.zip</pre><a class="more" href="/feed/">Feed docs →</a></div>
-<div class="card"><h3>Get the daily report</h3><p>What entered limbo, what left it and which CVEs changed, every morning.
-Subscribe to the GitHub issue to get it by email.</p><a class="btn line" href="{ISSUE_URL}">Subscribe on GitHub</a></div>
-<div class="card"><h3>Maintainers: get out of limbo faster</h3><p>Request a CVE when you publish, and fill in both the affected range
-and the fixed version. Review goes faster when both are there.</p><a class="more" href="/#about">How it works →</a></div>
-</div></section>
+</div><p class="sub" style="margin-top:24px">Daily report: what entered limbo, what left it and which CVEs changed.
+<a href="{ISSUE_URL}">Subscribe on GitHub</a>. Maintainers: request a CVE when you publish, and give both the affected range
+and the fixed version.</p></section>
 <section class="wrap s" id="about"><div class="about"><h2 class="sm">How it works</h2><div>
 <p>Every day, Limbowatch checks the published advisories of the upstream repositories behind popular open-source projects:
 the dependencies of the 100 most-starred GitHub projects, of the projects in our October report, and of every repository
@@ -809,6 +811,80 @@ have <span class="mono">name_valid: false</span>. Each record’s <span class="m
     )
 
 
+# --- scan: the watcher -----------------------------------------------------------------------------
+
+DEMO_PR = "https://github.com/limbowatch/demo-app/pull/1"
+WATCHER_DOC = f"{REPO_URL}/blob/main/docs/WATCHER.md"
+
+
+def scan(m: dict[str, Any]) -> str:
+    li = m["in_limbo"]
+    body = f"""<header class="top">{header("scan")}</header>
+<main class="wrap">
+<div style="padding-top:48px"><p class="eyebrow">The Limbowatch watcher · open source · GitLab, GitHub, Gitea, Forgejo</p>
+<h1 class="page">Find what your scanner can’t see yet.</h1>
+<p class="sub" style="max-width:720px;font-size:18px"><span class="mono">limbowatch scan</span> checks your lockfiles against
+all {li["count"]:,} advisories in limbo, the ones Dependabot, npm audit and OSV-Scanner don’t report yet, and shows what it
+finds where your team already looks: the merge request, the pull request, the issue tracker.</p></div>
+
+<section class="s" style="padding-top:40px"><h2>What it finds</h2><div class="facts3">
+<div><div class="n">269</div><p>affected package-versions in <strong>13 of 14</strong> popular projects, GitLab alone 125, that
+scanners reading GitHub’s database or OSV report as clean. Checked live: 630 of 657 findings in the advisory’s current
+range, 12 possible, <strong>none contradicted</strong>.</p></div>
+<div><div class="n">16 vs 0</div><p>on a demo app with real npm, Go, pip and Bundler lockfiles: Limbowatch found 16 advisories
+in limbo in six packages (undici, rack, nokogiri, pgx, chi, dnspython). OSV-Scanner reported <strong>none of them</strong>.</p></div>
+<div><div class="n">51</div><p>new findings flagged when a change adds one affected package: in GitLab’s merge request
+widget, and on GitHub inline on the changed lockfile line.</p></div></div>
+<p class="sub">Measured 2026-11-05 and 2026-11-06 against the live feed; every advisory checked against GitHub and OSV.
+<a href="{DEMO_PR}">See the pull request →</a></p></section>
+
+<section class="s"><h2>Where findings show up</h2><div class="cards3">
+<div class="card"><h3>GitLab merge requests</h3><p>A CI/CD component writes a Code Quality report, which works on every GitLab
+tier: “Code Quality scans found 51 new findings”. Optionally, one confidential issue per finding, updated when a CVE is
+assigned and closed when you upgrade.</p></div>
+<div class="card"><h3>GitHub pull requests</h3><p>The action writes SARIF, so findings become code scanning alerts, annotated on
+the lockfile line a pull request changes, and a table in the job summary.</p></div>
+<div class="card"><h3>Gitea and Forgejo</h3><p>The same action runs on Gitea and Forgejo Actions, and keeps one issue per
+finding up to date. It won’t open issues in a public repo unless you allow it.</p></div></div></section>
+
+<section class="s"><h2>Use it</h2><ol class="steps" style="display:flex;flex-direction:column;gap:20px;max-width:860px">
+<li><span class="num">1</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">GitLab CI</p>
+<pre>include:
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0
+    inputs:
+      fail_on: high</pre></div></li>
+<li><span class="num">2</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">GitHub, Gitea or Forgejo Actions</p>
+<pre>- uses: actions/checkout@v4
+- uses: limbowatch/limbowatch/integrations/action@v0.1.0
+  with:
+    fail-on: high
+    sarif: limbowatch.sarif</pre></div></li>
+<li><span class="num">3</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">On your machine</p>
+<pre>pipx install limbowatch-cli      # needs OSV-Scanner 2.7.0
+limbowatch scan .</pre>
+<p class="ink2" style="margin:10px 0 10px;font-size:15px">Version 0.1.0 is being released. Until it’s on PyPI and in
+the GitLab CI/CD Catalog, install from GitHub:</p>
+<pre>uv tool install "limbowatch-cli @ git+{REPO_URL}#subdirectory=packages/cli" \\
+  --with "limbowatch @ git+{REPO_URL}#subdirectory=packages/core"</pre>
+<p class="ink2" style="margin:10px 0 0;font-size:15px"><a href="{WATCHER_DOC}">Full guide →</a></p></div></li></ol></section>
+
+<section class="s"><div class="note" style="max-width:860px"><h3>What it does, and what it doesn’t</h3><ul>
+<li>Reads lockfiles with OSV-Scanner, offline. The feed is downloaded whole, so limbo.watch learns nothing about your project.</li>
+<li>Never drops a dependency. A range-only requirement, a git install or an unreadable lockfile is listed with the reason.</li>
+<li>It’s a head start. Most of these advisories are reviewed eventually, after weeks; then your usual scanner reports them and
+Limbowatch notes that they’re visible. In ecosystems GitHub doesn’t review, the wait may never end.</li>
+<li>Ranges are as entered by maintainers and haven’t been reviewed. A range that contradicts its own fix is reported as
+possible, never silently passed.</li>
+<li>Large projects need a read-only GitHub token, to check the upstream repos the tracker doesn’t watch.</li>
+</ul></div></section></main>
+{footer()}"""
+    return page(
+        "Scan your project · limbo.watch",
+        "Check your dependencies against security advisories your scanner can’t see yet, in GitLab, GitHub, Gitea or Forgejo CI.",
+        body,
+    )
+
+
 # --- data quality --------------------------------------------------------------------------------
 
 
@@ -999,6 +1075,7 @@ def build(
         "tracker/index.html": tracker(metrics, data),
         "tracker/data.json": json.dumps(data, separators=(",", ":")),
         "feed/index.html": feed(metrics, sample),
+        "scan/index.html": scan(metrics),
         "why/index.html": why(metrics),
         "quality/index.html": quality(items),
         "assets/site.css": CSS,

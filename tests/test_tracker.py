@@ -23,6 +23,16 @@ GH = "https://api.github.com"
 ETAG_REGEXP2 = '"etag-regexp2"'
 
 
+PAGES = (
+    "index.html",
+    "tracker/index.html",
+    "tracker/data.json",
+    "feed/index.html",
+    "scan/index.html",
+    "why/index.html",
+)
+
+
 def delta_log() -> list[dict[str, Any]]:
     return [
         {
@@ -141,7 +151,7 @@ async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any) -> None:
         assert z.namelist() == ["GHSA-f9j4-qggq-h239.json"]
 
     pages = site.build(items(store), m, datetime.now(UTC), events=all_events(store), sample=rec)
-    assert {"index.html", "tracker/index.html", "tracker/data.json", "feed/index.html", "why/index.html"} <= set(pages)
+    assert set(PAGES) <= set(pages)
     adv = pages["advisory/GHSA-f9j4-qggq-h239/index.html"]
     assert "CVE-2026-110858" in adv and "published by another CNA" in adv
     assert "advisory/GHSA-wq9v-j77v-qr26/index.html" not in pages  # reviewed: no longer in limbo
