@@ -30,7 +30,7 @@ A daily job that counts published GitHub security advisories still **in limbo**:
    - `feed/repos.txt`: every watched repo with at least one published advisory, one `owner/repo` per line, names only, for trackers that poll repos (F-075, F-077);
    - `quality/`: advisories in limbo whose package name or range scanners can't use, grouped by repo, with the fix for each (F-077);
    - `feed/limbo.atom` and `feed/critical.atom`: the newest 100 advisories in limbo (all, or critical and high), for feed readers;
-   - `press/`: citable numbers and a contact for reporters, the queue chart as `queue.svg`, and every advisory in limbo as `limbo.csv` (cells that would start a spreadsheet formula get a leading `'`);
+   - `press/`: citable numbers and a contact for reporters, the queue chart as `queue.svg`, and every advisory in limbo as `limbo.csv` (one row per advisory with ranges and fixed versions as entered; UTF-8 with a BOM for Excel; a cell that could run as a spreadsheet formula gets a leading `'`), and the contact email as an image;
    - `methodology/`, `sitemap.xml` and `robots.txt`; every page carries Open Graph tags, and the home and press pages a schema.org `Dataset`;
    - `osv/limbo-db.zip`: those zips laid out as OSV-Scanner's cache, so `osv-scanner scan source --offline-vulnerabilities --local-db-path <unzipped dir> -r .` scans against the feed (F-076).
 

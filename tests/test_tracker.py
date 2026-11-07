@@ -172,7 +172,12 @@ async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any) -> None:
         ElementTree.fromstring(pages[path])  # well-formed XML
     assert "<loc>https://limbo.watch/advisory/GHSA-f9j4-qggq-h239/</loc>" in pages["sitemap.xml"]
     assert "https://limbo.watch/advisory/GHSA-f9j4-qggq-h239/" in pages["feed/limbo.atom"]
-    assert [r[0] for r in csv.reader(io.StringIO(pages["press/limbo.csv"]))] == ["ghsa_id", "GHSA-f9j4-qggq-h239"]
+    table = pages["press/limbo.csv"]
+    assert table.startswith("\ufeff")  # BOM, so Excel reads UTF-8
+    rows = list(csv.DictReader(io.StringIO(table.removeprefix("\ufeff"))))
+    assert [r["ghsa_id"] for r in rows] == ["GHSA-f9j4-qggq-h239"] and rows[0]["status"] == "pending review"
+    assert rows[0]["affected_versions"] and rows[0]["published"].count("-") == 2
+    assert all("mailto:" not in v for k, v in pages.items() if k.endswith(".html"))  # the contact is an image
     assert '<link rel="canonical" href="https://limbo.watch/press/">' in pages["press/index.html"]
     assert '"@type":"Dataset"' in pages["index.html"]
     flow = metrics(store, datetime.now(UTC))["flow_7d"]  # regexp2 was reviewed just now

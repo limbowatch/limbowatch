@@ -163,6 +163,7 @@ def publish(
         ("wordmark-on-light.png", "press/kit/wordmark-on-light.png"),
         ("mark-on-light.svg", "press/kit/mark.svg"),
         ("avatar-1024.png", "press/kit/avatar.png"),
+        ("contact.png", "assets/contact.png"),  # the press email as an image (brand/make_contact.py)
     ):
         if (assets / name).exists():
             (out / target).parent.mkdir(parents=True, exist_ok=True)

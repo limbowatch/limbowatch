@@ -13,6 +13,7 @@ Amber marks "in limbo" and nothing else (brand/README.md).
 from __future__ import annotations
 
 import csv
+import hashlib
 import html
 import io
 import json
@@ -33,7 +34,8 @@ REPORT_URL = f"{REPO_URL}/tree/main/research/2026-10-state-of-the-gap"
 ISSUE_URL = f"{REPO_URL}/issues/1"
 FINDINGS_URL = f"{REPO_URL}/blob/main/docs/FINDINGS.md"
 SITE = "https://limbo.watch"
-CONTACT = "blueandhack@gmail.com"
+# The press contact is an image (brand/make_contact.py), never text, so scrapers can't harvest it.
+CONTACT_IMG = '<img class="email" src="/assets/contact.png" width="340" height="48" alt="Email address, shown as an image to keep spam away">'
 QUEUE_UNIT = 40  # advisories per square in the queue chart
 QUEUE_WEEKS = 52  # weekly columns; the last one holds everything older
 LEFT_WINDOW = timedelta(days=30)
@@ -328,7 +330,8 @@ ul.keys i{position:absolute;left:0;top:15px;width:14px;height:14px;border-radius
 .fcols li a:hover{color:var(--amber-text);text-decoration:underline}
 /* press */
 .lead{max-width:680px;font-size:18px}.contact{flex:0 1 360px;padding:24px}.contact p{margin:6px 0 16px;color:var(--ink2);font-size:15px}
-.contact .btn{width:100%;justify-content:center;overflow-wrap:anywhere}
+.contact img.email{display:block;width:100%;max-width:340px;height:auto;margin:4px 0 12px;border-radius:10px}
+.contact p.small{margin:0}
 ol.quotes{margin:24px 0 16px;padding:0;list-style:none;counter-reset:q;max-width:860px}
 ol.quotes li{padding:20px 0;border-top:1px solid var(--line)}ol.quotes p{margin:0;font-size:19px;line-height:1.5}
 ol.quotes a{display:inline-flex;min-height:36px;align-items:center;font-size:14px;color:var(--ink2)}
@@ -390,6 +393,12 @@ fetch('/tracker/data.json').then(r=>r.json()).then(d=>{D=d;const ecos=[...new Se
 """
 
 
+def _v(asset: str) -> str:
+    """A short content hash for an asset's URL. Browsers and the CDN cache assets for hours; a new URL per version
+    means new pages never get an old stylesheet or script."""
+    return hashlib.sha256(asset.encode()).hexdigest()[:10]
+
+
 def mark(stroke: str, dot: str, size: int = 30) -> str:
     """The "Suspended" mark (brand/make_brand.py, small version): an hourglass whose grain is stuck in the neck."""
     return (
@@ -426,7 +435,7 @@ def footer(extra: str = "") -> str:
                     ("/feed/critical.atom", "Atom: new critical and high"), ("/quality/", "Data quality")]),
         ("Learn", [("/methodology/", "Methodology"), (REPORT_URL, "October 2026 report"), ("/why/", "Why I built it"),
                    (FINDINGS_URL, "Research log")]),
-        ("Contact", [("/press/", "Press and research"), (f"mailto:{CONTACT}", CONTACT), (REPO_URL, "GitHub"),
+        ("Contact", [("/press/", "Press and research"), ("/press/#contact", "Email"), (REPO_URL, "GitHub"),
                      (ISSUE_URL, "Daily report by email")]),
     ]  # fmt: skip
     nav = "".join(
@@ -464,7 +473,7 @@ def page(title: str, description: str, body: str, path: str = "/", jsonld: dict[
         '<meta property="og:image:width" content="1280">\n<meta property="og:image:height" content="640">\n'
         '<meta name="twitter:card" content="summary_large_image">\n'
         '<link rel="alternate" type="application/atom+xml" title="New advisories in limbo" href="/feed/limbo.atom">\n'
-        '<link rel="icon" href="/favicon.svg" type="image/svg+xml">\n<link rel="stylesheet" href="/assets/site.css">\n'
+        f'<link rel="icon" href="/favicon.svg" type="image/svg+xml">\n<link rel="stylesheet" href="/assets/site.css?v={_v(CSS)}">\n'
         + (f'<script type="application/ld+json">{ld}</script>\n' if ld else "")
         + f"</head>\n<body>\n{body}\n{MENU_JS}</body>\n</html>\n"
     )
@@ -759,10 +768,10 @@ def home(items: list[Item], m: dict[str, Any], now: datetime) -> str:
     body = f"""<div class="hero">{header("", dark=True)}
 <section class="wrap hero-body">
 <p class="eyebrow">Live, re-checked every day. Updated {E(updated)}.</p>
-<h1>Published. Often fixed. Invisible to your scanner.</h1>
+<h1>Published. Often fixed. Invisible to most scanners.</h1>
 <p class="lede">Maintainers publish security advisories on GitHub every day. Dependabot, npm audit and OSV-Scanner can’t
-see them until GitHub reviews them into its Advisory Database, and that review now takes weeks. Limbowatch tracks every
-advisory stuck in between.</p>
+see them until GitHub reviews them into its Advisory Database, and that review often takes weeks. Limbowatch tracks the
+advisories waiting in between.</p>
 {find_form(dark=True)}
 <figure class="tl"><figcaption>Where an advisory waits</figcaption>
 <div class="tl-cols"><div class="f3 pr"><p class="tl-tag">In limbo</p><p class="tl-note">Public and often already fixed, but
@@ -793,21 +802,22 @@ repositories; {cov["on_schedule"]:,} are up to date. Repos with an advisory in l
 <span class="meter" role="img" aria-label="{pct:.0f}% of the watchlist up to date"><span style="width:{min(pct, 100):.0f}%"></span></span>
 <a href="/methodology/#coverage">How coverage works</a></div></div>
 <main>
-<section class="wrap s proof"><div class="ptext"><h2>Your scanner says clean. It isn’t.</h2>
+<section class="wrap s proof"><div class="ptext"><h2>A clean scan can miss these</h2>
 <p class="sub">We gave three tools the same demo app, with real npm, Go, pip and Bundler lockfiles, in November 2026.
 GitHub’s Dependabot alerts and OSV-Scanner reported none of the 16 advisories in limbo that affect it. All 16 were
 then rechecked against GitHub and OSV, independently of Limbowatch’s own code.</p>
 <p class="sub">It isn’t only demos: in the projects behind our October report, Limbowatch found <strong>269 affected
-package-versions in 13 of 14 projects</strong> that scanners reading GitHub’s database or OSV report as clean.</p>
+package-versions in 13 of 14 projects</strong> that scanners reading GitHub’s database or OSV didn’t report.</p>
 <p class="links"><a href="{EVIDENCE}">The 16 findings, rechecked</a><a href="{FINDINGS_URL}#f-085">The 269, checked live</a></p></div>
 <div class="vs" role="img" aria-label="Findings on the same project: Dependabot alerts 0, OSV-Scanner 0, Limbowatch 16">
 <div><span>GitHub Dependabot alerts</span><b class="zero">0</b></div>
 <div><span>OSV-Scanner 2.7.0</span><b class="zero">0</b></div>
 <div class="lw"><span>Limbowatch</span><b>16</b><i style="width:100%"></i></div></div></section>
-<section class="wrap s"><div class="two"><div><h2 class="sm">Every ecosystem GitHub reviews</h2>
+<section class="wrap s"><div class="two"><div><h2 class="sm">By ecosystem</h2>
 <p class="sub">Advisories in limbo by package ecosystem, and how long they’ve waited so far.</p>{eco_table(pend, now)}</div>
-<div><h2 class="sm">Most have no CVE to fall back on</h2>
-<p class="sub">Scanners that start from CVEs can’t fill the gap either.</p>{cve_split(m)}</div></div></section>
+<div><h2 class="sm">By CVE state</h2>
+<p class="sub">{li["by_cve"].get(CveLabel.NONE.value, 0):,} of {li["count"]:,} have no CVE at all, so tools that start
+from CVEs can’t see them either.</p>{cve_split(m)}</div></div></section>
 <section class="wrap s"><h2>In limbo now</h2><p class="sub">Facts only. Each advisory’s full text stays on GitHub.</p>
 <div class="cols">{lst("Newly published", fresh)}{lst("Longest waiting, published this past year", oldest)}</div></section>
 <section class="wrap s"><h2>What to do about it</h2><div class="paths">
@@ -818,8 +828,8 @@ merge requests, pull requests and issues, on GitLab, GitHub, Gitea and Forgejo.<
 <div><h3>If you maintain a project</h3><p>Request a CVE when you publish, and fill in both the affected range and the fixed
 version, so scanners can match your advisory the day it’s reviewed.</p>
 <p class="links"><a href="/quality/">Advisories scanners can’t match</a><a href="/methodology/#maintainers">What helps</a></p></div>
-<div><h3>If you’re writing about it</h3><p>Live numbers you can cite, charts you can reuse, the method behind every
-number, and a person to talk to.</p>
+<div><h3>If you’re writing about it</h3><p>Dated numbers you can cite, charts you can reuse, the method behind each
+number, and someone to ask.</p>
 <p class="links"><a href="/press/">Press and research</a><a href="/why/">The story behind it</a></p></div></div></section>
 </main>
 {footer()}{SEARCH_JS}"""
@@ -904,7 +914,7 @@ reviewed database or OSV.</p></div>
 </main>
 {footer(f"Watchlist {m['coverage']['watchlist_repos']:,} repositories, {m['coverage']['on_schedule']:,} up to date on their schedule. Every number is a floor. ")}
 <script type="application/json" id="cve-text">{json.dumps(CVE_TEXT)}</script>
-<script src="/assets/tracker.js" defer></script>"""
+<script src="/assets/tracker.js?v={_v(TRACKER_JS)}" defer></script>"""
     return page(
         "Tracker · limbo.watch",
         f"{li['count']:,} security advisories published on GitHub and waiting for review: filter by package, ecosystem, severity and CVE state.",
@@ -1368,7 +1378,7 @@ def press(items: list[Item], m: dict[str, Any], now: datetime) -> str:
     cols, undated = queue_cols(pend, now)
     facts = [
         (f"On {date}, <strong>{li['count']:,}</strong> security advisories published by maintainers on GitHub were waiting "
-         f"for GitHub’s review, invisible to scanners that read GitHub’s Advisory Database or OSV. "
+         f"for GitHub’s review. They aren’t yet in GitHub’s reviewed Advisory Database or OSV, which most dependency scanners read. "
          f"{sev['critical'] + sev['high']:,} are rated critical or high.", "/tracker/", "Live tracker"),
         (f"In the {flow.get('days', 7)} days to {flow_date}, maintainers published <strong>{flow.get('published', 0):,}</strong> "
          f"new advisories in the repositories we watch. GitHub reviewed <strong>{flow.get('reviewed', 0):,}</strong> of "
@@ -1381,6 +1391,8 @@ def press(items: list[Item], m: dict[str, Any], now: datetime) -> str:
         (f"Another <strong>{perm['count']:,}</strong> published advisories are in ecosystems GitHub doesn’t review, such as "
          "C/C++ and container images. Scanners that read GitHub’s database will probably never see them.",
          "/methodology/#permanent", "What “likely permanent” means"),
+        ("GitHub’s documentation says its review of a published advisory “can take up to 72 hours”. In October 2026 "
+         "the median was <strong>23 days</strong>, for 990 reviewed advisories.", f"{FINDINGS_URL}#f-019", "Sources in the research log"),
         ("In October 2026, <strong>1 in 6</strong> upstream advisories behind 15 popular open-source projects was in "
          "limbo, and the median wait for GitHub’s review was 23 days.", REPORT_URL, "State of the Gap, October 2026"),
         ("On a demo app with real lockfiles, Limbowatch found <strong>16</strong> advisories in limbo that GitHub’s "
@@ -1409,8 +1421,8 @@ def press(items: list[Item], m: dict[str, Any], now: datetime) -> str:
 <h1 class="page">Press and research</h1>
 <p class="sub lead">Limbowatch measures how long published security advisories wait before scanners can see them.
 Everything here is free to cite with credit, and every number links to how it was measured.</p></div>
-<div class="contact card"><h2 class="xs">Talk to us</h2><p>Yujia Lin built Limbowatch and answers questions about the data
-and the method.</p><a class="btn solid" href="mailto:{CONTACT}?subject=limbo.watch%20press%20question">{CONTACT}</a></div></div>
+<div class="contact card" id="contact"><h2 class="xs">Talk to us</h2><p>Yujia Lin built Limbowatch and answers questions
+about the data and the method. Write to:</p>{CONTACT_IMG}<p class="small">Or open an issue on <a href="{REPO_URL}/issues">GitHub</a>.</p></div></div>
 
 <section class="s"><h2>The numbers today</h2><p class="sub">Ready to quote. They update every day; please give the date.</p>
 <ol class="quotes">{facts_html}</ol>
@@ -1423,15 +1435,17 @@ it watches. <a href="/methodology/">Methodology</a></p></section>
 in limbo (CSV)</a><a href="/metrics.json">Today’s counts (JSON)</a></p></section>
 
 <section class="s"><h2>Stories in the data</h2><div class="paths">
-<div><h3>The queue grows faster than it drains</h3><p>In the last {flow.get("days", 7)} days, maintainers published
-{flow.get("published", 0):,} new advisories and GitHub reviewed {flow.get("reviewed", 0):,} of those waiting. The
-<a href="{ISSUE_URL}">daily report</a> shows what entered and left each day.</p></div>
-<div><h3>Critical, fixed, and still invisible</h3><p>Maintainers often ship the fix with the advisory. Users of the
-vulnerable version get no alert until the review happens. Examples are below.</p></div>
-<div><h3>Advisories nobody will review</h3><p>{perm["count"]:,} advisories are in ecosystems outside GitHub’s review, like
-C/C++ libraries and container images. No scanner that reads GitHub’s database will flag them.</p></div>
-<div><h3>CVE IDs that stay empty</h3><p>{li["rbp"]["count"]:,} advisories cite a CVE that is reserved but not published,
-so looking it up returns nothing. The CVE Program expects publication within 72 hours.</p></div>
+<div><h3>More in than out, so far</h3><p>In the {flow.get("days", 7)} days to {flow_date}, maintainers published
+{flow.get("published", 0):,} new advisories in the repositories we watch, and GitHub reviewed {flow.get("reviewed", 0):,}
+of those waiting. We have two weeks of data: a rate, not yet a trend. The <a href="{ISSUE_URL}">daily report</a> shows
+each day.</p></div>
+<div><h3>Critical and fixed, not yet reviewed</h3><p>Many advisories are published with the fix already released. Tools
+that read GitHub’s database or OSV don’t alert users of the vulnerable version until the review is done. Examples are
+below.</p></div>
+<div><h3>Outside GitHub’s review</h3><p>{perm["count"]:,} advisories are in ecosystems GitHub doesn’t review, like C/C++
+libraries and container images. Scanners that read GitHub’s database won’t flag them unless that changes.</p></div>
+<div><h3>Reserved, but empty, CVE IDs</h3><p>{li["rbp"]["count"]:,} advisories cite a CVE that is reserved but not yet
+published, so looking it up returns nothing. The CVE Program’s policy expects a record within 72 hours of disclosure.</p></div>
 <div><h3>85 days for one CVE</h3><p>A critical advisory for an NSA open-source project waited 85 days for its CVE
 to be published. It covers a release .jar and a Docker image, so GitHub won’t review it, and OSV lists the CVE without a
 package: scanners can’t match it. <a href="/why/">The story</a></p></div></div></section>
@@ -1473,8 +1487,8 @@ def methodology(m: dict[str, Any]) -> str:
 advisory for the same CVE.</li>
 <li>It isn’t in OSV.</li>
 <li>Its package is in an ecosystem GitHub reviews, such as npm, PyPI, Maven, Go, RubyGems, crates.io, NuGet or Packagist.</li></ul>
-<p>Dependabot alerts, npm audit, pip-audit, OSV-Scanner and most tools built on them read GitHub’s reviewed database or
-OSV, so they don’t report these advisories until GitHub reviews them.</p>"""),
+<p>Dependabot alerts, npm audit, pip-audit and OSV-Scanner read GitHub’s reviewed database or OSV, as do many tools
+built on them, so they don’t report these advisories until GitHub reviews them. Tools with other sources may.</p>"""),
         ("permanent", "Likely permanent", f"""<p>Advisories in ecosystems GitHub doesn’t review (C/C++, container images,
 free-text package names, “other”) are counted separately, as likely permanent: {m["likely_permanent"]["count"]:,} today.
 Scanners that read GitHub’s database will probably never see them. They aren’t in the headline number.</p>"""),
@@ -1521,8 +1535,8 @@ every record links to the maintainers’ advisory.</p>"""),
 <li>Fill in both the affected range and the fixed version, with the package’s exact name in the right ecosystem.</li>
 <li>Check <a href="/quality/">advisories scanners can’t match</a>: a typo in a package name keeps an advisory invisible
 even after it’s reviewed.</li></ul>"""),
-        ("corrections", "Corrections", f"""<p>If a number or an advisory page is wrong, email <a href="mailto:{CONTACT}">{CONTACT}</a>
-or open an issue on <a href="{REPO_URL}/issues">GitHub</a>. Corrections are fixed in the code and logged in the research log.</p>"""),
+        ("corrections", "Corrections", f"""<p>If a number or an advisory page is wrong, open an issue on <a href="{REPO_URL}/issues">GitHub</a>
+or write to the address on the <a href="/press/#contact">press page</a>. Corrections are fixed in the code and logged in the research log.</p>"""),
         ("reproduce", "Reproduce it", f"""<p>The tracker, the site and the analysis are open source under Apache-2.0. The tracker’s
 daily state is committed to the <a href="{REPO_URL}/tree/tracker-data">tracker-data branch</a>, so any number here can be
 recomputed. The data is CC BY 4.0.</p>"""),
@@ -1578,24 +1592,46 @@ def atom(rows: list[Item], now: datetime, path: str, title: str, subtitle: str) 
     )
 
 
+_CALLS = re.compile(r"[()|!\"'&\[\]{}$\t\r\n]")  # what a formula needs to call a function, a link or DDE
+
+
 def _cell(v: str) -> str:
-    """Spreadsheets run a cell that starts with = + - @ as a formula; maintainer-entered names could, so quote those."""
-    return f"'{v}" if v[:1] in ("=", "+", "-", "@", "\t", "\r") else v
+    """Spreadsheets treat a cell starting with = + - @ as a formula. Maintainers enter these fields, so a cell
+    starting with = gets a leading ', and so does one starting with + - @ that could call anything. An npm scope
+    like `@scope/pkg; other` or a number like -1 stays as entered."""
+    if v[:1] in ("=", "\t", "\r") or (v[:1] in ("+", "-", "@") and _CALLS.search(v)):
+        return f"'{v}"
+    return v
+
+
+CSV_COLUMNS = ["ghsa_id", "status", "severity", "cvss_score", "ecosystem", "packages", "affected_versions", "fixed_in",
+               "cve_state", "cves", "published", "days_waiting", "repository", "advisory_url", "limbo_url"]  # fmt: skip
 
 
 def limbo_csv(items: list[Item], now: datetime) -> str:
-    """Every advisory in limbo as CSV, for spreadsheets. Text cells that would start a formula get a leading '."""
+    """Every advisory in limbo as CSV, one row per advisory, for spreadsheets: pending review first, then likely
+    permanent, each by severity and then longest wait. UTF-8 with a byte-order mark, so Excel reads names correctly.
+    Ranges and fixed versions are as entered by the maintainer."""
     buf = io.StringIO()
+    buf.write("\ufeff")
     w = csv.writer(buf, lineterminator="\n")
-    w.writerow(["ghsa_id", "status", "package", "ecosystem", "repository", "severity", "cve_state", "cves",
-                "published", "days_waiting", "fixed_in", "advisory_url", "limbo_url"])  # fmt: skip
+    w.writerow(CSV_COLUMNS)
     for kind, rows in (("pending review", pending(items)), ("likely permanent", permanent(items))):
-        for i in sorted(rows, key=lambda i: i.adv.published_at or now):
+        key = lambda i: (SEVERITY_ORDER.get((i.adv.severity or "").lower(), 9), i.adv.published_at or now)  # noqa: E731
+        for i in sorted(rows, key=key):
             a = days_since(i.adv.published_at, now)
-            w.writerow([_cell(str(v)) for v in [i.adv.ghsa_id, kind, pkg_names(i), eco_names(i), i.adv.repo, i.adv.severity or "unknown",
-                        CVE_TEXT[CVE_KEY[i.assessment.cve_label]], cves(i),
-                        _iso(i.adv.published_at) if i.adv.published_at else "", "" if a is None else f"{a:.1f}",
-                        fixes(i), i.adv.html_url, f"{SITE}/advisory/{i.adv.ghsa_id}/"]])  # fmt: skip
+            pkgs = [p for p in i.adv.packages if p.name]
+            names = list(dict.fromkeys(_name(p).name or p.name or "" for p in pkgs))
+            ranges = "; ".join(
+                f"{_name(p).name or p.name}: {p.vulnerable_version_range or 'not stated'}" if len(names) > 1
+                else p.vulnerable_version_range or "not stated"
+                for p in pkgs
+            ) if pkgs else ""  # fmt: skip
+            row = [i.adv.ghsa_id, kind, i.adv.severity or "unknown", "" if i.adv.cvss_score is None else f"{i.adv.cvss_score:g}",
+                   eco_names(i), "; ".join(names), ranges, fixes(i), CVE_TEXT[CVE_KEY[i.assessment.cve_label]], cves(i),
+                   i.adv.published_at.strftime("%Y-%m-%d") if i.adv.published_at else "", "" if a is None else str(int(a)),
+                   i.adv.repo, i.adv.html_url, f"{SITE}/advisory/{i.adv.ghsa_id}/"]  # fmt: skip
+            w.writerow([_cell(v) for v in row])
     return buf.getvalue()
 
 
@@ -1695,7 +1731,9 @@ def build(
         if i.assessment.status is Status.LIMBO:
             out[f"advisory/{i.adv.ghsa_id}/index.html"] = advisory(i, by_ghsa.get(i.adv.ghsa_id, []), now)
     if analytics_id:
-        tag = f'<script src="/assets/analytics.js" data-id="{analytics_id}" defer></script>\n</head>'
+        tag = (
+            f'<script src="/assets/analytics.js?v={_v(ANALYTICS_JS)}" data-id="{analytics_id}" defer></script>\n</head>'
+        )
         out = {k: v.replace("</head>", tag, 1) if k.endswith(".html") else v for k, v in out.items()}
         out["assets/analytics.js"] = ANALYTICS_JS
     return out
