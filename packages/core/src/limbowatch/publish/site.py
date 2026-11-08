@@ -834,7 +834,7 @@ scanners report nothing.</p></div><div class="f1"></div></div>
 <a class="btn ghost" href="/scan/">Scan your project</a></div>
 </section></div>
 <div class="strip"><div class="wrap"><span><strong>Every number is a floor.</strong> We watch {cov["watchlist_repos"]:,} upstream
-repositories; {cov["on_schedule"]:,} are up to date. Repos with an advisory in limbo are re-checked daily, the rest every 3 to 7 days.</span>
+repositories; {cov["on_schedule"]:,} are up to date. Repos with an advisory in limbo are re-checked daily, the rest after each release of their package and at least monthly.</span>
 <span class="meter" role="img" aria-label="{pct:.0f}% of the watchlist up to date"><span style="width:{min(pct, 100):.0f}%"></span></span>
 <a href="/methodology/#coverage">How coverage works</a></div></div>
 <main>
@@ -1718,7 +1718,8 @@ Limbowatch can only see the repositories it checks: {cov["watchlist_repos"]:,} t
 {watch_table}
 <ul>
 <li>Once a repository is on the list it stays, and every advisory it publishes is tracked.</li>
-<li>Repositories with an advisory in limbo are re-checked daily, those with other advisories every 3 days, and the rest weekly.
+<li>Repositories with an advisory in limbo are re-checked daily, those with other advisories every 3 days, and the rest every 30 days.
+Repositories are also checked about a day and about three days after their package releases on npm, PyPI, Go, Maven, NuGet, crates.io, RubyGems or Packagist, because most advisories are published right after the fix ships.
 {cov["on_schedule"]:,} are up to date on that schedule right now. Unchanged repositories cost nothing to re-check.</li>
 <li>The full list is public: <a href="/feed/repos.txt">repos.txt</a> (those with advisories) and
 <a href="/feed/watchlist.json">watchlist.json</a> (every repository, with when it was last checked). Because it includes

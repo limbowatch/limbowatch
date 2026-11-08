@@ -128,7 +128,7 @@ async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any) -> None:
     with respx.mock(assert_all_mocked=True, assert_all_called=False) as router:
         mock_world(router)
         assert (await run_once(store, seed, no_sleep)).polled == 0
-    with store.session() as s:  # four days pass: due in every tier but the weekly one
+    with store.session() as s:  # four days pass: due in every tier but the 30-day one
         for repo in s.query(Repo):
             repo.last_polled_at = (datetime.now(UTC) - timedelta(days=4)).strftime("%Y-%m-%dT%H:%M:%SZ")
 

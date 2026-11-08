@@ -19,7 +19,9 @@ from limbowatch.watch.match import match
 
 FEED_URL = "https://limbo.watch/feed/all.zip"
 WATCHLIST_URL = "https://limbo.watch/feed/watchlist.json"
-STALE = timedelta(days=10)  # the tracker checks quiet repos weekly, a little later when its budget is tight (F-071)
+# A tracker check older than this and the watcher checks the repo itself. The tracker re-checks quiet repos only
+# every 30 days (and after releases, F-104), so a project's own dependencies get fresher checks here (F-071).
+STALE = timedelta(days=10)
 
 
 @dataclass

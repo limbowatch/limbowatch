@@ -6,7 +6,7 @@ repo gets a target interval from what it has published:
 
 - an advisory currently in limbo: daily, since that's where changes matter;
 - other advisories: every 3 days;
-- none yet: weekly;
+- none yet: every 30 days, plus checks after each release of its package (FINDINGS F-104);
 - the repo answered 404: weekly, until it reappears.
 
 A run checks only repos that are due, most overdue first, where "overdue" is time since the
@@ -29,18 +29,19 @@ from enum import StrEnum
 class Tier(StrEnum):
     LIMBO = "daily: has an advisory in limbo"
     ACTIVE = "every 3 days: has advisories, none in limbo"
-    QUIET = "weekly: no advisories yet"
+    QUIET = "every 30 days: no advisories yet"
     GONE = "weekly: repository not found"
 
 
 INTERVAL = {
     Tier.LIMBO: timedelta(days=1),
     Tier.ACTIVE: timedelta(days=3),
-    Tier.QUIET: timedelta(days=7),
+    Tier.QUIET: timedelta(days=30),  # release checks find most new advisories sooner (F-104)
     Tier.GONE: timedelta(days=7),
 }
 SLACK = timedelta(hours=2)  # daily runs drift; a repo checked 23 hours ago is due again
 NEW_BASE = 2.0  # never-checked repos start here and gain one point per week waiting
+NEW_GROWTH = timedelta(days=7)
 # After its package releases, a repo is checked about a day later and again about three days later: 71% of
 # advisories appear within a day of a release, 79% within 3 days, mostly after the fix ships (FINDINGS F-100).
 RELEASE_CHECKS = (timedelta(hours=20), timedelta(days=3) - SLACK)
@@ -63,7 +64,7 @@ def overdue(
         waited = (now - first_seen).total_seconds() if first_seen else 0.0
         fresh = released is not None and now - released < RELEASE_CHECKS[-1]
         # a repo added because its package just released goes before a seed list's backlog
-        return NEW_BASE + (1.0 if fresh else 0.0) + waited / INTERVAL[Tier.QUIET].total_seconds()
+        return NEW_BASE + (1.0 if fresh else 0.0) + waited / NEW_GROWTH.total_seconds()
     score = (now - last_polled + SLACK) / INTERVAL[t]
     return max(score, RELEASE_SCORE) if release_due(last_polled, released, now) else score
 

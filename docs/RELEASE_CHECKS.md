@@ -1,6 +1,6 @@
 # Design: check a repository when its package releases
 
-Status (2026-11-07): **approved; steps 1 and 2 built and running, including releases of unwatched packages with at least 100 dependent repositories.** The week of measurement (step 3) starts with the first run; the routine schedule (step 4) is unchanged until then. First live collection: FINDINGS F-102.
+Status (2026-11-07): **built: steps 1, 2 and 4.** Releases of unwatched packages with at least 100 dependent repositories are included. Step 3's week of measurement was replaced by a backtest on the last month's advisories (FINDINGS F-104); per-tier counts in each run report keep measuring it live. First live collection: F-102.
 
 ## Why
 
@@ -40,9 +40,13 @@ Before relaxing any schedule: run release collection alongside the current sched
 1. Build it in that order: collect, trigger checks, measure for a week, then relax the schedule. **Approved.**
 2. Also check releases of unwatched packages with at least 100 dependent repositories (`--release-min-dependents`). **Approved.** Measured on the first collection: 76 such repos in a day, not the 1,000–2,000 guessed, because most popular packages are already watched (F-102).
 
+3. Measure on history instead of waiting a week (F-104): release checks catch 85–88% of advisories within 7 days, at a median of 0.8 days. **Approved.**
+4. Relax the routine schedule: repositories without advisories are re-checked every 30 days instead of weekly. **Approved**, on F-104: for those repositories the average delay goes from 3.5 to 2.6 days, and 11 of 1,672 advisories (0.7%) would have been found later. Repositories with advisories, and repositories answering 404, keep their schedule.
+
 ## Built
 
 - `limbowatch.sources.releases`: the three feeds; each reports whether it reached the previous run, and a partial feed keeps its cursor.
 - `Tracker.collect_releases`: marks `Repo.released_at`, adds popular unwatched repos (source `release:<registry>`), records per feed in the run report (`releases`).
 - `schedule.release_due`: checks at about 20 hours and about 3 days after a release, ahead of routine checks; a repo added because it just released goes before a seed list's backlog.
-- Per-tier counts in each run report include a `release` tier and the new advisories each tier finds, which is the week's measurement.
+- Per-tier counts in each run report include a `release` tier and the new advisories each tier finds, which keeps measuring step 3 live.
+- `schedule.INTERVAL`: repositories without advisories every 30 days (step 4). Never-checked repositories still gain one point of priority per week waiting (`NEW_GROWTH`).

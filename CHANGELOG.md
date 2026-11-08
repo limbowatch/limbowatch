@@ -6,6 +6,7 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 - Source repos for Composer (Packagist), Hex and Pub (ecosyste.ms) and Swift (the package URL); for Maven, the POM's `<scm>`, following parent POMs, when deps.dev names none. Version comparison for Hex, Pub and Swift. On an Elixir project (Mobilizon), dependencies checked by name only fell from 162 to 7: 16 "possibly affected" findings turned out to be fixed versions, and 10 real advisories in limbo were found (F-103).
 - The tracker checks a repo after its package releases (docs/RELEASE_CHECKS.md), watches the top packages of eight ecosystems, and caps first-time polls per run (`--max-new`).
+- Repos without advisories are re-checked every 30 days instead of weekly, plus about a day and about three days after each release of their package; on the last month's advisories that finds them sooner on average (3.5 → 2.6 days, F-104).
 
 ## 0.1.0a1 (2026-11-07)
 
