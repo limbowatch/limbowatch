@@ -1,0 +1,37 @@
+{
+ "window": "advisories published 2026-10-08 to 2026-10-31 (each had 7 days to be found)",
+ "advisories": 1752,
+ "with_release_data": 1672,
+ "by_tier": {
+  "daily": {
+   "advisories": 1455,
+   "caught_by_release_checks": 1232,
+   "share_caught": 0.847,
+   "release_delay_days_median": 0.77,
+   "routine_delay_days_average": 0.5,
+   "sooner_than_routine": 417
+  },
+  "3-day": {
+   "advisories": 151,
+   "caught_by_release_checks": 130,
+   "share_caught": 0.861,
+   "release_delay_days_median": 0.83,
+   "routine_delay_days_average": 1.5,
+   "sooner_than_routine": 121
+  },
+  "weekly": {
+   "advisories": 66,
+   "caught_by_release_checks": 58,
+   "share_caught": 0.879,
+   "release_delay_days_median": 0.82,
+   "routine_delay_days_average": 3.5,
+   "sooner_than_routine": 55
+  }
+ },
+ "step4_quiet_repos": {
+  "now_weekly_average_days": 3.5,
+  "proposed_average_days": 2.6,
+  "found_later_than_today": 11,
+  "found_sooner_than_today": 55
+ }
+}

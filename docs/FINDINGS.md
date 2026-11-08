@@ -1215,6 +1215,18 @@ Answered:
 - **Caveats:** One project. Packagist's newest-version source URL may differ from older versions' repos; ecosyste.ms URLs are unverified registry metadata. POM properties in a parent version (`${revision}`) stop the parent walk rather than guess.
 - **Implication:** Elixir, Dart, Swift and PHP projects now get the same upstream check as npm or PyPI ones. Hex ranges are evaluated instead of reported as possible, which removes false alarms. The README's ecosystem list and `--no-upstream` text needed no change; the guide lists the new sources.
 
+### F-104
+- **Date:** 2026-11-07 · **Status:** tentative (backtest on history; the routine delay is modeled, not observed)
+- **Question:** Would release-triggered checks have found the last month's advisories sooner than the routine schedule, and what would moving quiet repos to a 30-day re-check cost (docs/RELEASE_CHECKS.md, steps 3 and 4)?
+- **Method:** `research/2026-11-coverage/release_backtest.py`: advisories in the tracker state published 2026-10-08 to 2026-10-31 (each with 7 days to be found) with one package deps.dev knows (npm, PyPI, Go, Maven, crates.io, NuGet, RubyGems); release times from deps.dev; a release check at 20 hours and 3 days minus 2 hours after each release. The repo's tier at publication comes from its earlier advisories (daily if one was still unreviewed, every 3 days if it had others, weekly if none); routine delay is half the interval on average.
+- **Result:**
+  - 1,752 advisories, 1,672 with release data. Release checks would catch **85% (daily tier), 86% (3-day tier) and 88% (weekly tier)** within 7 days, at a median of 0.77–0.83 days after publication.
+  - Daily tier (1,455 advisories, 87% of all): routine checks (0.5 days on average) are already quicker; release checks add nothing there, and that tier stays daily.
+  - 3-day tier (151): 121 found sooner than the routine 1.5 days.
+  - Weekly tier (66): 58 caught, 55 sooner than the routine 3.5 days. With quiet repos re-checked every 30 days plus release checks, the average delay goes from 3.5 to **2.6 days**; 55 found sooner, **11 later** (the 8 not caught by a release would wait about 15 days on average).
+- **Caveats:** The routine delay assumes checks fall evenly in time and the budget never runs out (it did, 2026-11-04 to 11-06, F-100). The weekly-tier sample is small (66). Tiers are inferred from advisory history, not from the tracker's schedule at the time. Packagist isn't covered by deps.dev, so Composer advisories are left out.
+- **Implication:** Most new advisories come from repos that already have advisories and are checked daily or every 3 days. For quiet repos, which are about three quarters of the watchlist, release checks find advisories sooner on average even with a 30-day routine check, and free most of the weekly re-check cost for the top-10,000 expansion. The price is 11 of 1,672 advisories (0.7%) found later.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
