@@ -1342,6 +1342,17 @@ Answered:
   - The pip path retries, then uses the API.
   - Container jobs, common on Gitea and Forgejo, work from the next release on.
 
+### F-110
+- **Date:** 2026-11-08 · **Status:** confirmed (one tracker run)
+- **Question:** How does the Maven Central release feed (F-108) behave on its first live pass, compared with ecosyste.ms in the same run?
+- **Method:** Tracker run of 2026-11-08 10:50 UTC (`state/runs.jsonl`, `releases`), the first with `--maven-packages tracker/seeds/maven-packages.txt`. It looked one day back, since there was no earlier cursor. An earlier dispatch at 10:30 never started tracking: `setup-uv` got HTTP 504 from GitHub's release downloads (F-109).
+- **Result:**
+  - Maven Central: 7,388 packages polled (7,388 requests to repo1.maven.org), 0 failed, 0 not found. 64 packages deployed in the past day, 30 of them in watched repos; the newest was 2026-11-08 06:03:37 UTC. 7,388 ETags were stored (`package_meta.jsonl`).
+  - ecosyste.ms Maven in the same run: 25 releases, 7 in watched repos, newest still 2026-11-07 20:50:22 UTC.
+  - The whole run took 533 s (wave one also polled 2,500 new repos).
+- **Caveats:** One pass, and a cold one: every file was downloaded in full. The ETag passes come from the next daily run on.
+- **Implication:** The Maven feed works at full size and finds over twice as many releases in watched repos as ecosyste.ms. Release-download outages on GitHub can stop a tracker run before it starts; the run fails visibly and the state is untouched.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
