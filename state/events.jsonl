@@ -16634,22 +16634,155 @@
 {"at":"2026-11-07T19:42:57Z","event":"first seen","ghsa_id":"GHSA-r7f2-vrpq-8xhm","id":24972}
 {"at":"2026-11-07T19:42:57Z","event":"first seen","ghsa_id":"GHSA-h9gf-7rq8-q8h8","id":24973}
 {"at":"2026-11-07T19:42:57Z","event":"first seen","ghsa_id":"GHSA-cr6x-45gj-q6f5","id":24974}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123598","ghsa_id":"GHSA-29q9-p769-j8gq","id":24975}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123576","ghsa_id":"GHSA-2f4m-fq7w-mrgx","id":24976}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123515","ghsa_id":"GHSA-2f75-93c9-xf32","id":24977}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123546","ghsa_id":"GHSA-2gwf-vxp5-f9v2","id":24978}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123602","ghsa_id":"GHSA-2hxp-x833-73f7","id":24979}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-rm38-hxmq-7wmw","id":2497}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123605","ghsa_id":"GHSA-2vgh-3wfw-qj7c","id":24980}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123558","ghsa_id":"GHSA-2w9f-9wx8-f5c8","id":24981}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123550","ghsa_id":"GHSA-3j2f-qhrc-rjfj","id":24982}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123600","ghsa_id":"GHSA-3jvh-8vj5-65rq","id":24983}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123596","ghsa_id":"GHSA-3r6v-f3jh-vvqm","id":24984}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123499","ghsa_id":"GHSA-3rrq-h284-5vpx","id":24985}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123578","ghsa_id":"GHSA-3w89-7rx5-hpwx","id":24986}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123523","ghsa_id":"GHSA-3x3m-2j93-w46j","id":24987}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123615","ghsa_id":"GHSA-494m-4556-wf5p","id":24988}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123521","ghsa_id":"GHSA-49pj-52x6-8gpj","id":24989}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-v6m7-gj7w-5p3g","id":2498}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123603","ghsa_id":"GHSA-4jwp-xjwm-333g","id":24990}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123528","ghsa_id":"GHSA-4qvp-948j-4cgv","id":24991}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123574","ghsa_id":"GHSA-4rph-pmrw-mwpw","id":24992}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123545","ghsa_id":"GHSA-545c-rm35-2jj2","id":24993}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123590","ghsa_id":"GHSA-57pw-897j-v4j6","id":24994}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123504","ghsa_id":"GHSA-586f-48mj-3rwr","id":24995}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123601","ghsa_id":"GHSA-588m-chg6-8jqj","id":24996}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123551","ghsa_id":"GHSA-5c3q-hp86-xjr8","id":24997}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123506","ghsa_id":"GHSA-5f6v-j6xm-wwj9","id":24998}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123493","ghsa_id":"GHSA-5fc2-w2j4-6r8w","id":24999}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-7v5h-6577-rghc","id":2499}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-c5rh-f2vc-2qvj","id":249}
 {"at":"2026-10-28T02:37:44Z","event":"first seen","ghsa_id":"GHSA-2jv8-p43h-h66g","id":24}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123556","ghsa_id":"GHSA-5h3r-fpmj-483w","id":25000}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123522","ghsa_id":"GHSA-5q33-h98p-rgh9","id":25001}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123577","ghsa_id":"GHSA-5r56-v84h-c3w5","id":25002}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123595","ghsa_id":"GHSA-624w-vvww-xvpw","id":25003}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123524","ghsa_id":"GHSA-66cq-j6rw-pjch","id":25004}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123570","ghsa_id":"GHSA-67wc-6jq8-ghrc","id":25005}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123544","ghsa_id":"GHSA-6gg2-2v5m-454x","id":25006}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123606","ghsa_id":"GHSA-6h5c-jjg5-wj59","id":25007}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123557","ghsa_id":"GHSA-6v36-c42v-v98p","id":25008}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123514","ghsa_id":"GHSA-7gmh-4fw6-8xc5","id":25009}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-p3jp-9v83-76w9","id":2500}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123554","ghsa_id":"GHSA-7jp4-mq53-4cvq","id":25010}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123591","ghsa_id":"GHSA-7php-9j59-g3ch","id":25011}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123537","ghsa_id":"GHSA-7q42-6xr7-9rmw","id":25012}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123594","ghsa_id":"GHSA-86vr-jm6c-7cpg","id":25013}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123582","ghsa_id":"GHSA-8hq4-5836-w6q4","id":25014}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123581","ghsa_id":"GHSA-929p-gjf6-5hqj","id":25015}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123533","ghsa_id":"GHSA-989c-xj77-266r","id":25016}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123560","ghsa_id":"GHSA-9hq5-pfgc-cx5h","id":25017}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123501","ghsa_id":"GHSA-9hxw-pxcq-4q8q","id":25018}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123588","ghsa_id":"GHSA-9px7-7m25-f6q2","id":25019}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-4prj-ff7h-5wr3","id":2501}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123505","ghsa_id":"GHSA-9rfw-7hv4-3vv3","id":25020}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123503","ghsa_id":"GHSA-9xh7-5jg8-mf43","id":25021}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123535","ghsa_id":"GHSA-c6v4-qj2h-f748","id":25022}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123511","ghsa_id":"GHSA-c934-xjq2-mrg3","id":25023}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123498","ghsa_id":"GHSA-cvh3-hf56-g9xm","id":25024}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123586","ghsa_id":"GHSA-cx5j-p54p-q756","id":25025}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123502","ghsa_id":"GHSA-ff52-3296-2fvr","id":25026}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123547","ghsa_id":"GHSA-fhqm-62hv-4phw","id":25027}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123526","ghsa_id":"GHSA-fjrf-gjmg-9v6g","id":25028}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123495","ghsa_id":"GHSA-frf4-3prf-3vch","id":25029}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-qqwf-5c27-4xxx","id":2502}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123519","ghsa_id":"GHSA-g2xc-jv9q-46wq","id":25030}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123552","ghsa_id":"GHSA-g5vw-v384-gw9v","id":25031}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123575","ghsa_id":"GHSA-g5xf-qv55-wv37","id":25032}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123589","ghsa_id":"GHSA-g8wg-4mwh-fjfv","id":25033}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123530","ghsa_id":"GHSA-h4q3-mc9r-q7vv","id":25034}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123508","ghsa_id":"GHSA-h8wj-3gwg-jjjg","id":25035}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123542","ghsa_id":"GHSA-h93p-35jm-rj83","id":25036}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123614","ghsa_id":"GHSA-hff9-5pqw-6w9f","id":25037}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123507","ghsa_id":"GHSA-hm4w-h7v8-ch43","id":25038}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123520","ghsa_id":"GHSA-hq66-9qg8-jwqg","id":25039}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-56gp-vpf5-xmqc","id":2503}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123510","ghsa_id":"GHSA-hrw2-p27j-8mj8","id":25040}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123553","ghsa_id":"GHSA-hvfc-4v4r-8p9w","id":25041}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123572","ghsa_id":"GHSA-hx8c-fjhc-hmf5","id":25042}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123593","ghsa_id":"GHSA-j2rc-wxwh-62g9","id":25043}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123559","ghsa_id":"GHSA-j4cw-58mj-7w6v","id":25044}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123538","ghsa_id":"GHSA-j56q-q3r3-hg7f","id":25045}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123527","ghsa_id":"GHSA-j5v7-qcwp-5g32","id":25046}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123555","ghsa_id":"GHSA-jq45-ghw5-v37x","id":25047}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123549","ghsa_id":"GHSA-jv8f-m88g-h6mm","id":25048}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123548","ghsa_id":"GHSA-mgwg-24cx-c8w3","id":25049}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-p8ff-m536-pxh3","id":2504}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123616","ghsa_id":"GHSA-mmq5-xm89-9pfg","id":25050}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123516","ghsa_id":"GHSA-mqq8-869v-48q8","id":25051}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123529","ghsa_id":"GHSA-p23m-cq25-pc4j","id":25052}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123580","ghsa_id":"GHSA-p2jv-r3m3-7wf4","id":25053}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123509","ghsa_id":"GHSA-p697-wq4x-grpj","id":25054}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123540","ghsa_id":"GHSA-pw99-8h4m-p3gm","id":25055}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-124422","ghsa_id":"GHSA-q867-q2hw-f8gp","id":25056}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123512","ghsa_id":"GHSA-qf5p-grf5-wcq4","id":25057}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123587","ghsa_id":"GHSA-qw83-5pm2-ggp5","id":25058}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123513","ghsa_id":"GHSA-rj93-wmch-2crq","id":25059}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-pvqp-rf5r-9jv3","id":2505}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123536","ghsa_id":"GHSA-rmw3-j353-w9f7","id":25060}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123500","ghsa_id":"GHSA-rp64-xg8g-9mpr","id":25061}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123541","ghsa_id":"GHSA-rw43-r238-4c7j","id":25062}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123592","ghsa_id":"GHSA-rx82-4p2j-j5cv","id":25063}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123496","ghsa_id":"GHSA-rxwp-q2qg-98vw","id":25064}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123517","ghsa_id":"GHSA-v3r6-33v3-79c2","id":25065}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123584","ghsa_id":"GHSA-v44v-c8m4-gc43","id":25066}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123531","ghsa_id":"GHSA-v579-5fwc-gr28","id":25067}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123539","ghsa_id":"GHSA-v6hq-3cfh-5gr6","id":25068}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123534","ghsa_id":"GHSA-v8g8-cp5j-42fg","id":25069}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-cqmp-9595-fmjv","id":2506}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123583","ghsa_id":"GHSA-vcjp-57rr-mpfw","id":25070}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123579","ghsa_id":"GHSA-vrv5-968r-5ggm","id":25071}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123518","ghsa_id":"GHSA-w64q-7p4m-j8g8","id":25072}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123573","ghsa_id":"GHSA-wgfr-mphw-j5g4","id":25073}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123599","ghsa_id":"GHSA-wjgj-fvg9-65w9","id":25074}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123525","ghsa_id":"GHSA-wqjr-22r7-5437","id":25075}
+{"at":"2026-11-08T03:50:21Z","event":"new CVE from another CNA: CVE-2026-123497","ghsa_id":"GHSA-wqw2-rgwv-99qx","id":25076}
+{"at":"2026-11-08T03:50:22Z","event":"new CVE from another CNA: CVE-2026-123543","ghsa_id":"GHSA-x7wr-5gxg-v833","id":25077}
+{"at":"2026-11-08T03:50:22Z","event":"new CVE from another CNA: CVE-2026-123571","ghsa_id":"GHSA-x962-5xwx-fr8x","id":25078}
+{"at":"2026-11-08T03:50:22Z","event":"new CVE from another CNA: CVE-2026-123494","ghsa_id":"GHSA-xgw3-ccqg-f6ww","id":25079}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-73cr-mjvq-j2hj","id":2507}
+{"at":"2026-11-08T03:50:22Z","event":"new CVE from another CNA: CVE-2026-123597","ghsa_id":"GHSA-xv7c-h5g9-x25x","id":25080}
+{"at":"2026-11-08T03:50:22Z","event":"new CVE from another CNA: CVE-2026-123532","ghsa_id":"GHSA-xw69-xv93-5fjv","id":25081}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-rgrh-6rwf-f2c8","id":25082}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-45vg-g6hw-72xw","id":25083}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-g6qp-5v3h-f7rr","id":25084}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-w43f-cr2g-2472","id":25085}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-5f9c-h23c-fv6w","id":25086}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-77pc-j4pv-crmp","id":25087}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-qcm4-6phg-mhpf","id":25088}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-88vf-w58m-gv7h","id":25089}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-44c7-q9c6-8235","id":2508}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-p7gr-ppfj-g45v","id":25090}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-hm2j-xp3c-jff2","id":25091}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-75hv-9xj3-3cr8","id":25092}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-xqmh-8fhj-48fp","id":25093}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-j4vf-w939-pgxf","id":25094}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-fg6c-83v6-vhq4","id":25095}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-9jxp-x3fr-ffqh","id":25096}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-v667-mm43-5q7r","id":25097}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-45x6-w2pm-387c","id":25098}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-w93j-6g2w-mp9v","id":25099}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-4jh9-vr9q-xgrj","id":2509}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-h5pc-xw83-f5q4","id":250}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-vp42-wr8v-475c","id":25100}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-65g5-63wg-xjh4","id":25101}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-rxr4-84rf-f47h","id":25102}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-3g9v-hjrx-mg5h","id":25103}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-859w-fq5p-6c86","id":25104}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-fwp7-38wp-mmxw","id":25105}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-7c3w-m9qh-j2vj","id":25106}
+{"at":"2026-11-08T03:50:22Z","event":"first seen","ghsa_id":"GHSA-3mh6-qf3v-q6cr","id":25107}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-5jhj-cjcp-jr8r","id":2510}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-j4w8-6gjf-fqvg","id":2511}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-f9qc-3v4f-32w3","id":2512}
