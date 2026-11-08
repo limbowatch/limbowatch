@@ -75,3 +75,22 @@ def test_action_inputs_and_outputs_are_wired() -> None:
     for step in action["runs"]["steps"]:  # the scripts live beside action.yml, so logs show one line, not the script
         script = re.fullmatch(r'bash "\$\{\{ github\.action_path \}\}/([\w.]+)"', step["run"])
         assert script and (ACTION.parent / script.group(1)).is_file(), step["run"]
+
+
+def test_action_and_component_pin_the_same_image() -> None:
+    """One release, one image: the action pulls it from ghcr.io, the component from its GitLab copy (same digest)."""
+    action = yaml.safe_load(ACTION.read_text())
+    spec, _ = yaml.safe_load_all(TEMPLATE.read_text())
+    a = action["inputs"]["image"]["default"]
+    g = spec["spec"]["inputs"]["image"]["default"]
+    assert a.startswith("ghcr.io/limbowatch/limbowatch:") and "@sha256:" in a
+    assert a.split("@")[1] == g.split("@")[1] and a.split("@")[0].rsplit(":", 1)[1] == g.split("@")[0].rsplit(":", 1)[1]
+    ref = action["inputs"]["limbowatch-ref"]["default"]
+    assert ref == "v" + a.split("@")[0].rsplit(":", 1)[1], "the pip fallback installs the image's release"
+
+
+def test_action_scripts_are_valid_bash() -> None:
+    import subprocess
+
+    for name in ("install.sh", "scan.sh"):
+        subprocess.run(["bash", "-n", str(ACTION.parent / name)], check=True)
