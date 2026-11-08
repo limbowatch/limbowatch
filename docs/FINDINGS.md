@@ -1323,6 +1323,25 @@ Answered:
   - ecosyste.ms remains the Maven source only for discovering popular unwatched packages.
 - **Sources:** [Maven Central index download limits](https://central.sonatype.org/faq/429-maven-index/), [429 and consumption limits](https://central.sonatype.org/faq/429-error/), [tooling providers](https://central.sonatype.org/faq/429-tooling-provider/), [Central Search REST API](https://central.sonatype.org/search/rest-api-guide/).
 
+### F-109
+- **Date:** 2026-11-08 · **Status:** confirmed (GitHub-hosted runners, one workflow, three runs)
+- **Question:** Does the GitHub Action run the Limbowatch image on GitHub's runners, and does its pip fallback work where the image can't run?
+- **Method:** Branch `action-image-test` of `limbowatch/demo-app` (the `add-scapy` dependencies) ran `limbowatch/limbowatch/integrations/action@main` four ways:
+  - `ubuntu-latest` and `ubuntu-24.04-arm`, expecting the image;
+  - `macos-latest` with Python 3.12, expecting pip;
+  - a job in a `python:3.12-slim` container, expecting pip.
+  The scan used `fail-on: high` and `allow-failure: true`. A follow-up step checked `LW_MODE`, the outputs, the SARIF file and the report.
+- **Result:**
+  - **Run 1:** both Linux jobs used the image and found 67 findings, 9 at or above high. The step passed with an `allow-failure` warning. The SARIF (110,857 bytes) was owned by the runner's user (uid 1001), not root.
+  - **The container job failed:** `${{ github.action_path }}` expanded to `/home/runner/work/_actions/…`, which doesn't exist inside the job container (exit 127). `$GITHUB_ACTION_PATH` gives the container's path. Releases 0.1.0a1 and 0.1.0a2 have this bug.
+  - **macOS failed:** the OSV-Scanner download got HTTP 504. From 10:10 to at least 10:18 UTC, github.com release downloads returned 504 for osv-scanner and uv assets. gh CLI's returned 200, and `api.github.com/repos/…/releases/assets/{id}` served the same files. githubstatus.com said "All Systems Operational".
+  - **Run 3:** with the `$GITHUB_ACTION_PATH` fix and a fallback to the API after 3 retries, all four jobs passed with 67 findings each. Both pip jobs downloaded OSV-Scanner through the API, and its checksum was verified.
+- **Caveats:** One day's outage; how often release downloads fail isn't measured. Windows wasn't tested.
+- **Implication:**
+  - The image path doesn't depend on GitHub's release downloads, so it's the default on Linux runners with Docker.
+  - The pip path retries, then uses the API.
+  - Container jobs, common on Gitea and Forgejo, work from the next release on.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
