@@ -1353,6 +1353,27 @@ Answered:
 - **Caveats:** One pass, and a cold one: every file was downloaded in full. The ETag passes come from the next daily run on.
 - **Implication:** The Maven feed works at full size and finds over twice as many releases in watched repos as ecosyste.ms. Release-download outages on GitHub can stop a tracker run before it starts; the run fails visibly and the state is untouched.
 
+### F-111
+- **Date:** 2026-11-08 · **Status:** confirmed (observed; one public repo, second day)
+- **Question:** One day after F-090, does Dependabot still report nothing on the demo app while Limbowatch reports the same advisories?
+- **Method:** On `github.com/limbowatch/demo-app` (`main`, unchanged since F-090), 2026-11-08 ~18:00 UTC:
+  - Dependabot alerts on: `GET /repos/limbowatch/demo-app/vulnerability-alerts` → 204.
+  - Alerts: `GET /repos/limbowatch/demo-app/dependabot/alerts`.
+  - Dependency graph: `GET /repos/limbowatch/demo-app/dependency-graph/sbom`.
+  - Limbowatch: `limbowatch scan` 0.1.0a3 on a fresh clone, with the limbo feed of 2026-11-08 13:50 UTC.
+  - Primary-source re-check: `research/2026-11-demo-evidence/verify.py`, as in F-091, run from a scratch copy so the committed `evidence.json` stays as of F-091.
+- **Result:**
+  - Dependabot: alerts on, **0 alerts**. The dependency graph lists 20 packages, including all 6 affected ones at the affected versions (undici 7.30.1, pgx v5.11.0, chi v5.4.0, rack 2.2.24, nokogiri 1.19.4, dnspython 2.9.1). GitHub sees the dependencies; it has no reviewed advisory to alert on.
+  - Limbowatch: 80 dependencies scanned, **16 advisories in limbo in 6 packages**:
+    - 5 high, 6 medium, 5 low;
+    - packages undici, pgx, chi, rack, nokogiri and dnspython;
+    - 7 of the 16 have a CVE.
+    - It reported 2 dependencies it couldn't check (a version range, a Git URL) instead of dropping them.
+  - Re-check: **16 of 16 still in limbo**. Each is published, not withdrawn, has the installed version in range, and is absent from GitHub's reviewed database (by ID and by CVE) and from OSV (by ID and by package and version). They have been public 3.3 to 25.2 days.
+- **Caveats:** One repo, a demo with pinned versions, not a production project. Dependabot alerts only (not security updates). The dependency graph doesn't list npm's transitive packages, but none of the 16 findings is in one.
+- **Implication:** F-090 holds a day later: for these 16 advisories, Dependabot's silence is the review backlog, not a coverage choice. When GitHub reviews one, Dependabot should start alerting and `limbowatch scan` reports it as "now visible to scanners"; re-running this check over the coming weeks shows when that happens.
+- **Sources:** GitHub REST API (Dependabot alerts, dependency graph, repository and global security advisories); OSV API; `research/2026-11-demo-evidence/`.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
