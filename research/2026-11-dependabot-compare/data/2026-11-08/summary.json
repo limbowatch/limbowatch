@@ -1,0 +1,395 @@
+{
+ "attribution": "GitHub repository security advisories and the GitHub Advisory Database (CC BY 4.0); OSV.dev",
+ "checked_at": "2026-11-08T22:12:16+00:00",
+ "date": "2026-11-08",
+ "native_range_check": {
+  "all_findings": 1140,
+  "by_verdict": {
+   "confirmed": 1080,
+   "depends-on-malformed-range": 26,
+   "false-positive-separate-go-module": 5,
+   "reported-as-possible": 29
+  },
+  "in_range": 1089,
+  "out_of_range": 37,
+  "possibly_affected": 29,
+  "reported_affected": 1111,
+  "reported_affected_result": {
+   "in_range": 1080,
+   "out_of_range": 26,
+   "undecided": 5
+  },
+  "undecided": 14
+ },
+ "projects": {
+  "aerc": {
+   "commit": "5d7784875be2938a67586034cf900a2cdbaf11bc",
+   "dependencies": 46,
+   "error": null,
+   "limbowatch_advisories": 0,
+   "limbowatch_findings": 0,
+   "unchecked": 0,
+   "url": "https://git.sr.ht/~rjarry/aerc"
+  },
+  "arti": {
+   "by_verdict": {
+    "confirmed": 18,
+    "depends-on-malformed-range": 0,
+    "false-positive-separate-go-module": 0,
+    "reported-as-possible": 4
+   },
+   "commit": "81b58a3686da4f3cbb84bdce9c581bace35690d0",
+   "dependabot_alerts_total": 169,
+   "dependabot_open_alerts": 169,
+   "dependencies": 2289,
+   "error": null,
+   "findings_by_dependabot_status": {
+    "alerted": 0,
+    "not-alerted": 22,
+    "not-in-graph": 0
+   },
+   "findings_in_osv_now": 0,
+   "findings_reviewed_now": 0,
+   "findings_upstream_published_now": 22,
+   "graph_packages": 2329,
+   "limbowatch_advisories": 21,
+   "limbowatch_findings": 22,
+   "native_in_range": 19,
+   "unchecked": 93,
+   "url": "https://gitlab.torproject.org/tpo/core/arti.git"
+  },
+  "fdroidserver": {
+   "commit": "cdfdce835a8231996b02392bc79c1879e6bef501",
+   "dependencies": 0,
+   "error": null,
+   "limbowatch_advisories": 0,
+   "limbowatch_findings": 0,
+   "unchecked": 1,
+   "url": "https://gitlab.com/fdroid/fdroidserver.git"
+  },
+  "forgejo": {
+   "by_verdict": {
+    "confirmed": 23,
+    "depends-on-malformed-range": 0,
+    "false-positive-separate-go-module": 0,
+    "reported-as-possible": 1
+   },
+   "commit": "6c2b8b9d726a44abbaf7bc07d293cb10e93829a7",
+   "dependabot_alerts_total": 72,
+   "dependabot_open_alerts": 72,
+   "dependencies": 2137,
+   "error": null,
+   "findings_by_dependabot_status": {
+    "alerted": 0,
+    "not-alerted": 24,
+    "not-in-graph": 0
+   },
+   "findings_in_osv_now": 0,
+   "findings_reviewed_now": 0,
+   "findings_upstream_published_now": 24,
+   "graph_packages": 2011,
+   "limbowatch_advisories": 23,
+   "limbowatch_findings": 24,
+   "native_in_range": 23,
+   "unchecked": 0,
+   "url": "https://codeberg.org/forgejo/forgejo.git"
+  },
+  "fractal": {
+   "by_verdict": {
+    "confirmed": 1,
+    "depends-on-malformed-range": 0,
+    "false-positive-separate-go-module": 0,
+    "reported-as-possible": 3
+   },
+   "commit": "44cc60e6b2b7ed1bb023b88aa9ccb0a82ffa4019",
+   "dependabot_alerts_total": 0,
+   "dependabot_open_alerts": 0,
+   "dependencies": 546,
+   "error": null,
+   "findings_by_dependabot_status": {
+    "alerted": 0,
+    "not-alerted": 4,
+    "not-in-graph": 0
+   },
+   "findings_in_osv_now": 0,
+   "findings_reviewed_now": 0,
+   "findings_upstream_published_now": 4,
+   "graph_packages": 565,
+   "limbowatch_advisories": 4,
+   "limbowatch_findings": 4,
+   "native_in_range": 3,
+   "unchecked": 20,
+   "url": "https://gitlab.gnome.org/World/fractal.git"
+  },
+  "gitaly": {
+   "by_verdict": {
+    "confirmed": 12,
+    "depends-on-malformed-range": 0,
+    "false-positive-separate-go-module": 2,
+    "reported-as-possible": 2
+   },
+   "commit": "f965830b462277b9c84dbd9540a625ba91b9243c",
+   "dependabot_alerts_total": 85,
+   "dependabot_open_alerts": 85,
+   "dependencies": 588,
+   "error": null,
+   "findings_by_dependabot_status": {
+    "alerted": 0,
+    "not-alerted": 16,
+    "not-in-graph": 0
+   },
+   "findings_in_osv_now": 0,
+   "findings_reviewed_now": 0,
+   "findings_upstream_published_now": 16,
+   "graph_packages": 537,
+   "limbowatch_advisories": 14,
+   "limbowatch_findings": 16,
+   "native_in_range": 12,
+   "unchecked": 0,
+   "url": "https://gitlab.com/gitlab-org/gitaly.git"
+  },
+  "gitea": {
+   "by_verdict": {
+    "confirmed": 22,
+    "depends-on-malformed-range": 0,
+    "false-positive-separate-go-module": 0,
+    "reported-as-possible": 0
+   },
+   "commit": "1554b6c939c398632abe5f6875a596ef879dd7ad",
+   "dependabot_alerts_total": 35,
+   "dependabot_open_alerts": 35,
+   "dependencies": 1192,
+   "error": null,
+   "findings_by_dependabot_status": {
+    "alerted": 0,
+    "not-alerted": 22,
+    "not-in-graph": 0
+   },
+   "findings_in_osv_now": 0,
+   "findings_reviewed_now": 0,
+   "findings_upstream_published_now": 22,
+   "graph_packages": 1179,
+   "limbowatch_advisories": 22,
+   "limbowatch_findings": 22,
+   "native_in_range": 22,
+   "unchecked": 0,
+   "url": "https://github.com/go-gitea/gitea.git"
+  },
+  "gitlab": {
+   "by_verdict": {
+    "confirmed": 616,
+    "depends-on-malformed-range": 0,
+    "false-positive-separate-go-module": 2,
+    "reported-as-possible": 10
+   },
+   "commit": "af9bf957b22ad6762c8722454df68d460d424db8",
+   "dependabot_alerts_total": 988,
+   "dependabot_open_alerts": 988,
+   "dependencies": 8089,
+   "error": null,
+   "findings_by_dependabot_status": {
+    "alerted": 0,
+    "not-alerted": 628,
+    "not-in-graph": 0
+   },
+   "findings_in_osv_now": 0,
+   "findings_reviewed_now": 0,
+   "findings_upstream_published_now": 628,
+   "graph_packages": 5001,
+   "limbowatch_advisories": 117,
+   "limbowatch_findings": 628,
+   "native_in_range": 620,
+   "unchecked": 0,
+   "url": "https://gitlab.com/gitlab-org/gitlab.git"
+  },
+  "gitlab-runner": {
+   "by_verdict": {
+    "confirmed": 9,
+    "depends-on-malformed-range": 0,
+    "false-positive-separate-go-module": 1,
+    "reported-as-possible": 0
+   },
+   "commit": "cab414fd947e50718750f80812e6d0bd0b586fcc",
+   "dependabot_alerts_total": 3,
+   "dependabot_open_alerts": 3,
+   "dependencies": 317,
+   "error": null,
+   "findings_by_dependabot_status": {
+    "alerted": 0,
+    "not-alerted": 10,
+    "not-in-graph": 0
+   },
+   "findings_in_osv_now": 0,
+   "findings_reviewed_now": 0,
+   "findings_upstream_published_now": 10,
+   "graph_packages": 312,
+   "limbowatch_advisories": 10,
+   "limbowatch_findings": 10,
+   "native_in_range": 9,
+   "unchecked": 1,
+   "url": "https://gitlab.com/gitlab-org/gitlab-runner.git"
+  },
+  "gotosocial": {
+   "by_verdict": {
+    "confirmed": 22,
+    "depends-on-malformed-range": 0,
+    "false-positive-separate-go-module": 0,
+    "reported-as-possible": 1
+   },
+   "commit": "970a6e7d58d44683240c22e9db70bfed935f7561",
+   "dependabot_alerts_total": 100,
+   "dependabot_open_alerts": 100,
+   "dependencies": 1196,
+   "error": null,
+   "findings_by_dependabot_status": {
+    "alerted": 0,
+    "not-alerted": 23,
+    "not-in-graph": 0
+   },
+   "findings_in_osv_now": 0,
+   "findings_reviewed_now": 0,
+   "findings_upstream_published_now": 23,
+   "graph_packages": 1198,
+   "limbowatch_advisories": 23,
+   "limbowatch_findings": 23,
+   "native_in_range": 23,
+   "unchecked": 0,
+   "url": "https://codeberg.org/superseriousbusiness/gotosocial.git"
+  },
+  "kubernetes": {
+   "by_verdict": {
+    "confirmed": 3,
+    "depends-on-malformed-range": 0,
+    "false-positive-separate-go-module": 0,
+    "reported-as-possible": 1
+   },
+   "commit": "896c5b4ce4c44881eed2930add2dc3b3293323ab",
+   "dependabot_alerts_total": 0,
+   "dependabot_open_alerts": 0,
+   "dependencies": 1938,
+   "error": null,
+   "findings_by_dependabot_status": {
+    "alerted": 0,
+    "not-alerted": 4,
+    "not-in-graph": 0
+   },
+   "findings_in_osv_now": 0,
+   "findings_reviewed_now": 0,
+   "findings_upstream_published_now": 4,
+   "graph_packages": 414,
+   "limbowatch_advisories": 4,
+   "limbowatch_findings": 4,
+   "native_in_range": 3,
+   "unchecked": 167,
+   "url": "https://github.com/kubernetes/kubernetes.git"
+  },
+  "langchain": {
+   "by_verdict": {
+    "confirmed": 184,
+    "depends-on-malformed-range": 19,
+    "false-positive-separate-go-module": 0,
+    "reported-as-possible": 3
+   },
+   "commit": "d9caf083577c43a91c5bf6bd1f7dfc289581184d",
+   "dependabot_alerts_total": 115,
+   "dependabot_open_alerts": 115,
+   "dependencies": 2456,
+   "error": null,
+   "findings_by_dependabot_status": {
+    "alerted": 0,
+    "not-alerted": 206,
+    "not-in-graph": 0
+   },
+   "findings_in_osv_now": 0,
+   "findings_reviewed_now": 0,
+   "findings_upstream_published_now": 206,
+   "graph_packages": 697,
+   "limbowatch_advisories": 50,
+   "limbowatch_findings": 206,
+   "native_in_range": 184,
+   "unchecked": 78,
+   "url": "https://github.com/langchain-ai/langchain.git"
+  },
+  "mobilizon": {
+   "by_verdict": {
+    "confirmed": 13,
+    "depends-on-malformed-range": 0,
+    "false-positive-separate-go-module": 0,
+    "reported-as-possible": 1
+   },
+   "commit": "f2590486f6ee056f01fa05412a16f9a08c65357e",
+   "dependabot_alerts_total": 34,
+   "dependabot_open_alerts": 34,
+   "dependencies": 898,
+   "error": null,
+   "findings_by_dependabot_status": {
+    "alerted": 0,
+    "not-alerted": 14,
+    "not-in-graph": 0
+   },
+   "findings_in_osv_now": 0,
+   "findings_reviewed_now": 0,
+   "findings_upstream_published_now": 14,
+   "graph_packages": 899,
+   "limbowatch_advisories": 10,
+   "limbowatch_findings": 14,
+   "native_in_range": 13,
+   "unchecked": 0,
+   "url": "https://framagit.org/framasoft/mobilizon.git"
+  },
+  "n8n": {
+   "by_verdict": {
+    "confirmed": 81,
+    "depends-on-malformed-range": 1,
+    "false-positive-separate-go-module": 0,
+    "reported-as-possible": 2
+   },
+   "commit": "01bd57cddf11e8173b16adce1b22a8eb94598672",
+   "dependabot_alerts_total": 148,
+   "dependabot_open_alerts": 148,
+   "dependencies": 3956,
+   "error": null,
+   "findings_by_dependabot_status": {
+    "alerted": 0,
+    "not-alerted": 84,
+    "not-in-graph": 0
+   },
+   "findings_in_osv_now": 0,
+   "findings_reviewed_now": 0,
+   "findings_upstream_published_now": 84,
+   "graph_packages": 4290,
+   "limbowatch_advisories": 61,
+   "limbowatch_findings": 84,
+   "native_in_range": 82,
+   "unchecked": 3,
+   "url": "https://github.com/n8n-io/n8n.git"
+  },
+  "open-webui": {
+   "by_verdict": {
+    "confirmed": 76,
+    "depends-on-malformed-range": 6,
+    "false-positive-separate-go-module": 0,
+    "reported-as-possible": 1
+   },
+   "commit": "b7a005e5a5c0c0d869f2aebf4b8f051c5fb37245",
+   "dependabot_alerts_total": 271,
+   "dependabot_open_alerts": 271,
+   "dependencies": 1993,
+   "error": null,
+   "findings_by_dependabot_status": {
+    "alerted": 0,
+    "not-alerted": 83,
+    "not-in-graph": 0
+   },
+   "findings_in_osv_now": 0,
+   "findings_reviewed_now": 0,
+   "findings_upstream_published_now": 83,
+   "graph_packages": 1808,
+   "limbowatch_advisories": 58,
+   "limbowatch_findings": 83,
+   "native_in_range": 76,
+   "unchecked": 2,
+   "url": "https://github.com/open-webui/open-webui.git"
+  }
+ }
+}

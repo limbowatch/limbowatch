@@ -61,7 +61,7 @@ Current understanding during Phase 5 (2026-11-08), with entries linked. Points 1
     - GitLab, every tier: Code Quality shows findings on the lockfile line and "51 new findings" in a merge request; a JUnit test summary counts what fails the build; `expose_as` links the report folder; confidential issues work with any token sent as `Bearer` ([F-086](#f-086), [F-087](#f-087), [F-088](#f-088), [F-094](#f-094)).
     - GitHub: SARIF becomes code scanning alerts inline on the changed line (public repos, or with GitHub Code Security; needs `actions: read`) ([F-089](#f-089)).
     - Limits found only by running it: a component description over 256 characters breaks every including pipeline ([F-095](#f-095)); GitHub keeps 10 annotations per level per step and drops the rest silently, so annotations are one per package ([F-096](#f-096)); click strips colour off pipes ([F-097](#f-097)).
-28. **Without Limbowatch, nothing reports these.** On the demo app, GitHub's Dependabot alerts and OSV-Scanner reported 0 of the 16 advisories Limbowatch found; all 16 were rechecked against primary sources and are real, fixed and unreviewed, 1.6 to 23.5 days in limbo ([F-090](#f-090), [F-091](#f-091)).
+28. **Without Limbowatch, nothing reports these.** On the demo app, GitHub's Dependabot alerts and OSV-Scanner reported 0 of the 16 advisories Limbowatch found; all 16 were rechecked against primary sources and are real, fixed and unreviewed, 1.6 to 23.5 days in limbo ([F-090](#f-090), [F-091](#f-091)). On 13 real projects (2026-11-08), Dependabot raised 2,020 alerts and covered **0 of 1,080 confirmed findings** in limbo, every one in GitHub's own dependency graph ([F-112](#f-112)). The same check found 5 Limbowatch false positives, from Go modules nested under another module's path ([F-113](#f-113)).
 29. **The outputs are standard.** SARIF 2.1.0 and CycloneDX 1.6 validate against the official schemas ([F-093](#f-093)).
 30. **Released as an alpha, 0.1.0a1 (2026-11-07), then 0.1.0a2 (2026-11-08).** PyPI with PEP 740 attestations; GitHub pre-release; the CI/CD Catalog accepts pre-releases like `0.1.0-alpha.1` ([F-097](#f-097)). 0.1.0a2 adds the image and the reworked component (point 39).
 31. **Both demos stay as live regression tests:** `limbowatch/demo-app` on GitHub (public, PR #1) and GitLab (private, MR !1) run the released action and component ([F-088](#f-088), [F-097](#f-097)).
@@ -1373,6 +1373,54 @@ Answered:
 - **Caveats:** One repo, a demo with pinned versions, not a production project. Dependabot alerts only (not security updates). The dependency graph doesn't list npm's transitive packages, but none of the 16 findings is in one.
 - **Implication:** F-090 holds a day later: for these 16 advisories, Dependabot's silence is the review backlog, not a coverage choice. When GitHub reviews one, Dependabot should start alerting and `limbowatch scan` reports it as "now visible to scanners"; re-running this check over the coming weeks shows when that happens.
 - **Sources:** GitHub REST API (Dependabot alerts, dependency graph, repository and global security advisories); OSV API; `research/2026-11-demo-evidence/`.
+
+### F-112
+- **Date:** 2026-11-08 · **Status:** confirmed (observed; 13 real projects, one day)
+- **Question:** On real projects, does Dependabot report the advisories in limbo that Limbowatch finds, and when it doesn't, is that because GitHub can't see the dependency?
+- **Method:** `research/2026-11-dependabot-compare/` (`compare.py`, `ranges.py`). Projects: the October report's 15, at their HEAD of 2026-11-08.
+  - **Files:** sparse, blob-less clones of only the dependency files (lockfiles plus manifests; test fixtures and vendored copies left out).
+  - **Limbowatch:** `limbowatch scan` 0.1.0a3 `--scan-ignored` against the limbo feed of 2026-11-08 18:00 UTC.
+  - **Dependabot:** for the 13 projects with findings, the same files in a private `limbowatch/dbcmp-<project>` repo, with Dependabot alerts turned on before the push. Read `GET /repos/{r}/dependabot/alerts` and `GET /repos/{r}/dependency-graph/sbom` after the alert counts had held across two polls 5 min apart (GitLab: 45 min after the push).
+  - **Classification:** a finding is *alerted* if an alert has the same GHSA or CVE; otherwise *not alerted* (package and version in the graph) or *not in graph*.
+  - **Live re-checks:**
+    - upstream advisory still published, not withdrawn (`GET /repos/{repo}/security-advisories/{ghsa}`);
+    - not reviewed (`GET /advisories/{ghsa}`);
+    - not in OSV (`GET /v1/vulns/{ghsa}`).
+  - **Versions:** each version is tested against the maintainer's range with the ecosystem's own library: npm and Rust `semver`, `packaging`, `Gem::Requirement`, `golang.org/x/mod/semver`. Go paths below the matched module are checked against `GET https://proxy.golang.org/<path>/@v/list`.
+- **Result:**
+  - **Limbowatch:** 1,140 findings (296 distinct advisories) in 13 of 15 projects. aerc had none; F-Droid server had no readable lockfile, reported as unchecked. Projects: GitLab 628, langchain 206, n8n 84, open-webui 83, Forgejo 24, GoToSocial 23, Gitea 22, Arti 22, Gitaly 16, Mobilizon 14, GitLab Runner 10, Kubernetes 4, Fractal 4.
+  - **Dependabot:** 2,020 alerts on the 13 copies (GitLab 988, open-webui 271, Arti 169, n8n 148, langchain 115, GoToSocial 100, Gitaly 85, Forgejo 72, Gitea 35, Mobilizon 34, GitLab Runner 3, Kubernetes 0, Fractal 0).
+  - **Alerts for Limbowatch findings: 0 of 1,140.** Every finding is *not alerted*: all 1,140 package versions are in GitHub's dependency graph.
+  - **Re-checks:** all 1,140 still published upstream, 0 reviewed, 0 in OSV.
+  - **Versions:**
+    - **1,080 confirmed** in range by the ecosystem's own library: 277 advisories; 21 critical, 241 high, 618 medium, 200 low; 95 with a CVE; public 0.6 to 424 days, median 9.6.
+    - 29 reported only as possible.
+    - 26 depend on reading a malformed range: 5 advisories whose literal AND reading matches nothing (comma-as-OR, F-085).
+    - **5 false positives** ([F-113](#f-113)).
+  - **Timing:** the dependency graph was ready within minutes. Alerts appeared within ~10 min for 11 copies and after ~33 min for GitLab.
+  - **Kubernetes:** its 0 alerts are correct. OSV `querybatch` on its 1,938 graph purls finds 3 Go vulndb entries, none with a GHSA alias.
+- **Caveats:**
+  - Copies of the dependency files, not the real repositories; Dependabot alerts only (not security updates).
+  - Findings count per dependency file: an advisory in several lockfiles of a project counts once per file.
+  - Malformed ranges are the maintainers' own and unreviewed.
+  - It's a head start: as GitHub reviews these advisories, Dependabot will alert.
+  - GitLab's Dependency Scanning wasn't compared (it reads the GitLab Advisory Database).
+- **Implication:** F-090 holds on real projects at scale. On 13 popular projects, Dependabot sees every affected dependency and reports none of 1,080 confirmed advisories in limbo, while raising 2,020 alerts for reviewed advisories that Limbowatch, by design, doesn't repeat. The two are complementary: Limbowatch covers the time before review.
+- **Sources:** GitHub REST API (Dependabot alerts, dependency graph, repository and global security advisories); OSV API; Go module proxy; `research/2026-11-dependabot-compare/data/2026-11-08/summary.json`.
+
+### F-113
+- **Date:** 2026-11-08 · **Status:** confirmed (Go module proxy; 5 findings in F-112)
+- **Question:** Why do 5 of F-112's Go findings fail the independent version check?
+- **Method:** For Go findings whose advisory names a path below the matched module, `GET https://proxy.golang.org/<path>/@v/list` for each named path (200 with versions = a module of its own; 404 = not a module). Read `go_relation()` in `packages/core/src/limbowatch/versions.py`.
+- **Result:**
+  - **Separate modules, wrongly matched to their parent:**
+    - GHSA-q7gw-24fr-5p69 names `go.opentelemetry.io/otel/sdk`, `/sdk/log` and `/trace`, all modules (77, 25 and 70 versions). Limbowatch matched it to `go.opentelemetry.io/otel` (Gitaly 1.36.0, GitLab 1.46.0).
+    - GHSA-3jcv-796g-cpjg names 406 `github.com/aws/aws-sdk-go-v2/service/*` modules (e.g. `service/iotwireless`, 230 versions, `< v1.53.10`). Limbowatch matched it to `github.com/aws/aws-sdk-go-v2` 1.47.x (Gitaly, GitLab, GitLab Runner) and compared the root's version with a service module's range.
+  - **Correctly matched packages inside the module:** `go.opentelemetry.io/otel/baggage`, `go.mongodb.org/mongo-driver/v2/bson` and `/mongo` (all 404).
+  - `go_relation()` returns `package_in_module` whenever the advisory path extends the module path (except `/vN`), without knowing whether the longer path is itself a module.
+- **Caveats:** 5 of 1,140 findings in one comparison; how often this happens across the feed wasn't measured.
+- **Implication:** A bug in the watcher's Go matching, in released 0.1.0a1 to 0.1.0a3. Telling a nested module from a package needs data the pure matcher doesn't have. The tracker could record, per Go advisory path, whether the module proxy lists it as a module, and the feed could carry that. Until then such findings should be reported as possible, not certain.
+- **Sources:** Go module proxy; GitHub repository security advisories; `research/2026-11-dependabot-compare/`.
 
 ## Archive
 
