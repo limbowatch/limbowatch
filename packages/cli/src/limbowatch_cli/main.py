@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
@@ -498,5 +499,17 @@ async def _sync_issues(
     return [*lines, *await watch_issues.apply(tracker, actions)]
 
 
+def main() -> None:
+    """The `limbowatch` command. Exit codes stay a contract even when something unexpected breaks: 0 passed,
+    1 a finding meets --fail-on, 2 couldn't run. Python ends an uncaught exception with 1, which CI would read
+    as a finding."""
+    try:
+        app()
+    except Exception as e:  # typer re-raises what its commands don't handle: a crash, not a finding
+        traceback.print_exc()
+        typer.echo(f"error: unexpected {type(e).__name__}: {e}", err=True)
+        sys.exit(2)
+
+
 if __name__ == "__main__":
-    app()
+    main()

@@ -1,0 +1,9 @@
+# The image needs the workspace metadata, the lockfile and the two packages; nothing else.
+*
+!pyproject.toml
+!uv.lock
+!README.md
+!LICENSE
+!packages/
+**/__pycache__
+**/*.pyc

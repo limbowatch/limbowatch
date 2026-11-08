@@ -546,7 +546,10 @@ def sarif(r: Report) -> str:
             "shortDescription": {"text": f"{f.ghsa_id}: published advisory not yet in GitHub's database or OSV"},
             "helpUri": f.url,
             "help": {"text": f"{f.url}\n\n{ATTRIBUTION}", "markdown": f"[{f.ghsa_id}]({f.url})\n\n_{ATTRIBUTION}_"},
-            "properties": {"security-severity": _SARIF_SCORE.get(sev, "5.0"), "tags": ["security", "dependency", "limbo"],
+            # GitLab files a SARIF finding as dependency scanning when a tag is a CVE, as SAST otherwise; it keeps
+            # 10 tags per rule (F-106)
+            "properties": {"security-severity": _SARIF_SCORE.get(sev, "5.0"),
+                           "tags": ["security", "dependency", "limbo", *(f"cve-{c[4:]}" for c in f.cves[:7])],
                            "precision": "high" if f.affected is True else "medium"},
         })  # fmt: skip
         results.append({

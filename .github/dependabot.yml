@@ -1,4 +1,4 @@
-# Weekly, grouped updates: GitHub Actions (pinned by commit) and the uv lockfile.
+# Weekly, grouped updates: GitHub Actions (pinned by commit), the uv lockfile and the image's base images (by digest).
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -14,4 +14,11 @@ updates:
       interval: weekly
     groups:
       python:
+        patterns: ["*"]
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      images:
         patterns: ["*"]

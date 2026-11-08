@@ -87,6 +87,17 @@ def test_formats_carry_findings_unresolved_and_attribution() -> None:
     assert run["properties"]["attribution"] == output.ATTRIBUTION
 
 
+def test_sarif_tags_cves_so_gitlab_files_them_as_dependency_scanning() -> None:
+    """GitLab Ultimate files a SARIF finding as dependency scanning when a rule tag is a CVE (F-106)."""
+    with_cve = finding().model_copy(update={"cves": ("CVE-2026-12345",), "cve": CveLabel.PUBLISHED_CITED})
+    without = finding(name="qs", ghsa="GHSA-1111-2222-3333")
+    run = json.loads(output.sarif(report(with_cve, without)))["runs"][0]
+    rules = {r["id"]: r for r in run["tool"]["driver"]["rules"]}
+    assert "cve-2026-12345" in rules["GHSA-aaaa-bbbb-cccc"]["properties"]["tags"]
+    assert not any(t.startswith("cve-") for t in rules["GHSA-1111-2222-3333"]["properties"]["tags"])
+    assert all(len(r["properties"]["tags"]) <= 10 for r in rules.values())
+
+
 def test_fixed_version_for_the_release_line() -> None:
     f = finding(name="@sinclair/typebox", version="0.27.10", fixed="0.26.9, 0.27.12, 0.28.22")
     text = output.table(report(f))

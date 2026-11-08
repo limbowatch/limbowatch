@@ -53,3 +53,16 @@ def test_colour_modes(monkeypatch: pytest.MonkeyPatch) -> None:
     assert _color("auto") == (True, False)
     monkeypatch.setenv("NO_COLOR", "1")
     assert _color("auto") == (False, False) and _color("never") == (False, False)
+
+
+def test_a_crash_exits_2_not_1(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """Exit 1 means a finding meets --fail-on; anything unexpected must not look like one."""
+    from limbowatch_cli import main as cli
+
+    def boom() -> None:
+        raise KeyError("feed")
+
+    monkeypatch.setattr(cli, "app", boom)
+    with pytest.raises(SystemExit) as e:
+        cli.main()
+    assert e.value.code == 2 and "unexpected KeyError" in capsys.readouterr().err

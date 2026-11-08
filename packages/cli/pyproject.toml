@@ -26,7 +26,7 @@ classifiers = [
 dependencies = ["limbowatch==0.1.0a1", "typer>=0.12"]
 
 [project.scripts]
-limbowatch = "limbowatch_cli.main:app"
+limbowatch = "limbowatch_cli.main:main"
 
 [project.urls]
 Homepage = "https://limbo.watch"
