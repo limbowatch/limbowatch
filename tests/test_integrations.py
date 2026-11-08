@@ -73,7 +73,8 @@ def test_action_inputs_and_outputs_are_wired() -> None:
         step_output = re.fullmatch(r"\$\{\{ steps\.scan\.outputs\.([\w-]+) \}\}", out["value"])
         assert step_output and f"{step_output.group(1)}=" in scripts, name
     for step in action["runs"]["steps"]:  # the scripts live beside action.yml, so logs show one line, not the script
-        script = re.fullmatch(r'bash "\$\{\{ github\.action_path \}\}/([\w.]+)"', step["run"])
+        # $GITHUB_ACTION_PATH, not ${{ github.action_path }}: the latter is the host path inside container jobs
+        script = re.fullmatch(r'bash "\$GITHUB_ACTION_PATH/([\w.]+)"', step["run"])
         assert script and (ACTION.parent / script.group(1)).is_file(), step["run"]
 
 
