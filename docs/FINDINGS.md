@@ -8,7 +8,7 @@ Last summarized: 2026-11-07 (end of Phase 4: the watcher, tested in real CI and 
 
 ## Summary
 
-Current understanding at the end of Phase 4 (2026-11-07), with entries linked. Points 1–14 come from the Phase 1 research (2026-10-21 to 10-25), 15–20 and 32 from the live tracker (Phase 2, measured again 2026-11-07), 21 from Phase 3, 22–31 from the watcher (Phase 4). Numbers are dated; review backlogs drift.
+Current understanding during Phase 5 (2026-11-08), with entries linked. Points 1–14 come from the Phase 1 research (2026-10-21 to 10-25), 15–20 and 32 from the live tracker (Phase 2, measured again 2026-11-07), 21 from Phase 3, 22–31 from the watcher (Phase 4), 33–40 from Phase 5 so far. Numbers are dated; review backlogs drift.
 
 **Phase 1: the gap in a sample of real projects**
 
@@ -63,12 +63,23 @@ Current understanding at the end of Phase 4 (2026-11-07), with entries linked. P
     - Limits found only by running it: a component description over 256 characters breaks every including pipeline ([F-095](#f-095)); GitHub keeps 10 annotations per level per step and drops the rest silently, so annotations are one per package ([F-096](#f-096)); click strips colour off pipes ([F-097](#f-097)).
 28. **Without Limbowatch, nothing reports these.** On the demo app, GitHub's Dependabot alerts and OSV-Scanner reported 0 of the 16 advisories Limbowatch found; all 16 were rechecked against primary sources and are real, fixed and unreviewed, 1.6 to 23.5 days in limbo ([F-090](#f-090), [F-091](#f-091)).
 29. **The outputs are standard.** SARIF 2.1.0 and CycloneDX 1.6 validate against the official schemas ([F-093](#f-093)).
-30. **Released as an alpha, 0.1.0a1 (2026-11-07).** PyPI with PEP 740 attestations; GitHub pre-release; the CI/CD Catalog accepts the pre-release `0.1.0-alpha.1` ([F-097](#f-097)).
+30. **Released as an alpha, 0.1.0a1 (2026-11-07), then 0.1.0a2 (2026-11-08).** PyPI with PEP 740 attestations; GitHub pre-release; the CI/CD Catalog accepts pre-releases like `0.1.0-alpha.1` ([F-097](#f-097)). 0.1.0a2 adds the image and the reworked component (point 39).
 31. **Both demos stay as live regression tests:** `limbowatch/demo-app` on GitHub (public, PR #1) and GitLab (private, MR !1) run the released action and component ([F-088](#f-088), [F-097](#f-097)).
 
 **Coverage (measured 2026-11-07)**
 
-32. **The tracker sees roughly 1 in 4 of all repository advisories.** About 1,100 to 1,250 newly published a week, in all ecosystems, against GitHub's "more than 5,000/week". 18,678 watched repos; most advisories come from repos found through earlier advisory activity (GitHub-assigned CVEs, reviewed-advisory origins), not from the dependency seeds. Coverage of what real projects depend on is much higher ([F-098](#f-098), [F-085](#f-085)). Raising it is Phase 5's first step.
+32. **The tracker sees roughly 1 in 4 of all repository advisories** (before Phase 5's expansion, point 33). About 1,100 to 1,250 newly published a week, in all ecosystems, against GitHub's "more than 5,000/week". 18,678 watched repos; most advisories come from repos found through earlier advisory activity (GitHub-assigned CVEs, reviewed-advisory origins), not from the dependency seeds. Coverage of what real projects depend on is much higher ([F-098](#f-098), [F-085](#f-085)). Raising it is Phase 5's first step.
+
+**Phase 5: coverage and release-triggered checks (2026-11-07/08)**
+
+33. **The watchlist missed most popular packages outside npm, crates.io and PyPI.** Of the top 1,000 packages per ecosystem, 3% (NuGet) to 97% (npm) were watched; for the top 10,000, 1% to 58%. About 45,000 unwatched repos sat in the top 10,000s, and a sample of them held 30 advisories in limbo, all in no database ([F-099](#f-099)). Adding the top 1,000 found 153 unreviewed advisories on the first pass ([F-100](#f-100)). The watchlist is 44,553 repos on 2026-11-08, with wave one of the top 10,000 (NuGet, Packagist, Maven, RubyGems) about half done.
+34. **Advisories follow releases.** 71% of advisories had a release of their package within a day and 79% within 3 days; in 82% the release came first, so the maintainer ships the fix, then publishes ([F-100](#f-100)). Every covered ecosystem has a release feed ([F-101](#f-101)). Collecting them costs about 40 requests a day plus a few hundred GitHub checks; popular unwatched packages add tens of repos a day ([F-102](#f-102)).
+35. **Re-checks aren't free.** About a third of repos with advisories answer 200 after two weeks with no visible change, and a token change voids every ETag until each repo is polled once. In steady state a run spends about 1,600 counted requests on re-checks ([F-100](#f-100)).
+36. **Release checks let quiet repos wait 30 days (tentative).** On the last month's advisories, release checks would catch 85–88% within 7 days, at a median of 0.8 days. Repos without advisories, re-checked every 30 days instead of weekly plus release checks, find new advisories sooner on average (3.5 → 2.6 days); 11 of 1,672 (0.7%) would be found later ([F-104](#f-104)). Adopted 2026-11-08.
+37. **Release feeds lag, and some lag badly.** ecosyste.ms's Maven data is weeks behind per package, and no bulk Maven feed is current: Maven Central's index is rebuilt about every two weeks and search.maven.org stopped in June 2026. Each package's `maven-metadata.xml` is current and supports ETags, so the tracker polls the top 7,388 Maven packages there once a day ([F-105](#f-105), [F-108](#f-108)). A feed's cursor must follow the feed, never the clock ([F-105](#f-105)).
+38. **The watcher maps more ecosystems.** Composer (Packagist), Hex and Pub (ecosyste.ms), Swift (the package URL) and Maven's `<scm>` fallback. On an Elixir project, name-only dependencies fell from 162 to 7, removing 16 false alarms and finding 10 real advisories ([F-103](#f-103)).
+39. **The GitLab component runs a pinned, attested image.** Jobs take about 21 s instead of 34 s, on amd64 and arm64 ([F-107](#f-107)). GitLab Ultimate ingests SARIF only from a job that succeeds, so Ultimate mode passes the scan job and applies `fail_on` in a separate gate job. Job variables work in `rules:if`, and nested `rules` lists are flattened ([F-106](#f-106)). A new ghcr.io package starts private ([F-107](#f-107)).
+40. **The exit code is a contract.** An uncaught Python exception exits 1, which CI reads as findings; the CLI now maps any crash to 2. Found while designing the component's `allow_failure`, which relies on 1 meaning findings (CHANGELOG 0.1.0a2).
 
 ## Open questions
 
@@ -87,13 +98,13 @@ Open:
 - Q15. Can per-branch ranges like `< 1.2.5, < 2.0.3` be converted without guessing where each branch starts, e.g. from the registry's version list? ([F-069](#f-069))
 - Q16. Are pending advisories published before 2026 (258 on 2026-10-28) ever reviewed, or did GitHub never backfill them? ([F-064](#f-064))
 - Q23. Do Packagist's newest-version source URLs ever point at a different repo than the installed version's? ([F-103](#f-103))
-- ~~Q24. Is ecosyste.ms's Maven lag temporary, and is there a primary-source feed of Maven Central releases?~~ **Not temporary: weeks behind per package. No current bulk feed exists; each package's `maven-metadata.xml` is current and supports ETags, and the tracker polls the watched ones daily ([F-108](#f-108)).**
 - Q17. How many Go modules on vanity paths (k8s.io, golang.org/x, go.opentelemetry.io) can be mapped to a GitHub repo without deps.dev? 320 Kubernetes dependencies stay checked by name only ([F-085](#f-085)). blindspot keeps a verified list (`docs/go-vanity-coverage.md`, [F-072](#f-072)).
 - Q18. Should the tracker's seeds include the upstreams of popular GitLab-hosted projects' Ruby dependencies, so the watcher doesn't need to poll them? ([F-085](#f-085); Phase 5.)
 - Q22. Does GitHub's "more than 5,000 repository advisories a week" count the same thing as the tracker (published, any ecosystem)? It sets the coverage estimate ([F-035](#f-035), [F-098](#f-098)).
 
 Answered:
 
+- ~~Q24. Is ecosyste.ms's Maven lag temporary, and is there a primary-source feed of Maven Central releases?~~ **Not temporary: weeks behind per package. No current bulk feed exists; each package's `maven-metadata.xml` is current and supports ETags, and the tracker polls the watched ones daily ([F-108](#f-108)).**
 - ~~Q21. Are advisories published close to a release of their package?~~ **Yes: 71% within a day, 79% within 3 days; the fix release usually comes first ([F-100](#f-100)).**
 - ~~Q20. How many source repos do the top packages of each ecosystem map to, and how many are already watched?~~ **About 45,000 unwatched repos in the top 10,000 of eight ecosystems; NuGet, Packagist, Maven and RubyGems are barely covered; a sample holds 30 advisories in limbo ([F-099](#f-099)).**
 - ~~Q12 (partly). Is review throughput keeping up with inflow?~~ **Not in the weeks measured: 744 in against 68 out in the week to 2026-11-06 ([F-092](#f-092)).** Stays open above for the monthly, per-ecosystem view.
