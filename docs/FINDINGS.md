@@ -1275,6 +1275,19 @@ Answered:
   - SARIF rules carry `cve-YYYY-N` tags, so findings with a CVE are filed as dependency scanning. Most limbo advisories have none and are filed as SAST.
 - **Sources:** [artifacts:reports:sarif](https://docs.gitlab.com/ci/yaml/artifacts_reports/#artifactsreportssarif), [SARIF reports](https://docs.gitlab.com/user/application_security/detect/sarif/), [allow_failure:exit_codes](https://docs.gitlab.com/ci/yaml/#allow_failureexit_codes), [spec:inputs:rules](https://docs.gitlab.com/ci/inputs/#define-conditional-input-options-with-specinputsrules), [where variables can be used](https://docs.gitlab.com/ci/variables/where_variables_can_be_used/).
 
+### F-107
+- **Date:** 2026-11-08 · **Status:** confirmed (one pipeline on gitlab.com)
+- **Question:** Does the reworked component (image, gate job, exit-code-aware `allow_failure`) run on GitLab as designed?
+- **Method:** Pushed the component subtree as branch `pro-component` of `gitlab.com/limbowatch/limbowatch-component`. Pipeline 3041549253: `mirror-image` copied `ghcr.io/limbowatch/limbowatch@sha256:1b86fff6…` (the `edge` build, attested by `image.yml`) to the project registry. The component then ran from that commit three ways against `tests/go-sample`: defaults with `fail_on: none`; `security_report: true` with `allow_failure: true`; and `fail_on: none` on a `saas-linux-small-arm64` runner. `check-reports` read the artifacts.
+- **Result:**
+  - Every job finished. Scan jobs took 21.5 s (amd64) and 29.0 s (arm64), against 34 s for the old install-at-run-time job (F-086). `mirror-image` took 18 s.
+  - Ultimate mode: the scan job logged the finding and succeeded, so GitLab can read its SARIF. `limbowatch-ultimate-gate` exited 3 and showed as failed but allowed. The pipeline passed.
+  - The setup section is folded (`section_start:…:limbowatch_setup[collapsed=true]`), headed by the Limbowatch and OSV-Scanner versions.
+  - `gh attestation verify oci://ghcr.io/limbowatch/limbowatch:edge --owner limbowatch` verified SLSA provenance from `.github/workflows/image.yml@refs/heads/main`.
+  - ghcr.io makes a new package private; anonymous pulls got 401 until it was made public in the package settings, which the REST API can't do.
+- **Caveats:** No Ultimate license, so SARIF ingestion itself wasn't observed. The exit-2 path was tested in the image smoke test, not in this pipeline.
+- **Implication:** The component is ready to release with the image pinned by digest. A new image package needs its visibility set by hand once.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
