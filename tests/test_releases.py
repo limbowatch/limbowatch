@@ -50,6 +50,21 @@ async def test_ecosystems_feed_stops_at_since(no_sleep: Any) -> None:
             feed = await releases.ecosystems(http, "npmjs.org", since)
     assert feed.complete and [r.package for r in feed.releases] == ["fresh", "norepo"]
     assert feed.releases[0].repo == "org/fresh" and feed.releases[0].dependents == 500
+    assert feed.cursor == iso(NOW - timedelta(minutes=5))  # the newest release seen, not the time of the run
+
+
+async def test_a_lagging_ecosystems_feed_is_not_skipped_past(no_sleep: Any) -> None:
+    """ecosyste.ms lists some releases late (F-105): the cursor stays at the feed's newest release, never moves
+    back, and the next run re-reads an overlap before it."""
+    since = NOW - timedelta(hours=1)
+    late = [{"name": "late", "latest_release_published_at": iso(since - timedelta(hours=2)), "repository_url": None}]
+    with respx.mock(assert_all_called=True) as router:
+        router.get(url__startswith=releases.ECOSYSTEMS_API).mock(return_value=httpx.Response(200, json=late))
+        async with HttpClient(sleep=no_sleep) as http:
+            plain = await releases.ecosystems(http, "repo1.maven.org", since)
+            overlapped = await releases.ecosystems(http, "repo1.maven.org", since, timedelta(hours=6))
+    assert plain.releases == [] and plain.cursor == iso(since)  # nothing new: the cursor doesn't move back
+    assert [r.package for r in overlapped.releases] == ["late"] and overlapped.cursor == iso(since)
 
 
 async def test_go_index_skips_pseudo_versions_and_packagist_skips_branches(no_sleep: Any) -> None:
@@ -105,6 +120,8 @@ async def test_tracker_marks_released_repos_and_adds_popular_ones(no_sleep: Any)
     assert rows["org/watched"].released_at and rows["vendor/pkg"].released_at  # Packagist matched by name
     assert "big/lib" in rows and rows["big/lib"].sources == ["release:npmjs.org"]  # 5,000 dependents: watched now
     assert "me/toy" not in rows  # 3 dependents: not added
-    assert report.releases["npmjs.org"] == {"releases": 3, "watched": 1, "added": 1, "complete": True}
+    assert report.releases["npmjs.org"] == {
+        "releases": 3, "watched": 1, "added": 1, "complete": True, "newest": iso(rel.replace(microsecond=0)),
+    }  # fmt: skip
     assert report.releases["proxy.golang.org"]["complete"] is False  # a failing feed is reported, not silent
     assert store.cursor("releases:npmjs.org") and store.cursor("releases:proxy.golang.org") is None

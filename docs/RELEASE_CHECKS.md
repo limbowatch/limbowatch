@@ -27,7 +27,7 @@ Advisories follow releases. Of 282 recent advisories with release data, **71% ha
 ## Risks and limits
 
 - **Advisories without a release:** about 14% have none within a week. The 30-day routine check still catches them, just later. Repositories with known advisory activity keep their shorter schedule.
-- **Feed outages:** ecosyste.ms is a third party; its version-level endpoints failed in testing. If a feed fails, the run falls back to the routine schedule and says so in the run report.
+- **Feed outages:** ecosyste.ms is a third party; its version-level endpoints failed in testing, and its Maven feed fell behind on 2026-11-07 (F-105). If a feed fails, the run falls back to the routine schedule and says so in the run report; each feed's newest release is reported too, so a lagging feed shows.
 - **Wrong repository URLs** in registry metadata only waste a poll; they can't create a false finding.
 - **Licence:** the ecosyste.ms data is CC BY-SA 4.0. It's used at run time for scheduling and not republished, apart from the watchlist (already CC BY-SA, PHASE0_PLAN §13.12).
 

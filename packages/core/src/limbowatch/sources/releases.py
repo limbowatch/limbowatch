@@ -9,6 +9,10 @@ tracker checks a repo after its package releases. Sources:
 - Packagist: its metadata change feed, `update` actions without `~dev` branches. It names no repository.
 
 Each feed returns what it got and whether it reached `since`; a partial feed is reported, never silent.
+
+ecosyste.ms lists a release only once it has crawled it, sometimes hours or days late (Maven, F-105). Its cursor is
+the newest release it returned, never the time of the run, and the tracker re-reads `ECOSYSTEMS_OVERLAP` before it,
+so late arrivals within that window are still seen; later ones fall back to the routine schedule.
 """
 
 from __future__ import annotations
@@ -16,7 +20,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from urllib.parse import quote
 
 from limbowatch.http import HttpClient
@@ -27,6 +31,7 @@ GO_INDEX = "https://index.golang.org/index"
 PACKAGIST_CHANGES = "https://packagist.org/metadata/changes.json"
 # ecosyste.ms registries whose latest-release sort is current (F-101); Go and Packagist use their own feeds
 ECOSYSTEMS_REGISTRIES = ("npmjs.org", "pypi.org", "nuget.org", "crates.io", "repo1.maven.org", "rubygems.org")
+ECOSYSTEMS_OVERLAP = timedelta(hours=6)  # about 6 extra npm pages a run (5 MB gzipped each, F-105)
 _PSEUDO = re.compile(r"\d{14}-[0-9a-f]{12}")  # Go pseudo-version: a commit, not a release
 
 
@@ -46,6 +51,10 @@ class Feed:
     complete: bool  # reached `since`; False if a page failed or the page cap was hit
     cursor: str | None = None  # where the next run starts (the feed's own position when it has one)
 
+    @property
+    def newest(self) -> datetime | None:
+        return max((r.published_at for r in self.releases), default=None)
+
 
 def _ts(s: str | None) -> datetime | None:
     if not s:
@@ -56,26 +65,35 @@ def _ts(s: str | None) -> datetime | None:
         return None
 
 
-async def ecosystems(http: HttpClient, registry: str, since: datetime, max_pages: int = 60) -> Feed:
-    """Packages of one registry with a release after `since`, newest first."""
+async def ecosystems(
+    http: HttpClient, registry: str, since: datetime, overlap: timedelta = timedelta(0), max_pages: int = 60
+) -> Feed:
+    """Packages of one registry with a release after `since - overlap`, newest first. The cursor is the newest
+    release seen, never earlier than `since`, so a feed that lags behind isn't skipped past."""
     out: list[Release] = []
+    floor = since - overlap
+
+    def done(complete: bool) -> Feed:
+        newest = max((r.published_at for r in out), default=since)
+        return Feed(registry, out, complete, max(newest, since).isoformat().replace("+00:00", "Z"))
+
     for page in range(1, max_pages + 1):
         url = (f"{ECOSYSTEMS_API}/{quote(registry)}/packages?sort=latest_release_published_at&order=desc"
                f"&per_page=1000&page={page}")  # fmt: skip
         r = await http.get(url)
         if not r.ok or not isinstance(r.body, list):
-            return Feed(registry, out, False)
+            return done(False)
         for p in r.body:
             when = _ts(p.get("latest_release_published_at"))
             if when is None:
                 continue
-            if when <= since:
-                return Feed(registry, out, True)
+            if when <= floor:
+                return done(True)
             out.append(Release(registry, str(p.get("name") or ""), github_repo(p.get("repository_url")), when,
                                p.get("dependent_repos_count")))  # fmt: skip
         if len(r.body) < 1000:
-            return Feed(registry, out, True)
-    return Feed(registry, out, False)
+            return done(True)
+    return done(False)
 
 
 async def go_index(http: HttpClient, since: datetime, max_pages: int = 100) -> Feed:

@@ -87,6 +87,7 @@ Open:
 - Q15. Can per-branch ranges like `< 1.2.5, < 2.0.3` be converted without guessing where each branch starts, e.g. from the registry's version list? ([F-069](#f-069))
 - Q16. Are pending advisories published before 2026 (258 on 2026-10-28) ever reviewed, or did GitHub never backfill them? ([F-064](#f-064))
 - Q23. Do Packagist's newest-version source URLs ever point at a different repo than the installed version's? ([F-103](#f-103))
+- Q24. Is ecosyste.ms's Maven lag (25 packages dated 2026-11-07 against about 660 a day before) temporary, and is there a primary-source feed of Maven Central releases to use instead? ([F-105](#f-105))
 - Q17. How many Go modules on vanity paths (k8s.io, golang.org/x, go.opentelemetry.io) can be mapped to a GitHub repo without deps.dev? 320 Kubernetes dependencies stay checked by name only ([F-085](#f-085)). blindspot keeps a verified list (`docs/go-vanity-coverage.md`, [F-072](#f-072)).
 - Q18. Should the tracker's seeds include the upstreams of popular GitLab-hosted projects' Ruby dependencies, so the watcher doesn't need to poll them? ([F-085](#f-085); Phase 5.)
 - Q22. Does GitHub's "more than 5,000 repository advisories a week" count the same thing as the tracker (published, any ecosystem)? It sets the coverage estimate ([F-035](#f-035), [F-098](#f-098)).
@@ -1226,6 +1227,25 @@ Answered:
   - Weekly tier (66): 58 caught, 55 sooner than the routine 3.5 days. With quiet repos re-checked every 30 days plus release checks, the average delay goes from 3.5 to **2.6 days**; 55 found sooner, **11 later** (the 8 not caught by a release would wait about 15 days on average).
 - **Caveats:** The routine delay assumes checks fall evenly in time and the budget never runs out (it did, 2026-11-04 to 11-06, F-100). The weekly-tier sample is small (66). Tiers are inferred from advisory history, not from the tracker's schedule at the time. Packagist isn't covered by deps.dev, so Composer advisories are left out.
 - **Implication:** Most new advisories come from repos that already have advisories and are checked daily or every 3 days. For quiet repos, which are about three quarters of the watchlist, release checks find advisories sooner on average even with a 30-day routine check, and free most of the weekly re-check cost for the top-10,000 expansion. The price is 11 of 1,672 advisories (0.7%) found later.
+
+### F-105
+- **Date:** 2026-11-08 · **Status:** confirmed (direct observation; whether the Maven lag is temporary is open, Q24)
+- **Question:** Are the ecosyste.ms release feeds current enough for release-triggered checks, run after run?
+- **Method:**
+  - Tracker run reports of 2026-11-07 19:36 and 2026-11-08 03:43 UTC (`state/runs.jsonl`, `releases` per feed).
+  - `GET packages.ecosyste.ms/api/v1/registries/repo1.maven.org/packages?sort=latest_release_published_at&order=desc&per_page=1000`, 2026-11-08 03:55 UTC, with the registry record (`/registries/repo1.maven.org`).
+  - Page sizes, gzipped, per_page=100 (same date).
+- **Result:**
+  - Maven: the first run (24 hours back) saw 88 packages and the second (8 hours) saw 1. The latest 1,000 Maven packages span 2026-11-05 21:00 to 11-07 20:50: 812 dated Nov 6 and 25 dated Nov 7; 16% are `org.mvnpm` repackages of npm modules. The registry record was last updated 2026-11-06 05:03. In F-101 (2026-11-07) the same sort showed about 660 packages a day.
+  - The other feeds were current: in 8 hours, npm 5,975, Go 5,071, NuGet 1,710, PyPI 1,639, Packagist 782, crates.io 477, RubyGems 75.
+  - Gzipped page sizes: npm 528 KB, PyPI 458 KB and Maven 4.4 MB per 100 packages. Almost all of a Maven page (300 MB per 1,000, uncompressed) is `repo_metadata`.
+  - The tracker set each ecosyste.ms cursor to the time of the run, so releases ecosyste.ms lists later with earlier dates were skipped for good.
+- **Caveats:** One day of observation. There's no primary-source count of Maven Central releases to compare with: a `solrsearch` query for the last day on search.maven.org returned 0, which says more about the query than about Maven Central.
+- **Implication:**
+  - Fixed: an ecosyste.ms feed's cursor is now the newest release it returned, never earlier than the previous cursor. Each run re-reads 6 hours before it (`ECOSYSTEMS_OVERLAP`, about 6 extra npm pages). Each feed's `newest` release is in the run report, so a stall shows.
+  - While Maven lags, quiet Maven repos are checked every 30 days, the routine fallback. Repos with advisories keep their daily or 3-day schedule. Releases ecosyste.ms lists more than 6 hours late are still missed.
+  - Don't widen the overlap to days: Maven pages are large.
+- **Sources:** [ecosyste.ms packages API](https://packages.ecosyste.ms/docs), tracker run reports on the `tracker-data` branch.
 
 ## Archive
 

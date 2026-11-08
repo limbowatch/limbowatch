@@ -414,7 +414,10 @@ class Tracker:
             return _parse(self.store.cursor(f"releases:{name}")) or first
 
         feeds = await asyncio.gather(
-            *(releases.ecosystems(self.http, reg, since(reg)) for reg in releases.ECOSYSTEMS_REGISTRIES),
+            *(
+                releases.ecosystems(self.http, reg, since(reg), releases.ECOSYSTEMS_OVERLAP)
+                for reg in releases.ECOSYSTEMS_REGISTRIES
+            ),
             releases.go_index(self.http, since("proxy.golang.org")),
             releases.packagist(self.http, since("packagist.org")),
             return_exceptions=True,
@@ -452,9 +455,9 @@ class Tracker:
                         row.released_at = stamp
             report.releases[feed.source] = {
                 "releases": len(feed.releases), "watched": len(hit) - len(new), "added": len(new),
-                "complete": feed.complete,
+                "complete": feed.complete, "newest": _iso(feed.newest),  # a stale "newest" means the feed lags
             }  # fmt: skip
-            # A complete feed moves on to now (or the feed's own position); a partial one keeps its place
+            # A complete feed moves on to its own position (now for Packagist); a partial one keeps its place
             if feed.complete:
                 self.store.set_cursor(f"releases:{feed.source}", feed.cursor or _iso(now) or "")
         log.info("releases collected", extra={"feeds": report.releases})
