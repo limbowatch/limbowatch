@@ -1,57 +1,98 @@
 # Limbowatch CI/CD component
 
-Checks your dependencies against security advisories **in limbo**: published by maintainers on GitHub, but not yet in GitHub's reviewed Advisory Database or OSV, so the scanners that read those databases don't report them.
+Checks your dependencies against security advisories **in limbo**: published by maintainers on GitHub, but not yet in GitHub's reviewed Advisory Database or OSV. Until they're reviewed, Dependency Scanning, OSV-Scanner, Trivy and Dependabot don't report them, often for weeks.
 
-The job reads your lockfiles with OSV-Scanner (offline, so nothing about the project leaves the job). It matches them against the [limbo feed](https://limbo.watch/feed/), and against the source repos the feed doesn't cover. In a merge request, on every GitLab tier, you get:
-- **Code Quality**: each finding on its lockfile line ("Code Quality scans found 51 new findings");
-- **Test summary**: one failed test per finding at or above `fail_on` (JUnit);
-- **Limbowatch report**: a link to the `limbowatch/` artifacts, with `report.html`, `report.md`, `report.json` (schema 1), `report.csv` and `cyclonedx.json` (CycloneDX 1.6 with the vulnerabilities).
+- **Merge requests, every tier:** each finding on its lockfile line (Code Quality), one failed test per finding at or above `fail_on` (test summary), and a link to the full report.
+- **GitLab Ultimate:** findings in the Security tab, the vulnerability report and the merge request security widget (`security_report: true`).
+- **Job log:** a table per lockfile, the upgrade that clears each package, and why the job passed or failed.
+- **Issues (optional):** one confidential issue per advisory and package, updated when a CVE is assigned or the advisory reaches the scanners, and closed once you've upgraded.
+- **Private by design:** OSV-Scanner reads your lockfiles inside the job, and the limbo feed is downloaded whole. Nothing about your project is sent to limbo.watch.
 
-The job log shows a table per lockfile, what to upgrade, and why the job passed or failed. It fails when a finding meets `fail_on` (exit 1); exit 2 means the scan itself couldn't run.
+## Components
+
+### `limbowatch`
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.1
-    inputs:
-      fail_on: high
-      issues: true          # confidential issues from the default branch and schedules
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.2
 ```
 
-Without the CI/CD Catalog, include the file directly with `include: remote:` and the same `inputs`.
+The job fails when a finding is at or above `fail_on` (default `low`). Exit codes: 0 passed, 1 findings, 2 the scan couldn't run. The inputs, with their defaults, are listed on this component's CI/CD Catalog page.
 
-## Inputs
+**Merge requests and the default branch only**, failing on high and critical:
 
-| Input | Default | |
-|---|---|---|
-| `stage` | `test` | |
-| `path` | `.` | Project directory to scan |
-| `fail_on` | `low` | `critical`, `high`, `medium`, `low` or `none` |
-| `fail_on_unknown` | `true` | Also fail for findings with no severity |
-| `allow_failure` | `false` | Let the pipeline pass even when the job fails |
-| `issues` | `false` | Open and update confidential issues (default branch and schedules only) |
-| `issues_min_severity` | `low` | |
-| `extra_args` | | More `limbowatch scan` options, e.g. `--ignore GHSA-xxxx-xxxx-xxxx` |
-| `image` | `python:3.12-slim` | Any image with Python 3.12 |
-| `osv_scanner_version` | `2.7.0` | Downloaded from Google's releases and checked against their SHA-256 sums |
-| `limbowatch_source`, `limbowatch_ref` | GitHub archive, the matching release | Each component version installs the Limbowatch release of the same number |
+```yaml
+include:
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.2
+    inputs:
+      fail_on: high
+      rules:
+        - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+        - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+```
 
-## GitHub token
+**Report without blocking:** `allow_failure: true` turns findings into a warning. A scan that couldn't run still fails, so a broken setup doesn't pass silently.
 
-To check source repos the live tracker doesn't watch, the job polls the GitHub API. Without a token GitHub allows 60 requests an hour. Add a masked CI/CD variable `LIMBOWATCH_GITHUB_TOKEN` holding any GitHub token that can read public repositories. Repos that can't be polled are reported as checked by name only, never skipped.
+**A weekly schedule with issues.** Advisories are published after you merge, and review takes weeks, so a scheduled pipeline finds what's new. Add a pipeline schedule, then:
 
-## Issues
+```yaml
+include:
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.2
+    inputs:
+      issues: true   # needs LIMBOWATCH_ISSUES_TOKEN, see below
+```
 
-Set `issues: true` and a masked, protected CI/CD variable `LIMBOWATCH_ISSUES_TOKEN`: a project access token with `api` scope and at least the Reporter role. On gitlab.com, project access tokens need Premium or Ultimate; on the Free tier, use a personal access token with `api` scope, ideally of a separate bot account added to the project. You get:
-- one confidential issue per advisory and package;
-- a comment when a CVE is assigned, or when the advisory reaches the scanners' databases;
-- the issue closed once you've upgraded past it.
+**GitLab Ultimate:**
 
-Merge request pipelines never open issues.
+```yaml
+include:
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.2
+    inputs:
+      security_report: true
+```
 
-A weekly scheduled pipeline is worth adding. Advisories are published after you merge, and the review gap lasts weeks.
+GitLab reads security reports only from jobs that succeed. With `security_report: true`, the `limbowatch` job passes and a second job, `limbowatch-gate`, applies `fail_on`. Findings with a CVE are listed as dependency scanning, the rest as SAST.
+
+**Two projects in one repository:** include the component once per directory, each with its own `job_name`:
+
+```yaml
+include:
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.2
+    inputs: { job_name: limbowatch-api, path: services/api }
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.2
+    inputs: { job_name: limbowatch-web, path: services/web }
+```
+
+**Anything else:** define the job again to override any keyword, for example the runner:
+
+```yaml
+limbowatch:
+  tags: [my-runner]
+```
+
+## Variables
+
+| Variable | |
+|---|---|
+| `LIMBOWATCH_GITHUB_TOKEN` | Masked. Any GitHub token that can read public repositories. The job polls the source repos the live tracker doesn't watch, and GitHub allows 60 requests an hour without a token. Repos it can't poll are reported as checked by name only, never skipped. |
+| `LIMBOWATCH_ISSUES_TOKEN` | Masked and protected, for `issues: true`. A project access token with `api` scope and at least the Reporter role. Project access tokens need Premium or Ultimate on gitlab.com; on Free, use a personal access token of a bot account added to the project. Merge request pipelines never open issues. |
+
+## The image
+
+The job runs `registry.gitlab.com/limbowatch/limbowatch-component`, pinned by digest in each release. It's a copy of `ghcr.io/limbowatch/limbowatch` with the same digest, built from the Limbowatch source with Limbowatch and OSV-Scanner installed and nothing installed at run time. GitHub Actions builds it for amd64 and arm64, with an SBOM and build provenance. To check where an image came from:
+
+```sh
+gh attestation verify oci://ghcr.io/limbowatch/limbowatch@sha256:<digest> --owner limbowatch
+```
+
+If your runners can only pull from your own registry, copy the image there with the same digest and set the `image` input.
+
+## Versions
+
+Releases follow semantic versioning, and each one pins a Limbowatch release. Pin a release like `0.1.0-alpha.2`. Use `~latest` only if you want every new version as soon as it's out. This component is an **alpha**: inputs and reports may still change before 0.1.0.
 
 ## Contribute
 
-This project is published from [`integrations/gitlab/`](https://github.com/limbowatch/limbowatch/tree/main/integrations/gitlab) in the Limbowatch repository on GitHub. Issues and pull requests go there.
+This project is published from [`integrations/gitlab/`](https://github.com/limbowatch/limbowatch/tree/main/integrations/gitlab) in the Limbowatch repository on GitHub. Issues and pull requests go there. The project's own pipeline runs the component against `tests/go-sample` on amd64 and arm64, in both modes.
 
 Advisory data: GitHub repository security advisories and the GitHub Advisory Database (CC BY 4.0), via limbo.watch.

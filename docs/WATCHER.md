@@ -108,9 +108,17 @@ include:
       fail_on: high
 ```
 
-In the merge request, on every tier: Code Quality findings on the lockfile lines, a test summary with one failed test per finding at or above `fail_on`, and a **Limbowatch report** link to the `limbowatch/` artifacts (HTML, Markdown, JSON, CSV and CycloneDX). The job log has the table.
+In the merge request, on every tier: Code Quality findings on the lockfile lines, a test summary with one failed test per finding at or above `fail_on`, and a **Limbowatch report** link to the `limbowatch/` artifacts (HTML, Markdown, JSON, SARIF, CSV and CycloneDX). The job log has the table, with setup folded away. On GitLab Ultimate, `security_report: true` also puts the findings in the Security tab and the vulnerability report. GitLab reads that report only from a job that succeeds, so a second job, `limbowatch-gate`, applies `fail_on` (F-106).
+
+The job runs the Limbowatch image, pinned by digest, so nothing is installed at run time. `rules`, `needs` and `job_name` inputs place it in your pipeline. `allow_failure: true` turns findings into a warning, but a scan that couldn't run still fails.
 
 On a GitLab instance other than gitlab.com, mirror the component project first (GitLab's docs: "Use a GitLab.com component on GitLab Self-Managed").
+
+Any other CI, or locally, with the image (linux/amd64 and linux/arm64; verify it with `gh attestation verify oci://ghcr.io/limbowatch/limbowatch:<tag> --owner limbowatch`):
+
+```sh
+docker run --rm -v "$PWD:/src" ghcr.io/limbowatch/limbowatch limbowatch scan . -o sarif=limbowatch.sarif
+```
 
 GitHub, Gitea or Forgejo Actions, with the [composite action](../integrations/action/action.yml). The runner needs Python 3.12 or later.
 

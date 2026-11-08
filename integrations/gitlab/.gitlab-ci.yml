@@ -1,21 +1,60 @@
 # Pipeline of the component project itself (gitlab.com/limbowatch/limbowatch-component).
 # The source of truth is integrations/gitlab/ in https://github.com/limbowatch/limbowatch.
 #
-# Every pipeline runs the component from this commit against tests/go-sample. A semantic-version
-# tag (e.g. 0.1.0-alpha.1) then publishes that version to the CI/CD Catalog with the `release` keyword.
+# 1. mirror-image copies the image the template pins (ghcr.io/limbowatch/limbowatch, by digest) to this
+#    project's registry, so the default image is served by GitLab and is the exact one GitHub built and attested.
+# 2. The component from this commit runs against tests/go-sample three ways: defaults, Ultimate mode (a passing
+#    scan job plus the gate job), and on an arm64 runner. check-reports asserts on what they wrote.
+# 3. A semantic-version tag (e.g. 0.1.0-alpha.2) publishes that version to the CI/CD Catalog.
 
 include:
   - component: $CI_SERVER_FQDN/$CI_PROJECT_PATH/limbowatch@$CI_COMMIT_SHA
     inputs:
       path: tests/go-sample
-      fail_on: none   # the sample's finding leaves limbo once GitHub reviews it; the check below doesn't depend on it
+      fail_on: none   # the sample's finding leaves limbo once GitHub reviews it; the checks don't depend on it
+      needs: [{job: mirror-image, optional: true}]   # the image must be in this registry before the job pulls it
+  - component: $CI_SERVER_FQDN/$CI_PROJECT_PATH/limbowatch@$CI_COMMIT_SHA
+    inputs:
+      job_name: limbowatch-ultimate
+      path: tests/go-sample
+      security_report: true
+      allow_failure: true   # the gate warns rather than fails while the sample finding is in limbo
+      needs: [{job: mirror-image, optional: true}]
+  - component: $CI_SERVER_FQDN/$CI_PROJECT_PATH/limbowatch@$CI_COMMIT_SHA
+    inputs:
+      job_name: limbowatch-arm64
+      path: tests/go-sample
+      fail_on: none
+      needs: [{job: mirror-image, optional: true}]
 
 stages: [test, verify, release]
+
+# Any keyword of an included job can be overridden by defining the job again
+limbowatch-arm64:
+  tags: [saas-linux-small-arm64]
+
+mirror-image:
+  stage: .pre
+  image:
+    name: gcr.io/go-containerregistry/crane:debug@sha256:e78770b31258a3846f878036d9c1f63fbe4c871f9f56990bf77fd95c013e3c1b
+    entrypoint: [""]
+  rules:
+    - if: $CI_PROJECT_PATH == "limbowatch/limbowatch-component" && $CI_PIPELINE_SOURCE != "merge_request_event"
+  script:
+    - |
+      set -eu
+      ref=$(sed -n 's|^ *default: \(registry\.gitlab\.com/limbowatch/limbowatch-component:[^ ]*\)$|\1|p' templates/limbowatch.yml)
+      tag=${ref#*:}; tag=${tag%@*}; digest=${ref#*@}
+      case "$digest" in sha256:*) ;; *) echo "templates/limbowatch.yml must pin the image by digest: $ref"; exit 1 ;; esac
+      crane auth login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+      crane copy "ghcr.io/limbowatch/limbowatch@$digest" "$CI_REGISTRY_IMAGE:$tag"
+      [ "$(crane digest "$CI_REGISTRY_IMAGE:$tag")" = "$digest" ] || { echo "digest changed in the copy"; exit 1; }
+      echo "$CI_REGISTRY_IMAGE:$tag@$digest"
 
 check-reports:
   stage: verify
   image: python:3.12-slim
-  needs: [limbowatch]
+  needs: [limbowatch, limbowatch-ultimate, limbowatch-arm64]
   script:
     - |
       python3 - <<'PY'
@@ -30,12 +69,19 @@ check-reports:
       for name in ("report.md", "report.html"):
           assert "CC BY 4.0" in (out / name).read_text(), f"{name} must carry the attribution"
       report = json.loads((out / "report.json").read_text())
-      assert report["schema_version"] == 1 and report["gate"]["fail_on"] == "none", report["gate"]
+      assert report["schema_version"] == 1 and report["gate"]["fail_on"] in ("none", "low"), report["gate"]
       junit = ElementTree.parse(out / "junit.xml").getroot()
-      assert junit.tag == "testsuites" and junit.get("failures") == "0", junit.attrib  # fail_on none: nothing fails
+      assert junit.tag == "testsuites", junit.attrib
       bom = json.loads((out / "cyclonedx.json").read_text())
       assert bom["specVersion"] == "1.6", bom.get("specVersion")
-      print(f"{len(cq)} Code Quality entries, {junit.get('tests')} JUnit tests, {report['summary']['findings']} findings")
+      # what GitLab needs to ingest SARIF (F-106): 2.1.0, a ruleId and a physical location with a line per result
+      sarif = json.loads((out / "report.sarif").read_text())
+      assert sarif["version"] == "2.1.0" and sarif["runs"][0]["tool"]["driver"]["name"] == "limbowatch"
+      for res in sarif["runs"][0]["results"]:
+          loc = res["locations"][0]["physicalLocation"]
+          assert res["ruleId"] and loc["artifactLocation"]["uri"] == "tests/go-sample/go.mod" and loc["region"]["startLine"] >= 1
+      print(f"{len(cq)} Code Quality entries, {junit.get('tests')} JUnit tests, {len(sarif['runs'][0]['results'])} SARIF results, "
+            f"{report['summary']['findings']} findings")
       PY
 
 create-release:
@@ -43,7 +89,12 @@ create-release:
   image: registry.gitlab.com/gitlab-org/cli:v1.124.0
   rules:
     - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/
-  script: echo "Releasing $CI_COMMIT_TAG"
+  script:
+    - echo "Releasing $CI_COMMIT_TAG"
   release:
     tag_name: $CI_COMMIT_TAG
-    description: "Limbowatch component $CI_COMMIT_TAG. See https://github.com/limbowatch/limbowatch/releases"
+    description: >-
+      Limbowatch CI/CD component $CI_COMMIT_TAG. The job runs the Limbowatch image pinned by digest in
+      templates/limbowatch.yml, the same image as ghcr.io/limbowatch/limbowatch (verify with
+      `gh attestation verify oci://ghcr.io/limbowatch/limbowatch@<digest> --owner limbowatch`).
+      Release notes: https://github.com/limbowatch/limbowatch/blob/main/CHANGELOG.md

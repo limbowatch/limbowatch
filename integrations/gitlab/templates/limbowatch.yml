@@ -1,99 +1,129 @@
 spec:
   # GitLab rejects a spec description over 256 characters (FINDINGS F-095); tests/test_integrations.py checks it.
   description: >-
-    Find dependencies affected by security advisories in limbo, not yet in the databases scanners read.
-    Code Quality, a test summary and a report link in merge requests; optional issues.
+    Find dependencies affected by security advisories in limbo: published, not yet in the databases scanners read.
+    Code Quality, test summary and report in merge requests; Security tab on Ultimate; optional issues.
   inputs:
+    job_name:
+      default: limbowatch
+      regex: ^[A-Za-z0-9_.-]+$
+      description: Name of the scan job. Include the component twice with different names to scan two directories.
     stage:
       default: test
+      description: Stage of the scan job.
+    rules:
+      type: array
+      default: [{when: on_success}]
+      description: >-
+        When the job runs, as a `rules` list, e.g. `[{if: $CI_PIPELINE_SOURCE == "merge_request_event"},
+        {if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH}]`. Default: every pipeline.
+    needs:
+      type: array
+      default: []
+      description: Jobs to wait for. Default `[]`, so the scan starts with the pipeline.
     path:
       default: "."
-      description: Project directory to scan.
+      description: Project directory to scan, relative to the repository root.
     fail_on:
       default: low
       options: [critical, high, medium, low, none]
-      description: Fail the job for findings at or above this severity.
+      description: Fail the job for findings at or above this severity. `none` reports without failing.
     fail_on_unknown:
       default: true
       type: boolean
-      description: Also fail for findings with no severity.
+      description: Also fail for findings with no severity yet. Most advisories in limbo have one.
     allow_failure:
       default: false
       type: boolean
-      description: Let the pipeline pass even when the job fails (findings still show in the merge request).
+      description: >-
+        Show findings at or above `fail_on` as a warning instead of failing the pipeline. A scan that couldn't run
+        (exit code 2) still fails.
+    security_report:
+      default: false
+      type: boolean
+      description: >-
+        GitLab Ultimate: add findings to the Security tab, vulnerability report and merge request security widget.
+        GitLab only reads the report from a job that succeeds, so a second job, `<job_name>-gate`, applies `fail_on`.
     issues:
       default: false
       type: boolean
       description: >-
-        Open and update confidential issues in this project from the default branch and scheduled
-        pipelines. Needs a LIMBOWATCH_ISSUES_TOKEN CI/CD variable (a project access token with api scope).
+        Open and update confidential issues in this project from the default branch and scheduled pipelines.
+        Needs a masked CI/CD variable LIMBOWATCH_ISSUES_TOKEN (api scope, Reporter role or higher).
     issues_min_severity:
       default: low
       options: [critical, high, medium, low]
+      description: Open issues only for findings at or above this severity.
     extra_args:
       default: ""
-      description: More `limbowatch scan` options, e.g. `--ignore GHSA-xxxx-xxxx-xxxx`.
+      description: More `limbowatch scan` options, e.g. `--ignore GHSA-xxxx-xxxx-xxxx` or `--ignore-file .limbowatch-ignore`.
     image:
-      default: python:3.12-slim
-    osv_scanner_version:
-      default: 2.7.0
-    limbowatch_source:
-      default: https://github.com/limbowatch/limbowatch/archive
-      description: Where `<ref>.tar.gz` source archives are served (no git needed in the image).
-    limbowatch_ref:
-      default: v0.1.0a1
-      description: Limbowatch release tag to install (each component version pins the matching release).
+      default: registry.gitlab.com/limbowatch/limbowatch-component:edge@sha256:1b86fff6e76210489b423b439e99489829555a52da1260cb480ba754c0f9121e
+      description: >-
+        Limbowatch image with OSV-Scanner, pinned by digest in each component release. A copy of
+        ghcr.io/limbowatch/limbowatch with the same digest; mirror it to your own registry if you need to.
 ---
-limbowatch:
+"$[[ inputs.job_name ]]":
   stage: $[[ inputs.stage ]]
-  image: $[[ inputs.image ]]
-  allow_failure: $[[ inputs.allow_failure ]]
+  image:
+    name: $[[ inputs.image ]]
+    entrypoint: [""]
+  rules: $[[ inputs.rules ]]
+  needs: $[[ inputs.needs ]]
+  interruptible: true
+  # Exit 3 is never limbowatch's own: the script uses it for findings when allow_failure is on, so only those warn
+  allow_failure:
+    exit_codes: [3]
   variables:
-    LW_OSV_VERSION: $[[ inputs.osv_scanner_version ]]
-    LW_SOURCE: $[[ inputs.limbowatch_source ]]
-    LW_REF: $[[ inputs.limbowatch_ref ]]
+    LW_JOB: $[[ inputs.job_name ]]
     LW_PATH: $[[ inputs.path ]]
     LW_FAIL_ON: $[[ inputs.fail_on ]]
-    LW_FAIL_ON_UNKNOWN: $[[ inputs.fail_on_unknown ]]
-    LW_ISSUES: $[[ inputs.issues ]]
+    LW_FAIL_ON_UNKNOWN: "$[[ inputs.fail_on_unknown ]]"
+    LW_ALLOW_FAILURE: "$[[ inputs.allow_failure ]]"
+    LW_SECURITY_REPORT: "$[[ inputs.security_report ]]"
+    LW_ISSUES: "$[[ inputs.issues ]]"
     LW_ISSUES_MIN: $[[ inputs.issues_min_severity ]]
     LW_EXTRA: $[[ inputs.extra_args ]]
-    PIP_DISABLE_PIP_VERSION_CHECK: "1"
   cache:
-    key: limbowatch
+    # the feed (reused while unchanged) and what earlier scans of this branch found, to report what's new
+    key: limbowatch-$[[ inputs.job_name ]]-$CI_COMMIT_REF_SLUG
+    fallback_keys:
+      - limbowatch-$[[ inputs.job_name ]]-$CI_DEFAULT_BRANCH
     paths: [.limbowatch-cache/]
+    when: always
   script:
     - |
-      set -eu
-      # OSV-Scanner reads the lockfiles (offline: nothing about the project leaves the job). Checksum-verified.
-      case "$(uname -m)" in x86_64) arch=amd64 ;; aarch64|arm64) arch=arm64 ;; *) echo "unsupported $(uname -m)"; exit 2 ;; esac
-      python3 - "$LW_OSV_VERSION" "$arch" <<'PY'
-      import hashlib, sys, urllib.request
-      ver, arch = sys.argv[1], sys.argv[2]
-      base = f"https://github.com/google/osv-scanner/releases/download/v{ver}/"
-      name = f"osv-scanner_linux_{arch}"
-      sums = urllib.request.urlopen(base + "osv-scanner_SHA256SUMS", timeout=60).read().decode()
-      want = next(line.split()[0] for line in sums.splitlines() if line.endswith(" " + name))
-      data = urllib.request.urlopen(base + name, timeout=300).read()
-      if hashlib.sha256(data).hexdigest() != want:
-          sys.exit(f"checksum mismatch for {name}")
-      open("/usr/local/bin/osv-scanner", "wb").write(data)
-      PY
-      chmod +x /usr/local/bin/osv-scanner
-      src="${LW_SOURCE}/${LW_REF}.tar.gz"  # both packages from the same pinned source, never from PyPI by name
-      pip install --quiet "limbowatch @ ${src}#subdirectory=packages/core" "limbowatch-cli @ ${src}#subdirectory=packages/cli"
-      # One scan, every report: the table in the job log, the rest in limbowatch/ (linked from the merge request).
+      set -u
+      section() { printf '\033[0Ksection_start:%s:%s[collapsed=true]\r\033[0K%s\n' "$(date +%s)" "$1" "$2"; }
+      section_end() { printf '\033[0Ksection_end:%s:%s\r\033[0K' "$(date +%s)" "$1"; }
+      section limbowatch_setup "Limbowatch $(limbowatch --version | cut -d' ' -f2) · $(osv-scanner --version | head -1)"
+      echo "path: $LW_PATH · fail_on: $LW_FAIL_ON · fail_on_unknown: $LW_FAIL_ON_UNKNOWN · allow_failure: $LW_ALLOW_FAILURE · security_report: $LW_SECURITY_REPORT"
+      if [ -n "${LIMBOWATCH_GITHUB_TOKEN:-}" ]; then echo "GitHub token: set"; else
+        echo "GitHub token: not set. Repos the live tracker doesn't watch are polled at 60 requests an hour; see the README."; fi
+      echo "Nothing about the project leaves the job: OSV-Scanner reads the lockfiles offline, the feed is downloaded whole."
+      section_end limbowatch_setup
+      # One scan, every report: the table in this log, the rest in limbowatch/ (linked from the merge request)
       set -- --cache .limbowatch-cache --state .limbowatch-cache/state.json --fail-on "$LW_FAIL_ON" -o table \
              -o codequality=limbowatch/gl-code-quality-report.json -o junit=limbowatch/junit.xml \
-             -o html=limbowatch/report.html -o markdown=limbowatch/report.md -o json=limbowatch/report.json \
-             -o csv=limbowatch/report.csv -o cyclonedx=limbowatch/cyclonedx.json
+             -o sarif=limbowatch/report.sarif -o html=limbowatch/report.html -o markdown=limbowatch/report.md \
+             -o json=limbowatch/report.json -o csv=limbowatch/report.csv -o cyclonedx=limbowatch/cyclonedx.json
       [ "$LW_FAIL_ON_UNKNOWN" = "true" ] || set -- "$@" --no-fail-on-unknown
-      # Issues only from the default branch or a schedule, never from merge request pipelines.
+      # Issues only from the default branch or a schedule, never from merge request pipelines
       if [ "$LW_ISSUES" = "true" ] && { [ "${CI_COMMIT_BRANCH:-}" = "${CI_DEFAULT_BRANCH:-}" ] || [ "${CI_PIPELINE_SOURCE:-}" = "schedule" ]; }; then
         set -- "$@" --issues gitlab --issues-min-severity "$LW_ISSUES_MIN"
       fi
+      rc=0
       # shellcheck disable=SC2086 # LW_EXTRA is a list of options
-      limbowatch scan "$LW_PATH" "$@" $LW_EXTRA
+      limbowatch scan "$LW_PATH" "$@" $LW_EXTRA || rc=$?
+      # 0 passed, 1 findings meet fail_on, 2 the scan couldn't run
+      if [ "$rc" = 1 ] && [ "$LW_SECURITY_REPORT" = "true" ]; then
+        echo "The ${LW_JOB}-gate job fails the pipeline for these findings; this job passes so GitLab reads the security report."
+        rc=0
+      elif [ "$rc" = 1 ] && [ "$LW_ALLOW_FAILURE" = "true" ]; then
+        echo "allow_failure is on: these findings are a warning, not a failure."
+        rc=3
+      fi
+      exit "$rc"
   artifacts:
     when: always
     # expose_as links the folder from the merge request; one link per job, trailing slash required (FINDINGS F-094)
@@ -102,4 +132,40 @@ limbowatch:
     reports:
       codequality: limbowatch/gl-code-quality-report.json
       junit: limbowatch/junit.xml
+      sarif: limbowatch/report.sarif  # Ultimate; read only from a job that succeeds (F-106)
     expire_in: 30 days
+
+# With security_report, the scan job passes on findings so GitLab reads its SARIF; this job applies fail_on.
+"$[[ inputs.job_name ]]-gate":
+  stage: $[[ inputs.stage ]]
+  image:
+    name: $[[ inputs.image ]]
+    entrypoint: [""]
+  variables:
+    LW_SECURITY_REPORT: "$[[ inputs.security_report ]]"
+    LW_ALLOW_FAILURE: "$[[ inputs.allow_failure ]]"
+    GIT_STRATEGY: none
+  # job variables work in rules:if, and a nested rules list is flattened (F-106): the scan job's rules, if enabled
+  rules:
+    - if: $LW_SECURITY_REPORT != "true"
+      when: never
+    - $[[ inputs.rules ]]
+  needs:
+    - job: "$[[ inputs.job_name ]]"
+      artifacts: true
+  interruptible: true
+  allow_failure:
+    exit_codes: [3]
+  script:
+    - |
+      python3 - <<'PY'
+      import json, os, sys
+      gate = json.load(open("limbowatch/report.json"))["gate"]
+      print(f"limbowatch: {'FAILED' if gate['failed'] else 'PASSED'}: {gate['message']}")
+      if gate["failed"]:
+          if os.environ["LW_ALLOW_FAILURE"] == "true":
+              print("allow_failure is on: these findings are a warning, not a failure.")
+              sys.exit(3)
+          print("Details: the Security tab, or limbowatch/report.html in the scan job's artifacts.")
+          sys.exit(1)
+      PY

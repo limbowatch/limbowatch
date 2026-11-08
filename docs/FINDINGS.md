@@ -1247,6 +1247,34 @@ Answered:
   - Don't widen the overlap to days: Maven pages are large.
 - **Sources:** [ecosyste.ms packages API](https://packages.ecosyste.ms/docs), tracker run reports on the `tracker-data` branch.
 
+### F-106
+- **Date:** 2026-11-08 · **Status:** confirmed (GitLab doc sources; two behaviors observed with GitLab's CI lint dry run on gitlab.com)
+- **Question:** How can the GitLab component show findings in GitLab Ultimate's security features, and how can it add a job only when an input is set?
+- **Method:**
+  - GitLab doc sources from `gitlab-org/gitlab` master (`doc/ci/yaml/artifacts_reports.md`, `doc/user/application_security/detect/sarif.md`, `doc/ci/yaml/_index.md`, `doc/ci/inputs/_index.md`, `doc/ci/variables/where_variables_can_be_used.md`), read through the GitLab API on 2026-11-08.
+  - `POST /projects/88618678/ci/lint` with `dry_run: true, include_jobs: true, ref: main`. Inline configs:
+    - a job whose `rules:if` reads a variable set in the job's own `variables`, with the value `"true"` and then `"false"`;
+    - a job whose `rules` holds a nested list, with a matching and then a non-matching condition.
+- **Result:**
+  - **SARIF:** `artifacts:reports:sarif` (Ultimate) puts third-party findings in the pipeline Security tab, the vulnerability report, the security dashboard, the merge request security widget and security policies. Introduced in 18.11; generally available in 19.2.
+    - Findings are ingested only when the job succeeds. `allow_failure: true` or `allow_failure:exit_codes` doesn't help: the job still counts as failed. GitLab's advice is to exit 0 and fail elsewhere.
+    - A finding is filed as dependency scanning when an identifier is a CVE: a `ruleId` like `CVE-…`, or a rule tag `cve-YYYY-N` or `cve:YYYY-N`. It's filed as secret detection for some CWEs, and as SAST otherwise.
+    - Required: `ruleId` and `physicalLocation`. More than half the results unusable and nothing is ingested.
+    - Identity is report type + `ruleId` + `file:startLine:endLine`; results without a `region` in the same file collapse into one.
+    - Severity comes first from `result.rank`, then `security-severity`, then `level`.
+    - Limits: 10 MB, 5,000 results per run, 10 tags per rule.
+  - **`allow_failure:exit_codes`:** the job may fail only with the listed codes; any other code fails it as usual.
+  - **Job variables in `rules:if`:** work. The job appeared with `"true"` and not with `"false"`. The docs list exceptions for `rules:if`, but job variables aren't among them.
+  - **Nested lists in `rules`:** flattened and evaluated. The job appeared when the nested rule matched and not when it didn't.
+  - **Inputs:** `spec:inputs:rules` (18.7) makes an input's options and default depend on other inputs. It doesn't add or remove jobs. An array input can be a whole `rules` or `needs` value.
+- **Caveats:** The two lint behaviors were observed on gitlab.com only (GitLab 19.x); older self-managed instances weren't tested. SARIF ingestion wasn't observed: the component project has no Ultimate license.
+- **Implication:**
+  - The component's `security_report` input makes the scan job exit 0 on findings, so GitLab reads its SARIF. A `<job_name>-gate` job then applies `fail_on`.
+  - The gate job's rules are `if: $LW_SECURITY_REPORT != "true"` → `never`, then the user's `rules` input as a nested list. So the gate job exists only in Ultimate mode, and only in pipelines where the scan job runs.
+  - `allow_failure: true` in the component maps findings (exit 1) to exit 3, which is the only code the job may fail with. A scan that couldn't run (exit 2) still fails the pipeline.
+  - SARIF rules carry `cve-YYYY-N` tags, so findings with a CVE are filed as dependency scanning. Most limbo advisories have none and are filed as SAST.
+- **Sources:** [artifacts:reports:sarif](https://docs.gitlab.com/ci/yaml/artifacts_reports/#artifactsreportssarif), [SARIF reports](https://docs.gitlab.com/user/application_security/detect/sarif/), [allow_failure:exit_codes](https://docs.gitlab.com/ci/yaml/#allow_failureexit_codes), [spec:inputs:rules](https://docs.gitlab.com/ci/inputs/#define-conditional-input-options-with-specinputsrules), [where variables can be used](https://docs.gitlab.com/ci/variables/where_variables_can_be_used/).
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
