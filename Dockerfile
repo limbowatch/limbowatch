@@ -2,19 +2,20 @@
 # The Limbowatch watcher image: `limbowatch` and OSV-Scanner, nothing installed at run time.
 #   docker run --rm -v "$PWD:/src" -w /src ghcr.io/limbowatch/limbowatch limbowatch scan .
 # Built, attested and published by .github/workflows/image.yml for linux/amd64 and linux/arm64. The base images
-# are pinned by digest (Dependabot updates them); Python dependencies come from uv.lock with hashes.
+# are pinned by digest (Dependabot updates them); Python dependencies come from uv.lock with hashes; OSV-Scanner is
+# built from its v2.7.0 source through the Go module proxy, every module checked against sum.golang.org.
 
 ARG PYTHON_IMAGE=python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
 ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490
+ARG GO_IMAGE=golang:1.27-bookworm@sha256:dc0963f32053e4bc451d24d87e3892d42d01021b61f093e98eb95c0352bb84b0
 
-# OSV-Scanner 2.7.0 reads the lockfiles; checksums from its release's osv-scanner_SHA256SUMS
-FROM scratch AS osv-amd64
-ADD --checksum=sha256:160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b --chmod=755 \
-    https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_linux_amd64 /osv-scanner
-FROM scratch AS osv-arm64
-ADD --checksum=sha256:4061ef4c021ed3c47f203b818f337e351336cc5cd67c0274fc36bd1dfc728dd7 --chmod=755 \
-    https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_linux_arm64 /osv-scanner
-FROM osv-${TARGETARCH} AS osv
+# OSV-Scanner reads the lockfiles. Built from source rather than downloaded from GitHub's release assets, which
+# returned 504 for 20 minutes and more on 2026-11-08 (F-109); cross-compiled on the build machine, so arm64 needs no emulation.
+FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS osv
+ARG TARGETOS TARGETARCH
+ENV GOFLAGS=-trimpath GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org CGO_ENABLED=0
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go install -ldflags="-s -w" github.com/google/osv-scanner/v2/cmd/osv-scanner@v2.7.0 \
+ && find /go/bin -name osv-scanner -type f -exec cp {} /osv-scanner \;
 
 FROM ${UV_IMAGE} AS uv
 
