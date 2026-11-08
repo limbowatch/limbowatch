@@ -27,6 +27,7 @@ from limbowatch.publish import feed as feed_mod
 from limbowatch.publish import report as report_mod
 from limbowatch.publish import site as site_mod
 from limbowatch.sources import osv as osv_source
+from limbowatch.sources.releases import read_maven_packages
 from limbowatch.store import Store
 from limbowatch.tracker import Tracker, TrackerConfig, import_cve_list
 from limbowatch.versions import norm_name
@@ -108,6 +109,9 @@ def track(
     release_min_dependents: Annotated[
         int, typer.Option(help="Watch a released package's repo if this many repositories depend on it; 0: never.")
     ] = 100,
+    maven_packages: Annotated[
+        Path | None, typer.Option(help="Maven packages to poll for releases: group:artifact owner/repo per line.")
+    ] = None,
     nvd: Annotated[bool, typer.Option(help="Look up NVD status for published CVEs.")] = True,
     max_nvd: Annotated[int, typer.Option(help="NVD lookups per run.")] = 150,
     cve_list: Annotated[
@@ -118,9 +122,10 @@ def track(
     """Run the tracker once: sync reviews and CVEs, poll repos within the budget, record changes."""
     logging.basicConfig(level=logging.INFO if verbose else logging.WARNING, format="%(levelname)s %(name)s %(message)s")
     store = _load(state)
+    maven = read_maven_packages(maven_packages.read_text()) if maven_packages else {}
     cfg = TrackerConfig(seeds=seed or [], nvd=nvd, max_nvd=max_nvd, checkpoint=lambda: store.export_jsonl(state),
                         max_new=max_new, releases=releases,
-                        release_min_dependents=release_min_dependents or None)  # fmt: skip
+                        release_min_dependents=release_min_dependents or None, maven_packages=maven)  # fmt: skip
 
     if cve_list is not None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -6,7 +6,10 @@ tracker checks a repo after its package releases. Sources:
 - npm, PyPI, NuGet, crates.io, Maven, RubyGems: ecosyste.ms packages sorted by `latest_release_published_at`
   (CC BY-SA 4.0 data, used at run time for scheduling only);
 - Go: the official module index (index.golang.org), without pseudo-versions;
-- Packagist: its metadata change feed, `update` actions without `~dev` branches. It names no repository.
+- Packagist: its metadata change feed, `update` actions without `~dev` branches. It names no repository;
+- Maven Central, for the watched Maven packages: each package's `maven-metadata.xml`, polled with its ETag. Maven
+  Central has no current feed (its index is rebuilt about every two weeks, search.maven.org stopped in June 2026)
+  and ecosyste.ms's Maven data lags by weeks (F-108).
 
 Each feed returns what it got and whether it reached `since`; a partial feed is reported, never silent.
 
@@ -17,6 +20,7 @@ so late arrivals within that window are still seen; later ones fall back to the 
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from dataclasses import dataclass
@@ -29,6 +33,9 @@ from limbowatch.watch.mapping import github_repo, go_repo
 ECOSYSTEMS_API = "https://packages.ecosyste.ms/api/v1/registries"
 GO_INDEX = "https://index.golang.org/index"
 PACKAGIST_CHANGES = "https://packagist.org/metadata/changes.json"
+MAVEN_CENTRAL = "https://repo1.maven.org/maven2"
+MAVEN_INTERVAL = timedelta(hours=20)  # one pass a day: Maven Central asks tools to keep their traffic low
+_LAST_UPDATED = re.compile(rb"<lastUpdated>(\d{14})</lastUpdated>")
 # ecosyste.ms registries whose latest-release sort is current (F-101); Go and Packagist use their own feeds
 ECOSYSTEMS_REGISTRIES = ("npmjs.org", "pypi.org", "nuget.org", "crates.io", "repo1.maven.org", "rubygems.org")
 ECOSYSTEMS_OVERLAP = timedelta(hours=6)  # about 6 extra npm pages a run (5 MB gzipped each, F-105)
@@ -134,3 +141,63 @@ async def packagist(http: HttpClient, since: datetime) -> Feed:
             continue
         out.append(Release("packagist.org", name, None, datetime.fromtimestamp(int(a.get("time", 0)), UTC)))
     return Feed("packagist.org", out, True)
+
+
+@dataclass
+class MavenPoll:
+    feed: Feed
+    meta: dict[str, tuple[str | None, str | None]]  # package -> (ETag, lastUpdated), for the next pass
+    not_found: int = 0
+    failed: int = 0
+
+
+async def maven_central(
+    http: HttpClient, packages: dict[str, str], meta: dict[str, tuple[str | None, str | None]], since: datetime
+) -> MavenPoll:
+    """Watched Maven packages (`group:artifact` -> owner/repo) whose maven-metadata.xml says they were deployed after
+    `since`. One conditional GET each: an unchanged file is a 304 with no body. Packages that fail are reported and
+    the feed is marked partial, so the next run polls again."""
+    out: list[Release] = []
+    new_meta = dict(meta)
+    poll = MavenPoll(Feed("maven-central", out, True, since.isoformat().replace("+00:00", "Z")), new_meta)
+
+    async def one(package: str, repo: str) -> None:
+        group, _, artifact = package.partition(":")
+        if not group or not artifact:
+            return
+        etag, updated = meta.get(package, (None, None))
+        try:
+            r = await http.get(f"{MAVEN_CENTRAL}/{group.replace('.', '/')}/{artifact}/maven-metadata.xml",
+                               etag=etag, raw=True)  # fmt: skip
+        except (OSError, RuntimeError):
+            poll.failed += 1
+            return
+        if r.status == 304:
+            return
+        if r.status == 404:
+            poll.not_found += 1
+            return
+        if not r.ok or not isinstance(r.body, bytes):
+            poll.failed += 1
+            return
+        m = _LAST_UPDATED.search(r.body)
+        stamp = datetime.strptime(m.group(1).decode(), "%Y%m%d%H%M%S").replace(tzinfo=UTC) if m else None
+        new_meta[package] = (r.etag, stamp.isoformat().replace("+00:00", "Z") if stamp else updated)
+        if stamp and stamp > since:
+            out.append(Release("maven-central", package, repo.lower(), stamp))
+
+    started = datetime.now(UTC)
+    await asyncio.gather(*(one(p, r) for p, r in sorted(packages.items())))
+    poll.feed.complete = poll.failed == 0
+    poll.feed.cursor = started.isoformat().replace("+00:00", "Z")
+    return poll
+
+
+def read_maven_packages(text: str) -> dict[str, str]:
+    """`group:artifact owner/repo` per line (tracker/seeds/maven-packages.txt); # comments."""
+    out: dict[str, str] = {}
+    for line in text.splitlines():
+        parts = line.split("#", 1)[0].split()
+        if len(parts) == 2 and ":" in parts[0] and "/" in parts[1]:
+            out[parts[0]] = parts[1].lower()
+    return out

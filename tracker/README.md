@@ -8,7 +8,7 @@ A daily job that counts published GitHub security advisories still **in limbo**:
 2. **CVE delta log.** Reads new and updated CVE records from cvelistV5. CVEs that reference a GHSA are kept, and repos named by GitHub-assigned CVEs join the watchlist. Each run also adds repos named by GitHub-assigned CVEs already in the state, including those from the CVE List bootstrap (F-066).
 3. **Polling.** Polls the repos that are due for published advisories, within a request budget (`limbowatch/schedule.py`):
    - each repo has a target interval: daily if it has an advisory in limbo, every 3 days if it has other advisories, every 30 days if it has none yet, weekly if it answered 404;
-   - after a release of a repo's package, it's also checked about a day and about three days later, ahead of routine checks (docs/RELEASE_CHECKS.md, F-104);
+   - after a release of a repo's package, it's also checked about a day and about three days later, ahead of routine checks (docs/RELEASE_CHECKS.md, F-104). Releases come from ecosyste.ms (npm, PyPI, NuGet, crates.io, RubyGems), the Go module index, Packagist's change feed and, for the top 10,000 Maven packages (`seeds/maven-packages.txt`), Maven Central itself once a day (F-108);
    - each run polls only repos that are due, most overdue first (time since the last check ÷ the interval). If the budget can't cover everything due, every tier slows down by the same factor. Never-polled repos rank above repos that are merely due;
    - conditional requests: an unchanged repo returns 304, which is free;
    - coverage is reported as "up to date on schedule" (site, daily report, `metrics.json` `coverage.on_schedule`).

@@ -125,3 +125,68 @@ async def test_tracker_marks_released_repos_and_adds_popular_ones(no_sleep: Any)
     }  # fmt: skip
     assert report.releases["proxy.golang.org"]["complete"] is False  # a failing feed is reported, not silent
     assert store.cursor("releases:npmjs.org") and store.cursor("releases:proxy.golang.org") is None
+
+
+def maven_xml(updated: datetime) -> bytes:
+    return (f"<metadata><groupId>g</groupId><versioning><release>1.0</release>"
+            f"<lastUpdated>{updated:%Y%m%d%H%M%S}</lastUpdated></versioning></metadata>").encode()  # fmt: skip
+
+
+async def test_maven_central_feed_uses_etags_and_reports_failures(no_sleep: Any) -> None:
+    """Maven Central has no current release feed: each watched package's maven-metadata.xml, sent with its ETag
+    (an unchanged file is a 304 with no body), says when it was last deployed (F-108)."""
+    since = NOW - timedelta(days=1)
+    base = releases.MAVEN_CENTRAL
+    with respx.mock(assert_all_called=True) as router:
+        router.get(f"{base}/org/same/lib/maven-metadata.xml", headers={"If-None-Match": '"e1"'}).mock(
+            return_value=httpx.Response(304)
+        )
+        router.get(f"{base}/org/fresh/lib/maven-metadata.xml").mock(
+            return_value=httpx.Response(200, content=maven_xml(NOW - timedelta(hours=3)), headers={"ETag": '"e2"'})
+        )
+        router.get(f"{base}/org/old/lib/maven-metadata.xml").mock(
+            return_value=httpx.Response(200, content=maven_xml(NOW - timedelta(days=9)), headers={"ETag": '"e3"'})
+        )
+        router.get(f"{base}/org/gone/lib/maven-metadata.xml").mock(return_value=httpx.Response(404))
+        router.get(f"{base}/org/broken/lib/maven-metadata.xml").mock(return_value=httpx.Response(500))
+        packages = {f"org.{n}:lib": f"o/{n}" for n in ("same", "fresh", "old", "gone", "broken")}
+        async with HttpClient(sleep=no_sleep) as http:
+            known = {"org.same:lib": ('"e1"', "2026-10-01T00:00:00Z")}
+            poll = await releases.maven_central(http, packages, known, since)
+    assert [(r.package, r.repo) for r in poll.feed.releases] == [("org.fresh:lib", "o/fresh")]
+    assert poll.meta["org.fresh:lib"] == ('"e2"', iso(NOW - timedelta(hours=3)))
+    assert poll.meta["org.old:lib"][0] == '"e3"' and poll.meta["org.same:lib"] == ('"e1"', "2026-10-01T00:00:00Z")
+    assert (poll.not_found, poll.failed, poll.feed.complete) == (1, 1, False)  # the next run polls again
+
+
+def test_maven_packages_file() -> None:
+    text = "# group:artifact owner/repo\ncom.google.guava:guava google/Guava\nnot a line\norg.x:y a/b # note\n"
+    assert releases.read_maven_packages(text) == {"com.google.guava:guava": "google/guava", "org.x:y": "a/b"}
+
+
+async def test_tracker_polls_maven_central_once_a_day_and_keeps_etags(no_sleep: Any) -> None:
+    store = Store()
+    with store.session() as s:
+        s.add(Repo(full_name="google/guava", sources=["seed"], first_seen=iso(NOW), last_polled_at=iso(NOW)))
+    url = f"{releases.MAVEN_CENTRAL}/com/google/guava/guava/maven-metadata.xml"
+    fresh = datetime.now(UTC) - timedelta(hours=1)
+    cfg = TrackerConfig(releases=True, maven_packages={"com.google.guava:guava": "google/guava"})
+
+    async def run() -> RunReport:
+        with respx.mock(assert_all_called=False) as router:
+            router.get(url).mock(return_value=httpx.Response(200, content=maven_xml(fresh), headers={"ETag": '"g1"'}))
+            router.get(url__regex=r"^(?!https://repo1\.maven\.org).*").mock(return_value=httpx.Response(200, json=[]))
+            async with HttpClient(sleep=no_sleep) as http:
+                report = RunReport(started_at=iso(NOW))
+                await Tracker(store, http, cfg).collect_releases(report)
+                return report
+
+    first = await run()
+    assert first.releases["maven-central"]["watched"] == 1 and first.releases["maven-central"]["complete"]
+    with store.session() as s:
+        assert s.get(Repo, "google/guava").released_at  # type: ignore[union-attr]
+        from limbowatch.store import PackageMeta
+
+        assert s.get(PackageMeta, "maven:com.google.guava:guava").etag == '"g1"'  # type: ignore[union-attr]
+    second = await run()  # minutes later: not due again for 20 hours
+    assert "maven-central" not in second.releases

@@ -25,7 +25,7 @@ from limbowatch.models import GITHUB_CNA, CveInfo, Facts, RepoAdvisory
 from limbowatch.normalize import ts
 from limbowatch.sources import cve as cve_src
 from limbowatch.sources import github, nvd, osv, releases
-from limbowatch.store import Advisory, Cve, Event, FactSnapshot, Nvd, Repo, Reviewed, Run, Store, now_iso
+from limbowatch.store import Advisory, Cve, Event, FactSnapshot, Nvd, PackageMeta, Repo, Reviewed, Run, Store, now_iso
 
 log = logging.getLogger(__name__)
 
@@ -50,6 +50,8 @@ class TrackerConfig:
     # its package releases. Packages not yet watched join the watchlist when this many repositories depend on them.
     releases: bool = False
     release_min_dependents: int | None = 100
+    # Watched Maven packages (`group:artifact` -> owner/repo), polled on Maven Central once a day (F-108)
+    maven_packages: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -413,6 +415,27 @@ class Tracker:
         def since(name: str) -> datetime:
             return _parse(self.store.cursor(f"releases:{name}")) or first
 
+        maven_last = _parse(self.store.cursor("releases:maven-central"))
+        maven_due = bool(self.cfg.maven_packages) and (
+            maven_last is None or now - maven_last >= releases.MAVEN_INTERVAL
+        )
+        with self.store.session() as s:
+            meta = {
+                m.key.removeprefix("maven:"): (m.etag, m.updated)
+                for m in s.execute(select(PackageMeta).where(PackageMeta.key.startswith("maven:"))).scalars()
+            } if maven_due else {}  # fmt: skip
+
+        async def maven() -> releases.Feed:
+            poll = await releases.maven_central(self.http, self.cfg.maven_packages, meta, maven_last or first)
+            with self.store.session() as s:
+                for package, (etag, updated) in poll.meta.items():
+                    if (etag, updated) != meta.get(package):
+                        s.merge(PackageMeta(key=f"maven:{package}", etag=etag, updated=updated))
+            report.releases["maven-central:polled"] = {
+                "packages": len(self.cfg.maven_packages), "not_found": poll.not_found, "failed": poll.failed,
+            }  # fmt: skip
+            return poll.feed
+
         feeds = await asyncio.gather(
             *(
                 releases.ecosystems(self.http, reg, since(reg), releases.ECOSYSTEMS_OVERLAP)
@@ -420,6 +443,7 @@ class Tracker:
             ),
             releases.go_index(self.http, since("proxy.golang.org")),
             releases.packagist(self.http, since("packagist.org")),
+            *([maven()] if maven_due else []),
             return_exceptions=True,
         )
         with self.store.session() as s:

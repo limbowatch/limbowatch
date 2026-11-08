@@ -87,7 +87,7 @@ Open:
 - Q15. Can per-branch ranges like `< 1.2.5, < 2.0.3` be converted without guessing where each branch starts, e.g. from the registry's version list? ([F-069](#f-069))
 - Q16. Are pending advisories published before 2026 (258 on 2026-10-28) ever reviewed, or did GitHub never backfill them? ([F-064](#f-064))
 - Q23. Do Packagist's newest-version source URLs ever point at a different repo than the installed version's? ([F-103](#f-103))
-- Q24. Is ecosyste.ms's Maven lag (25 packages dated 2026-11-07 against about 660 a day before) temporary, and is there a primary-source feed of Maven Central releases to use instead? ([F-105](#f-105))
+- ~~Q24. Is ecosyste.ms's Maven lag temporary, and is there a primary-source feed of Maven Central releases?~~ **Not temporary: weeks behind per package. No current bulk feed exists; each package's `maven-metadata.xml` is current and supports ETags, and the tracker polls the watched ones daily ([F-108](#f-108)).**
 - Q17. How many Go modules on vanity paths (k8s.io, golang.org/x, go.opentelemetry.io) can be mapped to a GitHub repo without deps.dev? 320 Kubernetes dependencies stay checked by name only ([F-085](#f-085)). blindspot keeps a verified list (`docs/go-vanity-coverage.md`, [F-072](#f-072)).
 - Q18. Should the tracker's seeds include the upstreams of popular GitLab-hosted projects' Ruby dependencies, so the watcher doesn't need to poll them? ([F-085](#f-085); Phase 5.)
 - Q22. Does GitHub's "more than 5,000 repository advisories a week" count the same thing as the tracker (published, any ecosystem)? It sets the coverage estimate ([F-035](#f-035), [F-098](#f-098)).
@@ -1287,6 +1287,30 @@ Answered:
   - ghcr.io makes a new package private; anonymous pulls got 401 until it was made public in the package settings, which the REST API can't do.
 - **Caveats:** No Ultimate license, so SARIF ingestion itself wasn't observed. The exit-2 path was tested in the image smoke test, not in this pipeline.
 - **Implication:** The component is ready to release with the image pinned by digest. A new image package needs its visibility set by hand once.
+
+### F-108
+- **Date:** 2026-11-08 · **Status:** confirmed (official docs and direct observation)
+- **Question:** Is there a current, primary source of Maven Central releases to use instead of ecosyste.ms (Q24)?
+- **Method:** Read-only probes on 2026-11-08 around 09:45–10:05 UTC:
+  - `repo.maven.apache.org/maven2/.index/nexus-maven-repository-index.properties`;
+  - `search.maven.org/solrsearch/select?q=*:*&core=gav&sort=timestamp desc`;
+  - Sonatype's docs (REST API guide, Central Search changelog, the 429 FAQs);
+  - for 5 popular packages (AWS SDK BOM, jackson-databind, spring-boot, netty-codec-http, guava): `maven-metadata.xml` on repo1.maven.org, with `If-Modified-Since` and with `If-None-Match`; deps.dev `GET /v3/systems/maven/packages/{name}`; ecosyste.ms `/registries/repo1.maven.org/packages/{name}`;
+  - then `releases.maven_central` on 300 random packages from the new `tracker/seeds/maven-packages.txt`, twice.
+- **Result:**
+  - **Maven Central's index:** last modified 2026-10-22. Sonatype: "The index is updated on a roughly two-week cycle".
+  - **search.maven.org:** the newest artifact by timestamp is from 2026-06-10, five months stale. Sonatype documents no replacement.
+  - **Sonatype's limits:** Maven Central is enforcing consumption limits on high-volume traffic. Tools are asked to cache, avoid repeated downloads, and keep Maven Central out of their runtime path.
+  - **`maven-metadata.xml`:** current to the minute. jackson-databind 2.23.0 shows `lastUpdated` 2026-11-08 00:37:44. `If-Modified-Since` is ignored (200), but `If-None-Match` returns 304 with no body; guava's full file is 6,079 bytes.
+  - **deps.dev:** current; it already listed jackson-databind 2.23.0, published 00:35:20 UTC. It sends no ETag, and a package is 30 KB.
+  - **ecosyste.ms:** behind on all 5 except guava. It showed jackson-databind 2.22.4 (Oct 19) and the AWS SDK BOM 2.57.8 (Oct 30), when Central had 2.23.0 and 2.57.11.
+  - **Live sample:** the top 10,000 Maven packages by dependents, keeping those that name a GitHub repo, are 7,388 packages in 2,914 repos. 300 of them took 5.3 s cold and 3.0 s with ETags, at 4 parallel requests, with no failures. 55 of the 300 (18%) were deployed in the last 7 days.
+- **Caveats:** Five packages are a small sample of ecosyste.ms's lag. `lastUpdated` is when the metadata changed, normally at a deploy. A full pass of 7,388 is estimated from the sample, not measured.
+- **Implication:**
+  - Q24 answered: ecosyste.ms's Maven lag isn't a short outage but weeks behind per package, and no bulk Maven feed is current. The primary source is each package's `maven-metadata.xml`.
+  - The tracker now polls the watched Maven packages there at most once every 20 hours, with stored ETags (`--maven-packages`, `package_meta` table). That's about 7,400 conditional requests a day, mostly 304s with no body, which stays inside Sonatype's guidance.
+  - ecosyste.ms remains the Maven source only for discovering popular unwatched packages.
+- **Sources:** [Maven Central index download limits](https://central.sonatype.org/faq/429-maven-index/), [429 and consumption limits](https://central.sonatype.org/faq/429-error/), [tooling providers](https://central.sonatype.org/faq/429-tooling-provider/), [Central Search REST API](https://central.sonatype.org/search/rest-api-guide/).
 
 ## Archive
 

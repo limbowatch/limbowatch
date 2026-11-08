@@ -4,6 +4,8 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+- Maven releases come from Maven Central: the tracker polls the top 10,000 Maven packages' `maven-metadata.xml` once a day with ETags, because ecosyste.ms's Maven data lags by weeks and Maven Central has no current bulk feed (F-108).
+
 ## 0.1.0a2 (2026-11-08)
 
 Still an **alpha**. On PyPI it's `0.1.0a2`; the GitHub tag and the action's ref are `v0.1.0a2`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a2`; the GitLab CI/CD component is `0.1.0-alpha.2`.

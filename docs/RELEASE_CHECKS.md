@@ -46,6 +46,7 @@ Before relaxing any schedule: run release collection alongside the current sched
 ## Built
 
 - `limbowatch.sources.releases`: the three feeds; each reports whether it reached the previous run, and a partial feed keeps its cursor.
+- Maven Central (F-108): ecosyste.ms's Maven data lags by weeks, Maven Central's index is rebuilt about every two weeks, and search.maven.org stopped updating in June 2026. So the tracker polls each watched Maven package's `maven-metadata.xml` once a day with its ETag (`--maven-packages tracker/seeds/maven-packages.txt`, the top 10,000 Maven packages). An unchanged file is a 304 with no body.
 - `Tracker.collect_releases`: marks `Repo.released_at`, adds popular unwatched repos (source `release:<registry>`), records per feed in the run report (`releases`).
 - `schedule.release_due`: checks at about 20 hours and about 3 days after a release, ahead of routine checks; a repo added because it just released goes before a seed list's backlog.
 - Per-tier counts in each run report include a `release` tier and the new advisories each tier finds, which keeps measuring step 3 live.

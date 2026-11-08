@@ -6,6 +6,10 @@
 
   uv run tracker/seeds/make_top_packages.py --top 1000    # -> tracker/seeds/top-packages.txt (and .json)
   uv run tracker/seeds/make_top_packages.py --top 1000 --deeper nuget.org=10000 --deeper packagist.org=10000
+  uv run tracker/seeds/make_top_packages.py --deeper repo1.maven.org=10000 --maven-packages-only
+
+Also writes maven-packages.txt: the Maven packages themselves (`group:artifact owner/repo`), which the tracker polls
+on Maven Central for releases (--maven-packages; FINDINGS F-108). `--maven-packages-only` writes just that file.
 
 Selection rule (PHASE0_PLAN §13.11, FINDINGS F-099): for each of npm, PyPI, Go, Maven, crates.io, NuGet, RubyGems and
 Packagist, the top N packages by dependent repositories as ranked by ecosyste.ms, keeping those whose registry
@@ -26,6 +30,7 @@ import httpx
 
 OUT = Path(__file__).resolve().parent / "top-packages.txt"
 OUT_JSON = OUT.with_suffix(".json")  # the same repos per registry, for coverage per ecosystem on limbo.watch
+MAVEN_OUT = OUT.with_name("maven-packages.txt")
 REGISTRIES = ["npmjs.org", "pypi.org", "proxy.golang.org", "repo1.maven.org", "crates.io", "nuget.org",
               "rubygems.org", "packagist.org"]  # fmt: skip
 GITHUB = re.compile(r"^(?:git\+)?(?:https?|git|ssh)://(?:[^@/]+@)?(?:www\.)?github\.com[/:]([\w.-]+)/([\w.-]+?)(?:\.git)?(?:[/#?].*)?$", re.I)
@@ -62,6 +67,7 @@ def main() -> None:
     ap.add_argument("--top", type=int, default=1000, help="packages per ecosystem")
     ap.add_argument("--deeper", action="append", default=[], metavar="REGISTRY=N",
                     help="a different depth for one registry, e.g. nuget.org=10000 (repeatable)")  # fmt: skip
+    ap.add_argument("--maven-packages-only", action="store_true", help="write only maven-packages.txt")
     a = ap.parse_args()
     depth = {reg: a.top for reg in REGISTRIES}
     for spec in a.deeper:
@@ -72,9 +78,17 @@ def main() -> None:
     repos: set[str] = set()
     counts = []
     per_registry: dict[str, list[str]] = {}
-    with httpx.Client(timeout=120, headers={"User-Agent": "limbowatch-seed (https://limbo.watch)"}) as client:
-        for reg in REGISTRIES:
-            found = {r for p in top(client, reg, depth[reg]) if (r := github_repo(p.get("repository_url")))}
+    maven: dict[str, str] = {}
+    with httpx.Client(timeout=300, headers={"User-Agent": "limbowatch-seed (https://limbo.watch)"}) as client:
+        for reg in ["repo1.maven.org"] if a.maven_packages_only else REGISTRIES:
+            packages = top(client, reg, depth[reg])
+            if reg == "repo1.maven.org":
+                maven = {str(p["name"]): r for p in packages
+                         if ":" in str(p.get("name")) and (r := github_repo(p.get("repository_url")))}  # fmt: skip
+                write_maven(maven, depth[reg])
+                if a.maven_packages_only:
+                    return
+            found = {r for p in packages if (r := github_repo(p.get("repository_url")))}
             counts.append(f"{reg} top {depth[reg]:,}: {len(found):,}")
             repos |= found
             per_registry[reg] = sorted(found)
@@ -89,6 +103,16 @@ def main() -> None:
                                     "license": "CC BY-SA 4.0", "source": "https://ecosyste.ms",
                                     "registries": per_registry}, indent=1) + "\n")  # fmt: skip
     print(f"wrote {OUT} ({len(repos):,} repos)")
+
+
+def write_maven(packages: dict[str, str], n: int) -> None:
+    head = [
+        f"# The top {n:,} Maven packages by dependent repositories, as ranked by ecosyste.ms, with their GitHub repo:",
+        "# group:artifact owner/repo. The tracker polls their maven-metadata.xml on Maven Central for releases.",
+        f"# Data: ecosyste.ms, CC BY-SA 4.0; this list is CC BY-SA 4.0. Generated {date.today()} by make_top_packages.py.",
+    ]
+    MAVEN_OUT.write_text("\n".join(head + [f"{p} {r}" for p, r in sorted(packages.items())]) + "\n")
+    print(f"wrote {MAVEN_OUT} ({len(packages):,} packages)")
 
 
 if __name__ == "__main__":

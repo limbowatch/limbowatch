@@ -96,6 +96,16 @@ class Cursor(Base):
     updated_at: Mapped[str] = mapped_column(String(32))
 
 
+class PackageMeta(Base):
+    """A registry file the tracker polls per package (Maven Central's maven-metadata.xml): its ETag, so an unchanged
+    file costs a 304, and the registry's last-updated time (F-108)."""
+
+    __tablename__ = "package_meta"
+    key: Mapped[str] = mapped_column(String(300), primary_key=True)  # e.g. "maven:com.google.guava:guava"
+    etag: Mapped[str | None] = mapped_column(String(200), default=None)
+    updated: Mapped[str | None] = mapped_column(String(32), default=None)
+
+
 class Run(Base):
     __tablename__ = "runs"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -104,7 +114,7 @@ class Run(Base):
     stats: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
 
-TABLES: list[type[Base]] = [Repo, Advisory, Reviewed, Cve, Nvd, FactSnapshot, Event, Cursor, Run]
+TABLES: list[type[Base]] = [Repo, Advisory, Reviewed, Cve, Nvd, FactSnapshot, Event, Cursor, PackageMeta, Run]
 
 
 class Store:
