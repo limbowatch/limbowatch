@@ -14,7 +14,7 @@ Checks your dependencies against security advisories **in limbo**: published by 
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.3
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.4
 ```
 
 The job fails when a finding is at or above `fail_on` (default `low`). Exit codes: 0 passed, 1 findings, 2 the scan couldn't run. The inputs, with their defaults, are listed on this component's CI/CD Catalog page.
@@ -23,7 +23,7 @@ The job fails when a finding is at or above `fail_on` (default `low`). Exit code
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.3
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.4
     inputs:
       fail_on: high
       rules:
@@ -37,7 +37,7 @@ include:
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.3
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.4
     inputs:
       issues: true   # needs LIMBOWATCH_ISSUES_TOKEN, see below
 ```
@@ -46,7 +46,7 @@ include:
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.3
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.4
     inputs:
       security_report: true
 ```
@@ -57,9 +57,9 @@ GitLab reads security reports only from jobs that succeed. With `security_report
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.3
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.4
     inputs: { job_name: limbowatch-api, path: services/api }
-  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.3
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.4
     inputs: { job_name: limbowatch-web, path: services/web }
 ```
 
@@ -89,7 +89,7 @@ If your runners can only pull from your own registry, copy the image there with 
 
 ## Versions
 
-Releases follow semantic versioning, and each one pins a Limbowatch release. Pin a release like `0.1.0-alpha.3`. Use `~latest` only if you want every new version as soon as it's out. This component is an **alpha**: inputs and reports may still change before 0.1.0.
+Releases follow semantic versioning, and each one pins a Limbowatch release. Pin a release like `0.1.0-alpha.4`. Use `~latest` only if you want every new version as soon as it's out. This component is an **alpha**: inputs and reports may still change before 0.1.0.
 
 ## Contribute
 

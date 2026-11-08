@@ -3,7 +3,7 @@ name: image
 # - pull requests: build and smoke-test, nothing pushed;
 # - main: `edge` and `sha-<commit>`;
 # - a v* tag: no new build. The release commit pins a digest built from main in integrations/action/action.yml and
-#   the GitLab component; that exact image gets the version tag (e.g. `0.1.0a3`), and `latest` for final releases.
+#   the GitLab component; that exact image gets the version tag (e.g. `0.1.0a4`), and `latest` for final releases.
 #   What was tested is what ships.
 # Every built image carries an SBOM and BuildKit provenance, plus a GitHub build attestation:
 #   gh attestation verify oci://ghcr.io/limbowatch/limbowatch:<tag> --owner limbowatch

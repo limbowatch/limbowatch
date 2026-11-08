@@ -424,7 +424,7 @@ wheels = [
 
 [[package]]
 name = "limbowatch"
-version = "0.1.0a3"
+version = "0.1.0a4"
 source = { editable = "packages/core" }
 dependencies = [
     { name = "httpx" },
@@ -443,7 +443,7 @@ requires-dist = [
 
 [[package]]
 name = "limbowatch-cli"
-version = "0.1.0a3"
+version = "0.1.0a4"
 source = { editable = "packages/cli" }
 dependencies = [
     { name = "limbowatch" },
@@ -458,7 +458,7 @@ requires-dist = [
 
 [[package]]
 name = "limbowatch-workspace"
-version = "0.1.0a3"
+version = "0.1.0a4"
 source = { virtual = "." }
 
 [package.dev-dependencies]

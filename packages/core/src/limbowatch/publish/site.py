@@ -1208,8 +1208,8 @@ as the Go module proxy reports them.</li>
 # --- scan: the watcher -----------------------------------------------------------------------------
 
 
-RELEASE = "0.1.0a3"  # the current release (an alpha): PyPI version, action ref v{RELEASE}
-COMPONENT = "0.1.0-alpha.3"  # the same release in the GitLab CI/CD Catalog, which needs semantic versions
+RELEASE = "0.1.0a4"  # the current release (an alpha): PyPI version, action ref v{RELEASE}
+COMPONENT = "0.1.0-alpha.4"  # the same release in the GitLab CI/CD Catalog, which needs semantic versions
 # Screenshots from the demo app (docs/screenshots/, copied to assets/screens/ by `limbowatch publish`)
 SCREENS = {
     "terminal": (
