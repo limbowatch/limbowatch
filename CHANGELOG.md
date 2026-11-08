@@ -4,6 +4,7 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+- **GitHub Action:** runs the pinned, attested image on Linux runners with Docker, the same one the GitLab component runs. It falls back to pip on macOS, Windows and container jobs, or you can choose with `install: auto | image | python`. New `allow-failure` input: findings pass with a warning, a scan that couldn't run still fails. `report.sarif` is added to the reports folder.
 - Maven releases come from Maven Central: the tracker polls the top 10,000 Maven packages' `maven-metadata.xml` once a day with ETags, because ecosyste.ms's Maven data lags by weeks and Maven Central has no current bulk feed (F-108).
 
 ## 0.1.0a2 (2026-11-08)
