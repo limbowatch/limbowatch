@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org). The PyPI packages `limbowatch` and `limbowatch-cli`, the GitLab CI/CD component and the Actions action share one version number.
 
+## Unreleased
+
+- Source repos for Composer (Packagist), Hex and Pub (ecosyste.ms) and Swift (the package URL); for Maven, the POM's `<scm>`, following parent POMs, when deps.dev names none. Version comparison for Hex, Pub and Swift. On an Elixir project (Mobilizon), dependencies checked by name only fell from 162 to 7: 16 "possibly affected" findings turned out to be fixed versions, and 10 real advisories in limbo were found (F-103).
+- The tracker checks a repo after its package releases (docs/RELEASE_CHECKS.md), watches the top packages of eight ecosystems, and caps first-time polls per run (`--max-new`).
+
 ## 0.1.0a1 (2026-11-07)
 
 First release, an **alpha**: the watcher (Phase 4). Options, output formats and the JSON schema may still change before 0.1.0. On PyPI it's `0.1.0a1`; the GitHub tag and the action's ref are `v0.1.0a1`; the GitLab CI/CD component is `0.1.0-alpha.1` (the Catalog requires semantic versions).

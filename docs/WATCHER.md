@@ -21,14 +21,14 @@ It can keep one issue per finding up to date in GitLab or Gitea/Forgejo.
 2. **Matching.** Each dependency is matched against the [limbo feed](https://limbo.watch/feed/):
    - **By package and version.** If the advisory's range can't be evaluated exactly, or contradicts its own fixed version, the finding is *possible*, never a silent pass.
    - **By source repository,** when the advisory's package name is unusable. In a monorepo the name has to mention the package.
-3. **Upstream check.** Each dependency's source repo comes from the Go module path, rubygems.org or deps.dev. Repos the live tracker doesn't watch, or hasn't checked in 10 days, are polled on GitHub directly. Dependencies with no known repo, or whose repo couldn't be polled, are reported as **checked by name only**.
+3. **Upstream check.** Each dependency's source repo comes from the Go module path or Swift package URL, rubygems.org (RubyGems), Packagist (Composer), ecosyste.ms (Hex, Pub) or deps.dev; for Maven, when deps.dev names none, from the POM's `<scm>`, following parent POMs (F-103). Repos the live tracker doesn't watch, or hasn't checked in 10 days, are polled on GitHub directly. Dependencies with no known repo, or whose repo couldn't be polled, are reported as **checked by name only**.
 4. **Change detection** (`--state FILE`). Each finding is keyed by ecosystem, package and advisory, so upgrading within the affected range keeps the same key. Each run reports what's:
    - **new**;
    - **changed** (CVE, severity, versions);
    - **now visible to scanners** (the advisory reached OSV);
    - **no longer affected**.
 
-**What leaves the machine.** The feed and the tracker's watchlist are downloaded whole, so limbo.watch learns nothing about the project. Package names and versions go to deps.dev and rubygems.org, to find source repos. Source repo names go to GitHub, to poll their advisories, and advisory IDs go to OSV. With `--issues`, findings go to your own tracker.
+**What leaves the machine.** The feed and the tracker's watchlist are downloaded whole, so limbo.watch learns nothing about the project. Package names and versions go to deps.dev, rubygems.org, Packagist, ecosyste.ms and Maven Central, to find source repos. Source repo names go to GitHub, to poll their advisories, and advisory IDs go to OSV. With `--issues`, findings go to your own tracker.
 
 ## Use it
 

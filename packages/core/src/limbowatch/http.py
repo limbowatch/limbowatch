@@ -33,7 +33,9 @@ HOST_CONCURRENCY = {
     "raw.githubusercontent.com": 8,
     "api.deps.dev": 16,
     "rubygems.org": 4,  # its API asks for at most about 10 requests a second
-    "packages.ecosyste.ms": 4,  # anonymous: 5,000 an hour; pages of 1,000 take seconds each
+    "packages.ecosyste.ms": 4,
+    "repo.packagist.org": 4,
+    "repo1.maven.org": 4,  # anonymous: 5,000 an hour; pages of 1,000 take seconds each
     "index.golang.org": 2,
     "packagist.org": 2,
 }

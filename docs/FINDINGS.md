@@ -86,6 +86,7 @@ Open:
 - Q14. Do the feed's well-formed names exist in their registries? A registry check would catch wrong-but-valid names ([F-069](#f-069)).
 - Q15. Can per-branch ranges like `< 1.2.5, < 2.0.3` be converted without guessing where each branch starts, e.g. from the registry's version list? ([F-069](#f-069))
 - Q16. Are pending advisories published before 2026 (258 on 2026-10-28) ever reviewed, or did GitHub never backfill them? ([F-064](#f-064))
+- Q23. Do Packagist's newest-version source URLs ever point at a different repo than the installed version's? ([F-103](#f-103))
 - Q17. How many Go modules on vanity paths (k8s.io, golang.org/x, go.opentelemetry.io) can be mapped to a GitHub repo without deps.dev? 320 Kubernetes dependencies stay checked by name only ([F-085](#f-085)). blindspot keeps a verified list (`docs/go-vanity-coverage.md`, [F-072](#f-072)).
 - Q18. Should the tracker's seeds include the upstreams of popular GitLab-hosted projects' Ruby dependencies, so the watcher doesn't need to poll them? ([F-085](#f-085); Phase 5.)
 - Q22. Does GitHub's "more than 5,000 repository advisories a week" count the same thing as the tracker (published, any ecosystem)? It sets the coverage estimate ([F-035](#f-035), [F-098](#f-098)).
@@ -1202,6 +1203,17 @@ Answered:
   - **76 unwatched repos** whose packages have at least 100 dependent repositories released (npm 58, PyPI 17, crates.io 1) and would join the watchlist.
 - **Caveats:** One day. Maven's count is far below the 660 a day in F-101's page span, so it varies or ecosyste.ms lags for Maven. Go and Packagist give no dependent counts, so their unwatched repos aren't added.
 - **Implication:** Release-triggered checks cost a few hundred GitHub requests a day and about 5 minutes of run time. Checking popular unwatched packages adds tens of repos a day, not thousands.
+
+### F-103
+- **Date:** 2026-11-07 · **Status:** confirmed (live lookups and one real project)
+- **Question:** Can the watcher map Composer, Hex, Pub and Swift packages to their repos, and Maven packages deps.dev can't, and what does that change on a real project?
+- **Method:** `GET https://repo.packagist.org/p2/{vendor}/{name}.json` (first version's `source.url`); `GET https://packages.ecosyste.ms/api/v1/registries/{hex.pm|pub.dev}/packages/{name}` (`repository_url`); Maven Central POMs `GET https://repo1.maven.org/maven2/{group}/{artifact}/{version}/{artifact}-{version}.pom` (`<scm>`, then `<parent>`); Swift names read as `github.com/owner/repo`. Then `limbowatch scan` on Mobilizon's `mix.lock` (framagit.org/framasoft/mobilizon, 169 lines, 162 Hex dependencies; redirects to framagit.org/kaihuri/mobilizon) before and after, `--fail-on none`; changed findings checked against the installed versions and with `GET /advisories/{ghsa}` and OSV.
+- **Result:**
+  - Mapped: laravel/framework, symfony/http-foundation, guzzlehttp/guzzle (→ guzzle/guzzle) via Packagist; phoenix, plug via ecosyste.ms (hex.pm); http, provider via pub.dev; swift-nio from its URL. Before, all four ecosystems returned "no mapper".
+  - io.netty:netty-codec-http has no `<scm>` in its own POM; its parent netty-parent names github.com/netty/netty. org.apache.commons:commons-lang3's POM names gitbox.apache.org, reported as "not GitHub".
+  - Mobilizon: dependencies checked by name only **162 → 7**; findings 43 → 37. **16 removed** were all "possibly affected" (no Hex comparator before); the installed versions are at or after the fix (mint 1.10.1, plug 1.20.3, bandit 1.12.5, postgrex 0.22.4, oidcc 3.9.0). **10 added** are certain, from repos the tracker doesn't watch, polled during the scan: jose 1.11.12 (8, potatosalad/erlang-jose), ssl_verify_fun 1.1.7, h2 0.12.3; the three checked are in neither GitHub's reviewed database nor OSV.
+- **Caveats:** One project. Packagist's newest-version source URL may differ from older versions' repos; ecosyste.ms URLs are unverified registry metadata. POM properties in a parent version (`${revision}`) stop the parent walk rather than guess.
+- **Implication:** Elixir, Dart, Swift and PHP projects now get the same upstream check as npm or PyPI ones. Hex ranges are evaluated instead of reported as possible, which removes false alarms. The README's ecosystem list and `--no-upstream` text needed no change; the guide lists the new sources.
 
 ## Archive
 

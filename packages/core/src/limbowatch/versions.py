@@ -33,6 +33,10 @@ VERSION_CLASS: dict[str, Any] = {
     "rubygems": RubygemsVersion,
     "maven": MavenVersion,
     "nuget": NugetVersion,
+    # Hex, Pub and Swift package versions are semantic versions (Swift tags may carry a leading "v", stripped)
+    "erlang": SemverVersion,
+    "pub": SemverVersion,
+    "swift": SemverVersion,
 }
 SEMVER_ECOSYSTEMS = {"npm", "go", "rust"}
 
