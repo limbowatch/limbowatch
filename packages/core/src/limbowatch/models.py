@@ -18,6 +18,9 @@ class AdvisoryPackage(Frozen):
     name: str | None
     vulnerable_version_range: str | None = None
     patched_versions: str | None = None
+    # Go: the module that contains this package path, per the Go module proxy (F-113). None: not resolved. Set by the
+    # tracker when it publishes, never stored with the advisory.
+    module: str | None = None
 
 
 class RepoAdvisory(Frozen):

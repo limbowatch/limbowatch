@@ -19,12 +19,14 @@ A daily job that counts published GitHub security advisories still **in limbo**:
    - looks up NVD status (capped per run).
 
    It stores a fact snapshot only when something changed, plus a readable event ("in limbo -> reviewed", "CVE-X RESERVED -> PUBLISHED").
-6. **Publish.** `limbowatch publish` writes:
+6. **Go modules** (F-113). For each Go package path an advisory names, asks the Go module proxy which module contains it: the longest prefix that `proxy.golang.org/<prefix>/@v/list` serves. New paths are looked up on their first run and every path again after 180 days, stored in `go_modules.jsonl`. The first pass took 1,442 requests for 1,272 paths.
+7. **Publish.** `limbowatch publish` writes:
    - `index.html`;
    - `metrics.json`, including `flow_7d`: advisories published in the last 7 days against those that left limbo (F-092);
    - `feed/all.zip`: OSV schema, one `<GHSA>.json` per advisory in limbo, same layout as OSV's bulk exports;
      - package names are cleaned only where the result is certain (stray spaces, URL wrappers, PyPI's PEP 503 form, lowercase Packagist names); the original is kept in `name_as_entered`, and names that still don't fit the ecosystem's rules get `name_valid: false`;
      - a range that can't be converted exactly is left as text (`range_converted: false`), never published open-ended when a fix is listed;
+     - Go packages name their module, as OSV's Go records do: when the advisory's path is a package inside a module, `package.name` is the module and the path is in `ecosystem_specific.imports`; `database_specific.go_module` marks a resolved module (F-113);
      - `database_specific.limbowatch.quality` sums up both, per record (F-069);
    - `feed/index.json`;
    - `osv/<Ecosystem>/all.zip`: the same records split by ecosystem, the way OSV serves its own downloads, with an empty zip for every OSV ecosystem the feed doesn't cover (OSV-Scanner's offline mode fails the whole scan when one is missing, F-074). nginx sends each zip's CRC-32C as `X-Goog-Hash` from `osv/crc32c.map` (F-073);

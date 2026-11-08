@@ -3,7 +3,9 @@
 1. **Package:** the advisory names this package (after the feed's name cleaning) and the version
    is in its range. A range that can't be evaluated, or that contradicts the advisory's own fixed
    version (F-051), gives a *possible* finding, never a silent pass. Go `/vN` variants are a
-   different module (F-052), so they're possible, not certain.
+   different module (F-052), so they're possible, not certain. A Go path below the dependency's
+   module matches only if it's a package of that module: the feed says which module contains the
+   path (resolved through the Go module proxy); without that, the finding is possible (F-113).
 2. **Repository:** the advisory comes from this package's source repo, lists this ecosystem, but
    names no usable package anywhere (an invalid name, F-069/F-077). An advisory that names a valid
    package, of this ecosystem or another (a monorepo, or a Rust crate behind an npm binding), is
@@ -90,7 +92,7 @@ def match(
             n = package_name(p.ecosystem, p.name)
             if n is None or not n.valid:
                 continue
-            rel = _relation(dep, n.name)
+            rel = _relation(dep, n.name, p.module)
             if rel is None:
                 continue
             hit, why = _version(dep, p)
@@ -98,6 +100,13 @@ def match(
                 continue
             if rel == "major_version_variant":
                 hit, why = None, f"the advisory names {n.name}, a different major version of {dep.name}; {why}"
+            elif rel == "package_in_module":  # no module resolved: it may be a module of its own (F-113)
+                hit = None
+                why = (
+                    f"the advisory names {n.name}, which may be a module of its own, not a package of {dep.name}; {why}"
+                )
+            elif rel == "same" and p.module and n.name != dep.name:
+                why = f"{why} ({n.name} is a package of the module {p.module})"
             f = _finding(dep, c, p, hit, MatchKind.PACKAGE, why)
             if f.ghsa_id not in out or out[f.ghsa_id].affected is not True:
                 out[f.ghsa_id] = f
@@ -145,8 +154,11 @@ def _usable(p: AdvisoryPackage) -> bool:
     return n is not None and n.valid
 
 
-def _relation(dep: Dependency, advisory_name: str) -> str | None:
+def _relation(dep: Dependency, advisory_name: str, module: str | None = None) -> str | None:
     a, d = norm_name(dep.ecosystem, advisory_name), norm_name(dep.ecosystem, dep.name)
     if dep.ecosystem == "go":
+        if module:  # the module containing the advisory's path is known: compare modules, not paths (F-113)
+            rel = go_relation(module, d)
+            return rel if rel in ("same", "major_version_variant") else None
         return go_relation(a, d)
     return "same" if a == d else None

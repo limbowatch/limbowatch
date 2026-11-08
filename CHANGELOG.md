@@ -4,6 +4,8 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+- **Fix: Go advisories that name a separate module below another module's path no longer match the parent module.** For example, `github.com/aws/aws-sdk-go-v2/service/kinesis` is a module of its own with its own versions, and 0.1.0a1 to 0.1.0a3 compared it against `github.com/aws/aws-sdk-go-v2`'s version. The tracker now asks the Go module proxy which module contains each Go path. The feed names that module, the way OSV's Go records do: `package.name` is the module and `ecosystem_specific.imports` is the package. The watcher matches by module. Where the module isn't known, a path below the dependency's module is reported as possible (F-113).
+
 ## 0.1.0a3 (2026-11-08)
 
 Still an **alpha**. On PyPI it's `0.1.0a3`; the GitHub tag and the action's ref are `v0.1.0a3`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a3`; the GitLab CI/CD component is `0.1.0-alpha.3`.

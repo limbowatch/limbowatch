@@ -35,6 +35,12 @@ def record(it: Item, modified: str) -> dict[str, Any]:
         if name is None or eco.osv is None:
             continue
         entry: dict[str, Any] = {"package": {"ecosystem": eco.osv, "name": name.name}}
+        if p.ecosystem == "go" and p.module:
+            # OSV's Go form: the package names the module, whose versions the ranges are in; the path the advisory
+            # names goes in `imports` when it's a package inside that module (F-113)
+            entry["package"]["name"] = p.module
+            if p.module != name.name:
+                entry["ecosystem_specific"] = {"imports": [{"path": name.name}]}
         conv = osv_ranges(p.ecosystem, p.vulnerable_version_range, p.patched_versions)
         if conv is not None:
             ranges, versions = conv
@@ -42,12 +48,16 @@ def record(it: Item, modified: str) -> dict[str, Any]:
                 entry["ranges"] = ranges
             if versions:
                 entry["versions"] = versions
-        entry["database_specific"] = {
-            "vulnerable_version_range": p.vulnerable_version_range,
-            "patched_versions": p.patched_versions,
-            "range_converted": conv is not None,
-            "name_valid": name.valid,  # False: doesn't fit the ecosystem's naming, so it can't match (F-069)
-        } | ({"name_as_entered": name.raw} if name.cleaned else {})
+        entry["database_specific"] = (
+            {
+                "vulnerable_version_range": p.vulnerable_version_range,
+                "patched_versions": p.patched_versions,
+                "range_converted": conv is not None,
+                "name_valid": name.valid,  # False: doesn't fit the ecosystem's naming, so it can't match (F-069)
+            }
+            | ({"name_as_entered": name.raw} if name.cleaned else {})
+            | ({"go_module": p.module} if p.module else {})
+        )
         affected.append(entry)
     aliases = sorted({c for c in [adv.cve_id, *f.uncited_cves] if c})
     severity = []

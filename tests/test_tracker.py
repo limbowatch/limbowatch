@@ -96,6 +96,9 @@ def mock_world(router: respx.MockRouter, *, regexp2_reviewed: bool = False) -> N
         return_value=httpx.Response(200, json=load("cve_id_CVE-2026-77299.json"))
     )
     router.get(url__startswith="https://api.osv.dev/v1/vulns/").mock(return_value=httpx.Response(404, json={"code": 5}))
+    router.get("https://proxy.golang.org/github.com/dlclark/regexp2/@v/list").mock(
+        return_value=httpx.Response(200, text="v1.11.4\nv1.11.5\n")
+    )
 
 
 async def run_once(store: Store, seed: Path, no_sleep: Any) -> Any:
@@ -113,10 +116,17 @@ async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any) -> None:
         r1 = await run_once(store, seed, no_sleep)
     assert r1.stopped_early is None
     assert r1.new_advisories == 3
+    # regexp2's Go path is a module of its own, per the module proxy (F-113)
+    assert r1.go_modules == {"paths": 1, "due": 1, "resolved": 1, "in_module": 0, "no_module": 0, "failed": 0,
+                             "requests": 1}  # fmt: skip
 
     by_id = {i.adv.ghsa_id: i for i in items(store)}
     regexp2 = by_id["GHSA-wq9v-j77v-qr26"]
     assert regexp2.assessment.status is Status.LIMBO
+    assert regexp2.adv.packages[0].module == "github.com/dlclark/regexp2"
+    assert feed.record(regexp2, "2026-11-08T00:00:00Z")["affected"][0]["database_specific"]["go_module"] == (
+        "github.com/dlclark/regexp2"
+    )
     assert regexp2.assessment.cve_label is CveLabel.RESERVED
     gitpython = by_id["GHSA-f9j4-qggq-h239"]
     assert gitpython.assessment.status is Status.LIMBO
@@ -124,10 +134,11 @@ async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any) -> None:
     assert gitpython.assessment.cve_label is CveLabel.PUBLISHED_UNCITED
     assert "GHSA-83vg-56qc-22m7" not in by_id  # already reviewed when first seen: never tracked
 
-    # right away, nothing is due (limbowatch.schedule)
+    # right away, nothing is due (limbowatch.schedule), and the Go path isn't looked up again
     with respx.mock(assert_all_mocked=True, assert_all_called=False) as router:
         mock_world(router)
-        assert (await run_once(store, seed, no_sleep)).polled == 0
+        again = await run_once(store, seed, no_sleep)
+        assert again.polled == 0 and again.go_modules["requests"] == 0
     with store.session() as s:  # four days pass: due in every tier but the 30-day one
         for repo in s.query(Repo):
             repo.last_polled_at = (datetime.now(UTC) - timedelta(days=4)).strftime("%Y-%m-%dT%H:%M:%SZ")

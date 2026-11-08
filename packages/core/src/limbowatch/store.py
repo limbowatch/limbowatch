@@ -106,6 +106,15 @@ class PackageMeta(Base):
     updated: Mapped[str | None] = mapped_column(String(32), default=None)
 
 
+class GoModule(Base):
+    """Which module contains a Go package path named by an advisory, per the Go module proxy (F-113)."""
+
+    __tablename__ = "go_modules"
+    path: Mapped[str] = mapped_column(String(300), primary_key=True)
+    module: Mapped[str | None] = mapped_column(String(300), default=None)  # None: no prefix is a module
+    checked_at: Mapped[str] = mapped_column(String(32))
+
+
 class Run(Base):
     __tablename__ = "runs"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -114,7 +123,7 @@ class Run(Base):
     stats: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
 
-TABLES: list[type[Base]] = [Repo, Advisory, Reviewed, Cve, Nvd, FactSnapshot, Event, Cursor, PackageMeta, Run]
+TABLES: list[type[Base]] = [Repo, Advisory, Reviewed, Cve, Nvd, FactSnapshot, Event, Cursor, PackageMeta, GoModule, Run]
 
 
 class Store:

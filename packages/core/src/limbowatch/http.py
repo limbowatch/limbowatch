@@ -37,6 +37,7 @@ HOST_CONCURRENCY = {
     "repo.packagist.org": 4,
     "repo1.maven.org": 4,  # anonymous: 5,000 an hour; pages of 1,000 take seconds each
     "index.golang.org": 2,
+    "proxy.golang.org": 8,  # Go module lookups (F-113)
     "packagist.org": 2,
 }
 

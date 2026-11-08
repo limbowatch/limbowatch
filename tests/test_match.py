@@ -83,7 +83,41 @@ def test_go_packages_inside_a_module_and_major_versions() -> None:
     )
     go = [c for cs in ix.by_repo.values() for c in cs]
     got = {f.ghsa_id: f.affected for f in match(dep("go", "github.com/x/y", "1.1.0"), ix, "x/y", go)}
-    assert got == {"GHSA-5": True, "GHSA-6": None}  # /v2 is a different module (F-052)
+    # /v2 is a different module (F-052); pkg/sub may be a module of its own until the feed says (F-113)
+    assert got == {"GHSA-5": None, "GHSA-6": None}
+
+
+def go_rec(ghsa: str, path: str, module: str | None, rng: str) -> dict[str, Any]:
+    """A Go feed record as the feed writes it once the module is resolved: the package names the module, the
+    advisory's path goes in `imports` (F-113)."""
+    r = rec(ghsa, "o/r", ("Go", module or path, rng, None))
+    if module:
+        r["affected"][0]["database_specific"]["go_module"] = module
+        if module != path:
+            r["affected"][0]["ecosystem_specific"] = {"imports": [{"path": path}]}
+    return r
+
+
+def test_go_matches_by_the_module_that_contains_the_path() -> None:
+    ix = index(
+        go_rec("GHSA-20", "go.opentelemetry.io/otel/baggage", "go.opentelemetry.io/otel", "< 1.47.0"),  # a package
+        go_rec("GHSA-21", "go.opentelemetry.io/otel/sdk", "go.opentelemetry.io/otel/sdk", "< 1.47.0"),  # a module
+        go_rec(
+            "GHSA-22",
+            "github.com/aws/aws-sdk-go-v2/service/kinesis",
+            "github.com/aws/aws-sdk-go-v2/service/kinesis",
+            "< v1.53.10",
+        ),
+    )
+    go = [c for cs in ix.by_repo.values() for c in cs]
+    [f] = match(dep("go", "go.opentelemetry.io/otel", "1.36.0"), ix, None, go)
+    assert f.ghsa_id == "GHSA-20" and f.affected is True and f.advisory_package == "go.opentelemetry.io/otel/baggage"
+    assert "a package of the module go.opentelemetry.io/otel" in f.evidence
+    assert match(dep("go", "github.com/aws/aws-sdk-go-v2", "1.47.3"), ix, None, go) == []  # not the root's versions
+    [sdk] = match(dep("go", "go.opentelemetry.io/otel/sdk", "1.36.0"), ix, None, go)
+    assert sdk.ghsa_id == "GHSA-21" and sdk.affected is True
+    [kin] = match(dep("go", "github.com/aws/aws-sdk-go-v2/service/kinesis", "1.42.1"), ix, None, go)
+    assert kin.ghsa_id == "GHSA-22" and kin.affected is True
 
 
 def test_repository_match_only_when_the_name_is_unusable() -> None:

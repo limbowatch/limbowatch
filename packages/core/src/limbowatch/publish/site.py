@@ -1190,6 +1190,9 @@ converted exactly, it’s left out of <span class="mono">ranges</span> and kept 
 canonical spelling. The original is kept in <span class="mono">name_as_entered</span>; names that still aren’t valid
 have <span class="mono">name_valid: false</span>. Each record’s <span class="mono">quality</span> field sums this up, and
 <a href="/quality/">this page</a> lists every one with its fix.</li>
+<li>Go packages name their module, as OSV’s Go records do. Where an advisory names a package inside a module, the module
+is in <span class="mono">package.name</span> and the package in <span class="mono">ecosystem_specific.imports</span>,
+as the Go module proxy reports them.</li>
 <li>An advisory leaves the feed when GitHub reviews it, so OSV takes over.</li>
 <li>Licensed CC BY 4.0. Credit “Limbowatch (limbo.watch)” and GitHub, as each record’s <span class="mono">attribution</span> field says.</li>
 </ul></div></section></div></main>

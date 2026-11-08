@@ -20,12 +20,26 @@ from sqlalchemy import select
 
 from limbowatch import schedule
 from limbowatch.classify import facts_hash, transitions
+from limbowatch.ecosystems import package_name
 from limbowatch.http import BudgetExhausted, DeadlineReached, HttpClient
 from limbowatch.models import GITHUB_CNA, CveInfo, Facts, RepoAdvisory
 from limbowatch.normalize import ts
 from limbowatch.sources import cve as cve_src
-from limbowatch.sources import github, nvd, osv, releases
-from limbowatch.store import Advisory, Cve, Event, FactSnapshot, Nvd, PackageMeta, Repo, Reviewed, Run, Store, now_iso
+from limbowatch.sources import github, goproxy, nvd, osv, releases
+from limbowatch.store import (
+    Advisory,
+    Cve,
+    Event,
+    FactSnapshot,
+    GoModule,
+    Nvd,
+    PackageMeta,
+    Repo,
+    Reviewed,
+    Run,
+    Store,
+    now_iso,
+)
 
 log = logging.getLogger(__name__)
 
@@ -34,6 +48,11 @@ DELTA_BOOTSTRAP = timedelta(days=2)  # first run: only this much of the CVE delt
 RESERVED_RECHECK = timedelta(hours=20)
 NVD_RECHECK = timedelta(days=7)
 POLL_WORKERS = 8
+# Go module lookups (F-113): a path's module rarely changes, so each is re-checked twice a year. The first pass over
+# the stored advisories takes about 2,500 proxy requests; later runs only look up new paths.
+GO_MODULE_RECHECK = timedelta(days=180)
+GO_MODULE_MAX_REQUESTS = 4000
+GO_MODULE_WORKERS = 8
 
 
 @dataclass
@@ -74,6 +93,9 @@ class RunReport:
     # Per release feed: releases collected, how many hit a watched repo, repos added, and whether the feed reached
     # the previous run (docs/RELEASE_CHECKS.md).
     releases: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Go advisory paths and their modules (F-113): paths named, due, resolved this run, "in_module" (a package inside
+    # a shorter module), "no_module" (no prefix is a module), failed, and proxy requests
+    go_modules: dict[str, int] = field(default_factory=dict)
     events: list[str] = field(default_factory=list)
     http: dict[str, Any] = field(default_factory=dict)
 
@@ -486,6 +508,50 @@ class Tracker:
                 self.store.set_cursor(f"releases:{feed.source}", feed.cursor or _iso(now) or "")
         log.info("releases collected", extra={"feeds": report.releases})
 
+    # ------------------------------------------------------------------ Go modules
+    async def resolve_go_modules(self, report: RunReport) -> None:
+        """Which module contains each Go package path the stored advisories name, per the Go module proxy (F-113).
+        New paths first, then paths last checked more than GO_MODULE_RECHECK ago; at most GO_MODULE_MAX_REQUESTS."""
+        now = datetime.now(UTC)
+        with self.store.session() as s:
+            checked = {g.path: g.checked_at for g in s.execute(select(GoModule)).scalars()}
+            paths: set[str] = set()
+            for a in s.execute(select(Advisory)).scalars():
+                for p in a.data.get("packages") or []:
+                    if p.get("ecosystem") == "go" and (n := package_name("go", p.get("name"))) is not None and n.valid:
+                        paths.add(n.name)
+        due = sorted(p for p in paths if p not in checked or (_parse(checked[p]) or now) <= now - GO_MODULE_RECHECK)
+        due.sort(key=lambda p: p in checked)  # never-checked paths first
+        resolver = goproxy.Resolver(self.http)
+        results: dict[str, str | None] = {}
+        failed = 0
+        queue = list(reversed(due))
+
+        async def worker() -> None:
+            nonlocal failed
+            while queue and resolver.requests < GO_MODULE_MAX_REQUESTS:
+                path = queue.pop()
+                module, complete = await resolver.module_of(path)
+                if complete:
+                    results[path] = module
+                else:
+                    failed += 1
+
+        await asyncio.gather(*(worker() for _ in range(GO_MODULE_WORKERS)))
+        stamp = now_iso()
+        with self.store.session() as s:
+            for path, module in results.items():
+                s.merge(GoModule(path=path, module=module, checked_at=stamp))
+        report.go_modules = {
+            "paths": len(paths),
+            "due": len(due),
+            "resolved": len(results),
+            "in_module": sum(1 for p, m in results.items() if m and m != p),
+            "no_module": sum(1 for m in results.values() if m is None),
+            "failed": failed,
+            "requests": resolver.requests,
+        }
+
     # ------------------------------------------------------------------ run
     def _checkpoint(self) -> None:
         if self.cfg.checkpoint:
@@ -510,6 +576,11 @@ class Tracker:
             await self.assess(report)
         except (BudgetExhausted, DeadlineReached) as e:
             report.stopped_early = report.stopped_early or type(e).__name__
+        try:
+            await self.resolve_go_modules(report)
+        except DeadlineReached:
+            report.stopped_early = report.stopped_early or "DeadlineReached"
+        self._checkpoint()
         with self.store.session() as s:
             report.watchlist = len(list(s.execute(select(Repo.full_name)).scalars()))
         report.finished_at = now_iso()

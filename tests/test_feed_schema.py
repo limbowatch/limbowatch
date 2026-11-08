@@ -51,3 +51,44 @@ def test_feed_by_ecosystem_matches_osv_download_layout() -> None:
 
     assert crc32c(b"123456789") == 0xE3069283  # the standard CRC-32C check value
     assert goog_hash(b"") == "crc32c=AAAAAA=="
+
+
+def test_go_records_name_the_module_and_import_the_package() -> None:
+    """OSV's Go form once the tracker has resolved the module (F-113); valid OSV, and the watcher reads it back."""
+    from limbowatch.models import AdvisoryPackage
+    from limbowatch.publish import with_go_modules
+    from limbowatch.watch.candidates import from_feed_record
+
+    schema = json.loads((FIXTURES / "osv_schema.json").read_text())
+    adv = repo_advisory(load("repo_advisories_regexp2.json")[0], "dlclark/regexp2")
+    pkgs = (
+        AdvisoryPackage(ecosystem="go", name="go.opentelemetry.io/otel/baggage", vulnerable_version_range="< 1.47.0"),
+        AdvisoryPackage(
+            ecosystem="go", name="github.com/aws/aws-sdk-go-v2/service/kinesis", vulnerable_version_range="< 1.42.2"
+        ),
+        AdvisoryPackage(ecosystem="go", name="example.com/unresolved/pkg", vulnerable_version_range="< 2.0.0"),
+    )
+    modules = {"go.opentelemetry.io/otel/baggage": "go.opentelemetry.io/otel",
+               "github.com/aws/aws-sdk-go-v2/service/kinesis": "github.com/aws/aws-sdk-go-v2/service/kinesis",
+               "example.com/unresolved/pkg": None}  # fmt: skip
+    adv = with_go_modules(adv.model_copy(update={"packages": pkgs}), modules)
+    f = Facts(ghsa_id=adv.ghsa_id, repo="dlclark/regexp2", repo_state="published", reviewed=False)
+    rec = record(Item(adv, f, assess(adv, f), "2026-11-08T00:00:00Z"), "2026-11-08T00:00:00Z")
+    jsonschema.validate(rec, schema)
+    baggage, kinesis, unresolved = rec["affected"]
+    assert baggage["package"]["name"] == "go.opentelemetry.io/otel"
+    assert baggage["ecosystem_specific"] == {"imports": [{"path": "go.opentelemetry.io/otel/baggage"}]}
+    assert kinesis["package"]["name"] == "github.com/aws/aws-sdk-go-v2/service/kinesis"
+    assert (
+        "ecosystem_specific" not in kinesis and kinesis["database_specific"]["go_module"] == kinesis["package"]["name"]
+    )
+    assert (
+        unresolved["package"]["name"] == "example.com/unresolved/pkg"
+        and "go_module" not in unresolved["database_specific"]
+    )
+    back = from_feed_record(rec).adv.packages
+    assert [(p.name, p.module) for p in back] == [
+        ("go.opentelemetry.io/otel/baggage", "go.opentelemetry.io/otel"),
+        ("github.com/aws/aws-sdk-go-v2/service/kinesis", "github.com/aws/aws-sdk-go-v2/service/kinesis"),
+        ("example.com/unresolved/pkg", None),
+    ]

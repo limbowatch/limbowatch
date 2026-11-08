@@ -13,7 +13,7 @@ from sqlalchemy import select
 
 from limbowatch import __version__, schedule
 from limbowatch.classify import assess
-from limbowatch.ecosystems import info, reviewable
+from limbowatch.ecosystems import info, package_name, reviewable
 from limbowatch.models import Assessment, Facts, RepoAdvisory, Status
 from limbowatch.store import Event, Repo, Reviewed, Run, Store
 from limbowatch.versions import fixed_versions, no_fix
@@ -52,20 +52,32 @@ class Item:
 
 
 def items(store: Store) -> list[Item]:
-    """Every advisory with a recorded fact snapshot, with its current assessment."""
-    from limbowatch.store import Advisory
+    """Every advisory with a recorded fact snapshot, with its current assessment. Go packages carry the module that
+    contains them, where the tracker has resolved it (F-113)."""
+    from limbowatch.store import Advisory, GoModule
 
     latest = store.latest_facts()
     out = []
     with store.session() as s:
+        modules = {g.path: g.module for g in s.execute(select(GoModule)).scalars()}
         for a in s.execute(select(Advisory)).scalars():
             f = latest.get(a.ghsa_id)
             if f is None:
                 continue
-            adv = RepoAdvisory.model_validate(a.data)
+            adv = with_go_modules(RepoAdvisory.model_validate(a.data), modules)
             facts = Facts.model_validate(f)
             out.append(Item(adv, facts, assess(adv, facts), a.first_seen))
     return out
+
+
+def with_go_modules(adv: RepoAdvisory, modules: dict[str, str | None]) -> RepoAdvisory:
+    """The advisory with each Go package's `module` set from the resolved paths (F-113); others unchanged."""
+    pkgs = []
+    for p in adv.packages:
+        n = package_name(p.ecosystem, p.name) if p.ecosystem == "go" else None
+        module = modules.get(n.name) if n is not None and n.valid else None
+        pkgs.append(p.model_copy(update={"module": module}) if module else p)
+    return adv.model_copy(update={"packages": tuple(pkgs)}) if any(p.module for p in pkgs) else adv
 
 
 def fixes_text(i: Item) -> str:

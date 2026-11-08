@@ -32,12 +32,15 @@ def from_feed_record(r: dict[str, Any]) -> Candidate:
     for a in r.get("affected") or []:
         ds = a.get("database_specific") or {}
         eco = by_osv(a["package"]["ecosystem"])
+        imports = [i.get("path") for i in (a.get("ecosystem_specific") or {}).get("imports") or [] if i.get("path")]
         pkgs.append(
             AdvisoryPackage(
                 ecosystem=eco.ghsa if eco else a["package"]["ecosystem"],
-                name=ds.get("name_as_entered") or a["package"]["name"],
+                # Go: the advisory's own path is in `imports` when the package names its module (F-113)
+                name=imports[0] if imports else ds.get("name_as_entered") or a["package"]["name"],
                 vulnerable_version_range=ds.get("vulnerable_version_range"),
                 patched_versions=ds.get("patched_versions"),
+                module=ds.get("go_module"),
             )
         )
     url = next((x["url"] for x in r.get("references") or [] if x.get("type") == "ADVISORY"), "")

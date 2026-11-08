@@ -61,7 +61,7 @@ Current understanding during Phase 5 (2026-11-08), with entries linked. Points 1
     - GitLab, every tier: Code Quality shows findings on the lockfile line and "51 new findings" in a merge request; a JUnit test summary counts what fails the build; `expose_as` links the report folder; confidential issues work with any token sent as `Bearer` ([F-086](#f-086), [F-087](#f-087), [F-088](#f-088), [F-094](#f-094)).
     - GitHub: SARIF becomes code scanning alerts inline on the changed line (public repos, or with GitHub Code Security; needs `actions: read`) ([F-089](#f-089)).
     - Limits found only by running it: a component description over 256 characters breaks every including pipeline ([F-095](#f-095)); GitHub keeps 10 annotations per level per step and drops the rest silently, so annotations are one per package ([F-096](#f-096)); click strips colour off pipes ([F-097](#f-097)).
-28. **Without Limbowatch, nothing reports these.** On the demo app, GitHub's Dependabot alerts and OSV-Scanner reported 0 of the 16 advisories Limbowatch found; all 16 were rechecked against primary sources and are real, fixed and unreviewed, 1.6 to 23.5 days in limbo ([F-090](#f-090), [F-091](#f-091)). On 13 real projects (2026-11-08), Dependabot raised 2,020 alerts and covered **0 of 1,080 confirmed findings** in limbo, every one in GitHub's own dependency graph ([F-112](#f-112)). The same check found 5 Limbowatch false positives, from Go modules nested under another module's path ([F-113](#f-113)).
+28. **Without Limbowatch, nothing reports these.** On the demo app, GitHub's Dependabot alerts and OSV-Scanner reported 0 of the 16 advisories Limbowatch found; all 16 were rechecked against primary sources and are real, fixed and unreviewed, 1.6 to 23.5 days in limbo ([F-090](#f-090), [F-091](#f-091)). On 13 real projects (2026-11-08), Dependabot raised 2,020 alerts and covered **0 of 1,080 confirmed findings** in limbo, every one in GitHub's own dependency graph ([F-112](#f-112)). The same check found 5 Limbowatch false positives, from Go modules nested under another module's path ([F-113](#f-113)); the tracker now resolves each Go path's module through the Go module proxy, which removes them ([F-114](#f-114)).
 29. **The outputs are standard.** SARIF 2.1.0 and CycloneDX 1.6 validate against the official schemas ([F-093](#f-093)).
 30. **Released as an alpha, 0.1.0a1 (2026-11-07), then 0.1.0a2 (2026-11-08).** PyPI with PEP 740 attestations; GitHub pre-release; the CI/CD Catalog accepts pre-releases like `0.1.0-alpha.1` ([F-097](#f-097)). 0.1.0a2 adds the image and the reworked component (point 39).
 31. **Both demos stay as live regression tests:** `limbowatch/demo-app` on GitHub (public, PR #1) and GitLab (private, MR !1) run the released action and component ([F-088](#f-088), [F-097](#f-097)).
@@ -1421,6 +1421,32 @@ Answered:
 - **Caveats:** 5 of 1,140 findings in one comparison; how often this happens across the feed wasn't measured.
 - **Implication:** A bug in the watcher's Go matching, in released 0.1.0a1 to 0.1.0a3. Telling a nested module from a package needs data the pure matcher doesn't have. The tracker could record, per Go advisory path, whether the module proxy lists it as a module, and the feed could carry that. Until then such findings should be reported as possible, not certain.
 - **Sources:** Go module proxy; GitHub repository security advisories; `research/2026-11-dependabot-compare/`.
+
+### F-114
+- **Date:** 2026-11-08 · **Status:** confirmed (live proxy probe; tracker state of 2026-11-08 13:36 UTC)
+- **Question:** How expensive is resolving every Go advisory path through the Go module proxy, how many paths are packages inside a shorter module or modules nested under another, and does it remove F-113's false positives?
+- **Method:** The new tracker step `resolve_go_modules`, run locally against a copy of the tracker state:
+  - **Lookup:** for each path, the longest prefix `GET https://proxy.golang.org/<prefix>/@v/list` serves with versions, falling back to `/@latest` when the list is empty. 404, 410 or 400 means the prefix isn't a module. Each prefix is asked once.
+  - **Feed and re-scan:** built the feed from the result and re-scanned the Gitaly, GitLab and GitLab Runner trees from F-112 with it, without upstream polling.
+- **Result:**
+  - **Cost:** 1,272 valid Go paths (from 1,517 as entered) resolved in 52 s with 1,442 requests and 0 failures.
+  - **Paths:**
+    - 1,147 are modules themselves;
+    - 97 are packages inside a shorter module (e.g. `go.opentelemetry.io/otel/baggage`);
+    - 28 have no module on the proxy.
+  - **Nested modules:** 34 paths, not counting `/vN` variants, are modules nested under another module that some advisory also names, e.g. `go.opentelemetry.io/otel/sdk` and `/trace`, OpenTelemetry exporters and contrib modules, and `…/backend` and `…/server` directories. This is a floor: `github.com/aws/aws-sdk-go-v2` isn't named by any advisory, so its 406 service modules aren't counted.
+  - **Feed:** 2,265 Go package entries carry `go_module`.
+  - **Re-scan:**
+    - The 5 F-113 false positives are gone.
+    - GHSA-3jcv-796g-cpjg matches nothing in these projects.
+    - GHSA-q7gw-24fr-5p69 now matches the modules it names, `go.opentelemetry.io/otel/trace` (Gitaly, GitLab) and `/sdk` (GitLab), at v1.46.0, inside `>= 1.33.0`/`>= 1.35.0, < 1.47.0`: the same advisory, now on the right modules.
+- **Caveats:**
+  - Module boundaries can change between versions (a package split into its own module later), so a path is re-checked after 180 days.
+  - Advisories the watcher polls itself, not from the feed, carry no module, so their sub-path matches stay possible.
+- **Implication:**
+  - **Fix:** F-113 is fixed for feed advisories, at the cost of about 1,400 proxy requests once and then a few per run.
+  - **OSV form:** the feed's Go records now name their module the way OSV's Go records do (`package.name` = module, `ecosystem_specific.imports` = package). OSV-Scanner consumers of the feed also stop missing advisories that name a package inside a module.
+- **Sources:** Go module proxy (`/@v/list`, `/@latest`); tracker state (tracker-data branch); `research/2026-11-dependabot-compare/.cache/repos/`.
 
 ## Archive
 
