@@ -20,7 +20,7 @@ When a maintainer publishes a security advisory in their GitHub repository, Depe
 ```yaml
 # GitLab CI
 include:
-  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.2
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.3
     inputs:
       fail_on: high
 ```
@@ -28,7 +28,7 @@ include:
 ```yaml
 # GitHub, Gitea or Forgejo Actions
 - uses: actions/checkout@v4
-- uses: limbowatch/limbowatch/integrations/action@v0.1.0a2
+- uses: limbowatch/limbowatch/integrations/action@v0.1.0a3
   with:
     fail-on: high
     sarif: limbowatch.sarif
@@ -46,7 +46,7 @@ In a GitHub pull request (code scanning alerts inline) and a GitLab merge reques
 <img src="docs/screenshots/github-pr-inline.png" width="720" alt="A GitHub pull request diff with a code scanning alert on the added scapy line">
 <img src="docs/screenshots/gitlab-mr-widgets.png" width="560" alt="A GitLab merge request: Code Quality scans found 51 new findings; Test summary: 9 failed, 67 total tests; a Limbowatch report link">
 
-Guide: [docs/WATCHER.md](docs/WATCHER.md) · [limbo.watch/scan](https://limbo.watch/scan/). The current release is an alpha, 0.1.0a2: `pipx install limbowatch-cli==0.1.0a2`. Options and formats may still change before 0.1.0.
+Guide: [docs/WATCHER.md](docs/WATCHER.md) · [limbo.watch/scan](https://limbo.watch/scan/). The current release is an alpha, 0.1.0a3: `pipx install limbowatch-cli==0.1.0a3`. Options and formats may still change before 0.1.0.
 
 ## Why this exists
 
@@ -86,7 +86,7 @@ The methods, open dataset (CC BY 4.0) and scripts to reproduce it are in the [re
 | 1. "State of the Gap" report | draft for review |
 | 2. Live Limbo Tracker and an open **limbo feed** (OSV schema) | **live** at [limbo.watch](https://limbo.watch) |
 | 3. Contributions to existing tools ([blindspot](https://github.com/munimtechnologies/advisory-import-census), OSV-Scanner) | prepared, not sent ([drafts](docs/outreach/)) |
-| 4. Limbowatch watcher for GitLab and Gitea: CI component, issues that update as advisories move through review | **released** as 0.1.0a1, an alpha; current 0.1.0a2 ([PyPI](https://pypi.org/project/limbowatch-cli/), [GitLab CI/CD Catalog](https://gitlab.com/explore/catalog/limbowatch/limbowatch-component)) |
+| 4. Limbowatch watcher for GitLab and Gitea: CI component, issues that update as advisories move through review | **released** as 0.1.0a1, an alpha; current 0.1.0a3 ([PyPI](https://pypi.org/project/limbowatch-cli/), [GitLab CI/CD Catalog](https://gitlab.com/explore/catalog/limbowatch/limbowatch-component)) |
 | 5. Org-wide watch, more ecosystems (Maven/Gradle first) | planned |
 | 6. C/C++ and vendored code | planned |
 

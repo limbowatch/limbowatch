@@ -4,6 +4,10 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+## 0.1.0a3 (2026-11-08)
+
+Still an **alpha**. On PyPI it's `0.1.0a3`; the GitHub tag and the action's ref are `v0.1.0a3`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a3`; the GitLab CI/CD component is `0.1.0-alpha.3`.
+
 - **GitHub Action:** runs the pinned, attested image on Linux runners with Docker, the same one the GitLab component runs. It falls back to pip on macOS, Windows and container jobs, or you can choose with `install: auto | image | python`. New `allow-failure` input: findings pass with a warning, a scan that couldn't run still fails. `report.sarif` is added to the reports folder.
 - Maven releases come from Maven Central: the tracker polls the top 10,000 Maven packages' `maven-metadata.xml` once a day with ETags, because ecosyste.ms's Maven data lags by weeks and Maven Central has no current bulk feed (F-108).
 

@@ -1205,8 +1205,8 @@ have <span class="mono">name_valid: false</span>. Each record’s <span class="m
 # --- scan: the watcher -----------------------------------------------------------------------------
 
 
-RELEASE = "0.1.0a2"  # the current release (an alpha): PyPI version, action ref v{RELEASE}
-COMPONENT = "0.1.0-alpha.2"  # the same release in the GitLab CI/CD Catalog, which needs semantic versions
+RELEASE = "0.1.0a3"  # the current release (an alpha): PyPI version, action ref v{RELEASE}
+COMPONENT = "0.1.0-alpha.3"  # the same release in the GitLab CI/CD Catalog, which needs semantic versions
 # Screenshots from the demo app (docs/screenshots/, copied to assets/screens/ by `limbowatch publish`)
 SCREENS = {
     "terminal": (

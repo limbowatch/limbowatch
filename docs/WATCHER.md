@@ -33,7 +33,7 @@ It can keep one issue per finding up to date in GitLab or Gitea/Forgejo.
 ## Use it
 
 ```sh
-pipx install limbowatch-cli==0.1.0a2   # the current alpha; or: uv tool install limbowatch-cli==0.1.0a2
+pipx install limbowatch-cli==0.1.0a3   # the current alpha; or: uv tool install limbowatch-cli==0.1.0a3
 # needs OSV-Scanner 2.7.0 on PATH: https://google.github.io/osv-scanner/installation/
 
 limbowatch inventory .                       # what would be checked, and what can't be
@@ -103,7 +103,7 @@ GitLab, with the [CI/CD component](https://gitlab.com/limbowatch/limbowatch-comp
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.2
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.3
     inputs:
       fail_on: high
 ```
@@ -129,7 +129,7 @@ permissions:
   actions: read            # the upload action needs it in private repos
 steps:
   - uses: actions/checkout@v4
-  - uses: limbowatch/limbowatch/integrations/action@v0.1.0a2   # Gitea/Forgejo: https://github.com/limbowatch/limbowatch/integrations/action@v0.1.0a2
+  - uses: limbowatch/limbowatch/integrations/action@v0.1.0a3   # Gitea/Forgejo: https://github.com/limbowatch/limbowatch/integrations/action@v0.1.0a3
     with:
       fail-on: high
       sarif: limbowatch.sarif
@@ -141,7 +141,7 @@ steps:
 The action annotates each finding on its lockfile line in the pull request (`annotations: true`, no code scanning needed), adds the Markdown report to the job summary, and writes every report into `limbowatch-report/` (`reports:` input). `allow-failure: true` passes the step with a warning when findings meet `fail-on`; a scan that couldn't run still fails. Its outputs `findings`, `failing`, `failed` and `report` let later steps act on the result:
 
 ```yaml
-  - uses: limbowatch/limbowatch/integrations/action@v0.1.0a2
+  - uses: limbowatch/limbowatch/integrations/action@v0.1.0a3
     id: limbo
     with: { fail-on: none }
   - if: steps.limbo.outputs.findings != '0'
