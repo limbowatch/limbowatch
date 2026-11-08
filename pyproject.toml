@@ -14,12 +14,12 @@ limbowatch-cli = { workspace = true }
 dev = [
     "limbowatch",
     "limbowatch-cli",
-    "pytest>=8",
-    "pytest-asyncio>=0.24",
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.4.1.post1",
     "respx>=0.21",
     "jsonschema>=4.23",
-    "ruff>=0.6",
-    "mypy>=1.11",
+    "ruff>=0.17.3",
+    "mypy>=2.4.1",
     "import-linter>=2.1",
     "pyyaml>=6",
 ]
