@@ -1448,6 +1448,22 @@ Answered:
   - **OSV form:** the feed's Go records now name their module the way OSV's Go records do (`package.name` = module, `ecosystem_specific.imports` = package). OSV-Scanner consumers of the feed also stop missing advisories that name a package inside a module.
 - **Sources:** Go module proxy (`/@v/list`, `/@latest`); tracker state (tracker-data branch); `research/2026-11-dependabot-compare/.cache/repos/`.
 
+### F-115
+- **Date:** 2026-11-09 · **Status:** confirmed (official docs and live API)
+- **Question:** Does GitLab show a GPG-signed tag as verified once the signing key is on the tagger's GitLab account?
+- **Method:**
+  - **Account:** added the release key (fingerprint `4F6C…F143D31D`, uid `blueandhack@gmail.com`) to the user's GitLab account (key 3260411). The key's email is a confirmed account email and the commit email.
+  - **Tag:** checked the component tag `0.1.0-alpha.4` (tag object `1822b1f`, signed with `git tag -s`; `git tag -v` passes) before and after, with `GET projects/limbowatch%2Flimbowatch-component/repository/tags/0.1.0-alpha.4/signature`.
+  - **Docs:** read GitLab's tags API docs (`doc/api/tags.md`) and its X.509 signing docs.
+- **Result:**
+  - **API:** before and after adding the key, the endpoint returns `signature_type: PGP`, `verification_status: null` and `gpg_key_primary_keyid: null`.
+  - **Docs:** the API "returns X.509 signature information from signed tags", and the endpoint is titled "Retrieve X.509 signature of a tag". Only the X.509 page covers signing tags. GPG and SSH keys on GitLab verify commits only.
+- **Caveats:** GitLab could add GPG tag verification later.
+- **Implication:**
+  - **No badge:** GitLab will not show the component's GPG-signed tags as verified. The signature is still in the tag, and `git tag -v` checks it against the public key, which GitHub also shows for this user.
+  - **Release step:** keep signing component tags with GPG. Getting a GitLab badge would need an X.509 certificate, which isn't worth it.
+- **Sources:** GitLab docs `doc/api/tags.md`, `doc/user/project/repository/signed_commits/x509.md` (master, 2026-11-09); GitLab API (tag signature, `user/gpg_keys`, `user/emails`).
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
