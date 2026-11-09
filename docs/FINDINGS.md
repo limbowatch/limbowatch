@@ -1464,6 +1464,35 @@ Answered:
   - **Release step:** keep signing component tags with GPG. Getting a GitLab badge would need an X.509 certificate, which isn't worth it.
 - **Sources:** GitLab docs `doc/api/tags.md`, `doc/user/project/repository/signed_commits/x509.md` (master, 2026-11-09); GitLab API (tag signature, `user/gpg_keys`, `user/emails`).
 
+### F-116
+- **Date:** 2026-11-09 · **Status:** confirmed (official docs and the org's billing API)
+- **Question:** Will the tracker and CI run out of GitHub Actions minutes or other free-tier limits as Phase 5 grows the watchlist?
+- **Method:**
+  - **Docs:** read GitHub's Actions billing docs (docs.github.com/en/billing/concepts/product-billing/github-actions).
+  - **Usage:** `GET /organizations/limbowatch/settings/billing/usage?year=2026&month=11`, summed per repository and SKU.
+  - **Runs:** durations of the last 12 tracker runs (`gh run list --workflow tracker.yml`).
+  - **Cache:** `GET /repos/limbowatch/limbowatch/actions/cache/usage` and the cache list.
+- **Result:**
+  - **Minutes:** standard GitHub-hosted runners are free for public repositories, and Dependabot runs are free. The org is on GitHub Free, whose private-repo allowance is $12 a month of compute, not a minute count. November so far: `limbowatch` 706 Linux and 55 macOS minutes ($7.65 gross, $0 net); `demo-app` 35 minutes ($0); the 13 private `dbcmp-*` copies 1–3 Linux minutes each, from Dependabot ($0 net).
+  - **Run length:** tracker runs take 7–19 min (18.5 min on 2026-11-09, with 5,906 repos polled and the first Go-module pass), against a 75-min job timeout and the tracker's own `--minutes 50` stop.
+  - **Cache:** 9.95 GB of the 10 GB per-repo cache, in 257 entries. Almost all of it is the image build's BuildKit cache (`cache-to: type=gha,mode=max`): six 1.3 GB blobs, one per image build since 2026-11-08. The tracker keeps its state on the tracker-data branch and uses no Actions cache; only setup-uv's small caches are shared with it.
+  - **Schedule:** the 06:17 UTC scheduled run started at 13:14 (2026-11-07), 13:36 (11-08) and 16:34 (11-09), 7–10 hours late.
+- **Caveats:** one month's billing data, partly from before the repo went public on 2026-11-05.
+- **Implication:**
+  - **No cost:** Phase 5's growth costs nothing in minutes while the repo is public. The limits that bind are GitHub's API rate limit for the tracker's token (5,000 requests an hour), which `--budget` and `--max-new` already respect, and run length.
+  - **Cache:** over 10 GB GitHub evicts the least recently used caches. That's harmless for the tracker, but it can evict setup-uv's caches and slow CI. Pruning old BuildKit blobs or switching to `mode=min` would fix it.
+  - **Schedule:** a late scheduled run delays the daily report by hours. Manual runs fill the gap during Phase 5.
+- **Sources:** GitHub docs (above); GitHub billing usage API; Actions runs and cache APIs.
+
+### F-117
+- **Date:** 2026-11-09 · **Status:** confirmed (tracker run of 2026-11-09 16:34 UTC)
+- **Question:** Does the tracker's Go-module step (F-114) work in production?
+- **Method:** the `go_modules` stats of the scheduled tracker run in `state/runs.jsonl` on the tracker-data branch.
+- **Result:** 1,273 Go paths due and resolved, 92 inside a shorter module and 43 with no module on the proxy. It took 1,443 proxy requests with 0 failures. The run took 18.5 min in all. These match the local trial in F-114 (1,272 paths, 1,442 requests).
+- **Caveats:** the next full pass is due in 180 days. Until then only new paths cost requests.
+- **Implication:** feed records from this run carry `go_module`, so 0.1.0a4 watchers match Go advisories by module (F-113 fixed in production).
+- **Sources:** `state/runs.jsonl` (tracker-data branch).
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
