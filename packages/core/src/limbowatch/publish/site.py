@@ -1742,7 +1742,8 @@ Repositories are also checked about a day and about three days after their packa
 repositories chosen from <a href="https://ecosyste.ms">ecosyste.ms</a> package rankings, those two files are licensed
 CC BY-SA 4.0; advisory data stays CC BY 4.0.</li>
 <li>The most-used packages are being added in stages: the top 1,000 per ecosystem on 7 November 2026, then the top 10,000,
-first for NuGet, Packagist, Maven and RubyGems, where coverage was weakest
+first for NuGet, Packagist, Maven and RubyGems, where coverage was weakest, then from 9 November for npm, PyPI, Go
+and crates.io
 (FINDINGS <a href="{FINDINGS_URL}#f-099">F-099</a>, <a href="{FINDINGS_URL}#f-100">F-100</a>). A run checks at most 2,500 new repositories, so the daily re-checks
 keep their turn.</li></ul>
 <p><strong>How much that covers.</strong> In the {flow.get("days", 7)} days to {flow_end}, the tracker saw
