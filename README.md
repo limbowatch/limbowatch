@@ -34,9 +34,9 @@ include:
     sarif: limbowatch.sarif
 ```
 
-What it finds, measured 2026-11-05 to 11-07 against the live feed:
+What it finds, measured 2026-11-07 and 11-08 against the live feed:
 
-- **269 affected package-versions in 13 of 14 popular projects** (GitLab alone 125), which scanners reading GitHub's database or OSV report as clean. Of 657 findings checked live, none was contradicted.
+- **1,080 confirmed findings in 13 popular open-source projects that Dependabot didn't alert on.** On the same dependency files GitHub's Dependabot raised 2,020 alerts, none for any of them, though every affected package was in GitHub's own dependency graph: the advisories hadn't been reviewed yet. 277 advisories; 262 findings rated critical or high; only 95 with a CVE. Each was rechecked with the ecosystem's own version library. [The comparison](research/2026-11-dependabot-compare/), [FINDINGS F-112](docs/FINDINGS.md#f-112).
 - **16 vs 0 on a demo app** with real npm, Go, pip and Bundler lockfiles: Limbowatch found 16 advisories in limbo; OSV-Scanner and GitHub's Dependabot alerts reported none of them. See the [demo pull request](https://github.com/limbowatch/demo-app/pull/1): 51 new alerts, inline on the line that adds the package. [Evidence: all 16 rechecked against GitHub and OSV](research/2026-11-demo-evidence/), 1.6 to 23.5 days in limbo.
 
 <img src="docs/screenshots/terminal.png" width="720" alt="limbowatch scan output: a table of findings per lockfile, a To fix list of upgrades, and the verdict FAILED, 9 findings at or above high">

@@ -732,6 +732,7 @@ def cve_split(m: dict[str, Any]) -> str:
 DEMO_PR = "https://github.com/limbowatch/demo-app/pull/1"
 WATCHER_DOC = f"{REPO_URL}/blob/main/docs/WATCHER.md"
 EVIDENCE = f"{REPO_URL}/tree/main/research/2026-11-demo-evidence"
+COMPARE = f"{REPO_URL}/tree/main/research/2026-11-dependabot-compare"  # 13 projects vs Dependabot (F-112)
 SEARCH_JS = (
     "<script>document.querySelectorAll('form.find').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();"
     "const q=f.querySelector('input').value.trim();location.href='/tracker/'+(q?'?q='+encodeURIComponent(q):'');}));</script>"
@@ -839,16 +840,17 @@ repositories; {cov["on_schedule"]:,} are up to date. Repos with an advisory in l
 <a href="/methodology/#coverage">How coverage works</a></div></div>
 <main>
 <section class="wrap s proof"><div class="ptext"><h2>A clean scan can miss these</h2>
-<p class="sub">We gave three tools the same demo app, with real npm, Go, pip and Bundler lockfiles, in November 2026.
-GitHub’s Dependabot alerts and OSV-Scanner reported none of the 16 advisories in limbo that affect it. All 16 were
-then rechecked against GitHub and OSV, independently of Limbowatch’s own code.</p>
-<p class="sub">It isn’t only demos: in the projects behind our October report, Limbowatch found <strong>269 affected
-package-versions in 13 of 14 projects</strong> that scanners reading GitHub’s database or OSV didn’t report.</p>
-<p class="links"><a href="{EVIDENCE}">The 16 findings, rechecked</a><a href="{FINDINGS_URL}#f-085">The 269, checked live</a></p></div>
-<div class="vs" role="img" aria-label="Findings on the same project: Dependabot alerts 0, OSV-Scanner 0, Limbowatch 16">
-<div><span>GitHub Dependabot alerts</span><b class="zero">0</b></div>
-<div><span>OSV-Scanner 2.7.0</span><b class="zero">0</b></div>
-<div class="lw"><span>Limbowatch</span><b>16</b><i style="width:100%"></i></div></div></section>
+<p class="sub">In November 2026 we gave GitHub’s Dependabot the dependency files of 13 popular open-source projects. It
+raised 2,020 alerts, and <strong>none</strong> for the advisories in limbo that Limbowatch found there. GitHub could see
+every affected package: each one was in its own dependency graph. The advisories just hadn’t been reviewed yet.</p>
+<p class="sub">We then rechecked each finding with the ecosystem’s own version library, independently of Limbowatch’s
+code: <strong>1,080 confirmed</strong>, from 277 advisories. 262 of them are rated critical or high, and only 95 have a CVE.</p>
+<p class="links"><a href="{COMPARE}">The 13-project comparison</a><a href="{FINDINGS_URL}#f-112">How each finding was
+checked</a><a href="{EVIDENCE}">A demo app: 16 vs 0</a></p></div>
+<div class="vs" role="img" aria-label="On the same 13 projects: affected packages in GitHub’s dependency graph, all 1,140; findings alerted by Dependabot, 0; confirmed by Limbowatch, 1,080">
+<div><span>In GitHub’s dependency graph</span><b class="zero">all</b></div>
+<div><span>Alerted by Dependabot</span><b class="zero">0</b></div>
+<div class="lw"><span>Confirmed by Limbowatch</span><b>1,080</b><i style="width:100%"></i></div></div></section>
 <section class="wrap s"><div class="two"><div><h2 class="sm">By ecosystem</h2>
 <p class="sub">Advisories in limbo by package ecosystem, and how long they’ve waited so far.</p>{eco_table(pend, now)}</div>
 <div><h2 class="sm">By CVE state</h2>
@@ -1325,16 +1327,16 @@ Exit codes: 0 passed, 1 a finding meets <span class="mono">--fail-on</span>, 2 t
     }</div></div></section>
 
 <section class="s"><h2>What it finds</h2><div class="facts3">
-<div><div class="n">269</div><p>affected package-versions in <strong>13 of 14</strong> popular projects, GitLab alone 125, that
-scanners reading GitHub’s database or OSV didn’t report. Checked live: 630 of 657 findings in the advisory’s current
-range, 12 possible, <strong>none contradicted</strong>.</p></div>
+<div><div class="n">1,080</div><p>confirmed findings in <strong>13 popular open-source projects</strong> that GitHub’s
+Dependabot didn’t alert on, though every affected package was in its dependency graph. It raised 2,020 alerts on the same
+files, <strong>none of them for these</strong>.</p></div>
 <div><div class="n">16 vs 0</div><p>on a demo app with real npm, Go, pip and Bundler lockfiles: Limbowatch found 16 advisories
 in limbo in six packages. OSV-Scanner and GitHub’s Dependabot alerts reported <strong>none of them</strong>.</p></div>
 <div><div class="n">51</div><p>new findings when a change adds one affected package, in GitLab’s merge request and inline on
 GitHub.</p></div></div>
-<p class="links"><a href="{EVIDENCE}">The 16 findings, rechecked</a><a href="{
-        FINDINGS_URL
-    }#f-085">The 269, checked live</a></p></section>
+<p class="links"><a href="{COMPARE}">The 13-project comparison</a><a href="{
+        EVIDENCE
+    }">The 16 findings, rechecked</a></p></section>
 
 <section class="s"><h2>Use it</h2><ol class="steps" style="display:flex;flex-direction:column;gap:20px;max-width:860px">
 <li><span class="num">1</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">GitLab CI</p>
@@ -1509,7 +1511,9 @@ lists git commits but no package, and NVD has deferred it.</p>
 to every scanner that reads GitHub’s database, OSV or NVD.</strong> The people involved were doing their jobs. The review queue is simply far longer than the tools downstream
 assume.</p>
 <p>I wanted to know whether my advisory was unusual. It isn’t. In October I measured the upstream advisories of fifteen popular
-projects: about 1 in 6 was in limbo, and the median wait for review was 23 days. Today limbo.watch counts
+projects: about 1 in 6 was in limbo, and the median wait for review was 23 days. In November I gave Dependabot the
+dependency files of 13 of them. It raised 2,020 alerts, none for the 1,080 confirmed findings in limbo, though every
+affected package was in GitHub’s dependency graph. Today limbo.watch counts
 <strong>{li["count"]:,} advisories waiting for review</strong>, with a median wait of {fmt_days(li["age_days_median"])},
 and that’s a floor: it only sees the repositories it watches.</p>
 <p>Limbowatch makes that wait visible. It lists what’s waiting, publishes it in the format scanners already read, and will help
@@ -1569,6 +1573,10 @@ def press(items: list[Item], m: dict[str, Any], now: datetime) -> str:
          "the median was <strong>23 days</strong>, for 990 reviewed advisories.", f"{FINDINGS_URL}#f-019", "Sources in the research log"),
         ("In October 2026, <strong>1 in 6</strong> upstream advisories behind 15 popular open-source projects was in "
          "limbo, and the median wait for GitHub’s review was 23 days.", REPORT_URL, "State of the Gap, October 2026"),
+        ("On 13 popular open-source projects, GitHub’s Dependabot raised 2,020 alerts and <strong>none</strong> for "
+         "the 1,080 confirmed findings in limbo that Limbowatch reported there (277 advisories; 262 findings rated "
+         "critical or high). Every affected package was in GitHub’s own dependency graph (8 November 2026).",
+         COMPARE, "The comparison"),
         ("On a demo app with real lockfiles, Limbowatch found <strong>16</strong> advisories in limbo that GitHub’s "
          "Dependabot alerts and OSV-Scanner did not report (7 November 2026). Each was rechecked against GitHub and OSV.",
          EVIDENCE, "The evidence"),
@@ -1613,6 +1621,9 @@ in limbo (CSV)</a><a href="/metrics.json">Today’s counts (JSON)</a></p></secti
 {flow.get("published", 0):,} new advisories in the repositories we watch, and GitHub reviewed {flow.get("reviewed", 0):,}
 of those waiting. We have two weeks of data: a rate, not yet a trend. The <a href="{ISSUE_URL}">daily report</a> shows
 each day.</p></div>
+<div><h3>Dependabot sees the package, not the advisory</h3><p>In 13 popular projects, every package affected by an
+advisory in limbo was in GitHub’s dependency graph, and Dependabot alerted on none of them. It will once GitHub reviews
+the advisories; until then, the projects get no warning. <a href="{COMPARE}">The comparison</a></p></div>
 <div><h3>Critical and fixed, not yet reviewed</h3><p>Many advisories are published with the fix already released. Tools
 that read GitHub’s database or OSV don’t alert users of the vulnerable version until the review is done. Examples are
 below.</p></div>
@@ -1713,6 +1724,8 @@ Scanners that read GitHub’s database will probably never see them. They aren�
 <li><strong>OSV.dev</strong>, queried by advisory ID.</li>
 <li><strong>The CVE List</strong> (cvelistV5) and CVE Services, for whether a CVE is reserved or published, and for CVEs
 other CNAs published that point to an advisory.</li>
+<li><strong>The Go module proxy</strong>, for which Go module contains each package path an advisory names, so a
+package is matched against its module’s version.</li>
 <li><strong>The NVD API</strong>, for NVD’s status. This product uses the NVD API but is not endorsed or certified by the NVD.</li></ul>
 <p>Facts are recorded only when they change, and each change is kept as an event, so every advisory page shows its history.</p>"""),
         ("coverage", "Coverage: every number is a floor", f"""<p>GitHub has no public list of every repository advisory,
@@ -1755,6 +1768,13 @@ measured a median of 23 days for 990 reviewed advisories.</p>"""),
 <li>Findings are checked against primary sources only (GitHub, OSV, the CVE List, NVD), never web search or AI summaries.</li>
 <li>In November 2026 we rechecked 657 project findings live: none was contradicted (<a href="{FINDINGS_URL}#f-085">F-085</a>).
 The 16 demo findings were rechecked one by one (<a href="{EVIDENCE}">evidence</a>).</li>
+<li>On 8 November 2026 we rechecked 1,140 findings in 13 projects with each ecosystem’s own version library (semver,
+packaging, <span class="mono">Gem::Requirement</span>, <span class="mono">golang.org/x/mod</span>): 1,080 confirmed,
+29 reported only as possible, 26 that depend on reading a malformed range, and 5 false positives. The false positives were
+Go modules whose path sits below another module’s; release 0.1.0a4 fixed them by asking the Go module proxy which module
+contains each path (<a href="{FINDINGS_URL}#f-112">F-112</a>, <a href="{FINDINGS_URL}#f-113">F-113</a>,
+<a href="{FINDINGS_URL}#f-114">F-114</a>). In the same projects Dependabot alerted on none of the 1,140
+(<a href="{COMPARE}">comparison</a>).</li>
 <li>Version ranges are as entered by maintainers and haven’t been reviewed. A range that contradicts its own fix is reported as
 “possibly affected”, never as certain. Versions are compared with each ecosystem’s own rules, never as text.</li>
 <li>Package names are cleaned only where the fix is certain (stray spaces, a URL around the name, canonical spelling), and
