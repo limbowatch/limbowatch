@@ -25,8 +25,10 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/1Panel-dev/1Panel","path":"github.com/1Panel-dev/1Panel"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/1Panel-dev/kubepi","path":"github.com/1Panel-dev/kubepi"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/AS203038/looking-glass","path":"github.com/AS203038/looking-glass/pkg/utils"}
+{"checked_at":"2026-11-09T22:39:40Z","module":"github.com/AdguardTeam/dnsproxy","path":"github.com/AdguardTeam/dnsproxy"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/AndrewBurian/powermux","path":"github.com/AndrewBurian/powermux"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/Anipaleja/nginx-defender","path":"github.com/Anipaleja/nginx-defender"}
+{"checked_at":"2026-11-09T22:39:40Z","module":"github.com/Azure/draft","path":"github.com/Azure/draft"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/Azure/go-ntlmssp","path":"github.com/Azure/go-ntlmssp"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/BishopFox/sliver","path":"github.com/BishopFox/sliver"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/CosmWasm/wasmd","path":"github.com/CosmWasm/wasmd"}
@@ -92,6 +94,8 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/authelia/authelia/v4","path":"github.com/authelia/authelia/v4"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/authorizerdev/authorizer","path":"github.com/authorizerdev/authorizer"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/authzed/spicedb","path":"github.com/authzed/spicedb"}
+{"checked_at":"2026-11-09T22:39:40Z","module":"github.com/aws/amazon-ssm-agent","path":"github.com/aws/amazon-ssm-agent"}
+{"checked_at":"2026-11-09T22:39:40Z","module":"github.com/aws/amazon-vpc-cni-k8s","path":"github.com/aws/amazon-vpc-cni-k8s"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/aws/aws-advanced-go-wrapper/auth-helpers","path":"github.com/aws/aws-advanced-go-wrapper/auth-helpers"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/aws/aws-advanced-go-wrapper/aws-secrets-manager","path":"github.com/aws/aws-advanced-go-wrapper/aws-secrets-manager"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/aws/aws-advanced-go-wrapper/awssql","path":"github.com/aws/aws-advanced-go-wrapper/awssql"}
@@ -106,6 +110,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/aws/aws-advanced-go-wrapper/xray","path":"github.com/aws/aws-advanced-go-wrapper/xray"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/aws/aws-cdk-go/awscdk","path":"github.com/aws/aws-cdk-go/awscdk"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/aws/aws-cdk-go/awscdk/v2","path":"github.com/aws/aws-cdk-go/awscdk/v2"}
+{"checked_at":"2026-11-09T22:39:40Z","module":"github.com/aws/aws-network-policy-agent","path":"github.com/aws/aws-network-policy-agent"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream","path":"github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/aws/aws-sdk-go-v2/service/accessanalyzer","path":"github.com/aws/aws-sdk-go-v2/service/accessanalyzer"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/aws/aws-sdk-go-v2/service/account","path":"github.com/aws/aws-sdk-go-v2/service/account"}
@@ -520,9 +525,11 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/bank-vaults/vault-secrets-webhook","path":"github.com/bank-vaults/vault-secrets-webhook"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/basekick-labs/arc","path":"github.com/basekick-labs/arc"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/beego/beego","path":"github.com/beego/beego"}
+{"checked_at":"2026-11-09T22:39:40Z","module":"github.com/beevik/etree","path":"github.com/beevik/etree"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/bep/imagemeta","path":"github.com/bep/imagemeta"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/biscuit-auth/biscuit-go","path":"github.com/biscuit-auth/biscuit-go"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/bishopfox/sliver","path":"github.com/bishopfox/sliver"}
+{"checked_at":"2026-11-09T22:39:40Z","module":"github.com/bluekeyes/go-gitdiff","path":"github.com/bluekeyes/go-gitdiff"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/bluenviron/mediamtx","path":"github.com/bluenviron/mediamtx"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/boxlite-ai/boxlite/sdks/go","path":"github.com/boxlite-ai/boxlite/sdks/go"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/bpg/terraform-provider-proxmox","path":"github.com/bpg/terraform-provider-proxmox"}
@@ -1206,6 +1213,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"gitlab.com/uniget-org/cli","path":"gitlab.com/uniget-org/cli"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.etcd.io/etcd","path":"go.etcd.io/etcd"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.etcd.io/etcd/v3","path":"go.etcd.io/etcd/v3"}
+{"checked_at":"2026-11-09T22:39:40Z","module":"go.keploy.io/server/v3","path":"go.keploy.io/server/v3"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.mongodb.org/mongo-driver","path":"go.mongodb.org/mongo-driver/bson"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.mongodb.org/mongo-driver","path":"go.mongodb.org/mongo-driver/mongo/gridfs"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.mongodb.org/mongo-driver/v2","path":"go.mongodb.org/mongo-driver/v2/bson"}
