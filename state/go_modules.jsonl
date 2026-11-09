@@ -929,6 +929,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/lxc/incus/v7","path":"github.com/lxc/incus/v7"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/lxc/incus/v7","path":"github.com/lxc/incus/v7/cmd/incus"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/lxc/incus/v7","path":"github.com/lxc/incus/v7/cmd/incusd"}
+{"checked_at":"2026-11-09T19:59:20Z","module":"github.com/mattn/go-sqlite3","path":"github.com/mattn/go-sqlite3"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/maximhq/bifrost/core","path":"github.com/maximhq/bifrost/core"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/mayswind/ezbookkeeping","path":"github.com/mayswind/ezbookkeeping"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/mccutchen/go-httpbin","path":"github.com/mccutchen/go-httpbin"}
