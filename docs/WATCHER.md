@@ -118,7 +118,7 @@ On a GitLab instance other than gitlab.com, mirror the component project first (
 Any other CI, or locally, with the image (linux/amd64 and linux/arm64; verify it with `gh attestation verify oci://ghcr.io/limbowatch/limbowatch:<tag> --owner limbowatch`):
 
 ```sh
-docker run --rm -v "$PWD:/src" ghcr.io/limbowatch/limbowatch limbowatch scan . -o sarif=limbowatch.sarif
+docker run --rm -v "$PWD:/src" ghcr.io/limbowatch/limbowatch:0.1.0a5 limbowatch scan . -o sarif=limbowatch.sarif   # a release tag: there's no `latest` while releases are alphas
 ```
 
 GitHub, Gitea or Forgejo Actions, with the composite action [limbowatch/limbowatch-action](https://github.com/limbowatch/limbowatch-action), listed in [GitHub Marketplace](https://github.com/marketplace/actions/limbowatch) (its source is [`integrations/action/`](../integrations/action/action.yml), copied there at each release; `limbowatch/limbowatch/integrations/action@<tag>` still works). On a Linux runner with Docker it runs the same pinned, attested image as the GitLab component. On macOS or Windows, or when the job itself runs in a container (common on Gitea and Forgejo runners), it installs Limbowatch with pip instead, which needs Python 3.12 or later. The `install` input (`auto`, `image`, `python`) picks one explicitly.

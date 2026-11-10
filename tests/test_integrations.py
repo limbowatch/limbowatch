@@ -114,3 +114,10 @@ def test_action_self_test_pins_its_actions() -> None:
     for line in wf.splitlines():
         if "uses:" in line and "uses: ./" not in line:
             assert re.search(r"@[0-9a-f]{40} # v", line), line
+
+
+def test_docs_pull_the_image_by_release_tag() -> None:
+    """ghcr.io/limbowatch/limbowatch has no `latest` while releases are alphas (image.yml), so an untagged pull fails."""
+    for doc in ("README.md", "docs/WATCHER.md", "integrations/gitlab/README.md", "integrations/action/README.md"):
+        text = (ROOT / doc).read_text()
+        assert not re.search(r"ghcr\.io/limbowatch/limbowatch\s+limbowatch", text), doc

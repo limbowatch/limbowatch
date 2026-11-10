@@ -91,6 +91,13 @@ If your runners can only pull from your own registry, copy the image there with 
 
 Releases follow semantic versioning, and each one pins a Limbowatch release. Pin a release like `0.1.0-alpha.5`. Use `~latest` only if you want every new version as soon as it's out. This component is an **alpha**: inputs and reports may still change before 0.1.0.
 
+## More
+
+- **Guide:** every option, output format and the issue workflow, in [docs/WATCHER.md](https://github.com/limbowatch/limbowatch/blob/main/docs/WATCHER.md).
+- **[limbo.watch](https://limbo.watch):** the live tracker of every advisory in limbo, the [limbo feed](https://limbo.watch/feed/) (OSV records) this job downloads, and a [package checker](https://limbo.watch/check/).
+- **GitHub, Gitea or Forgejo:** the same scan as an action, [limbowatch/limbowatch-action](https://github.com/limbowatch/limbowatch-action), in [GitHub Marketplace](https://github.com/marketplace/actions/limbowatch).
+- **Locally:** `pipx install limbowatch-cli`, then `limbowatch scan .` (needs OSV-Scanner), or the image: `docker run --rm -v "$PWD:/src" ghcr.io/limbowatch/limbowatch:0.1.0a5 limbowatch scan .`
+
 ## Contribute
 
 This project is published from [`integrations/gitlab/`](https://github.com/limbowatch/limbowatch/tree/main/integrations/gitlab) in the Limbowatch repository on GitHub. Issues and pull requests go there. The project's own pipeline runs the component against `tests/go-sample` on amd64 and arm64, in both modes.
