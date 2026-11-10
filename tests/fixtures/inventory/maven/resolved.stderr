@@ -1,0 +1,11 @@
+Scanning dir /ROOT
+Starting filesystem walk for root: /
+Scanned /ROOT/leaf/pom.xml file and found 1 package
+Scanned /ROOT/app/pom.xml file and found 2 packages
+Scanned /ROOT/mod/pom.xml file and found 2 packages
+End status: 6 dirs visited, 12 inodes visited, 3 Extract calls, 401.625µs elapsed, 401µs wall time
+Filtered 1 local/unscannable package/s from the scan.
+Warning: enricher transitivedependency/pomxml may be risky when run on untrusted artifacts. Please ensure you trust the source code and artifacts.
+failed resolution for ROOT/mod/pom.xml: failed resolving {Maven:com.example:mod[Concrete:1.0] {}}: version Maven:com.example:sibling[Concrete:1.0-SNAPSHOT]: not found
+Loaded Maven local db from /TMP/osv-scalibr/Maven/all.zip
+Error during extraction: (extracting as transitivedependency/pomxml) failed resolution for ROOT/mod/pom.xml: failed resolving {Maven:com.example:mod[Concrete:1.0] {}}: version Maven:com.example:sibling[Concrete:1.0-SNAPSHOT]: not found

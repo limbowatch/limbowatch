@@ -1,0 +1,90 @@
+{
+  "results": [
+    {
+      "source": {
+        "path": "/ROOT/app/pom.xml",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "org.apache.commons:commons-text",
+            "version": "1.10.0",
+            "ecosystem": "Maven",
+            "purl": "pkg:maven/org.apache.commons/commons-text@1.10.0"
+          }
+        },
+        {
+          "package": {
+            "name": "com.fasterxml.jackson.core:jackson-databind",
+            "version": "",
+            "ecosystem": "Maven",
+            "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-databind"
+          }
+        }
+      ]
+    },
+    {
+      "source": {
+        "path": "/ROOT/leaf/pom.xml",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "javax.inject:javax.inject",
+            "version": "1",
+            "ecosystem": "Maven",
+            "purl": "pkg:maven/javax.inject/javax.inject@1"
+          }
+        }
+      ]
+    },
+    {
+      "source": {
+        "path": "/ROOT/locked/gradle.lockfile",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "com.google.guava:guava",
+            "version": "33.0.0-jre",
+            "ecosystem": "Maven",
+            "purl": "pkg:maven/com.google.guava/guava@33.0.0-jre"
+          }
+        }
+      ]
+    },
+    {
+      "source": {
+        "path": "/ROOT/mod/pom.xml",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "com.example:sibling",
+            "version": "1.0-SNAPSHOT",
+            "ecosystem": "Maven",
+            "purl": "pkg:maven/com.example/sibling@1.0-SNAPSHOT"
+          }
+        },
+        {
+          "package": {
+            "name": "javax.inject:javax.inject",
+            "version": "1",
+            "ecosystem": "Maven",
+            "purl": "pkg:maven/javax.inject/javax.inject@1"
+          }
+        }
+      ]
+    }
+  ],
+  "experimental_config": {
+    "licenses": {
+      "summary": false,
+      "allowlist": null
+    }
+  }
+}

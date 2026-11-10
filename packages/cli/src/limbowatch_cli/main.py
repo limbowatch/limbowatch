@@ -254,13 +254,24 @@ def report(
     typer.echo(str(out / f"{rep.date}.md"))
 
 
-def load_inventory(path: Path, sbom_file: Path | None, binary: str, include_ignored: bool = False) -> Inventory:
-    """A project's dependencies, from an SBOM or by running OSV-Scanner offline over its tree."""
+ResolveMaven = Annotated[
+    bool,
+    typer.Option(
+        help="Resolve pom.xml's transitive dependencies through deps.dev and Maven Central, as Maven would. "
+        "Without it, only direct dependencies with a literal version are checked."
+    ),
+]
+
+
+def load_inventory(
+    path: Path, sbom_file: Path | None, binary: str, include_ignored: bool = False, resolve_maven: bool = True
+) -> Inventory:
+    """A project's dependencies, from an SBOM or by running OSV-Scanner over its tree."""
     if sbom_file is not None:
         return sbom.parse(sbom_file.read_text(errors="replace"), sbom_file.name)
     _check_osv_scanner(binary)
     try:
-        return osv_scanner.run(path, binary, include_ignored=include_ignored)
+        return osv_scanner.run(path, binary, include_ignored=include_ignored, resolve_maven=resolve_maven)
     except osv_scanner.InventoryError as e:
         raise typer.Exit(_fail(str(e))) from e
 
@@ -288,9 +299,10 @@ def inventory(
     sbom_file: Annotated[Path | None, typer.Option("--sbom", help="CycloneDX or SPDX JSON instead of a tree.")] = None,
     binary: Annotated[str, typer.Option("--osv-scanner", help="OSV-Scanner executable.")] = "osv-scanner",
     fmt: Annotated[str, typer.Option("--format", help="table or json.")] = "table",
+    resolve_maven: ResolveMaven = True,
 ) -> None:
     """List the dependencies Limbowatch would check, and every one it can't, with the reason."""
-    inv = load_inventory(path, sbom_file, binary)
+    inv = load_inventory(path, sbom_file, binary, resolve_maven=resolve_maven)
     if fmt == "json":
         typer.echo(inv.model_dump_json(indent=1))
         return
@@ -301,7 +313,8 @@ def inventory(
     if inv.unresolved:
         typer.echo(f"\n{len(inv.unresolved):,} can't be checked:")
         for u in inv.unresolved:
-            whole = u.reason in (Unchecked.LOCKFILE_UNREADABLE, Unchecked.NO_LOCKFILES)
+            whole = u.reason in (Unchecked.LOCKFILE_UNREADABLE, Unchecked.NO_LOCKFILES, Unchecked.TRANSITIVE,
+                                 Unchecked.NO_GRADLE_LOCKFILE)  # fmt: skip
             what = f"{u.name} {u.version}".strip() or ("(whole file)" if whole else "(no package name)")
             detail = f": {u.detail}" if u.detail else ""
             typer.echo(f"  {u.source}:{u.line}  {what}  {u.reason.value}{detail}")
@@ -347,6 +360,7 @@ def scan(
     binary: Annotated[str, typer.Option("--osv-scanner", help="OSV-Scanner executable.")] = "osv-scanner",
     verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Show the evidence for every finding.")] = False,
     scan_ignored: Annotated[bool, typer.Option(help="Also read lockfiles a .gitignore excludes.")] = False,
+    resolve_maven: ResolveMaven = True,
     issues: Annotated[str | None, typer.Option(help="Open and update issues: gitlab or gitea (also Forgejo).")] = None,
     issues_url: Annotated[str | None, typer.Option(help="Tracker base URL [default: $CI_SERVER_URL].")] = None,
     issues_project: Annotated[
@@ -368,7 +382,7 @@ def scan(
     stdout_fmt, targets = _outputs(fmt, outputs or [])
     accepted = _accepted(ignore, ignore_file)
     cache = cache or _cache_dir()
-    inv = load_inventory(path, sbom_file, binary, scan_ignored)
+    inv = load_inventory(path, sbom_file, binary, scan_ignored, resolve_maven)
     for skipped in inv.skipped:
         typer.echo(f"limbowatch: skipped {skipped}: a report from an earlier Limbowatch scan, not an SBOM", err=True)
     old = json.loads(state_file.read_text()) if state_file and state_file.exists() else None
@@ -598,6 +612,7 @@ def watch(
     cache: Annotated[Path | None, typer.Option(help="Where the feed is cached [default: ~/.cache/limbowatch].")] = None,
     binary: Annotated[str, typer.Option("--osv-scanner", help="OSV-Scanner executable.")] = "osv-scanner",
     jobs: Annotated[int, typer.Option(help="Projects cloned and inventoried at a time.")] = 4,
+    resolve_maven: ResolveMaven = True,
     verbose: Annotated[
         bool, typer.Option("--verbose", "-v", help="Show every project's unchecked dependencies.")
     ] = False,
@@ -641,7 +656,7 @@ def watch(
     log_lines: list[str] = []
 
     def take(path: Path) -> Inventory:
-        return osv_scanner.run(path, binary)
+        return osv_scanner.run(path, binary, resolve_maven=resolve_maven)
 
     async def run() -> org_output.OrgReport:
         async with HttpClient(_token()) as http:

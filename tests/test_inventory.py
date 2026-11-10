@@ -89,10 +89,97 @@ def test_osv_scanner_groups_unreadable_files_of_one_kind() -> None:
     assert inv.unresolved[1].detail.startswith("could not extract: invalid character")
 
 
+MAVEN = INV / "maven"
+
+
+def _maven(resolve: bool = True, stderr: str | None = None) -> object:
+    """`maven/proj` (hand-made), recorded with OSV-Scanner 2.7.0: offline, then the pom.xml-only resolving run
+    (F-132), paths rewritten to /ROOT."""
+
+    def read(p: Path) -> str | None:
+        f = MAVEN / "proj" / p.relative_to(ROOT)
+        return f.read_text() if f.exists() else None
+
+    res = osv_scanner.Resolution(
+        json.loads((MAVEN / "resolved.json").read_text()), stderr or (MAVEN / "resolved.stderr").read_text()
+    )
+    return osv_scanner.parse(
+        json.loads((MAVEN / "offline.json").read_text()), (MAVEN / "offline.stderr").read_text(), 0, ROOT, read,
+        maven=res if resolve else None, resolve_maven=resolve,
+        gradle_builds=osv_scanner.gradle_builds(MAVEN / "proj"),
+    )  # fmt: skip
+
+
+def test_maven_resolution_matches_maven() -> None:
+    """app/pom.xml's dependencies are exactly what `mvn dependency:list` resolves (recorded beside it), the
+    BOM-managed one included; a pom.xml whose dependencies have none of their own is resolved too."""
+    inv = _maven()
+    app = {(d.name, d.version) for d in inv.dependencies if d.source == "app/pom.xml"}  # type: ignore[attr-defined]
+    mvn = set()
+    for ln in (MAVEN / "app.mvn-dependency-list.txt").read_text().splitlines():
+        if ln.startswith("   "):
+            g, a, _, v, _ = ln.split(" -- ")[0].strip().split(":")
+            mvn.add((f"{g}:{a}", v))
+    assert app == mvn and len(mvn) == 6
+    by = {(u.source, u.reason) for u in inv.unresolved}  # type: ignore[attr-defined]
+    assert ("app/pom.xml", Unchecked.NO_VERSION) not in by  # jackson-databind's version came from the BOM
+    assert ("leaf/pom.xml", Unchecked.TRANSITIVE) not in by
+    assert {(d.name, d.version) for d in inv.dependencies if d.source == "leaf/pom.xml"} == {  # type: ignore[attr-defined]
+        ("javax.inject:javax.inject", "1")
+    }
+
+
+def test_unresolved_pom_and_unlocked_gradle_are_reported() -> None:
+    inv = _maven()
+    got = {(u.reason, u.source) for u in inv.unresolved}  # type: ignore[attr-defined]
+    assert got == {(Unchecked.TRANSITIVE, "mod/pom.xml"), (Unchecked.NO_GRADLE_LOCKFILE, "svc/build.gradle")}
+    mod = next(u for u in inv.unresolved if u.source == "mod/pom.xml")  # type: ignore[attr-defined]
+    assert "com.example:sibling" in mod.detail  # the unreleased sibling module it depends on
+    assert {d.name for d in inv.dependencies if d.source == "mod/pom.xml"} == {  # type: ignore[attr-defined]
+        "com.example:sibling", "javax.inject:javax.inject"}  # fmt: skip
+    assert "com.google.guava:guava" in {d.name for d in inv.dependencies}  # type: ignore[attr-defined]
+
+
+def test_without_resolution_every_pom_says_so() -> None:
+    inv = _maven(resolve=False)
+    trans = sorted(u.source for u in inv.unresolved if u.reason is Unchecked.TRANSITIVE)  # type: ignore[attr-defined]
+    assert trans == ["app/pom.xml", "leaf/pom.xml", "mod/pom.xml"]
+    assert ("com.fasterxml.jackson.core:jackson-databind", Unchecked.NO_VERSION) in {
+        (u.name, u.reason)
+        for u in inv.unresolved  # type: ignore[attr-defined]
+    }
+    assert {d.source for d in inv.dependencies} >= {"app/pom.xml"}  # type: ignore[attr-defined]
+    assert len([d for d in inv.dependencies if d.source == "app/pom.xml"]) == 1  # type: ignore[attr-defined]
+
+
+def test_a_failed_resolving_run_reports_every_pom() -> None:
+    def read(p: Path) -> str | None:
+        f = MAVEN / "proj" / p.relative_to(ROOT)
+        return f.read_text() if f.exists() else None
+
+    inv = osv_scanner.parse(
+        json.loads((MAVEN / "offline.json").read_text()), "", 0, ROOT, read,
+        maven=osv_scanner.Resolution({}, "", "resolving timed out after 900 s"),
+    )  # fmt: skip
+    trans = {u.source: u.detail for u in inv.unresolved if u.reason is Unchecked.TRANSITIVE}
+    assert set(trans) == {"app/pom.xml", "leaf/pom.xml", "mod/pom.xml"} and "timed out" in trans["app/pom.xml"]
+
+
+def test_pom_files_count_as_maven_manifests() -> None:
+    assert osv_scanner._is_pom("a/pom.xml") and osv_scanner._is_pom("repo/x/1.0/x-1.0.pom")
+    assert not osv_scanner._is_pom("pom.xml.bak") and not osv_scanner._is_pom("a/xpom.xml")
+
+
+def test_maven_command_enables_only_the_pom_plugins() -> None:
+    cmd = osv_scanner.maven_command("osv-scanner", Path("/p"), Path("/db"))
+    assert cmd[cmd.index("--x-plugins") + 1] == "java/pomxml,transitivedependency/pomxml"
+    assert "--x-no-default-plugins" in cmd and "--offline-vulnerabilities" in cmd and "--offline" not in cmd
+
+
 @pytest.mark.skipif(shutil.which("osv-scanner") is None, reason="osv-scanner not installed")
 def test_osv_scanner_runs_offline_on_the_fixture_tree(tmp_path: Path) -> None:
     shutil.copytree(INV / "proj", tmp_path / "proj")
-    inv = osv_scanner.run(tmp_path / "proj")
+    inv = osv_scanner.run(tmp_path / "proj", resolve_maven=False)  # tests never hit the network
     assert {d.name for d in inv.dependencies} >= {"@vendure/core", "requests", "serde"}
     assert any(u.reason is Unchecked.LOCKFILE_UNREADABLE for u in inv.unresolved)
 

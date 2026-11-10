@@ -4,11 +4,11 @@
 
 What we've verified or measured while building Limbowatch. Maintenance rules are in [CLAUDE.md](../CLAUDE.md#findings-report-docsfindingsmd).
 
-Last summarized: 2026-11-07 (end of Phase 4: the watcher, tested in real CI and released as 0.1.0a1; Phase 5 approved)
+Last summarized: 2026-11-10 (end of Phase 5: coverage, release-triggered checks, watcher completeness, org-wide mode; awaiting review before Phase 6). Before that: 2026-11-07 (end of Phase 4).
 
 ## Summary
 
-Current understanding during Phase 5 (2026-11-08), with entries linked. Points 1–14 come from the Phase 1 research (2026-10-21 to 10-25), 15–20 and 32 from the live tracker (Phase 2, measured again 2026-11-07), 21 from Phase 3, 22–31 from the watcher (Phase 4), 33–40 from Phase 5 so far. Numbers are dated; review backlogs drift.
+Current understanding at the end of Phase 5 (2026-11-10), with entries linked. Points 1–14 come from the Phase 1 research (2026-10-21 to 10-25), 15–20 and 32 from the live tracker (Phase 2, measured again 2026-11-07), 21 from Phase 3, 22–31 from the watcher (Phase 4), 33–46 from Phase 5. Numbers are dated; review backlogs drift.
 
 **Phase 1: the gap in a sample of real projects**
 
@@ -35,7 +35,7 @@ Current understanding during Phase 5 (2026-11-08), with entries linked. Points 1
 
 15. **The gap at scale is far bigger than the sample.** On 2026-10-31, over a watchlist of 18,656 repos (every one polled at least once): **7,988 advisories pending review** in ecosystems GitHub reviews (861 critical, 3,191 high; median wait so far 57 days; 4,055 with no CVE anywhere), plus **13,852 likely permanent** in ecosystems GitHub doesn't review. Every number is a floor: only watched repos are seen ([F-064](#f-064), [F-070](#f-070)).
 16. **Where the watchlist comes from matters.** Dependency upstreams of popular projects, origin repos of reviewed advisories, and every repo named by a GitHub-CNA CVE ([F-057](#f-057), [F-063](#f-063), [F-066](#f-066)). Adding the last source on 10-31 closed a 2,113-repo gap, mostly applications whose advisories are likely permanent ([F-068](#f-068), [F-070](#f-070)).
-17. **The backlog is growing (tentative).** In the week to 2026-11-06, 744 advisories were published into limbo and 68 were reviewed out, about 11 in for each 1 out; over 14 days, 1,475 in and 172 out ([F-092](#f-092)). Earlier single days (10-29, 10-30) showed inflow of 93 and 71 against outflow of 88 and 20 ([F-067](#f-067), [F-070](#f-070)). Advisories that did get reviewed had waited a median 11 days. A rate, not yet a trend: the site shows the weekly numbers with their date.
+17. **The backlog is growing (tentative).** In the week to 2026-11-06, 744 advisories were published into limbo and 68 were reviewed out, about 11 in for each 1 out; over 14 days, 1,475 in and 172 out ([F-092](#f-092)); in the 7 days to 2026-11-10, 805 in and 51 out, with 3,033 in limbo for more than three months ([F-120](#f-120)). Earlier single days (10-29, 10-30) showed inflow of 93 and 71 against outflow of 88 and 20 ([F-067](#f-067), [F-070](#f-070)). Advisories that did get reviewed had waited a median 11 days. A rate, not yet a trend: the site shows the weekly numbers with their date.
 18. **A published CVE doesn't mean scanners can see it.** One critical advisory's GitHub-CNA CVE took 85 days to publish; 134 days after publication (2026-10-28) the advisory was still in no package database, because it has no ecosystem ([F-066](#f-066)).
 19. **Names, more than ranges, decide whether the feed matches.** OSV-Scanner's local matching compares names exactly. 359 names were unmatchable until cleaned; 406 are still malformed and flagged. 95.8% of ranges convert, and a range is left open only when the advisory says there's no fix. An entry with no usable range never matches, so it can miss but never false-alarm ([F-069](#f-069)).
 20. **Running it cheaply.** A stable PAT plus conditional requests make an unchanged repo free to re-poll ([F-058](#f-058), [F-071](#f-071)). The scheduled run fires about 6 h 50 min late, consistently ([F-065](#f-065), [F-067](#f-067)). The tracker needs canonical repo identities and checkpoints ([F-060](#f-060)) and works on `GITHUB_TOKEN` alone, only slowly ([F-062](#f-062)).
@@ -61,25 +61,31 @@ Current understanding during Phase 5 (2026-11-08), with entries linked. Points 1
     - GitLab, every tier: Code Quality shows findings on the lockfile line and "51 new findings" in a merge request; a JUnit test summary counts what fails the build; `expose_as` links the report folder; confidential issues work with any token sent as `Bearer` ([F-086](#f-086), [F-087](#f-087), [F-088](#f-088), [F-094](#f-094)).
     - GitHub: SARIF becomes code scanning alerts inline on the changed line (public repos, or with GitHub Code Security; needs `actions: read`) ([F-089](#f-089)).
     - Limits found only by running it: a component description over 256 characters breaks every including pipeline ([F-095](#f-095)); GitHub keeps 10 annotations per level per step and drops the rest silently, so annotations are one per package ([F-096](#f-096)); click strips colour off pipes ([F-097](#f-097)).
-28. **Without Limbowatch, nothing reports these.** On the demo app, GitHub's Dependabot alerts and OSV-Scanner reported 0 of the 16 advisories Limbowatch found; all 16 were rechecked against primary sources and are real, fixed and unreviewed, 1.6 to 23.5 days in limbo ([F-090](#f-090), [F-091](#f-091)). On 13 real projects (2026-11-08), Dependabot raised 2,020 alerts and covered **0 of 1,080 confirmed findings** in limbo, every one in GitHub's own dependency graph ([F-112](#f-112)). The same check found 5 Limbowatch false positives, from Go modules nested under another module's path ([F-113](#f-113)); the tracker now resolves each Go path's module through the Go module proxy, which removes them ([F-114](#f-114)).
+28. **Without Limbowatch, nothing reports these.** On the demo app, GitHub's Dependabot alerts and OSV-Scanner reported 0 of the 16 advisories Limbowatch found; all 16 were rechecked against primary sources and are real, fixed and unreviewed, 1.6 to 23.5 days in limbo ([F-090](#f-090), [F-091](#f-091)). On 13 real projects (2026-11-08), Dependabot raised 2,020 alerts and covered **0 of 1,080 confirmed findings** in limbo, every one in GitHub's own dependency graph ([F-112](#f-112)). The same check found 5 Limbowatch false positives, from Go modules nested under another module's path ([F-113](#f-113)); the tracker now resolves each Go path's module through the Go module proxy, which removes them ([F-114](#f-114), in production since 2026-11-09, [F-117](#f-117)). Three days on, the demo's advisories were still invisible to Dependabot ([F-111](#f-111), [F-119](#f-119)).
 29. **The outputs are standard.** SARIF 2.1.0 and CycloneDX 1.6 validate against the official schemas ([F-093](#f-093)).
-30. **Released as an alpha, 0.1.0a1 (2026-11-07), then 0.1.0a2 (2026-11-08).** PyPI with PEP 740 attestations; GitHub pre-release; the CI/CD Catalog accepts pre-releases like `0.1.0-alpha.1` ([F-097](#f-097)). 0.1.0a2 adds the image and the reworked component (point 39).
+30. **Released as an alpha, 0.1.0a1 (2026-11-07) to 0.1.0a5 (2026-11-10).** PyPI with PEP 740 attestations; GitHub pre-release; the CI/CD Catalog accepts pre-releases like `0.1.0-alpha.1` ([F-097](#f-097)). 0.1.0a2 adds the image and the reworked component (point 39); 0.1.0a5 the range-parser fixes (point 41, [F-126](#f-126)).
 31. **Both demos stay as live regression tests:** `limbowatch/demo-app` on GitHub (public, PR #1) and GitLab (private, MR !1) run the released action and component ([F-088](#f-088), [F-097](#f-097)).
 
 **Coverage (measured 2026-11-07)**
 
 32. **The tracker sees roughly 1 in 4 of all repository advisories** (before Phase 5's expansion, point 33). About 1,100 to 1,250 newly published a week, in all ecosystems, against GitHub's "more than 5,000/week". 18,678 watched repos; most advisories come from repos found through earlier advisory activity (GitHub-assigned CVEs, reviewed-advisory origins), not from the dependency seeds. Coverage of what real projects depend on is much higher ([F-098](#f-098), [F-085](#f-085)). Raising it is Phase 5's first step.
 
-**Phase 5: coverage and release-triggered checks (2026-11-07/08)**
+**Phase 5: coverage, release checks, watcher completeness, org-wide mode (2026-11-07 to 11-10)**
 
-33. **The watchlist missed most popular packages outside npm, crates.io and PyPI.** Of the top 1,000 packages per ecosystem, 3% (NuGet) to 97% (npm) were watched; for the top 10,000, 1% to 58%. About 45,000 unwatched repos sat in the top 10,000s, and a sample of them held 30 advisories in limbo, all in no database ([F-099](#f-099)). Adding the top 1,000 found 153 unreviewed advisories on the first pass ([F-100](#f-100)). The watchlist is 44,553 repos on 2026-11-08, with wave one of the top 10,000 (NuGet, Packagist, Maven, RubyGems) about half done.
+33. **The watchlist missed most popular packages outside npm, crates.io and PyPI.** Of the top 1,000 packages per ecosystem, 3% (NuGet) to 97% (npm) were watched; for the top 10,000, 1% to 58%. About 45,000 unwatched repos sat in the top 10,000s, and a sample of them held 30 advisories in limbo, all in no database ([F-099](#f-099)). Adding the top 1,000 found 153 unreviewed advisories on the first pass ([F-100](#f-100)). Both waves of the top 10,000 are done: **64,021 watched repos on 2026-11-10, every one polled at least once.** The tail is thin (about 1% of the new repos have an advisory), but nearly all its advisories are in limbo; live totals 9,773 in limbo and 14,546 likely permanent ([F-121](#f-121)).
 34. **Advisories follow releases.** 71% of advisories had a release of their package within a day and 79% within 3 days; in 82% the release came first, so the maintainer ships the fix, then publishes ([F-100](#f-100)). Every covered ecosystem has a release feed ([F-101](#f-101)). Collecting them costs about 40 requests a day plus a few hundred GitHub checks; popular unwatched packages add tens of repos a day ([F-102](#f-102)).
 35. **Re-checks aren't free.** About a third of repos with advisories answer 200 after two weeks with no visible change, and a token change voids every ETag until each repo is polled once. In steady state a run spends about 1,600 counted requests on re-checks ([F-100](#f-100)).
 36. **Release checks let quiet repos wait 30 days (tentative).** On the last month's advisories, release checks would catch 85–88% within 7 days, at a median of 0.8 days. Repos without advisories, re-checked every 30 days instead of weekly plus release checks, find new advisories sooner on average (3.5 → 2.6 days); 11 of 1,672 (0.7%) would be found later ([F-104](#f-104)). Adopted 2026-11-08.
-37. **Release feeds lag, and some lag badly.** ecosyste.ms's Maven data is weeks behind per package, and no bulk Maven feed is current: Maven Central's index is rebuilt about every two weeks and search.maven.org stopped in June 2026. Each package's `maven-metadata.xml` is current and supports ETags, so the tracker polls the top 7,388 Maven packages there once a day ([F-105](#f-105), [F-108](#f-108)). A feed's cursor must follow the feed, never the clock ([F-105](#f-105)).
+37. **Release feeds lag, and some lag badly.** ecosyste.ms's Maven data is weeks behind per package, and no bulk Maven feed is current: Maven Central's index is rebuilt about every two weeks and search.maven.org stopped in June 2026. Each package's `maven-metadata.xml` is current and supports ETags, so the tracker polls the top 7,388 Maven packages there once a day; on its first live pass it found over twice as many releases in watched repos as ecosyste.ms ([F-105](#f-105), [F-108](#f-108), [F-110](#f-110)). A feed's cursor must follow the feed, never the clock ([F-105](#f-105)).
 38. **The watcher maps more ecosystems.** Composer (Packagist), Hex and Pub (ecosyste.ms), Swift (the package URL) and Maven's `<scm>` fallback. On an Elixir project, name-only dependencies fell from 162 to 7, removing 16 false alarms and finding 10 real advisories ([F-103](#f-103)).
 39. **The GitLab component runs a pinned, attested image.** Jobs take about 21 s instead of 34 s, on amd64 and arm64 ([F-107](#f-107)). GitLab Ultimate ingests SARIF only from a job that succeeds, so Ultimate mode passes the scan job and applies `fail_on` in a separate gate job. Job variables work in `rules:if`, and nested `rules` lists are flattened ([F-106](#f-106)). A new ghcr.io package starts private ([F-107](#f-107)).
 40. **The exit code is a contract.** An uncaught Python exception exits 1, which CI reads as findings; the CLI now maps any crash to 2. Found while designing the component's `allow_failure`, which relies on 1 meaning findings (CHANGELOG 0.1.0a2).
+41. **Independent recomputation finds what tests don't.** Rechecking the report and the tracker against primary sources found a range-parser error in about 1% of ranges (over- and under-matching) and a rule that linked CVEs to advisories their description merely mentions (1.6% of uncited links). Both are fixed, the October report is recomputed, and `scripts/audit.py` runs before every release ([F-120](#f-120), [F-123](#f-123), [F-124](#f-124), [F-126](#f-126)).
+42. **A browser can run the check.** limbo.watch checks a package and its deps.dev dependency tree in the visitor's browser with the CLI's verdicts, and says so when it saw only the package ([F-118](#f-118)).
+43. **Distribution.** The Action runs the image on Linux runners and falls back to pip elsewhere ([F-109](#f-109)); it's in GitHub Marketplace and the component in the GitLab CI/CD Catalog, and both give the CLI's results on the demo ([F-127](#f-127), [F-128](#f-128)). GitLab never shows GPG-signed tags as verified ([F-115](#f-115)).
+44. **Running costs nothing while the repo is public.** The binding limits are the PAT's 5,000 requests an hour and run length ([F-116](#f-116)). The Actions cache had filled with image-build blobs and is now kept small ([F-122](#f-122)); site rollouts no longer drop requests ([F-125](#f-125)).
+45. **Org-wide mode works on real groups.** `limbowatch watch` checks a GitLab group, a Gitea/Forgejo org or git URLs in one run: 50 projects of `gitlab-org/security-products/analyzers` in about 3 minutes, with 465 GitHub polls instead of 784 when each project is scanned alone ([F-130](#f-130)). GitLab lists projects shared into a group unless told not to, and Gitea answers a private org with an empty list, so an empty source is an error ([F-129](#f-129)). It also found an OSV-Scanner error format that made `scan` give up on any project with two unreadable lockfiles of one kind; fixed ([F-131](#f-131)).
+46. **Maven needs resolving, Gradle a lockfile.** Run offline, OSV-Scanner checked 3 of the 171 dependencies Maven resolves for spring-petclinic and never said the rest were missing. Its resolver, which contacts only deps.dev and Maven Central, matched Maven exactly on two Spring Boot projects and found 37 advisories in limbo that the offline inventory missed; the inventory now resolves `pom.xml` by default, separately from every other file. It still misses profiles activated by JDK version, and modules that depend on unreleased siblings; those, and Gradle builds without a lockfile, are reported as unchecked. Gradle lockfiles are read completely ([F-132](#f-132)).
 
 ## Open questions
 
@@ -92,14 +98,15 @@ Open:
 - Q7. How do we reliably detect packaging/recipe repos (conan-center-index, homebrew-core, distro packaging) so they aren't treated as upstream? ([F-021](#f-021)) Not addressed in Phase 2: the tracker's seeds come from the research mapper, which has no such filter.
 - Q8. How do we detect that a limbo advisory was reviewed under a different GHSA ID when no CVE is shared? The tracker proves duplicates by shared CVE only ([F-048](#f-048)).
 - Q10. Under what terms may repository advisory content be redistributed? *Partly answered 2026-10-26: GitHub's terms are silent on repository advisories in limbo; the feed carries factual metadata only* ([F-059](#f-059)). Ask GitHub during outreach.
-- Q12. Is review throughput keeping up with inflow? So far no: 744 in against 68 out in the week to 2026-11-06 ([F-092](#f-092)). Still open: whether that holds over a month, split by ecosystem and severity ([F-067](#f-067), [F-070](#f-070)).
+- Q12. Is review throughput keeping up with inflow? So far no: 744 in against 68 out in the week to 2026-11-06 ([F-092](#f-092)), 805 against 51 in the week to 2026-11-10 ([F-120](#f-120)). Still open: whether that holds over a month, split by ecosystem and severity ([F-067](#f-067), [F-070](#f-070)).
 - Q13. Do OSV-Scanner's other matching paths (the osv.dev API) normalize package names beyond PyPI? ([F-069](#f-069))
 - Q14. Do the feed's well-formed names exist in their registries? A registry check would catch wrong-but-valid names ([F-069](#f-069)).
 - Q15. Can per-branch ranges like `< 1.2.5, < 2.0.3` be converted without guessing where each branch starts, e.g. from the registry's version list? ([F-069](#f-069))
 - Q16. Are pending advisories published before 2026 (258 on 2026-10-28) ever reviewed, or did GitHub never backfill them? ([F-064](#f-064))
 - Q23. Do Packagist's newest-version source URLs ever point at a different repo than the installed version's? ([F-103](#f-103))
 - Q17. How many Go modules on vanity paths (k8s.io, golang.org/x, go.opentelemetry.io) can be mapped to a GitHub repo without deps.dev? 320 Kubernetes dependencies stay checked by name only ([F-085](#f-085)). blindspot keeps a verified list (`docs/go-vanity-coverage.md`, [F-072](#f-072)).
-- Q18. Should the tracker's seeds include the upstreams of popular GitLab-hosted projects' Ruby dependencies, so the watcher doesn't need to poll them? ([F-085](#f-085); Phase 5.)
+- Q18. Should the tracker's seeds include the upstreams of popular GitLab-hosted projects' Ruby dependencies, so the watcher doesn't need to poll them? ([F-085](#f-085); Phase 5.) *Partly answered 2026-11-10: the repos of the top 10,000 gems are now watched ([F-121](#f-121)); how much of GitLab's 356 polls that removes wasn't measured.*
+- Q25. Which Maven builds does the resolver get wrong beyond JDK-activated profiles and unreleased siblings: `<repositories>`, private registries, plugin-managed dependencies? Four projects were checked ([F-132](#f-132)).
 - Q22. Does GitHub's "more than 5,000 repository advisories a week" count the same thing as the tracker (published, any ecosystem)? It sets the coverage estimate ([F-035](#f-035), [F-098](#f-098)).
 
 Answered:
@@ -568,7 +575,7 @@ Answered:
   - "No package sources" must surface as UNRESOLVED.
 
 ### F-055
-- **Date:** 2026-10-22 · **Status:** confirmed (observed). **Supersedes F-041 and F-043** (pre-correction methods, Oct-21 commits); refines F-042 with a newer window.
+- **Date:** 2026-10-22 · **Status:** confirmed (observed). **Supersedes F-041 and F-043** (pre-correction methods, Oct-21 commits); refines F-042 with a newer window. Per-project counts updated by [F-124](#f-124) (corrected range parser).
 - **Question:** With all corrections (F-050 to F-054), what does a same-day snapshot of both project sets show?
 - **Method:** Pipeline rerun on 2026-10-22 for the five GitHub-hosted projects at new commits (gitea `facc0f2`, kubernetes `8f5bbad`, n8n `7d2e358`, open-webui `91ea4e3`, langchain `f4e6cde`), plus F-053's off-GitHub set. Per-snapshot cache.
 - **Result:**
@@ -1836,6 +1843,48 @@ Answered:
 - **Caveats:** One OSV-Scanner version; the format comes from its error aggregation and may change.
 - **Implication:** Fixed: both forms are read, and each file is reported as "lockfile couldn't be read". `limbowatch scan` had the same bug on any project with two unreadable lockfiles of one kind.
 - **Sources:** recorded stderr in `tests/test_inventory.py`.
+
+### F-132
+- **Date:** 2026-11-10 · **Status:** confirmed (observed; 4 Maven and 3 Gradle projects, one day); tentative beyond them
+- **Question:** Does the watcher's inventory of Maven and Gradle projects match what the build tool resolves (Phase 5, PHASE0_PLAN §9)? OSV-Scanner runs offline there, which turns off its `pom.xml` resolver (F-032).
+- **Method:**
+  - **Maven:** spring-projects/spring-petclinic `500158f`, jhipster/jhipster-sample-app `6b000b5`, apache/commons-text `ed3f23e` (single module) and apache/maven-resolver `77f371c` (32 `pom.xml`). Ground truth: `mvn -B dependency:list -Dsort=true` (Maven 3.9, `maven:3.9-eclipse-temurin-21` in Docker), every scope, compared by `group:artifact` and version.
+  - **Compared:**
+    - `limbowatch inventory` as released (OSV-Scanner 2.7.0 `--offline`);
+    - OSV-Scanner online (`scan source --all-packages`);
+    - a resolving run limited to `--x-no-default-plugins --x-plugins java/pomxml,transitivedependency/pomxml --offline-vulnerabilities` against empty databases.
+  - **Hosts:** every run went through a local CONNECT proxy that logged each host and refused all but an allow-list.
+  - **Gradle:** Netflix/maestro `4af9a65` (15 lockfiles), google/nomulus `0770838` (29), bitwarden/android `012c687` (3). Every `group:artifact:version` in their `*.lockfile`s compared with the inventory. Plus spring-petclinic's `build.gradle` alone (its `pom.xml` removed).
+  - **Findings:** `limbowatch scan --fail-on none` on petclinic and JHipster with and without resolution; each advisory checked with `GET /advisories/{ghsa}` and OSV `GET /v1/vulns/{ghsa}`.
+- **Result:**
+  - **Offline, a `pom.xml` gives only its direct dependencies with a literal version.**
+
+    | Project | Maven resolves | Checked offline | Reported as having no version | Not mentioned |
+    |---|---|---|---|---|
+    | spring-petclinic | 171 | 3 | 25 | 143 |
+    | jhipster-sample-app | 282 | 6 | 42 | 234 |
+    | commons-text | 33 | 9 | 2 | 22 (all test scope) |
+
+    Nothing told the user the transitive dependencies were missing.
+  - **OSV-Scanner's resolver matches Maven.** petclinic 171 of 171 and JHipster 282 of 282, with every version identical, BOMs, parents, properties and optional dependencies included. A hand-made fixture with an imported BOM also matches `mvn dependency:list` exactly, so the recorded test compares against Maven's own output.
+  - **What it misses:**
+    - commons-text: 24 of 33. The 9 missing are test dependencies in profiles activated by JDK version (`<jdk>[11,22)</jdk>`), which the resolver doesn't evaluate.
+    - maven-resolver: 28 of the 30 Maven manifests it reads (`pom.xml` and two `*.pom` test files) fail with "failed resolution for PATH: … `2.0.26-SNAPSHOT`: not found", because each module depends on unreleased siblings from the same build. Maven itself stopped at the second module for the same reason without a full `install`, which wasn't run because it executes the project's build plugins.
+  - **What it contacts.** The resolving run reached only `api.deps.dev` and `repo.maven.apache.org`. With only deps.dev allowed it fails: it fetches parent POMs from Maven Central.
+  - **Without `--offline`, OSV-Scanner also resolves `requirements.txt` through deps.dev** (`transitivedependency/requirements`), which would pick versions for ranges like `flask>=2`. That's why the resolving run is limited to the pom.xml plugins and kept separate. On a mixed tree it changed only the `pom.xml` results (+168 packages); every other file's packages were identical.
+  - **Output shape.** The resolving run lists each `pom.xml` twice: the direct dependencies (as offline, versionless ones included), then a group of `type: unknown` with the whole resolved tree. A `pom.xml` whose dependencies have none of their own (one `javax.inject:javax.inject:1`) gets no second group and no error. Failures are on stderr, one line per file, the first also after "Error during extraction: (extracting as transitivedependency/pomxml)". Exit code 127 when any file fails.
+  - **Gradle lockfiles are read completely:** maestro 329 of 329 coordinates, nomulus 730 of 730, bitwarden 190 of 190. A Gradle build without a lockfile gives nothing: petclinic's `build.gradle` alone exits 128, and the inventory said only "no supported lockfile", with a `.gitignore` hint that didn't apply.
+  - **It changes findings.** With resolution, petclinic goes from 0 findings to 19 and JHipster from 0 to 43 (`--fail-on none`), 37 distinct advisories in all: Netty, Thymeleaf, unbescape, PostgreSQL JDBC, Hibernate, Jackson 3, brotli4j. All 37 answer 404 from GitHub's reviewed database and from OSV. Run time: 3 s → 33 s (petclinic) and 2 s → 58 s (JHipster), mostly the extra repos polled on GitHub.
+- **Caveats:**
+  - Four Maven projects, three of them Spring; plugin-heavy builds, `<repositories>` and private registries weren't tried. None of these projects declares extra repositories, so whether the resolver would contact them is untested.
+  - The docs say test dependencies aren't in the resolved graph; here they were, for every test dependency outside JDK-activated profiles.
+  - Gradle builds without lockfiles weren't resolved, because that needs Gradle to run the project's build scripts.
+  - deps.dev's view of Maven Central can lag a new release, so a just-published version may fail to resolve. A failure is reported, never silent.
+- **Implication:**
+  - **Resolve by default.** The inventory now resolves `pom.xml` in a second OSV-Scanner run limited to the pom.xml plugins, and merges the resolved tree. `--no-resolve-maven` (`scan`, `watch`, `inventory`) turns it off. The only new egress is a `pom.xml`'s dependencies to deps.dev and Maven Central, which already received package names for repo mapping.
+  - **Never silent.** Every Maven manifest that isn't resolved (a failure, or the flag) is reported as "transitive dependencies not resolved", with the resolver's message. Every Gradle build file without a `gradle.lockfile` beside it (and no `gradle/verification-metadata.xml`) is reported as "Gradle build without a lockfile".
+  - **For an exact Maven inventory,** use an SBOM from `cyclonedx-maven-plugin` (`--sbom`); docs/WATCHER.md lists the limits.
+- **Sources:** OSV-Scanner v2.7.0 docs `docs/supported_languages_and_lockfiles.md` ("Transitive dependency scanning", "Data source") and `docs/offline-mode.md`; `osv-scanner scan source --help`; the runs above (raw output in the session scratchpad; fixture in `tests/fixtures/inventory/maven/`).
 
 ## Archive
 

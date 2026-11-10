@@ -120,6 +120,10 @@ class Unchecked(StrEnum):
     UNKNOWN_ECOSYSTEM = "ecosystem not supported"
     LOCKFILE_UNREADABLE = "lockfile couldn't be read"
     NO_LOCKFILES = "no supported lockfile or manifest found"
+    # A whole file's transitive dependencies (FINDINGS F-132): Maven has no lockfile, so only pom.xml's direct
+    # dependencies are known unless OSV-Scanner resolves the rest; Gradle resolves at build time.
+    TRANSITIVE = "transitive dependencies not resolved"
+    NO_GRADLE_LOCKFILE = "Gradle build without a lockfile"
     NO_PURL = "SBOM component without a package URL"
     # Partly checked: matched against the limbo feed by name, but not against its source repo.
     NO_REPO = "source repository unknown; checked against the limbo feed by name only"

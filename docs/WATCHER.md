@@ -15,7 +15,10 @@ It can keep one issue per finding up to date in GitLab or Gitea/Forgejo.
    - git and path installs;
    - local packages;
    - empty versions;
-   - unreadable lockfiles.
+   - unreadable lockfiles;
+   - a `pom.xml` whose transitive dependencies couldn't be resolved, and a Gradle build without a lockfile.
+
+   **Maven has no lockfile.** Offline, a `pom.xml` gives only its direct dependencies, and only those with a literal version: 3 of the 171 that Maven resolves for spring-petclinic. So when the tree has a `pom.xml`, a second OSV-Scanner run, limited to `pom.xml` and its resolver, resolves the whole tree as Maven does (BOMs, parents, properties, mediation) through deps.dev and Maven Central. On two Spring Boot projects it matched `mvn dependency:list` exactly (FINDINGS F-132). `--no-resolve-maven` keeps the inventory offline; each `pom.xml` is then reported as not fully resolved. **Gradle** resolves at build time, so only a `gradle.lockfile` (or `gradle/verification-metadata.xml`) says what a build uses.
 
    Nothing is dropped.
 2. **Matching.** Each dependency is matched against the [limbo feed](https://limbo.watch/feed/):
@@ -29,7 +32,7 @@ It can keep one issue per finding up to date in GitLab or Gitea/Forgejo.
    - **now visible to scanners** (the advisory reached OSV);
    - **no longer affected**.
 
-**What leaves the machine.** The feed and the tracker's watchlist are downloaded whole, so limbo.watch learns nothing about the project. Package names and versions go to deps.dev, rubygems.org, Packagist, ecosyste.ms and Maven Central, to find source repos. Source repo names go to GitHub, to poll their advisories, and advisory IDs go to OSV. With `--issues`, findings go to your own tracker.
+**What leaves the machine.** The feed and the tracker's watchlist are downloaded whole, so limbo.watch learns nothing about the project. Package names and versions go to deps.dev, rubygems.org, Packagist, ecosyste.ms and Maven Central, to find source repos; a `pom.xml`'s dependencies go to deps.dev and Maven Central to resolve its transitive ones (`--no-resolve-maven` keeps them local). Source repo names go to GitHub, to poll their advisories, and advisory IDs go to OSV. With `--issues`, findings go to your own tracker.
 
 ## Use it
 
@@ -228,6 +231,12 @@ In CI, `--issues-url` and `--issues-project` default to `CI_SERVER_URL` / `GITHU
 
 - **Only as fresh as the tracker** for watched repos: quiet repos are checked weekly. Advisories published since the tracker's last check of a repo are missed until its next run.
 - **Only what the lockfiles list.** The inventory runs offline, so a `requirements.txt` gives its direct entries only; plain OSV-Scanner resolves Python's transitive dependencies online (F-088). Pin them with `pip-compile` or `uv pip compile` to have them checked.
+- **Maven resolution is close to Maven's, not identical** (F-132):
+  - profiles that activate by JDK version, OS or property aren't evaluated, so their dependencies are missed (9 test dependencies of commons-text);
+  - a module that depends on an unreleased sibling module (`1.0-SNAPSHOT` from the same build) can't be resolved; it's reported, with its direct dependencies still checked;
+  - only Maven Central and deps.dev are used, so artifacts from a private registry fail resolution the same way.
+
+  For an exact inventory, pass an SBOM from `cyclonedx-maven-plugin` with `--sbom`.
 - **Ranges are as entered by maintainers** and haven't been reviewed. Unreadable ranges give *possible* findings.
 - **Upstream polling is GitHub only.** Off-GitHub upstreams, and vanity Go paths deps.dev can't map, are checked by name only.
 - **Org-wide mode reads the default branch only,** at its tip. Release branches aren't checked; run `scan` in their pipelines.

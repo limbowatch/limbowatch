@@ -1,19 +1,25 @@
-"""Inventory from OSV-Scanner (`scan source --all-packages`), run offline as a pure inventory step.
+"""Inventory from OSV-Scanner (`scan source --all-packages`), as a pure inventory step.
 
 OSV-Scanner reads about 25 lockfile formats (FINDINGS F-032). It runs with `--offline` against a
 directory of empty databases, so it sends nothing over the network and matches nothing: Limbowatch
 does the matching. Its output is then checked against the lockfiles, because it drops or misreports
 some dependencies without saying so (FINDINGS F-078).
+
+Maven has no lockfile: offline, a pom.xml gives only its direct dependencies, and only those with a literal
+version. When the tree has pom.xml files, a second run with only the pom.xml extractor and its resolver
+resolves them the way Maven does, through deps.dev and Maven Central and nothing else (FINDINGS F-132).
+Every pom.xml left unresolved, and every Gradle build without a lockfile, is reported.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import tempfile
 import zipfile
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -29,6 +35,11 @@ TESTED_VERSION = "2.7.0"  # behaviour verified in F-074 and F-078
 # the same kind: that line ends after the kind, and each file follows on its own tab-indented line (F-131).
 _EXTRACT_ERROR = re.compile(r"^Error during extraction: \(extracting as [^)]+\) ?(.*)$")
 _PATH_ERROR = re.compile(r"^(.+?): (.+)$")
+# The resolver's errors, one per pom.xml, each on its own line, the first also after "Error during extraction" (F-132).
+_FAILED_RESOLUTION = re.compile(r"failed resolution for (.+?): (.+)$")
+MAVEN_PLUGINS = "java/pomxml,transitivedependency/pomxml"
+GRADLE_BUILDS = ("build.gradle", "build.gradle.kts")
+_NOT_WALKED = {".git", ".gradle", "node_modules", "build", "target", ".idea"}
 
 
 def extraction_errors(stderr: str) -> list[tuple[str, str]]:
@@ -71,6 +82,25 @@ def command(binary: str, project: Path, db: Path, include_ignored: bool = False)
     ]  # fmt: skip
 
 
+def maven_command(binary: str, project: Path, db: Path, include_ignored: bool = False) -> list[str]:
+    """Only the pom.xml extractor and its resolver, so nothing else goes online (requirements.txt would be
+    resolved too, guessing versions for ranges); vulnerabilities still offline, against the empty databases."""
+    return [
+        binary, "scan", "source", "--x-no-default-plugins", "--x-plugins", MAVEN_PLUGINS,
+        "--offline-vulnerabilities", "--local-db-path", str(db), "--no-call-analysis=all", "--all-packages",
+        "--format", "json", *(["--no-ignore"] if include_ignored else []), "-r", str(project),
+    ]  # fmt: skip
+
+
+@dataclass(frozen=True)
+class Resolution:
+    """The resolving run's output (F-132); `error` when the run itself failed."""
+
+    data: dict[str, Any]
+    stderr: str
+    error: str = ""
+
+
 def empty_db(root: Path) -> Path:
     """`<root>/osv-scalibr/<Ecosystem>/all.zip`, empty, for every OSV ecosystem (F-074)."""
     for eco in OSV_ECOSYSTEMS:
@@ -80,14 +110,61 @@ def empty_db(root: Path) -> Path:
     return root
 
 
-def run(project: Path, binary: str = "osv-scanner", timeout: int = 900, include_ignored: bool = False) -> Inventory:
+def run(
+    project: Path,
+    binary: str = "osv-scanner",
+    timeout: int = 900,
+    include_ignored: bool = False,
+    resolve_maven: bool = True,
+) -> Inventory:
+    """With `resolve_maven`, pom.xml dependencies go to deps.dev and Maven Central to be resolved (F-132)."""
     project = project.resolve()
+    maven: Resolution | None = None
     with tempfile.TemporaryDirectory(prefix="limbowatch-db-") as tmp:
-        cmd = command(binary, project, empty_db(Path(tmp)), include_ignored)
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
-    data = json.loads(proc.stdout) if proc.stdout.strip().startswith("{") else {}
+        db = empty_db(Path(tmp))
+        proc = subprocess.run(command(binary, project, db, include_ignored), capture_output=True, text=True,
+                              timeout=timeout, check=False)  # fmt: skip
+        data = _json(proc.stdout)
+        if resolve_maven and _has_pom(data, proc.stderr):
+            maven = _resolve(maven_command(binary, project, db, include_ignored), timeout)
     tool = f"osv-scanner {version(binary) or 'unknown version'}"
-    return parse(data, proc.stderr, proc.returncode, project, _reader, tool)
+    return parse(data, proc.stderr, proc.returncode, project, _reader, tool, maven=maven,
+                 gradle_builds=gradle_builds(project), resolve_maven=resolve_maven)  # fmt: skip
+
+
+def _json(out: str) -> dict[str, Any]:
+    return json.loads(out) if out.strip().startswith("{") else {}
+
+
+def _has_pom(data: dict[str, Any], stderr: str) -> bool:
+    paths = [str(r["source"]["path"]) for r in data.get("results") or []] + [p for p, _ in extraction_errors(stderr)]
+    return any(_is_pom(p) for p in paths)
+
+
+def _is_pom(path: str) -> bool:
+    """OSV-Scanner's pom.xml extractor also reads `*.pom` files (F-132)."""
+    name = path.rsplit("/", 1)[-1]
+    return name == "pom.xml" or name.endswith(".pom")
+
+
+def _resolve(cmd: list[str], timeout: int) -> Resolution:
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
+    except subprocess.TimeoutExpired:
+        return Resolution({}, "", f"resolving timed out after {timeout} s")
+    data = _json(proc.stdout)
+    if not data and proc.returncode not in (0, 1):
+        return Resolution({}, proc.stderr, " ".join(proc.stderr.strip().splitlines()[-1:])[:300] or "resolving failed")
+    return Resolution(data, proc.stderr)
+
+
+def gradle_builds(project: Path) -> list[str]:
+    """Gradle build files under `project`, relative, skipping VCS, build output and dependency directories."""
+    out: list[str] = []
+    for dirpath, dirnames, filenames in os.walk(project):
+        dirnames[:] = sorted(d for d in dirnames if d not in _NOT_WALKED)
+        out += [(Path(dirpath) / f).relative_to(project).as_posix() for f in filenames if f in GRADLE_BUILDS]
+    return sorted(out)
 
 
 def _reader(path: Path) -> str | None:
@@ -104,8 +181,14 @@ def parse(
     root: Path,
     read: Callable[[Path], str | None],
     tool: str = "osv-scanner",
+    *,
+    maven: Resolution | None = None,
+    gradle_builds: Sequence[str] = (),
+    resolve_maven: bool = True,
 ) -> Inventory:
-    """OSV-Scanner's JSON, stderr and exit code -> an inventory with every unchecked dependency named."""
+    """OSV-Scanner's JSON, stderr and exit code -> an inventory with every unchecked dependency named.
+
+    `maven` is the resolving run's output (None: not run); `gradle_builds` the tree's Gradle build files."""
     deps: list[Dependency] = []
     unresolved: list[UnresolvedDependency] = []
     sources: list[str] = []
@@ -130,9 +213,73 @@ def parse(
         d, u = _from_source(rel, text, result.get("packages") or [])
         deps += d
         unresolved += u
+    poms = sorted({s for s in sources if _is_pom(s)})
+    if poms:
+        deps, unresolved = _transitive(poms, maven, resolve_maven, root, read, deps, unresolved)
+    unresolved += _unlocked_gradle(gradle_builds, set(sources) | set(failed))
     deps = sorted(set(deps), key=lambda d: (d.source, d.line, d.ecosystem, d.name, d.version))
     return Inventory(dependencies=tuple(deps), unresolved=tuple(unresolved), sources=tuple(sorted(sources)), tool=tool,
                      skipped=tuple(sorted(skipped)))  # fmt: skip
+
+
+def _transitive(
+    poms: list[str],
+    maven: Resolution | None,
+    resolve_maven: bool,
+    root: Path,
+    read: Callable[[Path], str | None],
+    deps: list[Dependency],
+    unresolved: list[UnresolvedDependency],
+) -> tuple[list[Dependency], list[UnresolvedDependency]]:
+    """Add each pom.xml's resolved dependencies; report every pom.xml not resolved, with the reason (F-132).
+
+    The resolving run lists a pom.xml's direct dependencies again (as offline), and, when resolution works, a
+    second group for the same file with the whole resolved tree, direct dependencies included. A pom.xml whose
+    dependencies have none of their own gets no second group; one that fails is named on stderr."""
+    groups: dict[str, list[dict[str, Any]]] = {}
+    failed: dict[str, str] = {}
+    if maven is not None:
+        for result in maven.data.get("results") or []:
+            rel = _rel(str(result["source"]["path"]), root)
+            if (result["source"].get("type") or "lockfile") != "lockfile":
+                groups.setdefault(rel, []).extend(result.get("packages") or [])
+        for line in maven.stderr.splitlines():
+            if m := _FAILED_RESOLUTION.search(line):
+                failed.setdefault(_rel(m.group(1), root), m.group(2).strip()[:300])
+    for pom in poms:
+        if not resolve_maven or maven is None or maven.error or pom in failed:
+            if not resolve_maven:
+                why = "only direct dependencies with a literal version are checked (--no-resolve-maven)"
+            elif maven is None or maven.error:
+                why = f"resolving failed: {maven.error if maven else 'not run'}"
+            else:
+                why = failed[pom]
+            unresolved.append(UnresolvedDependency(reason=Unchecked.TRANSITIVE, source=pom, ecosystem="maven",
+                                                   detail=why))  # fmt: skip
+            continue
+        text = read(root / pom) or ""
+        got, _ = _from_source(pom, text, [e for e in groups.get(pom, []) if (e.get("package") or {}).get("version")])
+        names = {d.name for d in got}
+        unresolved = [u for u in unresolved
+                      if not (u.source == pom and u.reason is Unchecked.NO_VERSION and u.name in names)]  # fmt: skip
+        have = {o.name for o in deps if o.source == pom}
+        deps += [d for d in got if d.name not in have]
+    return deps, unresolved
+
+
+def _unlocked_gradle(builds: Sequence[str], read_files: set[str]) -> list[UnresolvedDependency]:
+    """A Gradle build resolves versions at build time; only a lockfile next to it (or the root's dependency
+    verification metadata, which lists every artifact) says what it uses (F-132)."""
+    if "gradle/verification-metadata.xml" in read_files:
+        return []
+    out = []
+    for b in builds:
+        folder = b.rsplit("/", 1)[0] + "/" if "/" in b else ""
+        if f"{folder}gradle.lockfile" not in read_files:
+            hint = "commit a lockfile (Gradle dependency locking) or pass an SBOM with --sbom"
+            out.append(UnresolvedDependency(reason=Unchecked.NO_GRADLE_LOCKFILE, source=b, ecosystem="maven",
+                                            detail=hint))  # fmt: skip
+    return out
 
 
 def own_report(text: str) -> bool:

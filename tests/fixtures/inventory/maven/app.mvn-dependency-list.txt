@@ -1,0 +1,9 @@
+
+The following files have been resolved:
+   com.fasterxml.jackson.core:jackson-annotations:jar:2.17.0:compile -- module com.fasterxml.jackson.annotation
+   com.fasterxml.jackson.core:jackson-core:jar:2.17.0:compile -- module com.fasterxml.jackson.core
+   com.fasterxml.jackson.core:jackson-databind:jar:2.17.0:compile -- module com.fasterxml.jackson.databind
+   net.bytebuddy:byte-buddy:jar:1.14.9:compile -- module net.bytebuddy
+   org.apache.commons:commons-lang3:jar:3.12.0:compile -- module org.apache.commons.lang3 [auto]
+   org.apache.commons:commons-text:jar:1.10.0:compile -- module org.apache.commons.text [auto]
+

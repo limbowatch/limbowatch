@@ -1,0 +1,9 @@
+Scanning dir /ROOT
+Starting filesystem walk for root: /
+Scanned /ROOT/leaf/pom.xml file and found 1 package
+Scanned /ROOT/locked/gradle.lockfile file and found 1 package
+Scanned /ROOT/app/pom.xml file and found 2 packages
+Scanned /ROOT/mod/pom.xml file and found 2 packages
+End status: 6 dirs visited, 12 inodes visited, 4 Extract calls, 673.292µs elapsed, 673µs wall time
+Filtered 1 local/unscannable package/s from the scan.
+Loaded Maven local db from /TMP/osv-scalibr/Maven/all.zip
