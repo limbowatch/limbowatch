@@ -14,8 +14,11 @@ ARG GO_IMAGE=golang:1.27-bookworm@sha256:dc0963f32053e4bc451d24d87e3892d42d01021
 FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS osv
 ARG TARGETOS TARGETARCH
 ENV GOFLAGS=-trimpath GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org CGO_ENABLED=0
-RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go install -ldflags="-s -w" github.com/google/osv-scanner/v2/cmd/osv-scanner@v2.7.0 \
- && find /go/bin -name osv-scanner -type f -exec cp {} /osv-scanner \;
+# Go's module and build caches are cache mounts, so they stay out of the layer. It holds only the binary (about
+# 55 MB, not 1.3 GB), and that's what the GitHub Actions build cache stores per architecture (FINDINGS F-122).
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
+    GOOS=$TARGETOS GOARCH=$TARGETARCH go install -ldflags="-s -w" github.com/google/osv-scanner/v2/cmd/osv-scanner@v2.7.0 \
+ && find /go/bin -name osv-scanner -type f -exec mv {} /osv-scanner \;
 
 FROM ${UV_IMAGE} AS uv
 

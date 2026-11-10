@@ -1,0 +1,51 @@
+name: cache-cleanup
+# Keeps the GitHub Actions cache (10 GB per repository) from filling up with build layers nobody reads (FINDINGS F-122):
+# - when a pull request closes: its caches, which no other branch can use;
+# - weekly: caches nobody has read for 7 days, then the least recently read BuildKit layers until those are under
+#   4 GB. An evicted layer only costs a slower build: BuildKit rebuilds what it can't find.
+on:
+  pull_request:
+    types: [closed]
+  schedule:
+    - cron: "41 3 * * 1"
+  workflow_dispatch:
+permissions:
+  actions: write
+concurrency:
+  group: cache-cleanup
+  cancel-in-progress: false
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Delete caches
+        env:
+          PR_REF: ${{ github.event_name == 'pull_request' && format('refs/pull/{0}/merge', github.event.pull_request.number) || '' }}
+          STALE_DAYS: "7"
+          BUILDKIT_MAX_GB: "4"
+        run: |
+          set -euo pipefail
+          gh cache list -L 1000 --json id,key,ref,lastAccessedAt,sizeInBytes > caches.json
+          before=$(jq '[.[].sizeInBytes] | add // 0' caches.json)
+          if [ -n "$PR_REF" ]; then
+            ids=$(jq -r --arg ref "$PR_REF" '.[] | select(.ref == $ref) | .id' caches.json)
+          else
+            cutoff=$(date -u -d "-$STALE_DAYS days" +%Y-%m-%dT%H:%M:%SZ)
+            stale=$(jq -r --arg c "$cutoff" '.[] | select(.lastAccessedAt < $c) | .id' caches.json)
+            # then the least recently read BuildKit layers, until what's left is under the cap
+            over=$(jq -r --arg c "$cutoff" --argjson cap "$((BUILDKIT_MAX_GB * 1024 * 1024 * 1024))" '
+              [.[] | select(.lastAccessedAt >= $c and (.key | test("buildkit")))] | sort_by(.lastAccessedAt) | reverse
+              | reduce .[] as $e ({kept: 0, drop: []};
+                  if .kept + $e.sizeInBytes > $cap then .drop += [$e.id] else .kept += $e.sizeInBytes end)
+              | .drop[]' caches.json)
+            ids=$(printf '%s\n%s\n' "$stale" "$over" | sed '/^$/d')
+          fi
+          n=0; freed=0
+          for id in $ids; do
+            size=$(jq --argjson id "$id" '.[] | select(.id == $id) | .sizeInBytes' caches.json)
+            if gh cache delete "$id" >/dev/null 2>&1; then n=$((n + 1)); freed=$((freed + size)); fi
+          done
+          echo "### Deleted $n caches, $((freed / 1048576)) MB of $((before / 1048576)) MB" >> "$GITHUB_STEP_SUMMARY"

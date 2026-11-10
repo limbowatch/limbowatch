@@ -1595,6 +1595,31 @@ Answered:
   - The wave is done; the daily schedule takes over.
 - **Sources:** `tracker-data` state at the 2026-11-10 08:01 run; https://limbo.watch/metrics.json.
 
+### F-122
+- **Date:** 2026-11-10 · **Status:** confirmed (observed)
+- **Question:** Why was the Actions cache full (F-116: 9.95 of 10 GB), and what keeps it small?
+- **Method:**
+  - `gh cache list` (key, size, last access).
+  - The image workflow's build log (run 42780040680).
+  - `docker history` of local builds of the `osv` stage, before and after the change.
+- **Result:**
+  - **133 BuildKit entries, 9.46 GB, from `image.yml`'s `type=gha,mode=max` cache.**
+    - Seven blobs were about 1.25 GB each.
+    - Each is the `osv` stage's `go install` layer: OSV-Scanner's binary plus Go's whole module and build caches, one per architecture.
+  - **What a build did with it:** an image build downloaded the 1.32 GB layer even when the stage was cached. When the layer was evicted and rebuilt, it came back under a new digest, so copies piled up until GitHub's LRU eviction.
+  - **Fix:**
+    - The `go install` runs with cache mounts for `/go/pkg/mod` and `/root/.cache/go-build`.
+    - The binary is moved, not copied.
+    - The layer is now 53.9 MB (108 MB with `cp`, 1.3 GB before).
+    - The image's smoke test passes: `limbowatch 0.1.0a4`, OSV-Scanner 2.7.0.
+  - **One-off cleanup:** deleted all 133 BuildKit entries. 3 caches (102 MB) were left. The next image build starts cold.
+  - **Ongoing:** `.github/workflows/cache-cleanup.yml`.
+    - When a pull request closes, it deletes that PR's caches.
+    - Weekly, it deletes caches unread for 7 days, then the least recently read BuildKit entries down to 4 GB.
+- **Caveats:** Cache-mount contents don't persist between CI runners, so a cold `osv` stage downloads its modules again (about a minute). A cached stage doesn't.
+- **Implication:** The cache stays far from the 10 GB limit, and image builds stop moving 2.6 GB per run.
+- **Sources:** `gh cache list`; image run 42780040680 log; local `docker buildx build --target osv`.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
