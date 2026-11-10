@@ -1221,6 +1221,8 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/versity/versitygw","path":"github.com/versity/versitygw"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/vitessio/vitess","path":"github.com/vitessio/vitess"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/vmware-tanzu/velero","path":"github.com/vmware-tanzu/velero"}
+{"checked_at":"2026-11-10T06:47:48Z","module":"github.com/vmware/terraform-provider-vmc","path":"github.com/vmware/terraform-provider-vmc"}
+{"checked_at":"2026-11-10T06:47:48Z","module":"github.com/vmware/terraform-provider-vsphere","path":"github.com/vmware/terraform-provider-vsphere"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/vouch/vouch-proxy","path":"github.com/vouch/vouch-proxy"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/wailsapp/wails/v2","path":"github.com/wailsapp/wails/v2"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/wailsapp/wails/v3","path":"github.com/wailsapp/wails/v3"}
