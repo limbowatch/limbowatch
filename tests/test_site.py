@@ -80,3 +80,10 @@ def test_home_timeline_and_ci_steps() -> None:
     ci = site.ci_tabs()
     assert f"limbowatch-action@v{site.RELEASE}" in ci and f"limbowatch@{site.COMPONENT}" in ci
     assert site.MARKETPLACE_URL in ci and site.CATALOG_URL in ci
+
+
+def test_pages_turn_off_cloudflare_email_obfuscation() -> None:
+    """CI refs like limbowatch-action@v0.1.0a6 look like email addresses to Cloudflare, which would hide them."""
+    html = site.page("t", "d", f"<pre>uses: limbowatch/limbowatch-action@v{site.RELEASE}</pre>")
+    body = html.split("<body>", 1)[1]
+    assert body.index(site.EMAIL_OFF) < body.index("limbowatch-action@") < body.index(site.EMAIL_ON)

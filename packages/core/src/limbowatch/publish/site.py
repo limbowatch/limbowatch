@@ -560,6 +560,11 @@ def new_tab(html: str) -> str:
     return _HOSTED.sub(r'<a \1 target="_blank" rel="noopener">', html)
 
 
+# Cloudflare's Email Obfuscation reads `limbowatch-action@v0.1.0a6` and `limbowatch@0.1.0-alpha.6` as email addresses and
+# swaps them for "[email protected]". The site shows no email address as text (the contact is an image), so it's off.
+EMAIL_OFF, EMAIL_ON = "<!--email_off-->", "<!--/email_off-->"
+
+
 def page(title: str, description: str, body: str, path: str = "/", jsonld: dict[str, Any] | None = None) -> str:
     """A full HTML page, with the tags link previews and search engines read (Open Graph, canonical URL,
     the Atom feed and, where given, schema.org JSON-LD)."""
@@ -579,7 +584,7 @@ def page(title: str, description: str, body: str, path: str = "/", jsonld: dict[
         f'<link rel="icon" href="/favicon.svg" type="image/svg+xml">\n{THEME_HEAD_JS}'
         f'<link rel="stylesheet" href="/assets/site.css?v={_v(CSS)}">\n'
         + (f'<script type="application/ld+json">{ld}</script>\n' if ld else "")
-        + f"</head>\n<body>\n{new_tab(body)}\n{MENU_JS}</body>\n</html>\n"
+        + f"</head>\n<body>\n{EMAIL_OFF}{new_tab(body)}{EMAIL_ON}\n{MENU_JS}</body>\n</html>\n"
     )
 
 
