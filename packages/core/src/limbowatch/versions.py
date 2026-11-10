@@ -12,7 +12,6 @@ import re
 from typing import Any
 
 from univers.versions import (
-    ComposerVersion,
     GolangVersion,
     MavenVersion,
     NugetVersion,
@@ -23,6 +22,65 @@ from univers.versions import (
 
 Constraint = tuple[str, str]  # (operator, version)
 Alternative = list[Constraint]  # AND-ed constraints
+
+_COMPOSER = re.compile(
+    r"v?(\d+(?:\.\d+){0,3})(?:[._-]?(stable|beta|b|rc|alpha|a|patch|pl|p|dev)(?:[._-]?(\d+))?)?", re.I
+)
+_STABILITY = {
+    "dev": 0,
+    "alpha": 1,
+    "a": 1,
+    "beta": 2,
+    "b": 2,
+    "rc": 3,
+    None: 4,
+    "stable": 4,
+    "patch": 5,
+    "pl": 5,
+    "p": 5,
+}
+
+
+class ComposerVersion:
+    """A Packagist version ordered the way Composer orders it: up to four numeric parts, then the stability
+    (dev < alpha < beta < RC < stable < patch) and its number. univers reads a fourth part as semver build
+    metadata, so "6.7.13.0 < 6.7.13.1" came out False, and so did "6.7.13.0 == 6.7.13.1" (FINDINGS F-123)."""
+
+    __slots__ = ("key", "string")
+
+    def __init__(self, string: str) -> None:
+        m = _COMPOSER.fullmatch(string.strip())
+        if m is None:
+            raise ValueError(f"not a Composer version: {string!r}")
+        nums = [int(x) for x in m.group(1).split(".")]
+        stab = (m.group(2) or "").lower() or None
+        self.string = string
+        self.key = (*nums, *[0] * (4 - len(nums)), _STABILITY[stab], int(m.group(3) or 0))
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, ComposerVersion) and self.key == other.key
+
+    def __hash__(self) -> int:
+        return hash(self.key)
+
+    def __lt__(self, other: ComposerVersion) -> bool:
+        return self.key < other.key
+
+    def __le__(self, other: ComposerVersion) -> bool:
+        return self.key <= other.key
+
+    def __gt__(self, other: ComposerVersion) -> bool:
+        return self.key > other.key
+
+    def __ge__(self, other: ComposerVersion) -> bool:
+        return self.key >= other.key
+
+    def __str__(self) -> str:
+        return self.string
+
+    def __repr__(self) -> str:
+        return f"ComposerVersion({self.string!r})"
+
 
 VERSION_CLASS: dict[str, Any] = {
     "npm": SemverVersion,
@@ -61,15 +119,44 @@ def _caret_tilde(op: str, ver: str) -> Alternative | None:
     return [(">=", lo), ("<", f"0.0.{patch + 1}")]
 
 
+_WILDCARD = re.compile(r"(?<![\w.])(>=|<=|=>|=<|==|>|<|=)?\s*(v?\d+(?:\.\d+)*)\.[*xX](?:\.[*xX])*(?![\w.])")
+
+
+def _wildcard(m: re.Match[str]) -> str:
+    """A wildcard: "2.16.*" is 2.16.0 up to 2.17.0; with an operator, the bound that operator means (F-123)."""
+    op, base = m.group(1) or "=", m.group(2)
+    v, nums = ("v" if base.startswith("v") else ""), base.lstrip("v").split(".")
+    up = [*nums[:-1], str(int(nums[-1]) + 1)]
+    pad = max(3 - len(nums) - 1, 0) * [".0"]  # three parts at least, so semver ecosystems can read them
+    lo = v + ".".join(nums) + ".0" + "".join(pad)
+    hi = v + ".".join(up) + ".0" + "".join(pad)
+    return {">=": f">= {lo}", "=>": f">= {lo}", ">": f">= {hi}", "<": f"< {lo}", "<=": f"< {hi}", "=<": f"< {hi}"}.get(
+        op, f">= {lo}, < {hi}"
+    )
+
+
+_SPAN = re.compile(r"(?<![\w.~^-])(v?(\d+(?:\.\d+){2,3}))-(v?(\d+(?:\.\d+){2,3}))(?![\w.-])")
+
+
+def _span(m: re.Match[str]) -> str:
+    """Two versions of three or four parts joined by a hyphen, the second higher, are a span the way "A - B" is.
+    Anything else ("1.0.0-0.3.7", a numeric pre-release; Maven's "3.0-20251107.114628") is left as written."""
+    lo, hi = [int(x) for x in m.group(2).split(".")], [int(x) for x in m.group(4).split(".")]
+    return f"{m.group(1)} - {m.group(3)}" if hi > lo and hi[0] >= lo[0] else m.group(0)
+
+
 def parse_range(rng: str) -> list[Alternative] | None:
     """OR-ed alternatives of AND-ed constraints, or None if any part is left unparsed."""
     s = rng.strip().replace("≤", "<=").replace("≥", ">=")
     if not s:
         return None
+    s = _WILDCARD.sub(_wildcard, s)
     if re.fullmatch(r"(?i)(?:all|any)(?: versions)?", s):
         s = "*"
     s = re.sub(r"\s*&&?\s*", ", ", s)
     s = re.sub(rf"(?:>=\s*)?({_VER})\s+(?:to|through)\s+({_VER})", r"\1 - \2", s, flags=re.I)
+    s = re.sub(rf"(?<![\w.~^])({_VER})\s*~\s*({_VER})", r"\1 - \2", s)  # "1.4.0~1.4.10": a span, not a tilde range
+    s = _SPAN.sub(_span, s)  # "11.0.0-11.5.50": a span, not a pre-release (F-123)
     s = re.sub(rf"({_VER})\s+and\s+(?:earlier|below|lower|prior)\b", r"<= \1", s, flags=re.I)
     s = re.sub(rf"({_VER})\s+and\s+(?:later|above|higher|newer)\b", r">= \1", s, flags=re.I)
     alts: list[Alternative] = []
@@ -112,9 +199,100 @@ def _mk(cls: Any, ver: str) -> Any:
 
 
 def _satisfiable(cls: Any, cons: Alternative) -> bool:
-    lows = [_mk(cls, b) for op, b in cons if op in (">", ">=")]
-    highs = [_mk(cls, b) for op, b in cons if op in ("<", "<=")]
-    return not (lows and highs and max(lows) >= min(highs))
+    """False if no version can meet every bound. Equal inclusive bounds (">= 3.8.8, <= 3.8.8") are one version."""
+    lows = [(_mk(cls, b), op == ">") for op, b in cons if op in (">", ">=")]
+    highs = [(_mk(cls, b), op == "<") for op, b in cons if op in ("<", "<=")]
+    if not (lows and highs):
+        return True
+    lo = max(v for v, _ in lows)
+    hi = min(v for v, _ in highs)
+    strict = any(x for v, x in lows if v == lo) or any(x for v, x in highs if v == hi)
+    return lo < hi or (lo == hi and not strict)
+
+
+def _pair_bounds(alts: list[Alternative]) -> list[Alternative]:
+    """Comma-separated parts read as OR: a lone lower bound followed by a lone upper bound is one interval."""
+    out: list[Alternative] = []
+    i = 0
+    while i < len(alts):
+        a, b = alts[i], alts[i + 1] if i + 1 < len(alts) else None
+        if b is not None and len(a) == 1 and len(b) == 1 and a[0][0] in (">", ">=") and b[0][0] in ("<", "<="):
+            out.append([a[0], b[0]])
+            i += 2
+            continue
+        out.append(a)
+        i += 1
+    return out
+
+
+def _intervals(cons: Alternative) -> list[Alternative]:
+    """A contradictory or mixed AND re-read as OR, in order: each lower bound opens an interval that the next
+    upper bound closes, and an exact version or an upper bound with no lower bound before it stands alone.
+    ">= 2.2.0, < 2.2.10, >= 2.3.0, < 2.3.7" is two intervals, not four bounds that together cover every version;
+    "< 0.6.2, >= 0.7.0 < 0.7.2" is "< 0.6.2" or the interval (FINDINGS F-123)."""
+    out: list[Alternative] = []
+    cur: Alternative | None = None
+    for op, v in cons:
+        if op in (">", ">="):
+            if cur:
+                out.append(cur)
+            cur = [(op, v)]
+        elif op in ("<", "<="):
+            if cur and all(o in (">", ">=", "!=") for o, _ in cur) and any(o in (">", ">=") for o, _ in cur):
+                out.append([*cur, (op, v)])
+                cur = None
+            else:
+                if cur:
+                    out.append(cur)
+                cur = None
+                out.append([(op, v)])
+        elif op == "!=" and cur is not None:
+            cur.append((op, v))
+        else:
+            if cur:
+                out.append(cur)
+            cur = None
+            out.append([(op, v)])
+    if cur:
+        out.append(cur)
+    return out
+
+
+def _covers_everything(cls: Any, alts: list[Alternative]) -> bool:
+    """True if the alternatives together leave no version out (their intervals' union is unbounded both ways)."""
+    zero = {"0", "0.0", "0.0.0", "v0", "v0.0.0"}
+    spans: list[tuple[Any, bool, Any, bool]] = []
+    for c in alts:
+        if any(op == "!=" for op, _ in c):
+            return False  # too unusual to judge; leave it as parsed
+        if not c:
+            return True
+        lo = hi = None
+        lo_in = hi_in = True
+        for op, b in c:
+            v = _mk(cls, b)
+            if op == "=":
+                lo, hi = v, v
+            elif op in (">", ">="):
+                if b not in zero and (lo is None or v > lo):
+                    lo, lo_in = v, op == ">="
+            elif hi is None or v < hi:
+                hi, hi_in = v, op == "<="
+        spans.append((lo, lo_in, hi, hi_in))
+    starts = [(hi, hi_in) for lo, _, hi, hi_in in spans if lo is None]
+    if not starts:
+        return False
+    if any(hi is None for hi, _ in starts):
+        return True
+    reach, reach_in = max(starts, key=lambda x: (x[0], x[1]))  # how far up the versions are covered from below
+    bounded = [(lo, lo_in, hi, hi_in) for lo, lo_in, hi, hi_in in spans if lo is not None]
+    for lo, lo_in, hi, hi_in in sorted(bounded, key=lambda s: s[0]):
+        if lo < reach or (lo == reach and (lo_in or reach_in)):
+            if hi is None:
+                return True
+            if hi > reach or (hi == reach and hi_in):
+                reach, reach_in = hi, hi_in
+    return False
 
 
 def alternatives(ghsa_ecosystem: str, rng: str | None) -> list[Alternative] | None:
@@ -131,7 +309,24 @@ def alternatives(ghsa_ecosystem: str, rng: str | None) -> list[Alternative] | No
         # "<= 3.0.10, 4.0.0": an exact version listed beside a bound is another alternative, not an AND
         if "," in rng and (alts is None or mixed or any(not _satisfiable(cls, c) for c in alts)):
             segs = [parse_range(seg) for seg in re.split(r"\s*[,;]\s*(?=[<>=~^]|\d|v\d)", rng)]
-            alts = None if any(sg is None for sg in segs) else [c for sg in segs if sg for c in sg]
+            if any(sg is None for sg in segs):
+                return None
+            # each comma-separated part on its own; a part that still contradicts itself ("< 2.8.8 >= 2.9.0",
+            # intervals without a comma between them) is read in order; then lone bounds pair up (F-123)
+            parts = [
+                part
+                for sg in segs
+                if sg
+                for c in sg
+                for part in (
+                    _intervals(c) if (len(c) > 1 and any(op == "=" for op, _ in c)) or not _satisfiable(cls, c) else [c]
+                )
+            ]
+            alts = _pair_bounds(parts)
+            if not all(_satisfiable(cls, c) for c in alts) or _covers_everything(cls, alts):
+                # still contradictory (">= 0.11.0, < 0.6.10"), or every version at once (">= 9.0.0, < 9.0.0
+                # >= 8.0.0, < 8.0.11"): a maintainer's slip that can't be evaluated, not "none" or "all"
+                return None
     except Exception:
         return None
     return alts

@@ -1620,6 +1620,52 @@ Answered:
 - **Implication:** The cache stays far from the 10 GB limit, and image builds stop moving 2.6 GB per run.
 - **Sources:** `gh cache list`; image run 42780040680 log; local `docker buildx build --target osv`.
 
+### F-123
+- **Date:** 2026-11-10 · **Status:** confirmed (live checks and recomputation)
+- **Question:** Are the tracker's verdicts, the site's numbers, the feed and the report right, checked independently against primary sources?
+- **Method:** `tracker-data` at the 2026-11-10 08:01 run (commit 22d09c5), and the site and feed built from it (08:18:43 UTC).
+  1. **Verdicts:** a seeded random sample, checked live (`gh api` repo advisory and `/advisories/{ghsa}`, OSV `/v1/vulns`, CVE Services). 300 in limbo, 100 likely permanent, 60 duplicates, 60 reviewed. For each: published state, cited CVE and its state, ecosystems, uncited CVEs (references or source must name the GHSA), and duplicates (reviewed with a shared CVE).
+  2. **Reviewed-list completeness:** every reviewed advisory GitHub updated or published 2026-11-01..11 (`/advisories?type=reviewed`), against the tracker's list.
+  3. **Site numbers:** `metrics.json` recomputed from the raw state files with code written for this check. Plus every number-bearing sentence on the eight pages.
+  4. **Feed:** all 24,373 records validated against OSV's `validation/schema.json` (ossf/osv-schema), checked field by field against the state, and the index compared.
+     - Ranges: a seeded sample of 3,000 converted ranges compared with univers on the maintainer's range, at the boundary versions. Every disagreement was read.
+  5. **Checker index:** compared with the feed.
+  6. **Report and comparisons:** every affected row of the October report, every finding of the Dependabot comparison (`ranges.json`) and the demo scan, re-evaluated with the corrected parser.
+- **Result:**
+  - **Verdicts: 0 of 520 sampled wrong.** All 300 in limbo and 100 likely permanent were published, absent from the global database and from OSV. All 60 reviewed were reviewed. All 60 duplicates were duplicates of reviewed advisories with a shared CVE. Every cited-CVE state and uncited link checked out.
+  - **Reviewed list complete:** GitHub reviewed 121 advisories in the 7 days to 08:18 UTC, 78 of them repository advisories. All 78 are in the tracker's list and in watched repos.
+    - 24 of the 78 were advisories the tracker labels likely permanent ("other", container images). GitHub's reviewers mapped them to Maven, Go, npm or PyPI (Keycloak, LXD, Kubeflow). In all, 33 of about 14,600 likely-permanent advisories have been reviewed: the label holds, at about 0.2%.
+  - **Site numbers:** all `metrics.json` fields reproduce, and so do the page sentences checked (9,798 in limbo; 14,575 likely permanent; 4,772 critical or high; 3,038 over 3 months; 605 over a year; 64,021 on schedule; flow 800 / 51).
+    - One wording fix: the feed page called its 24,373 records "every advisory in limbo" next to the home page's 9,798. It now gives both parts.
+  - **Feed:** 0 records invalid against the OSV schema, 0 fields that disagree with the state, and the index matches the zip.
+  - **Range parser bugs (`versions.alternatives`), in the tracker, feed, watcher and checker:**
+    - **Commas re-read as OR left every bound alone.** `>= 2.2.0, < 2.2.10, >= 2.3.0, < 2.3.7` became four alternatives that together cover every version. 170 package ranges in 149 advisories, 47 of them in limbo.
+    - **Equal inclusive bounds counted as a contradiction.** `>= 3.8.8, <= 3.8.8`, one version, became "everything".
+    - **Wildcards matched nothing.** `2.16.*` parsed as `= 2.16.`. 119 ranges in 115 advisories, 15 in limbo.
+    - **Spans without spaces matched nothing.** Packagist's `11.0.0-11.5.50` was read as one pre-release. 273 ranges in 255 advisories, 44 in limbo.
+    - **Packagist ordering broken for four-part versions.** univers's `ComposerVersion` reads a fourth part as semver build metadata, so `6.7.13.0 < 6.7.13.1` and `6.7.13.0 == 6.7.13.1` were both False. 488 ranges in 322 advisories, 128 in limbo.
+    - **Fixes:**
+      - comma parts are read one by one, contradictory parts in order, lone bounds paired;
+      - equal inclusive bounds are allowed;
+      - wildcards and `a~b` / `a-b` spans are intervals;
+      - Packagist uses a Composer-ordered class.
+      - A re-read that still contradicts itself, or covers every version, can't be evaluated (`None`, so "possible"), instead of "none" or "all". 12 advisories, 4 in limbo (e.g. `>= 0.11.0, < 0.6.10`, `>= 9.0.0, < 9.0.0`).
+    - The univers disagreements that remained were univers's own misreadings (no comma between bounds, "and", four-part Packagist versions) or open ranges the feed closes at the advisory's fix by design.
+  - **Checker index:** the same 4,711 advisories as the feed.
+  - **Impact:**
+    - **October report:** 722 of 723 affected rows unchanged. Gitea's "advisories in limbo affecting it" is 15, not 16 (GHSA-9wx9-5pv9-3349, medium). The report is corrected with a note, and the research parser carries a comment.
+    - **Dependabot comparison:** all 1,080 confirmed findings still affected, and the 26 interpretation-dependent ones unchanged. The comparison had already confirmed with each ecosystem's own library.
+    - **Demo:** 67 findings before and after.
+    - **Release feeds:** the 08:01 run's five empty feeds were an ecosyste.ms failure (6 failed requests). Partial feeds keep their cursor, so nothing is skipped.
+- **Caveats:**
+  - Sampling bounds the verdict error rate (0 of 300 in limbo: below about 1% at 95%); it doesn't prove zero.
+  - Range checks cover boundary versions only.
+  - F-085's 657 live re-checks used Limbowatch's own parser, so they don't independently cover the comma bug. F-112's 1,080 do.
+- **Implication:**
+  - The verdicts, the numbers and the feed's records are right. The range parser over-matched or under-matched about 1% of ranges, and the fix ships in the next release; 0.1.0a4 users keep the old reading until then.
+  - Independent recomputation found what tests built on the same code didn't. Repeat it before each release.
+- **Sources:** live GitHub, OSV and CVE Services responses (scratchpad); `tracker-data` 22d09c5; OSV schema from ossf/osv-schema `validation/schema.json`; research data folders.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

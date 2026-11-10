@@ -91,11 +91,11 @@ We took the 1,000 most recently reviewed advisories, reviewed between 2026-09-24
 
 Median **23.0 days**, p25 11.6, p75 50.4, p90 86.5.
 
-**72 hours is GitHub's own number, and GitHub has missed it for months.** GitHub's documentation says review of a published advisory "can take up to 72 hours". Only 58 of these 990 advisories (6%) were reviewed that fast. This isn't one bad month. In June 2026, GitHub wrote that since mid-April it has "not consistently met our internal goals for publication" ([GitHub blog](https://github.blog/security/supply-chain-security/inside-the-advisory-database-and-what-happens-when-vulnerability-volume-breaks-records/)). Our October sample, six months after mid-April, still had a median of 23 days. More advisories keep arriving than GitHub reviews. Limbowatch's [live tracker](https://limbo.watch/tracker/) counted, for the 7 days to 2026-11-10:
-- 805 new advisories in the repositories it watches, in ecosystems GitHub reviews;
-- 51 advisories reviewed out of limbo, about one for every 16 new ones.
+**72 hours is GitHub's own number, and GitHub has missed it for months.** GitHub's documentation says review of a published advisory "can take up to 72 hours". Only 58 of these 990 advisories (6%) were reviewed that fast. This isn't one bad month. In June 2026, GitHub wrote that since mid-April it has "not consistently met our internal goals for publication" ([GitHub blog](https://github.blog/security/supply-chain-security/inside-the-advisory-database-and-what-happens-when-vulnerability-volume-breaks-records/)). Our October sample, six months after mid-April, still had a median of 23 days. More advisories keep arriving than GitHub reviews. Limbowatch's [live tracker](https://limbo.watch/tracker/) counted, for the 7 days to 2026-11-10 08:18 UTC:
+- 800 new advisories in the repositories it watches, in ecosystems GitHub reviews;
+- 51 of the advisories waiting in those ecosystems reviewed, about one for every 16 new ones.
 
-Both counts are floors, because the tracker sees only the repositories it watches. On the same day, 3,033 advisories in limbo had waited more than three months.
+GitHub's own database gives the same ratio across all ecosystems. In that week it reviewed 121 advisories in all. 78 of them began as repository advisories, every one in a repository the tracker watches, against 1,219 new advisories in those repositories. The new-advisory counts are floors, because the tracker sees only the repositories it watches. On the same day, 3,038 advisories in limbo had waited more than three months.
 
 The CVE usually isn't the bottleneck: 92% of the CVEs (793 of 858) were published *before* the review, a median of one day earlier. The CVE itself took a median of 17 days after the repository advisory. 120 of the 1,000 reviewed advisories (12%) have no CVE at all.
 
@@ -135,8 +135,10 @@ We read every lockfile of each project with OSV-Scanner v2.7.0. We then matched 
 | [n8n-io/n8n](https://github.com/n8n-io/n8n) (`7d2e358`) | 3,988 | 33 | 26 | 50 | 24 |
 | [langchain-ai/langchain](https://github.com/langchain-ai/langchain) (`f4e6cde`) | 2,513 | 23 | 21 | 53 | 18 |
 | [open-webui/open-webui](https://github.com/open-webui/open-webui) (`91ea4e3`) | 2,083 | 18 | 10 | 58 | 18 |
-| [go-gitea/gitea](https://github.com/go-gitea/gitea) (`facc0f2`) | 1,197 | 6 | 4 | 16 | 9 |
+| [go-gitea/gitea](https://github.com/go-gitea/gitea) (`facc0f2`) | 1,197 | 6 | 4 | 15¹ | 9 |
 | [kubernetes/kubernetes](https://github.com/kubernetes/kubernetes) (`8f5bbad`) | 2,042 | 3 | 3 | 4 | 3 |
+
+¹ `summary.json` says 16. One medium advisory, GHSA-9wx9-5pv9-3349 (seroval, `< 1.0.0, >= 1.5.5, < 1.6.10`), was counted because the pipeline read `< 1.6.10` as an alternative of its own. Read as two ranges it doesn't cover the 1.5.4 gitea ships ([FINDINGS F-123](../../docs/FINDINGS.md#f-123)). The other counts in this table don't change.
 
 "Reported clean" means OSV-Scanner reports *no* vulnerability at all for that package-version. A package can also have other, known vulnerabilities and still miss the advisory in limbo. Advisories already reviewed under another GHSA ID with the same CVE are excluded.
 

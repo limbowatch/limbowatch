@@ -1221,7 +1221,8 @@ def feed(m: dict[str, Any], sample: dict[str, Any] | None) -> str:
 <main class="wrap">
 <div style="padding-top:48px"><p class="eyebrow">OSV schema 1.6 · rebuilt daily · CC BY 4.0</p>
 <h1 class="page">The limbo feed</h1>
-<p class="sub" style="max-width:680px;font-size:18px">Every advisory in limbo ({total:,} today) as an OSV record, in the same
+<p class="sub" style="max-width:680px;font-size:18px">Every advisory in limbo as an OSV record, {total:,} today:
+{li["count"]:,} waiting for GitHub’s review, and {m["likely_permanent"]["count"]:,} in ecosystems GitHub doesn’t review. Same
 layout as OSV’s own bulk downloads. Use it to see what your scanner can’t yet.</p></div>
 <div class="adv-body" style="margin-top:48px">
 <section style="flex:3 1 560px"><h2 class="xs">Files</h2><div class="card files">

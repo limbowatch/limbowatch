@@ -155,3 +155,104 @@ def test_exact_version_beside_a_bound_is_an_alternative() -> None:
     assert affected("npm", "4.0.0", "<= 3.0.10, 4.0.0") is True
     assert affected("npm", "3.5.0", "<= 3.0.10, 4.0.0") is False
     assert affected("npm", "1.5.0", ">= 1.0.0, < 2.0.0") is True  # an ordinary AND is unchanged
+
+
+def test_commas_read_as_or_keep_each_interval_whole() -> None:
+    """Re-reading commas as OR pairs each lower bound with the upper bound after it; equal inclusive bounds are
+    one version, not a contradiction (F-123). Each of these used to cover every version."""
+    from limbowatch.versions import affected, alternatives, osv_ranges
+
+    two = ">= 2.2.0, < 2.2.10, >= 2.3.0, < 2.3.7"  # GHSA-5p7c-hggf-c748
+    assert alternatives("go", two) == [[(">=", "2.2.0"), ("<", "2.2.10")], [(">=", "2.3.0"), ("<", "2.3.7")]]
+    assert [affected("go", v, two) for v in ("2.1.0", "2.2.5", "2.2.12", "2.3.1", "2.3.7")] == [
+        False, True, False, True, False,
+    ]  # fmt: skip
+    assert osv_ranges("rust", ">=4.1.0, <4.1.7, >=4.2.0, <4.2.3", "4.2.3, 4.1.7") == (
+        [
+            {"type": "SEMVER", "events": [{"introduced": "4.1.0"}, {"fixed": "4.1.7"}]},
+            {"type": "SEMVER", "events": [{"introduced": "4.2.0"}, {"fixed": "4.2.3"}]},
+        ],
+        [],
+    )
+    one = ">= 3.8.8, <= 3.8.8"  # GHSA-4mwh-6232-9frp
+    assert alternatives("npm", one) == [[(">=", "3.8.8"), ("<=", "3.8.8")]]
+    assert [affected("npm", v, one) for v in ("3.8.7", "3.8.8", "3.8.9")] == [False, True, False]
+    assert affected("npm", "3.8.8", "> 3.8.8, <= 3.8.8") is None  # contradictory either way: can't be evaluated
+    assert affected("go", "0.6.0", "< 0.6.2, >= 0.7.0 < 0.7.2") is True  # a leading upper bound stays alone
+    assert affected("go", "0.6.5", "< 0.6.2, >= 0.7.0 < 0.7.2") is False
+
+
+def test_wildcard_versions_are_intervals() -> None:
+    """A wildcard such as "2.16.*" used to parse as "= 2.16." and match nothing (F-123)."""
+    from limbowatch.versions import affected, alternatives
+
+    assert alternatives("composer", "2.16.*,>=3.9.0,<3.26.0") == [
+        [(">=", "2.16.0"), ("<", "2.17.0")],
+        [(">=", "3.9.0"), ("<", "3.26.0")],
+    ]
+    assert affected("composer", "2.16.5", "2.16.*,>=3.9.0,<3.26.0") is True
+    assert affected("composer", "3.0.0", "2.16.*,>=3.9.0,<3.26.0") is False
+    assert affected("npm", "5.3.1", "5.*") is True
+    assert affected("npm", "6.0.0", "5.x") is False
+    assert affected("npm", "2.9.0", "<= 2.*") is True
+    assert affected("npm", "3.0.0", "<= 2.*") is False
+    assert affected("npm", "1.9.9", ">= 1.0.0, < 2.*") is True
+    assert alternatives("npm", ">=v2.0.1-beta.0, <=v2.0.0-rc.8") is None  # reversed bounds: can't be evaluated
+
+
+def test_intervals_without_commas_between_them() -> None:
+    from limbowatch.versions import affected, alternatives
+
+    r = ">= 2.8.0, < 2.8.8 >= 2.9.0, < 2.9.6 >= 2.10.0, < 2.10.8"
+    assert alternatives("composer", r) == [
+        [(">=", "2.8.0"), ("<", "2.8.8")],
+        [(">=", "2.9.0"), ("<", "2.9.6")],
+        [(">=", "2.10.0"), ("<", "2.10.8")],
+    ]
+    r = ">= 4.4.0, < 4.4.8 and >= 4.5.0, < 4.5.4"
+    assert [affected("pip", v, r) for v in ("4.4.7", "4.4.9", "4.5.3", "4.5.4")] == [True, False, True, False]
+    assert alternatives("npm", ">= 0.11.0, < 0.6.10") is None  # reversed bounds
+
+
+def test_composer_orders_four_part_and_patch_versions() -> None:
+    """univers read a fourth part as build metadata: 6.7.13.0 was neither below nor equal to 6.7.13.1 (F-123)."""
+    from limbowatch.versions import affected
+
+    r = ">=6.7.0.0 <6.7.13.1"  # Shopware-style
+    assert [affected("composer", v, r) for v in ("6.7.0.0", "6.7.13.0", "6.7.13.1", "6.7.14.0")] == [
+        True, True, False, False,
+    ]  # fmt: skip
+    assert affected("composer", "1.7.53.4", ">= 1.7.53, < 1.7.53.5") is True
+    assert affected("composer", "v1.2", "= 1.2.0") is True
+    assert affected("composer", "2.0.0-RC1", "< 2.0.0") is True
+    assert affected("composer", "2.0.0-beta2", ">= 2.0.0-alpha1, < 2.0.0-RC1") is True
+    assert affected("composer", "1.0.0-patch1", "<= 1.0.0") is False
+    assert affected("composer", "dev-main", "< 2.0.0") is None
+
+
+def test_comma_parts_that_together_cover_every_version_cant_be_evaluated() -> None:
+    from limbowatch.versions import alternatives
+
+    assert alternatives("nuget", ">= 9.0.0, < 9.0.0 >= 8.0.0, < 8.0.11") is None
+    assert alternatives("maven", ">= 0.11.0, 0 < 0.18.5") is None
+    # ordinary readings are kept
+    assert alternatives("composer", "< 19.4.6, 20 < 20.0.2") == [[("<", "19.4.6")], [(">=", "20"), ("<", "20.0.2")]]
+    assert alternatives("npm", "< 1.5.0, >= 2.0.0") == [[("<", "1.5.0")], [(">=", "2.0.0")]]
+    assert alternatives("go", "1.4.0~1.4.10, 1.5.0~1.5.2") == [
+        [(">=", "1.4.0"), ("<=", "1.4.10")],
+        [(">=", "1.5.0"), ("<=", "1.5.2")],
+    ]
+    assert alternatives("npm", "~1.2.3") == [[(">=", "1.2.3"), ("<", "1.3.0")]]
+
+
+def test_hyphen_spans_without_spaces() -> None:
+    """Packagist advisories often write "11.0.0-11.5.50"; read as one pre-release, it matched nothing (F-123)."""
+    from limbowatch.versions import affected
+
+    r = "<10.4.57, 11.0.0-11.5.50, 12.0.0-12.4.45"
+    assert [affected("composer", v, r) for v in ("10.4.56", "11.2.0", "11.5.51", "12.4.45", "12.4.46")] == [
+        True, True, False, True, False,
+    ]  # fmt: skip
+    assert affected("composer", "3.6.6.1", "<=3.5.8.1, 3.6.0-3.6.6.1") is True
+    assert affected("npm", "1.0.0-0.3.7", "= 1.0.0-0.3.7") is True  # a numeric pre-release stays one version
+    assert affected("maven", "3.0-20251107.114627", "< 3.0-20251107.114628") is True  # a timestamped version

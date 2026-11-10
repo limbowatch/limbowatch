@@ -257,6 +257,10 @@ def affected(ghsa_ecosystem: str, version: str, rng: str | None) -> bool | None:
         if "," in rng and (alts is None or any(not _satisfiable(cls, c) for c in alts)):
             # Unparseable as a whole or a contradictory AND (e.g. '<1.1.17, >= 2.0.0 < 2.1.3,
             # 4.0.0 - 5.0.7'): the maintainer used commas as OR. Re-read each comma segment.
+            # KNOWN ISSUE (FINDINGS F-123): lone bounds aren't paired, so '>= 1.5.5, < 1.6.10' becomes two
+            # alternatives that together cover more than the maintainer meant. Kept as is so the October snapshot
+            # reproduces; limbowatch.versions.alternatives has the fix. Re-checked with it, 1 of the 723 affected
+            # findings in this snapshot changes (gitea, GHSA-9wx9-5pv9-3349; noted in the report).
             segs = [parse_range(seg) for seg in re.split(r"\s*[,;]\s*(?=[<>=~^]|\d|v\d)", rng)]
             alts = None if any(sg is None for sg in segs) else [c for sg in segs for c in sg]  # type: ignore[union-attr]
         if alts is None:
