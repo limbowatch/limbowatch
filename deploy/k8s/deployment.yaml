@@ -6,6 +6,15 @@ metadata:
 spec:
   replicas: 1
   revisionHistoryLimit: 3
+  # Zero-downtime rollouts (FINDINGS F-125): the new pod is ready, and has been for 5 s, before the old one stops,
+  # and the old one keeps serving for 10 s after it's taken out of the endpoints, so Traefik never routes to a pod
+  # that's gone. Without this, a deploy returned 502s and a timeout for about 6 s.
+  minReadySeconds: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: limbowatch-site
@@ -15,6 +24,7 @@ spec:
         app: limbowatch-site
     spec:
       automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
       imagePullSecrets:
         - name: ghcr-pull-secret
       containers:
@@ -28,7 +38,12 @@ spec:
             httpGet:
               path: /
               port: 80
-            periodSeconds: 10
+            initialDelaySeconds: 1
+            periodSeconds: 2
+          lifecycle:
+            preStop:
+              sleep:
+                seconds: 10
           resources:
             requests:
               cpu: 10m

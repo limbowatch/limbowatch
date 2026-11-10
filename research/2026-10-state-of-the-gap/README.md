@@ -1,6 +1,6 @@
 # State of the Gap: security advisories in limbo (October 2026)
 
-Snapshot taken 2026-10-22, published 2026-11-10. Limbowatch research. Before publication, every number was recomputed from the data and every claim checked against its source ([FINDINGS F-120](../../docs/FINDINGS.md#f-120)).
+Snapshot taken 2026-10-22, published 2026-11-10. Limbowatch research. Before publication, every number was recomputed from the data and every claim checked against its source ([FINDINGS F-120](../../docs/FINDINGS.md#f-120)). Matching was then rerun with the live tracker's corrected range parser, from the snapshot's own cached responses ([F-123](../../docs/FINDINGS.md#f-123), [F-124](../../docs/FINDINGS.md#f-124)). Three advisory counts in Findings 4 and 5 changed by one, and no package-version count changed.
 
 > When a maintainer publishes a security advisory on GitHub, most dependency scanners can't see it until GitHub reviews it into the global Advisory Database. We measured that waiting period, which we call **limbo**, across the dependencies of fifteen popular open-source projects: five hosted on GitHub and ten hosted elsewhere (GitLab, Codeberg, Tor, GNOME, Framagit, SourceHut).
 
@@ -134,11 +134,11 @@ We read every lockfile of each project with OSV-Scanner v2.7.0. We then matched 
 |---|---:|---:|---:|---:|---:|
 | [n8n-io/n8n](https://github.com/n8n-io/n8n) (`7d2e358`) | 3,988 | 33 | 26 | 50 | 24 |
 | [langchain-ai/langchain](https://github.com/langchain-ai/langchain) (`f4e6cde`) | 2,513 | 23 | 21 | 53 | 18 |
-| [open-webui/open-webui](https://github.com/open-webui/open-webui) (`91ea4e3`) | 2,083 | 18 | 10 | 58 | 18 |
-| [go-gitea/gitea](https://github.com/go-gitea/gitea) (`facc0f2`) | 1,197 | 6 | 4 | 15¹ | 9 |
+| [open-webui/open-webui](https://github.com/open-webui/open-webui) (`91ea4e3`) | 2,083 | 18 | 10 | 59 | 19 |
+| [go-gitea/gitea](https://github.com/go-gitea/gitea) (`facc0f2`) | 1,197 | 6 | 4 | 15 | 9 |
 | [kubernetes/kubernetes](https://github.com/kubernetes/kubernetes) (`8f5bbad`) | 2,042 | 3 | 3 | 4 | 3 |
 
-¹ `summary.json` says 16. One medium advisory, GHSA-9wx9-5pv9-3349 (seroval, `< 1.0.0, >= 1.5.5, < 1.6.10`), was counted because the pipeline read `< 1.6.10` as an alternative of its own. Read as two ranges it doesn't cover the 1.5.4 gitea ships ([FINDINGS F-123](../../docs/FINDINGS.md#f-123)). The other counts in this table don't change.
+*Corrected 2026-11-10.* Gitea was 16 and open-webui 58 (18 high/critical). The first matching read `< 1.0.0, >= 1.5.5, < 1.6.10` (seroval GHSA-9wx9-5pv9-3349) as covering gitea's 1.5.4, and missed lib0 0.2.117 inside `0.2.1-0.2.117` (GHSA-r5c8-rf4w-qrq8, high). Both packages were already counted through other advisories, so the package-version columns don't change.
 
 "Reported clean" means OSV-Scanner reports *no* vulnerability at all for that package-version. A package can also have other, known vulnerabilities and still miss the advisory in limbo. Advisories already reviewed under another GHSA ID with the same CVE are excluded.
 
@@ -174,7 +174,7 @@ Moving your code off GitHub doesn't move your dependencies' advisories: they're 
 
 | Project (host) | Package entries | Affected package-versions | …reported clean by OSV-Scanner | Advisories in limbo affecting it | of which high/critical |
 |---|---:|---:|---:|---:|---:|
-| [GitLab](https://gitlab.com/gitlab-org/gitlab) (gitlab.com) | 7,932 | 32 | 14 | 35 | 16 |
+| [GitLab](https://gitlab.com/gitlab-org/gitlab) (gitlab.com) | 7,932 | 32 | 14 | 36 | 17 |
 | [Forgejo](https://codeberg.org/forgejo/forgejo) (codeberg.org) | 2,123 | 9 | 7 | 22 | 11 |
 | [GoToSocial](https://codeberg.org/superseriousbusiness/gotosocial) (codeberg.org) | 1,196 | 8 | 5 | 14 | 9 |
 | [Arti](https://gitlab.torproject.org/tpo/core/arti) (gitlab.torproject.org) | 2,389 | 7 | 2 | 10 | 2 |
@@ -201,7 +201,7 @@ Mobilizon's Elixir dependencies (`mix.lock`) were read but couldn't be mapped to
 
 - **Reserved but public (RBP).** 27 unique advisories in limbo cite a CVE ID whose record is still `RESERVED`, as CVE Services' public `cve-id` endpoint shows. 25 are past the 72 hours the CVE Program's RBP policy expects (see [rbptracker.org](https://rbptracker.org)), and the oldest has waited 119 days.
 - **CVEs the advisory doesn't mention.** For 23 unique advisories in limbo, a CVE that references the advisory exists in the CVE List even though the advisory cites none. All but one were assigned by **VulnCheck** (the other by Tenable). Example: [CVE-2026-110858](https://www.cve.org/CVERecord?id=CVE-2026-110858) for GitPython GHSA-f9j4-qggq-h239. For these, CVE-keyed tools can see the vulnerability while GitHub/OSV-based scanners can't, the reverse of the usual gap.
-- **NVD.** We looked up in NVD the 44 CVEs cited by advisories in limbo that affect a package in the GitHub-hosted projects. 10 are still reserved, so NVD has no record of them. Of the other 34, published, NVD had enriched only half: 17 have neither NIST CVSS nor CPE data (12 Awaiting Analysis, 2 Undergoing Analysis, 3 Deferred). Review doesn't fix this. In a random 60 CVEs on reviewed advisories that affect those projects' packages, 16 of the 53 published ones aren't enriched either; of the other 7, 5 are rejected and 2 still reserved. Tools that match on NVD CPEs miss them too.
+- **NVD.** We looked up in NVD the 44 CVEs cited by advisories in limbo that affect a package in the GitHub-hosted projects (the corrected matching adds a 45th, lib0's CVE-2026-102360, which wasn't looked up on 2026-10-22). 10 are still reserved, so NVD has no record of them. Of the other 34, published, NVD had enriched only half: 17 have neither NIST CVSS nor CPE data (12 Awaiting Analysis, 2 Undergoing Analysis, 3 Deferred). Review doesn't fix this. In a random 60 CVEs on reviewed advisories that affect those projects' packages, 16 of the 53 published ones aren't enriched either; of the other 7, 5 are rejected and 2 still reserved. Tools that match on NVD CPEs miss them too.
 
 ## Three days later: the follow-up check
 
@@ -227,12 +227,12 @@ Review happens in batches: nothing for days, then dozens at once. Meanwhile new 
 
 Unreviewed advisories are entered by maintainers, and that data is noisy. Every one of these problems is handled automatically and reported, never guessed:
 
-- **Ranges contradict the fix.** 222 of 1,416 package matches (16%) are "in range" yet at or past the advisory's own fixed version. Examples:
+- **Ranges contradict the fix.** 213 of 1,391 package matches (15%) are "in range" yet at or past the advisory's own fixed version. Examples:
   - quinn-proto: `>= 0.11.15` (no upper bound), fixed in 0.11.17.
   - go-jose: `< v4.1.5`, fixed in v4.1.4.
 
-  Both examples are from the off-GitHub set, which has 132 such matches. We count these as *unknown*, not affected.
-- **Free-form ranges.** Maintainers write `≤`, `;`, `7.0.0 < 7.29.0`, `0.15.0 and earlier`, and commas meaning "or". Our parser handles these; 61 matches (4.3%) remain prose like "all" and stay unknown.
+  Both examples are from the off-GitHub set, which has 123 such matches. We count these as *unknown*, not affected.
+- **Free-form ranges.** Maintainers write `≤`, `;`, `7.0.0 < 7.29.0`, `0.15.0 and earlier`, `2.16.*`, `11.0.0-11.5.50`, and commas meaning "or" (`>= 2.2.0, < 2.2.10, >= 2.3.0, < 2.3.7`). Our parser handles these, and "all" means every version. 27 matches (1.9%) stay unknown: prose (`All version prior and including to 8.0.0, 7.31.0, 5.10`) or ranges that contradict themselves (`>= 0.11.0, < 0.6.10`).
 - **Wrong Go module.** Several advisories name `module` when they mean `module/v2`, or the reverse. Go treats these as different modules, so we report such matches as unknown (2 here, 27 in the off-GitHub set).
 - **Duplicates.** 5 advisories (13 in the off-GitHub set) share a CVE with an advisory GitHub already reviewed under a different GHSA ID. They're excluded. Title similarity alone only *flags* possible duplicates (3 and 2; the stricter check in [Automated verification](#automated-verification) keeps 2 and 1), because titles from the same project share boilerplate.
 - **A CVE from another product.** One [cdxgen advisory](https://github.com/cdxgen/cdxgen/security/advisories/GHSA-j59w-7c4x-4xgw) cites Node.js's CVE-2025-27210.
@@ -279,7 +279,7 @@ Nobody should have to check these claims by hand. Web search results and AI summ
 | Mapping | Go `github.com/` module paths, otherwise [deps.dev](https://deps.dev) `SOURCE_REPO` (attested provenance preferred). 96.1% and 88.8% of unique package-versions mapped. The 427 + 1,099 entries we couldn't check (no version, no repo, unsupported ecosystem) are listed in `unresolved.csv`, not dropped. |
 | Advisories | `GET /repos/{owner}/{repo}/security-advisories?state=published` for every upstream repo: 3,293 + 4,061 polled. |
 | Status | OSV `GET /v1/vulns/{GHSA}` for every advisory. GitHub `GET /advisories/{GHSA}` for every one missing from OSV, plus 200 random present ones. CVE Services `cve` and `cve-id`. NVD API 2.0 for every CVE cited by an advisory in limbo that affects a project's package, plus a random 60 cited by reviewed advisories that do. |
-| Matching | The advisory's package (ecosystem + normalized name; strict Go module paths) and the advisory's repo had to equal our mapped repo. The maintainer's range was evaluated against the exact version with [univers](https://github.com/aboutcode-org/univers) comparators, then cross-checked against the fixed version on the same release line. |
+| Matching | The advisory's package (ecosystem + normalized name; strict Go module paths) and the advisory's repo had to equal our mapped repo. The maintainer's range was evaluated against the exact version with the live tracker's parser (`limbowatch.versions`: [univers](https://github.com/aboutcode-org/univers) comparators, a Composer ordering for Packagist), then cross-checked against the fixed version on the same release line. |
 | Verification | Stage 8, described in [Automated verification](#automated-verification). |
 | Review lag | The 1,000 most recently reviewed advisories: repo advisory `published_at` vs global `github_reviewed_at` (the global `published_at` equals the review time). |
 
@@ -328,7 +328,12 @@ uv run s1_inventory.py && uv run s2_map.py && uv run s3_poll.py && uv run s4_sta
 uv run s5_review_lag.py && uv run s8_verify.py && uv run s6_analyze.py && uv run s7_charts.py
 # later: re-check a snapshot's advisories in limbo against today's CVE List release
 SNAPSHOT_DATE=2026-10-22 CVELIST_RELEASE=cve_2026-10-25_0900Z uv run s9_followup.py
+# redo the matching of an existing snapshot from its cache only (how the 2026-11-10 correction was made)
+SNAPSHOT_DATE=2026-10-22 OFFLINE=1 uv run s4_status.py && SNAPSHOT_DATE=2026-10-22 OFFLINE=1 uv run s6_analyze.py
+SNAPSHOT_DATE=2026-10-22-offgithub HTTP_CACHE_NS=flat OFFLINE=1 uv run s4_status.py   # then s6 the same way
 ```
+
+- **Offline reruns:** with `OFFLINE=1`, a response the snapshot never fetched is recorded as *not checked* and today's state is never fetched. The 2026-11-10 rerun had 1 such CVE in NVD per set, and 2 CVE states for reviewed advisories off GitHub. The off-GitHub snapshot predates the per-snapshot cache, hence `HTTP_CACHE_NS=flat`.
 
 - **CVE List:** `s8_verify.py` needs the bulk export (about 610 MB, [cvelistV5 releases](https://github.com/CVEProject/cvelistV5/releases)) saved as `.cache/cvelist/all.zip.zip`.
 - **Cost:** a full run of the GitHub-hosted set takes about 5,000 GitHub API requests.

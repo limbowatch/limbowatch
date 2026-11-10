@@ -1,6 +1,9 @@
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["httpx", "univers"]
+# dependencies = ["httpx", "univers", "limbowatch"]
+#
+# [tool.uv.sources]
+# limbowatch = { path = "../../../packages/core" }
 # ///
 """Stage 1: inventory. Sparse-clone lockfiles of each project, run OSV-Scanner --all-packages.
 

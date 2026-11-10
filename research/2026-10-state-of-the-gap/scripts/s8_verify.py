@@ -1,6 +1,9 @@
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["httpx", "univers"]
+# dependencies = ["httpx", "univers", "limbowatch"]
+#
+# [tool.uv.sources]
+# limbowatch = { path = "../../../packages/core" }
 # ///
 """Stage 8: automated verification of every advisory in limbo. No manual checking.
 
@@ -78,10 +81,18 @@ def tokens(s: str) -> set[str]:
            {w for w in WORD.findall(s.lower()) if w not in GENERIC}
 
 
+def linked_ghsas(rec: dict) -> set[str]:
+    """GHSA IDs the record links to: in its references or `source` only. A description that names another advisory
+    ("similar to but different from GHSA-…") isn't a link (FINDINGS F-120)."""
+    cna = (rec.get("containers") or {}).get("cna") or {}
+    refs = [[r.get("url"), r.get("name")] for r in cna.get("references") or [] if isinstance(r, dict)]
+    return {g.upper() for g in GHSA_RE.findall(json.dumps([refs, cna.get("source")]))}
+
+
 def build_index(repos: set[str], ghsas: set[str]) -> dict:
     """Scan every CVE record once; keep only what touches our repos or GHSA IDs."""
     ghsas = {g.upper() for g in ghsas}  # GHSA IDs are case-insensitive; CVE records vary
-    cache = CACHE / "cvelist" / f"index-v2-{CVELIST_RELEASE}-{len(repos)}-{len(ghsas)}.json"
+    cache = CACHE / "cvelist" / f"index-v3-{CVELIST_RELEASE}-{len(repos)}-{len(ghsas)}.json"  # v3: links per F-120
     if cache.exists():
         return load_json(cache)
     by_ghsa: dict[str, list[str]] = defaultdict(list)
@@ -95,9 +106,11 @@ def build_index(repos: set[str], ghsas: set[str]) -> dict:
             n += 1
             raw = z.read(name)
             text = raw.decode("utf-8", "replace")
-            hit_g = {g.upper() for g in GHSA_RE.findall(text)} & ghsas
-            hit_r = {f"{o}/{r}".lower().removesuffix(".git") for o, r in GH_REPO_RE.findall(text)} & repos
+            if not (GHSA_RE.search(text) or GH_REPO_RE.search(text)):
+                continue
             rec = json.loads(raw)
+            hit_g = linked_ghsas(rec) & ghsas
+            hit_r = {f"{o}/{r}".lower().removesuffix(".git") for o, r in GH_REPO_RE.findall(text)} & repos
             md = rec.get("cveMetadata", {})
             cna = (rec.get("containers") or {}).get("cna") or {}
             if md.get("assignerShortName") == "GitHub_M":
@@ -154,8 +167,7 @@ async def main() -> None:
         lr = await asyncio.gather(*(http.get(f"https://cveawg.mitre.org/api/cve/{c}") for c in missing))
         for c, (s, b, _) in zip(missing, lr):
             if s == 200 and isinstance(b, dict):
-                txt = json.dumps(b)
-                recs[c] = {**summarize(b, {x.upper() for x in GHSA_RE.findall(txt)}, set()), "source": "cve_services_live"}
+                recs[c] = {**summarize(b, linked_ghsas(b), set()), "source": "cve_services_live"}
         log(f"cited CVEs newer than the bulk snapshot, fetched live: {len(missing)}")
         all_cves = sorted({c for v in linked.values() for c in v})
         gc_res = await asyncio.gather(*(http.get(f"https://api.github.com/advisories?cve_id={c}&per_page=100") for c in all_cves))

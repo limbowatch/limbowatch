@@ -17,6 +17,7 @@ CVE-2026-101904,True,False,reviewed,False,Awaiting Analysis
 CVE-2026-101917,True,True,reviewed,True,Analyzed
 CVE-2026-101918,True,True,reviewed,True,Analyzed
 CVE-2026-102267,True,True,reviewed,True,Analyzed
+CVE-2026-102360,,,limbo,,not checked
 CVE-2026-102521,True,False,limbo,False,Awaiting Analysis
 CVE-2026-102999,True,True,reviewed,True,Analyzed
 CVE-2026-103000,True,True,reviewed,True,Analyzed

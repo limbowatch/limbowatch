@@ -1666,6 +1666,30 @@ Answered:
   - Independent recomputation found what tests built on the same code didn't. Repeat it before each release.
 - **Sources:** live GitHub, OSV and CVE Services responses (scratchpad); `tracker-data` 22d09c5; OSV schema from ossf/osv-schema `validation/schema.json`; research data folders.
 
+### F-124
+- **Date:** 2026-11-10 · **Status:** confirmed (rerun from the snapshots' caches). **Updates F-055's per-project counts.**
+- **Question:** What does the October report say when its matching uses the corrected parser (F-123)?
+- **Method:**
+  - The research pipeline now evaluates ranges with `limbowatch.versions` (`affected`, `already_fixed`, `VERSION_CLASS`; the scripts depend on `packages/core`).
+  - Stage 4 was rerun with `OFFLINE=1`, then stage 6. A response the snapshot never fetched is recorded as "not checked", never fetched today. The reviewed NVD sample is the one the snapshot drew.
+  - `2026-10-22-offgithub` was read from the pre-namespace flat cache (`HTTP_CACHE_NS=flat`). It was last written on 2026-10-22, before that snapshot's summary.
+  - Stage 8 (live verification) and stage 9 (follow-up) were not rerun. Their code now links CVEs through references or source only (F-120), and stage 9 counts only links added since the snapshot.
+- **Result:**
+  - **Unchanged:** the 268/217 advisories in limbo (415 unique), the classes, every package-version count (105 reported clean per project, 92 distinct; 13 of 14 projects), the verification verdicts and the charts.
+  - **Advisories in limbo affecting a project:**
+    - gitea 16 → 15 (GHSA-9wx9-5pv9-3349 no longer matches seroval 1.5.4).
+    - open-webui 58 → 59 and GitLab 35 → 36, high/critical 18 → 19 and 16 → 17. lib0 0.2.117 is inside `0.2.1-0.2.117` (GHSA-r5c8-rf4w-qrq8, high, verified in limbo). It was already counted through GHSA-g75x-89c3-rvmr, so the package-version counts don't move.
+  - **Matching, GitHub-hosted set:**
+    - 1,532 → 1,507 matches. Of 1,391 with package data, ranges contradicting the fix 222 → 213 (15%) and unparseable 61 → 27 (1.9%).
+    - langchain's mistune 3.3.3 against `>=3.0.0 & <=3.2.1` is now "not affected" instead of unknown.
+  - **Matching, off GitHub:** 2,300 → 2,272; contradicting 132 → 123; unparseable 134 → 76.
+  - **Offline gaps:** NVD for 1 new limbo CVE per set (CVE-2026-102360, lib0) and 2 CVE states of reviewed advisories off GitHub, recorded as not checked.
+- **Caveats:**
+  - The rerun reads the same cached responses as 2026-10-22. Only the parser differs.
+  - "all" is now read as every version (the tracker's rule). The research parser used to leave it unknown; no advisory in limbo was affected by that.
+- **Implication:** The report and the tracker now read every range the same way. The report's tables and data-quality figures are updated, and `summary.json` matches them again.
+- **Sources:** `research/2026-10-state-of-the-gap/data/{2026-10-22,2026-10-22-offgithub}/` (regenerated); `.cache/http/` (not committed).
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

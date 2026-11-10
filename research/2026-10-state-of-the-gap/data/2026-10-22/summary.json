@@ -63,8 +63,8 @@
   "count_excluding_likely_duplicates": 263,
   "count_excluding_possible_duplicates": 260,
   "duplicate_signals": {
-   "not_checked": 162,
-   "summary_similarity": 106
+   "not_checked": 164,
+   "summary_similarity": 104
   },
   "likely_duplicates": 5,
   "possible_duplicates": 3,
@@ -73,16 +73,16 @@
  },
  "matching": {
   "eval": {
-   "None": 401,
-   "True": 1131
+   "None": 358,
+   "True": 1149
   },
   "eval_unknown_reasons": {
    "go_major_version_module_mismatch": 2,
    "no_package_data": 116,
-   "range_contradicts_fixed_version": 222,
-   "range_unparseable": 61
+   "range_contradicts_fixed_version": 213,
+   "range_unparseable": 27
   },
-  "hits": 1532
+  "hits": 1507
  },
  "nvd": {
   "limbo": {
@@ -90,7 +90,8 @@
    "enriched (NIST CVSS or CPE)": 17,
    "not enriched: Awaiting Analysis": 12,
    "not enriched: Deferred": 3,
-   "not enriched: Undergoing Analysis": 2
+   "not enriched: Undergoing Analysis": 2,
+   "not enriched: not checked": 1
   },
   "reviewed": {
    "absent": 2,
@@ -115,10 +116,10 @@
    "affected_packages_osv_scanner_reports_clean": 4,
    "commit": "facc0f2b15460a545151dfb324aa1ef66ccae695",
    "high_or_critical": 9,
-   "limbo_advisories_affecting": 16,
-   "limbo_findings_excluding_likely_duplicates": 16,
+   "limbo_advisories_affecting": 15,
+   "limbo_findings_excluding_likely_duplicates": 15,
    "limbo_findings_needing_review": 1,
-   "limbo_findings_version_affected": 16,
+   "limbo_findings_version_affected": 15,
    "lockfiles": 3,
    "packages": 1197
   },
@@ -141,7 +142,7 @@
    "high_or_critical": 18,
    "limbo_advisories_affecting": 53,
    "limbo_findings_excluding_likely_duplicates": 127,
-   "limbo_findings_needing_review": 9,
+   "limbo_findings_needing_review": 6,
    "limbo_findings_version_affected": 127,
    "lockfiles": 22,
    "packages": 2513
@@ -162,11 +163,11 @@
    "affected_packages": 18,
    "affected_packages_osv_scanner_reports_clean": 10,
    "commit": "91ea4e3421d1d8069f13d4a463fcb5986d94ea60",
-   "high_or_critical": 18,
-   "limbo_advisories_affecting": 58,
-   "limbo_findings_excluding_likely_duplicates": 96,
+   "high_or_critical": 19,
+   "limbo_advisories_affecting": 59,
+   "limbo_findings_excluding_likely_duplicates": 97,
    "limbo_findings_needing_review": 5,
-   "limbo_findings_version_affected": 96,
+   "limbo_findings_version_affected": 97,
    "lockfiles": 5,
    "packages": 2083
   }

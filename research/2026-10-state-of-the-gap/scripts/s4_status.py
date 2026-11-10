@@ -1,6 +1,9 @@
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["httpx", "univers"]
+# dependencies = ["httpx", "univers", "limbowatch"]
+#
+# [tool.uv.sources]
+# limbowatch = { path = "../../../packages/core" }
 # ///
 """Stage 4: status of every repo advisory across sources, and matching to dependency versions.
 
@@ -21,11 +24,12 @@ from __future__ import annotations
 import asyncio
 import os
 import random
+from typing import Any
 import re
 from collections import Counter
 from urllib.parse import quote
 
-from common import DATA, ECOSYSTEMS, SNAPSHOT, Http, affected, already_fixed, load_json, log, name_matches, save_json
+from common import DATA, ECOSYSTEMS, SNAPSHOT, Http, NotCached, affected, already_fixed, load_json, log, name_matches, save_json
 
 OSV_PROXY_SAMPLE = 200
 NVD_REVIEWED_SAMPLE = 60
@@ -80,8 +84,25 @@ def match_hits(inv: dict, mapping: dict, repo_adv: dict) -> list[dict]:
     return hits
 
 
+MISSES: list[str] = []
+
+
+async def from_cache(client: Http, url: str) -> tuple[int, Any, dict[str, str]]:
+    """GET, but on an OFFLINE=1 rerun a response the snapshot never fetched is "not checked" (status 0), never
+    today's data. Each one is logged."""
+    try:
+        return await client.get(url)
+    except NotCached:
+        MISSES.append(url)
+        return 0, None, {}
+
+
 async def main() -> None:
     random.seed(20261021)
+    # A rerun from cache (OFFLINE=1) keeps the reviewed NVD sample the snapshot drew: matches can change when the
+    # range parser is fixed, and a fresh draw would need NVD data from today (FINDINGS F-123)
+    prev = load_json(DATA / SNAPSHOT / "status.json") if (DATA / SNAPSHOT / "status.json").exists() else {}
+    prev_reviewed = sorted(c for c, v in (prev.get("nvd") or {}).items() if v.get("group") == "reviewed")
     d = DATA / SNAPSHOT
     inv = load_json(d / "inventory.json")["projects"]
     mapping = load_json(d / "mapping.json")["mapping"]
@@ -115,7 +136,7 @@ async def main() -> None:
         in_limbo = {g for g in ids if not osv[g]["present"] and glob.get(g, {}).get("type") != "reviewed"}
         # 3) CVE state: all limbo advisories with a CVE + all hit advisories with a CVE
         cves = sorted({advs[g]["cve_id"] for g in in_limbo | {h["ghsa"] for h in hits} if advs[g].get("cve_id")})
-        res = await asyncio.gather(*(http.get(f"https://cveawg.mitre.org/api/cve/{c}") for c in cves))
+        res = await asyncio.gather(*(from_cache(http, f"https://cveawg.mitre.org/api/cve/{c}") for c in cves))
         cve_state: dict[str, dict] = {}
         need_id = []
         for c, (s, b, _) in zip(cves, res):
@@ -124,14 +145,15 @@ async def main() -> None:
                 cve_state[c] = {"state": md.get("state"), "published": md.get("datePublished"), "cna": md.get("assignerShortName")}
             else:
                 need_id.append(c)
-        res = await asyncio.gather(*(http.get(f"https://cveawg.mitre.org/api/cve-id/{c}") for c in need_id))
+        res = await asyncio.gather(*(from_cache(http, f"https://cveawg.mitre.org/api/cve-id/{c}") for c in need_id))
         for c, (s, b, _) in zip(need_id, res):
-            cve_state[c] = {"state": (b or {}).get("state", f"http_{s}") if isinstance(b, dict) else f"http_{s}", "published": None, "cna": None}
+            state = "not checked" if s == 0 else ((b or {}).get("state", f"http_{s}") if isinstance(b, dict) else f"http_{s}")
+            cve_state[c] = {"state": state, "published": None, "cna": None}
         log(f"CVE states: {dict(Counter(v['state'] for v in cve_state.values()))}")
         # 5) duplicates for limbo hits
         limbo_hits = [h for h in hits if h["ghsa"] in in_limbo]
         pkgs = sorted({(ECOSYSTEMS[h["ecosystem"]][0], h["name"]) for h in limbo_hits if h["match"] == "package_and_repo"})
-        res = await asyncio.gather(*(gh.get(f"https://api.github.com/advisories?type=reviewed&ecosystem={e}&affects={quote(n, safe='')}&per_page=100")
+        res = await asyncio.gather(*(from_cache(gh, f"https://api.github.com/advisories?type=reviewed&ecosystem={e}&affects={quote(n, safe='')}&per_page=100")
                                      for e, n in pkgs))
         reviewed_by_pkg = {k: (b if s == 200 and isinstance(b, list) else []) for k, (s, b, _) in zip(pkgs, res)}
         dups = {}
@@ -165,13 +187,20 @@ async def main() -> None:
         # 6) NVD (cached per CVE, so reruns resume)
         limbo_cves = sorted({advs[h["ghsa"]]["cve_id"] for h in limbo_hits if advs[h["ghsa"]].get("cve_id")})
         rev_cves = sorted({advs[h["ghsa"]]["cve_id"] for h in hits if h["ghsa"] not in in_limbo and advs[h["ghsa"]].get("cve_id")})
-        nvd_list = limbo_cves + random.sample(rev_cves, min(NVD_REVIEWED_SAMPLE, len(rev_cves)))
+        rev_sample = (prev_reviewed if os.environ.get("OFFLINE") == "1" and prev_reviewed
+                      else random.sample(rev_cves, min(NVD_REVIEWED_SAMPLE, len(rev_cves))))
+        nvd_list = limbo_cves + [c for c in rev_sample if c not in limbo_cves]
         delay = 0.7 if os.environ.get("NVD_API_KEY") else 6.5
         log(f"NVD: {len(limbo_cves)} limbo + {min(NVD_REVIEWED_SAMPLE, len(rev_cves))} reviewed-sample CVEs, {delay}s spacing")
         nvd_http = Http(concurrency=1)
         for i, c in enumerate(nvd_list):
             cached = nvd_http._cache_path("GET", f"https://services.nvd.nist.gov/rest/json/cves/2.0?cveId={c}", None).exists() and not nvd_http.refresh
-            s, b, _ = await nvd_http.get(f"https://services.nvd.nist.gov/rest/json/cves/2.0?cveId={c}")
+            try:
+                s, b, _ = await nvd_http.get(f"https://services.nvd.nist.gov/rest/json/cves/2.0?cveId={c}")
+            except NotCached:
+                # a rerun from cache found a CVE the original run didn't look up: say so, don't fetch today's state
+                status["nvd"][c] = {"status": "not checked", "group": "limbo" if c in limbo_cves else "reviewed"}
+                continue
             if s == 200 and isinstance(b, dict) and b.get("vulnerabilities"):
                 cv = b["vulnerabilities"][0]["cve"]
                 status["nvd"][c] = {"status": cv.get("vulnStatus"), "group": "limbo" if c in limbo_cves else "reviewed",
@@ -188,6 +217,8 @@ async def main() -> None:
         save_json(d / "status.json", status)
         log(f"NVD: {dict(Counter((v['group'], v['status']) for v in status['nvd'].values()))}")
         log(f"http stats {http.stats} {gh.stats}")
+        if MISSES:
+            log(f"OFFLINE rerun: {len(MISSES)} responses the snapshot never fetched, recorded as not checked: {MISSES[:10]}")
     finally:
         await http.close()
         await gh.close()

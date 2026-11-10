@@ -1,6 +1,9 @@
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["httpx", "univers"]
+# dependencies = ["httpx", "univers", "limbowatch"]
+#
+# [tool.uv.sources]
+# limbowatch = { path = "../../../packages/core" }
 # ///
 """Stage 9: follow-up. What happened to a snapshot's advisories in limbo since the snapshot?
 
@@ -93,8 +96,11 @@ async def main() -> None:
             changes.append(f"advisory now cites {cited or 'no CVE'} (was {snap['cve_id'] or 'none'})")
         if snap["cve_state"] == "RESERVED" and cstate == "PUBLISHED":
             changes.append("reserved CVE was published")
-        if uncited and v.get("verdict") != "IN_LIMBO_CVE_FOUND_IN_CVE_LIST":
-            changes.append(f"new CVE by another CNA: {';'.join(uncited)}")
+        # new = not linked on the snapshot day; that includes CVEs the snapshot already knew for a duplicate
+        # (gorilla/websocket, moby: FINDINGS F-120)
+        known = {c for c in v.get("other_cves", "").split(";") if c}
+        if added := [c for c in uncited if c not in known]:
+            changes.append(f"new CVE by another CNA: {';'.join(added)}")
         rows.append({
             "ghsa_id": g, "repo": snap["repo"], "severity": snap["severity"], "checked_at": checked_at,
             "snapshot_class": snap["class"], "snapshot_cve": snap["cve_id"], "snapshot_cve_status": snap_cve,

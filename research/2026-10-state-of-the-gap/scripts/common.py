@@ -2,7 +2,7 @@
 
 - Disk-cached async HTTP with retries, Retry-After / X-RateLimit awareness.
 - GitHub token from GITHUB_TOKEN or `gh auth token`; never printed or cached.
-- Tolerant evaluation of maintainer-entered version ranges (FINDINGS F-030).
+- Maintainer-entered version ranges, via limbowatch.versions (FINDINGS F-030, F-123).
 """
 
 from __future__ import annotations
@@ -19,13 +19,11 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from univers.versions import (
-    ComposerVersion,
-    GolangVersion,
-    PypiVersion,
-    RubygemsVersion,
-    SemverVersion,
-)
+
+# Maintainer ranges are read by the tracker's own parser, so the research and limbo.watch agree on every range
+# (FINDINGS F-123). The October snapshots were first produced with an earlier copy of it; stage 4 was rerun on
+# 2026-11-10 from its cache.
+from limbowatch.versions import VERSION_CLASS, affected, already_fixed  # noqa: F401  (re-exported for s4)
 
 ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / ".cache"
@@ -44,14 +42,6 @@ ECOSYSTEMS: dict[str, tuple[str, str | None, str]] = {
     "RubyGems": ("rubygems", "rubygems", "RubyGems"),
     "Maven": ("maven", "maven", "Maven"),
     "NuGet": ("nuget", "nuget", "NuGet"),
-}
-VERSION_CLASS = {
-    "npm": SemverVersion,
-    "pip": PypiVersion,
-    "go": GolangVersion,
-    "rust": SemverVersion,
-    "composer": ComposerVersion,
-    "rubygems": RubygemsVersion,
 }
 
 
@@ -81,6 +71,10 @@ def load_json(path: Path) -> Any:
     return json.loads(path.read_text())
 
 
+class NotCached(SystemExit):
+    """OFFLINE=1 and the response isn't in the snapshot's cache."""
+
+
 class Http:
     """Async client with an on-disk response cache (body + status + selected headers)."""
 
@@ -100,6 +94,9 @@ class Http:
         # (an Oct 22 refresh must never leak into an Oct 21 snapshot). deps.dev mappings are stable.
         key = hashlib.sha256(json.dumps([method, url, body], sort_keys=True).encode()).hexdigest()
         ns = SNAPSHOT if any(h in url for h in TIME_VARYING_HOSTS) else "shared"
+        if os.environ.get("HTTP_CACHE_NS") == "flat":
+            # the layout before per-snapshot caching: the 2026-10-22-offgithub snapshot was measured with it
+            return CACHE / "http" / key[:2] / f"{key}.json"
         return CACHE / "http" / ns / key[:2] / f"{key}.json"
 
     async def request(self, method: str, url: str, json_body: Any = None, use_cache: bool = True) -> tuple[int, Any, dict[str, str]]:
@@ -108,6 +105,9 @@ class Http:
             c = load_json(cp)
             self.stats["cache_hit"] = self.stats.get("cache_hit", 0) + 1
             return c["status"], c["body"], c["headers"]
+        if os.environ.get("OFFLINE") == "1":
+            # OFFLINE=1: rerun a stage from its cache only. A miss would mix today's data into an old snapshot.
+            raise NotCached(f"OFFLINE=1 and not cached: {method} {url[:120]}")
         headers: dict[str, str] = {}
         is_gh = url.startswith("https://api.github.com/")
         if is_gh:
@@ -174,151 +174,7 @@ class Http:
         return out
 
 
-# ---------------------------------------------------------------- version ranges
-
-_OP = r"(?:<=|>=|=<|=>|==|!=|<|>|=)"
-_VER = r"v?\d[0-9A-Za-z.\-+_]*"
-_TOKEN = re.compile(rf"({_OP})?\s*({_VER}|\*)")
-
-
-def _caret_tilde(op: str, ver: str) -> list[tuple[str, str]] | None:
-    parts = re.match(r"v?(\d+)(?:\.(\d+))?(?:\.(\d+))?(.*)$", ver)
-    if not parts:
-        return None
-    major, minor, patch = (int(x) if x else 0 for x in parts.groups()[:3])
-    lo = ver.lstrip("v")
-    if op == "~":
-        return [(">=", lo), ("<", f"{major}.{minor + 1}.0")]
-    if major > 0:
-        return [(">=", lo), ("<", f"{major + 1}.0.0")]
-    if minor > 0:
-        return [(">=", lo), ("<", f"0.{minor + 1}.0")]
-    return [(">=", lo), ("<", f"0.0.{patch + 1}")]
-
-
-def parse_range(rng: str) -> list[list[tuple[str, str]]] | None:
-    """Parse a range into OR-ed alternatives of AND-ed (op, version) constraints.
-
-    Accepts canonical GHSA syntax ('>= 1.0, < 1.2.3'), npm-style ('>=5.0.0-beta.0 <7.1.0',
-    '^1.2.3', '~1.2', 'A - B', 'a || b'), common typos ('=>', '=<'), ' and ', a bare
-    version ('1.7.4' means '= 1.7.4'). Returns None if anything is left unparsed.
-    """
-    s = rng.strip().replace("≤", "<=").replace("≥", ">=")
-    if not s:
-        return None
-    s = re.sub(rf"({_VER})\s+and\s+(?:earlier|below|lower|prior)\b", r"<= \1", s, flags=re.I)
-    s = re.sub(rf"({_VER})\s+and\s+(?:later|above|higher|newer)\b", r">= \1", s, flags=re.I)
-    alts: list[list[tuple[str, str]]] = []
-    for alt in re.split(r"\s*(?:\|\||;)\s*", s):
-        alt = re.sub(r"\s+and\s+", ",", alt, flags=re.I).strip().rstrip(",")
-        if not alt:
-            continue
-        # "7.0.0 < 7.29.0" (bare lower bound, then an upper bound) means ">= 7.0.0, < 7.29.0"
-        alt = re.sub(rf"^({_VER})\s+(<=?)\s*({_VER})$", r">= \1, \2 \3", alt)
-        hy = re.fullmatch(rf"({_VER})\s+-\s+({_VER})", alt)
-        if hy:
-            alts.append([(">=", hy.group(1)), ("<=", hy.group(2))])
-            continue
-        cons: list[tuple[str, str]] = []
-        rest = alt
-        for m in re.finditer(r"([\^~])\s*(" + _VER + ")", alt):
-            ct = _caret_tilde(m.group(1), m.group(2))
-            if ct is None:
-                return None
-            cons += ct
-            rest = rest.replace(m.group(0), " ")
-        for m in _TOKEN.finditer(rest):
-            op, ver = m.group(1) or "=", m.group(2)
-            op = {"=>": ">=", "=<": "<=", "==": "="}.get(op, op)
-            if ver == "*":
-                continue
-            cons.append((op, ver))
-        leftover = _TOKEN.sub("", rest).replace(",", "").strip()
-        if leftover or (not cons and "*" not in alt):
-            return None
-        alts.append(cons)
-    return alts
-
-
-def _mk(cls: type, ver: str) -> Any:
-    if cls is GolangVersion:
-        return cls(ver if ver.startswith("v") else "v" + ver)
-    return cls(ver.lstrip("v"))
-
-
-def affected(ghsa_ecosystem: str, version: str, rng: str | None) -> bool | None:
-    """True/False if `version` is (not) in `rng`; None when the range or version can't be evaluated."""
-    cls = VERSION_CLASS.get(ghsa_ecosystem)
-    if not cls or not rng or not version:
-        return None
-    alts = parse_range(rng)
-    try:
-        v = _mk(cls, version)
-        if "," in rng and (alts is None or any(not _satisfiable(cls, c) for c in alts)):
-            # Unparseable as a whole or a contradictory AND (e.g. '<1.1.17, >= 2.0.0 < 2.1.3,
-            # 4.0.0 - 5.0.7'): the maintainer used commas as OR. Re-read each comma segment.
-            # KNOWN ISSUE (FINDINGS F-123): lone bounds aren't paired, so '>= 1.5.5, < 1.6.10' becomes two
-            # alternatives that together cover more than the maintainer meant. Kept as is so the October snapshot
-            # reproduces; limbowatch.versions.alternatives has the fix. Re-checked with it, 1 of the 723 affected
-            # findings in this snapshot changes (gitea, GHSA-9wx9-5pv9-3349; noted in the report).
-            segs = [parse_range(seg) for seg in re.split(r"\s*[,;]\s*(?=[<>=~^]|\d|v\d)", rng)]
-            alts = None if any(sg is None for sg in segs) else [c for sg in segs for c in sg]  # type: ignore[union-attr]
-        if alts is None:
-            return None
-        for cons in alts:
-            ok = True
-            for op, bound in cons:
-                b = _mk(cls, bound)
-                if op == "!=":
-                    ok = v != b
-                else:
-                    ok = {"<": v < b, "<=": v <= b, ">": v > b, ">=": v >= b, "=": v == b}[op]
-                if not ok:
-                    break
-            if ok:
-                return True
-        return False
-    except Exception:
-        return None
-
-
-def already_fixed(ghsa_ecosystem: str, version: str, patched: str | None) -> bool | None:
-    """Cross-check against the advisory's fixed version(s) (F-051).
-
-    True if `version` is at or after the applicable fix: the fix on the same release line
-    (major.minor) when several branch fixes are listed, else the single fix. None when the
-    fixed-version text can't be read as plain versions (e.g. '<= 2.3.0').
-    """
-    cls = VERSION_CLASS.get(ghsa_ecosystem)
-    if not cls or not patched:
-        return None
-    text = patched.strip()
-    m = re.fullmatch(rf">=\s*({_VER})", text)
-    if m:
-        text = m.group(1)
-    fixes = re.split(r"[\s,;]+", text)
-    if not fixes or not all(re.fullmatch(_VER, f) for f in fixes):
-        return None
-    try:
-        v = _mk(cls, version)
-
-        def line(s: str) -> str:
-            return ".".join(s.lstrip("v").split(".")[:2])
-
-        same = [f for f in fixes if line(f) == line(version)]
-        if same:
-            return v >= _mk(cls, same[0])
-        if len(fixes) == 1:
-            return v >= _mk(cls, fixes[0])
-        return None
-    except Exception:
-        return None
-
-
-def _satisfiable(cls: type, cons: list[tuple[str, str]]) -> bool:
-    lows = [_mk(cls, b) for op, b in cons if op in (">", ">=")]
-    highs = [_mk(cls, b) for op, b in cons if op in ("<", "<=")]
-    return not (lows and highs and max(lows) >= min(highs))
+# ---------------------------------------------------------------- names
 
 
 def norm_name(ghsa_ecosystem: str, name: str) -> str:
@@ -377,7 +233,12 @@ if __name__ == "__main__":  # quick self-check of the range parser
         ("npm", "5.0.6", "<1.1.17, >= 2.0.0 < 2.1.3, >= 3.0.0 < 3.0.3, 4.0.0 - 5.0.7", True),
         ("npm", "3.5.0", "<1.1.17, >= 2.0.0 < 2.1.3, >= 3.0.0 < 3.0.3, 4.0.0 - 5.0.7", False),
         ("npm", "6.28.0", ">= 7.0.0, < 7.29.0; >= 8.0.0, < 8.9.0", False),
-        ("pip", "2.13.4", "all", None),
+        ("pip", "2.13.4", "all", True),  # "all" means every version (the tracker's rule)
+        ("npm", "1.5.4", "< 1.0.0, >= 1.5.5, < 1.6.10", False),  # F-123: commas as OR keep intervals whole
+        ("go", "2.2.12", ">= 2.2.0, < 2.2.10, >= 2.3.0, < 2.3.7", False),
+        ("npm", "3.8.8", ">= 3.8.8, <= 3.8.8", True),
+        ("composer", "6.7.13.0", ">=6.7.0.0 <6.7.13.1", True),
+        ("composer", "11.2.0", "<10.4.57, 11.0.0-11.5.50", True),
     ]
     bad = [(c, affected(*c[:3])) for c in cases if affected(*c[:3]) is not c[3]]
     fixes = [("rust", "0.11.19", "0.11.17", True), ("go", "v4.1.4", "v4.1.4", True), ("rust", "2.3.0", "<= 2.3.0", None),

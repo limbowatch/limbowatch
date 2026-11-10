@@ -21,6 +21,7 @@ CVE-2025-61919,True,True,reviewed,False,Analyzed
 CVE-2025-71329,True,True,limbo,False,Analyzed
 CVE-2025-71330,True,True,limbo,False,Analyzed
 CVE-2026-101898,True,False,reviewed,False,Awaiting Analysis
+CVE-2026-102360,,,limbo,,not checked
 CVE-2026-102414,True,False,reviewed,False,Deferred
 CVE-2026-102521,True,False,limbo,False,Awaiting Analysis
 CVE-2026-104846,True,False,reviewed,False,Deferred

@@ -76,23 +76,24 @@
  },
  "matching": {
   "eval": {
-   "None": 491,
-   "True": 1809
+   "None": 424,
+   "True": 1848
   },
   "eval_unknown_reasons": {
    "go_major_version_module_mismatch": 27,
    "no_package_data": 198,
-   "range_contradicts_fixed_version": 132,
-   "range_unparseable": 134
+   "range_contradicts_fixed_version": 123,
+   "range_unparseable": 76
   },
-  "hits": 2300
+  "hits": 2272
  },
  "nvd": {
   "limbo": {
    "absent": 8,
    "enriched (NIST CVSS or CPE)": 11,
    "not enriched: Awaiting Analysis": 8,
-   "not enriched: Undergoing Analysis": 1
+   "not enriched: Undergoing Analysis": 1,
+   "not enriched: not checked": 1
   },
   "reviewed": {
    "absent": 1,
@@ -187,11 +188,11 @@
    "affected_packages": 32,
    "affected_packages_osv_scanner_reports_clean": 14,
    "commit": "4804960013a0601101e4b35632b513c5e4d307e0",
-   "high_or_critical": 16,
-   "limbo_advisories_affecting": 35,
-   "limbo_findings_excluding_likely_duplicates": 160,
+   "high_or_critical": 17,
+   "limbo_advisories_affecting": 36,
+   "limbo_findings_excluding_likely_duplicates": 161,
    "limbo_findings_needing_review": 38,
-   "limbo_findings_version_affected": 160,
+   "limbo_findings_version_affected": 161,
    "lockfiles": 40,
    "packages": 7932
   },
