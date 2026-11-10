@@ -1431,7 +1431,7 @@ GitHub.</p></div></div>
   security-events: write   # for the SARIF upload
 steps:
   - uses: actions/checkout@v4
-  - uses: limbowatch/limbowatch/integrations/action@v{RELEASE}
+  - uses: limbowatch/limbowatch-action@v{RELEASE}
     with:
       fail-on: high
       sarif: limbowatch.sarif

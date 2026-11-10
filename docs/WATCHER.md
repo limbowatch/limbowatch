@@ -121,7 +121,7 @@ Any other CI, or locally, with the image (linux/amd64 and linux/arm64; verify it
 docker run --rm -v "$PWD:/src" ghcr.io/limbowatch/limbowatch limbowatch scan . -o sarif=limbowatch.sarif
 ```
 
-GitHub, Gitea or Forgejo Actions, with the [composite action](../integrations/action/action.yml). On a Linux runner with Docker it runs the same pinned, attested image as the GitLab component. On macOS or Windows, or when the job itself runs in a container (common on Gitea and Forgejo runners), it installs Limbowatch with pip instead, which needs Python 3.12 or later. The `install` input (`auto`, `image`, `python`) picks one explicitly.
+GitHub, Gitea or Forgejo Actions, with the composite action [limbowatch/limbowatch-action](https://github.com/limbowatch/limbowatch-action) (its source is [`integrations/action/`](../integrations/action/action.yml), copied there at each release; `limbowatch/limbowatch/integrations/action@<tag>` still works). On a Linux runner with Docker it runs the same pinned, attested image as the GitLab component. On macOS or Windows, or when the job itself runs in a container (common on Gitea and Forgejo runners), it installs Limbowatch with pip instead, which needs Python 3.12 or later. The `install` input (`auto`, `image`, `python`) picks one explicitly.
 
 ```yaml
 permissions:
@@ -130,7 +130,7 @@ permissions:
   actions: read            # the upload action needs it in private repos
 steps:
   - uses: actions/checkout@v4
-  - uses: limbowatch/limbowatch/integrations/action@v0.1.0a5   # Gitea/Forgejo: https://github.com/limbowatch/limbowatch/integrations/action@v0.1.0a5
+  - uses: limbowatch/limbowatch-action@v0.1.0a5   # Gitea/Forgejo: https://github.com/limbowatch/limbowatch-action@v0.1.0a5
     with:
       fail-on: high
       sarif: limbowatch.sarif
@@ -142,7 +142,7 @@ steps:
 The action annotates each finding on its lockfile line in the pull request (`annotations: true`, no code scanning needed), adds the Markdown report to the job summary, and writes every report into `limbowatch-report/` (`reports:` input). `allow-failure: true` passes the step with a warning when findings meet `fail-on`; a scan that couldn't run still fails. Its outputs `findings`, `failing`, `failed` and `report` let later steps act on the result:
 
 ```yaml
-  - uses: limbowatch/limbowatch/integrations/action@v0.1.0a5
+  - uses: limbowatch/limbowatch-action@v0.1.0a5
     id: limbo
     with: { fail-on: none }
   - if: steps.limbo.outputs.findings != '0'

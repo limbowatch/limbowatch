@@ -21,7 +21,7 @@ output. Refresh all ten from one run, so the numbers agree with each other and w
 ## How
 
 1. **Run the demos on the release.** Bump `limbowatch/demo-app` on GitHub (`.github/workflows/limbowatch.yml`,
-   `integrations/action@v<version>`) and on GitLab (`.gitlab-ci.yml`, `limbowatch@<semver>`) on `main`, then merge
+   `limbowatch/limbowatch-action@v<version>`) and on GitLab (`.gitlab-ci.yml`, `limbowatch@<semver>`) on `main`, then merge
    `main` into `add-scapy` in both. That reruns the pull request (GitHub #1) and the merge request (GitLab !1).
 2. **Own output** (no login). Download the pull request run's report, then generate:
 

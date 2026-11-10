@@ -28,7 +28,7 @@ include:
 ```yaml
 # GitHub, Gitea or Forgejo Actions
 - uses: actions/checkout@v4
-- uses: limbowatch/limbowatch/integrations/action@v0.1.0a5
+- uses: limbowatch/limbowatch-action@v0.1.0a5
   with:
     fail-on: high
     sarif: limbowatch.sarif

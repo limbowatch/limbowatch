@@ -4,6 +4,8 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+- **The GitHub Action has its own repository, [limbowatch/limbowatch-action](https://github.com/limbowatch/limbowatch-action)**, so it can be listed in GitHub Marketplace: `uses: limbowatch/limbowatch-action@v0.1.0a5`. It's a copy of `integrations/action/`, made at each release, and `limbowatch/limbowatch/integrations/action@<tag>` keeps working.
+
 ## 0.1.0a5 (2026-11-10)
 
 Still an **alpha**. On PyPI it's `0.1.0a5`; the GitHub tag and the action's ref are `v0.1.0a5`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a5`; the GitLab CI/CD component is `0.1.0-alpha.5`.

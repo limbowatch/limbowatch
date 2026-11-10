@@ -1728,6 +1728,30 @@ Answered:
 - **Implication:** The range-parser fixes (F-123) reach watcher users. Run the audit before every release.
 - **Sources:** GitHub Actions runs 42794370246, 42795617980, 42795618072; GitLab pipelines above; PyPI.
 
+### F-127
+- **Date:** 2026-11-10 · **Status:** confirmed (official docs; repo created and tested)
+- **Question:** Can the Limbowatch action be listed in GitHub Marketplace, and what does that take?
+- **Method:**
+  - GitHub Docs, "Publishing actions in GitHub Marketplace".
+  - Searched Marketplace for "limbowatch"; `/marketplace/actions/limbowatch` answers 404.
+  - Created the repo, pushed the action, and ran its self-test.
+- **Result:**
+  - **Requirements:**
+    - a public repository with a single `action.yml` at the root (metadata files in subfolders aren't listed);
+    - a unique name: not an existing Marketplace action, not a user or org name unless that account publishes it, not a category;
+    - the owner accepts the Marketplace Developer Agreement, and the publisher uses 2FA;
+    - publishing is the "Publish this Action to the GitHub Marketplace" checkbox when drafting a release. The docs describe no API, and there's no review: it's listed at once.
+  - **Name:** "Limbowatch" is free and matches the org, which may use it.
+  - **Our action:** it lived in `integrations/action/` of the main repo, so it couldn't be listed from there. It's self-contained (scripts via `$GITHUB_ACTION_PATH`; pip installs from the main repo's release archive), so it moved unchanged.
+  - **Done:**
+    - `limbowatch/limbowatch-action` (public), with the subtree of `integrations/action/`: action.yml, scripts, README, LICENSE, self-test (split c44e6db).
+    - Self-test run 42797393788 passed on ubuntu (image) and macOS (pip), with 51 findings for the scapy 2.7.0 fixture.
+    - Signed tag `v0.1.0a5`, and a GitHub pre-release.
+    - Docs and the scan page now show `uses: limbowatch/limbowatch-action@v0.1.0a5`; the old path keeps working.
+- **Caveats:** Not listed yet: the agreement and the checkbox are the org owner's. The docs don't say whether Marketplace shows pre-releases.
+- **Implication:** Each release also pushes the action subtree and tags it (release checklist). The Marketplace listing follows once the owner ticks the box on a release.
+- **Sources:** [GitHub Docs: Publishing actions in GitHub Marketplace](https://docs.github.com/en/actions/how-tos/create-and-publish-actions/publish-in-github-marketplace); limbowatch/limbowatch-action.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
