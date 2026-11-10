@@ -4,6 +4,10 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+## 0.1.0a6 (2026-11-10)
+
+Still an **alpha**. On PyPI it's `0.1.0a6`; the GitHub tag and the action's ref are `v0.1.0a6`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a6`; the GitLab CI/CD component is `0.1.0-alpha.6`. **Maven projects get more findings:** `pom.xml` dependencies are now resolved through deps.dev and Maven Central (`--no-resolve-maven` to keep the inventory offline).
+
 - **Org-wide mode: `limbowatch watch`** checks every project of GitLab groups (with subgroups), Gitea or Forgejo organizations, or git URLs, in one run. Each project is cloned shallowly and inventoried like `scan`; each source repo is polled once for all projects. It reports one line per project, with archived, empty and excluded projects listed as not checked, and keeps state and issues per project. Formats: table, JSON, Markdown. A source that can't be listed exits 2 (docs/WATCHER.md, F-129, F-130).
 - **Maven: transitive dependencies are checked.** Offline, a `pom.xml` gives only its direct dependencies with a literal version (3 of spring-petclinic's 171). When the tree has a `pom.xml`, a second OSV-Scanner run, limited to `pom.xml` and its resolver, now resolves the whole tree through deps.dev and Maven Central; on two Spring Boot projects it matched `mvn dependency:list` exactly, and it found 37 advisories in limbo that the offline inventory couldn't see. `--no-resolve-maven` keeps the inventory offline (`scan`, `watch`, `inventory`) (F-132).
 - **Never silent about what isn't resolved:** a `pom.xml` whose transitive dependencies weren't resolved (a module that needs an unreleased sibling, a private registry, `--no-resolve-maven`), and a Gradle build without a lockfile, are reported as unchecked, with the reason.

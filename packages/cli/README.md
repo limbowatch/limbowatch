@@ -10,7 +10,7 @@
 ## Install
 
 ```sh
-pipx install limbowatch-cli==0.1.0a5   # the current alpha; or: uv tool install limbowatch-cli==0.1.0a5
+pipx install limbowatch-cli==0.1.0a6   # the current alpha; or: uv tool install limbowatch-cli==0.1.0a6
 ```
 
 It reads lockfiles with [OSV-Scanner](https://google.github.io/osv-scanner/installation/) 2.7.0, which must be on `PATH`. Python 3.12 or later.
