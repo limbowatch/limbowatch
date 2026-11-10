@@ -849,6 +849,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/henrygd/beszel","path":"github.com/henrygd/beszel"}
 {"checked_at":"2026-11-10T01:23:11Z","module":"github.com/hhrutter/tiff","path":"github.com/hhrutter/tiff"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/huandu/facebook/v2","path":"github.com/huandu/facebook/v2"}
+{"checked_at":"2026-11-10T02:46:18Z","module":"github.com/huandu/go-sqlbuilder","path":"github.com/huandu/go-sqlbuilder"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/hydraide/hydraide","path":"github.com/hydraide/hydraide"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/hyperledger/fabric-ca","path":"github.com/hyperledger/fabric-ca"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/identrail/identrail","path":"github.com/identrail/identrail"}
@@ -862,6 +863,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/ipfs/go-bitfield","path":"github.com/ipfs/go-bitfield"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/ipfs/go-bitswap","path":"github.com/ipfs/go-bitswap"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/ipfs/go-ipfs","path":"github.com/ipfs/go-ipfs"}
+{"checked_at":"2026-11-10T02:46:18Z","module":"github.com/ipfs/go-ipld-git","path":"github.com/ipfs/go-ipld-git"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/ipfs/go-libipfs","path":"github.com/ipfs/go-libipfs/bitswap/server"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/ipfs/go-merkledag","path":"github.com/ipfs/go-merkledag"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/ipfs/go-unixfs","path":"github.com/ipfs/go-unixfs"}
@@ -917,6 +919,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/kong/kubernetes-ingress-controller","path":"github.com/kong/kubernetes-ingress-controller"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/kopia/kopia","path":"github.com/kopia/kopia"}
 {"checked_at":"2026-11-10T01:23:11Z","module":"github.com/kptdev/kpt","path":"github.com/kptdev/kpt"}
+{"checked_at":"2026-11-10T02:46:18Z","module":"github.com/kserve/kserve","path":"github.com/kserve/kserve"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/kube-logging/logging-operator","path":"github.com/kube-logging/logging-operator"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/kubeai-project/kubeai","path":"github.com/kubeai-project/kubeai"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/kubeedge/kubeedge","path":"github.com/kubeedge/kubeedge"}
