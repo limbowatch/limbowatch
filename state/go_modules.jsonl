@@ -1080,6 +1080,8 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/padok-team/burrito","path":"github.com/padok-team/burrito"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/pandatix/go-cvss","path":"github.com/pandatix/go-cvss"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/patrickhener/goshs","path":"github.com/patrickhener/goshs"}
+{"checked_at":"2026-11-10T05:26:27Z","module":"github.com/pavel-v-chernykh/keystore-go","path":"github.com/pavel-v-chernykh/keystore-go"}
+{"checked_at":"2026-11-10T05:26:27Z","module":"github.com/pdfcpu/pdfcpu","path":"github.com/pdfcpu/pdfcpu"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/pelletier/go-toml/v2","path":"github.com/pelletier/go-toml/v2"}
 {"checked_at":"2026-11-09T16:52:05Z","module":null,"path":"github.com/perber/leafwiki"}
 {"checked_at":"2026-11-09T16:52:05Z","module":null,"path":"github.com/perber/wiki"}
@@ -1092,6 +1094,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/pion/dtls/v2","path":"github.com/pion/dtls/v2"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/pion/dtls/v3","path":"github.com/pion/dtls/v3"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/pion/interceptor","path":"github.com/pion/interceptor"}
+{"checked_at":"2026-11-10T05:26:27Z","module":"github.com/pion/rtp","path":"github.com/pion/rtp"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/pion/stun/v3","path":"github.com/pion/stun/v3"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/pkg/sftp","path":"github.com/pkg/sftp"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/platform-mesh/kubernetes-graphql-gateway","path":"github.com/platform-mesh/kubernetes-graphql-gateway"}
