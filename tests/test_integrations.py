@@ -95,3 +95,22 @@ def test_action_scripts_are_valid_bash() -> None:
 
     for name in ("install.sh", "scan.sh"):
         subprocess.run(["bash", "-n", str(ACTION.parent / name)], check=True)
+
+
+def test_action_readme_lists_every_input_and_output_and_the_release() -> None:
+    """The Marketplace page is limbowatch/limbowatch-action's README, a copy of integrations/action/README.md."""
+    action = yaml.safe_load(ACTION.read_text())
+    readme = (ACTION.parent / "README.md").read_text()
+    for name in [*action["inputs"], *action["outputs"]]:
+        assert f"| `{name}` |" in readme, name
+    ref = action["inputs"]["limbowatch-ref"]["default"]
+    assert f"limbowatch/limbowatch-action@{ref}" in readme
+    assert f"Release {ref.removeprefix('v')}" in readme
+    assert (ACTION.parent / "LICENSE").read_text() == (ROOT / "LICENSE").read_text()
+
+
+def test_action_self_test_pins_its_actions() -> None:
+    wf = (ACTION.parent / ".github/workflows/self-test.yml").read_text()
+    for line in wf.splitlines():
+        if "uses:" in line and "uses: ./" not in line:
+            assert re.search(r"@[0-9a-f]{40} # v", line), line
