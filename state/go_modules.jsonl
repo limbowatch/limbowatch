@@ -949,6 +949,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/lf-edge/eve/pkg/pillar","path":"github.com/lf-edge/eve/pkg/pillar/evetpm"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/lf-edge/eve","path":"github.com/lf-edge/eve/pkg/vault"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/lf-edge/eve","path":"github.com/lf-edge/eve/pkg/vtpm"}
+{"checked_at":"2026-11-10T04:06:59Z","module":"github.com/libp2p/go-libp2p-pubsub","path":"github.com/libp2p/go-libp2p-pubsub"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/lima-vm/lima/v2","path":"github.com/lima-vm/lima/v2"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/lin-snow/Ech0","path":"github.com/lin-snow/Ech0"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/lin-snow/ech0","path":"github.com/lin-snow/ech0"}
@@ -961,6 +962,8 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/lxc/incus/v7","path":"github.com/lxc/incus/v7"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/lxc/incus/v7","path":"github.com/lxc/incus/v7/cmd/incus"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/lxc/incus/v7","path":"github.com/lxc/incus/v7/cmd/incusd"}
+{"checked_at":"2026-11-10T04:06:59Z","module":"github.com/mat/besticon/v3","path":"github.com/mat/besticon/v3"}
+{"checked_at":"2026-11-10T04:06:59Z","module":"github.com/mattn/go-slim","path":"github.com/mattn/go-slim"}
 {"checked_at":"2026-11-09T19:59:20Z","module":"github.com/mattn/go-sqlite3","path":"github.com/mattn/go-sqlite3"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/maximhq/bifrost/core","path":"github.com/maximhq/bifrost/core"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/mayswind/ezbookkeeping","path":"github.com/mayswind/ezbookkeeping"}
@@ -979,6 +982,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/microsoft/kiota-http-go","path":"github.com/microsoft/kiota-http-go"}
 {"checked_at":"2026-11-09T16:52:05Z","module":null,"path":"github.com/microsoft/terraform-provider-power-platform/internal/powerplatform/provider"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/microstack-tech/parallax","path":"github.com/microstack-tech/parallax"}
+{"checked_at":"2026-11-10T04:06:59Z","module":"github.com/mikefarah/yq/v4","path":"github.com/mikefarah/yq/v4"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/milvus-io/milvus","path":"github.com/milvus-io/milvus"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/mindersec/minder","path":"github.com/mindersec/minder"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/minio/minio","path":"github.com/minio/minio"}
@@ -1065,6 +1069,8 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/ory/keto","path":"github.com/ory/keto"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/ory/kratos","path":"github.com/ory/kratos"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/ory/oathkeeper","path":"github.com/ory/oathkeeper"}
+{"checked_at":"2026-11-10T04:06:59Z","module":"github.com/oschwald/maxminddb-golang","path":"github.com/oschwald/maxminddb-golang"}
+{"checked_at":"2026-11-10T04:06:59Z","module":"github.com/oschwald/maxminddb-golang/v2","path":"github.com/oschwald/maxminddb-golang/v2"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/osrg/gobgp/v3","path":"github.com/osrg/gobgp/v3"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/osrg/gobgp/v4","path":"github.com/osrg/gobgp/v4"}
 {"checked_at":"2026-11-09T16:52:05Z","module":null,"path":"github.com/ossf/allstar"}
