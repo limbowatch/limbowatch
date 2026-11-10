@@ -95,35 +95,12 @@ a{color:inherit}a:hover{color:var(--amber-text)}
 nav.main{display:flex;flex-wrap:wrap;gap:0 24px;font-size:15px}
 nav.main a{text-decoration:none;padding:10px 0;border-bottom:2px solid transparent}
 nav.main a[aria-current]{font-weight:600;border-bottom-color:currentColor}
-.menu,.tl-v,.ftoggle,.tabs .sm{display:none}
+.menu,.ftoggle,.tabs .sm{display:none}
 /* theme switch */
 .bar-end{display:flex;align-items:center;gap:8px 24px}
 .theme{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border:0;border-radius:10px;background:none;color:inherit;cursor:pointer}
 .theme[hidden]{display:none}.theme:hover{background:var(--sunk);color:var(--amber-text)}.theme svg{display:block}
 .theme[data-t="dark"] .moon,.theme:not([data-t="dark"]) .sun{display:none}
-/* hero */
-.hero{background:var(--bg);color:var(--ink);border-bottom:1px solid var(--line)}.hero .eyebrow{color:var(--soft)}
-.hero-body{padding-top:64px;padding-bottom:80px}
-.hero h1{margin:0;max-width:900px;font-size:clamp(38px,6vw,76px);line-height:1.03;letter-spacing:-.035em;font-weight:650}
-.lede{margin:24px 0 0;max-width:680px;font-size:19px;color:var(--soft)}
-.count-row{margin-top:56px;display:flex;flex-wrap:wrap;gap:40px 64px;align-items:flex-end}
-.big{font-size:clamp(88px,13vw,168px);line-height:.85;font-weight:650;letter-spacing:-.05em;color:var(--mark)}
-.big-label{margin-top:14px;font-size:18px;font-weight:500}
-.stats{margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 48px;flex:1 1 360px;max-width:520px}
-.stats dt{font-size:14px;color:var(--soft)}.stats dd{margin:4px 0 0;font-size:28px;font-weight:600}
-.tl{margin:72px 0 0}.tl figcaption{font-size:14px;color:var(--soft);margin-bottom:18px}
-.tl-row{display:flex;align-items:center}.tl-cols{display:flex}
-.tl .f3{flex:3}.tl .f1{flex:1}.tl .pr{padding-right:16px}
-.tl-tag{margin:0;font-size:15px;color:var(--amber-text);font-weight:600}
-.tl-note{margin:4px 0 12px;font-size:15px;color:var(--soft)}
-.dot{width:16px;height:16px;border-radius:50%;flex:none}.dot.amber{background:var(--mark)}
-.dot.ring{border:3px solid var(--ink)}.dot.fill{background:var(--ink)}
-.seg{height:6px;background:var(--mark)}.seg.thin{height:2px;background:var(--border)}
-.tl-labels{margin-top:14px;font-size:15px;line-height:1.4}.tl-labels span{color:var(--soft)}
-.tl-labels .f1{display:flex;justify-content:space-between;gap:12px}.tl-labels .r{text-align:right}
-.tl-foot{margin:20px 0 0;font-size:14px;color:var(--soft)}
-.ctas{margin-top:56px;display:flex;flex-wrap:wrap;gap:12px}
-.get-ci{margin:16px 0 0;color:var(--soft);font-size:15px;display:flex;flex-wrap:wrap;gap:4px 20px;align-items:center}.get-ci a{display:inline-flex;align-items:center;min-height:44px;font-weight:600}
 .btn{display:inline-flex;align-items:center;min-height:48px;padding:0 22px;border-radius:10px;text-decoration:none;font-weight:600;font-size:16px;border:1px solid transparent}
 .btn.light{background:var(--btn-bg);color:var(--btn-ink)}.btn.light:hover{color:var(--btn-ink);background:var(--btn-hover)}
 .btn.ghost{border-color:var(--border);color:var(--ink);font-weight:500}
@@ -246,18 +223,6 @@ list-style:none;cursor:pointer;font-size:15px;font-weight:500;-webkit-tap-highli
 background:var(--bg);border-bottom:1px solid var(--line);box-shadow:0 16px 32px rgba(0,0,0,.18)}
 .menu nav a{display:flex;align-items:center;min-height:52px;border-bottom:1px solid var(--line2);text-decoration:none;font-size:18px}
 .menu nav a:last-child{border-bottom:0}.menu nav a[aria-current]{font-weight:600;color:var(--amber-text)}
-/* home */
-.hero-body{padding-top:32px;padding-bottom:48px}.hero .eyebrow .dt{display:none}.hero h1{margin-top:12px}.lede{font-size:17px;margin-top:18px}
-.count-row{margin-top:40px;gap:28px}.stats{gap:18px 24px}.stats dd{font-size:24px}
-.tl{margin-top:48px}.tl-row,.tl-cols{display:none}
-.tl-v{display:block;margin:0;padding:0;list-style:none}.tl-v li{position:relative;padding:0 0 20px 34px;font-size:15px;line-height:1.45}
-.tl-v li:before{content:"";position:absolute;left:5px;top:10px;bottom:-10px;width:6px;background:var(--mark)}
-.tl-v li.rev:before{left:7px;width:2px;background:var(--border)}.tl-v li.seen:before{display:none}
-.tl-v b{position:absolute;left:0;top:2px;width:16px;height:16px;border-radius:50%}.tl-v .pub b{background:var(--mark)}
-.tl-v .rev b{background:var(--bg);border:3px solid var(--ink)}.tl-v .seen b{background:var(--ink)}
-.tl-v span{display:block;color:var(--soft)}.tl-v .limbo{padding-top:4px;padding-bottom:28px}.tl-v .limbo .tl-tag{margin-bottom:4px}
-.tl-foot{margin-top:4px}
-.ctas{margin-top:40px;flex-direction:column}.ctas .btn{justify-content:center}
 .strip .wrap{flex-direction:column;align-items:stretch;gap:12px}.meter{flex:none;max-width:none}
 .strip a{display:inline-flex;align-items:center;min-height:44px;margin:-10px 0}
 section.s{padding-top:64px}h2{font-size:26px}h2.lg{font-size:30px}h2.sm{font-size:22px}
@@ -306,23 +271,12 @@ background:var(--surface);color:var(--ink);font:inherit}.find input::placeholder
 button.btn{font:inherit;font-weight:600;cursor:pointer;background:transparent;color:var(--ink)}
 .chk-pick{padding:20px 24px}.chk-pick p{margin:0}.chk-pick div{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 #check-out .note ul{margin-top:8px}
-.side{flex:1 1 380px;max-width:560px}.flow{margin:0 0 24px;font-size:19px;line-height:1.45;color:var(--ink2)}.flow strong{color:var(--ink)}
-.stats.three{grid-template-columns:repeat(3,minmax(0,1fr))}
 figure.queue{margin:64px 0 0}figure.queue svg{display:block;width:100%;height:auto}
 .qaxis{position:relative;height:22px;margin-top:10px;font-size:13px;color:var(--soft)}
 .qaxis span{position:absolute;top:0;white-space:nowrap}.qaxis span.end{transform:translateX(-80%)}
 figure.queue figcaption{margin-top:14px;font-size:14px;color:var(--soft);max-width:760px}figure.queue rect{fill:var(--mark)}
 @media (prefers-reduced-motion:no-preference){figure.queue g g{animation:settle .7s cubic-bezier(.2,.7,.3,1) both;
 animation-delay:calc(var(--c) * 14ms)}@keyframes settle{from{opacity:0;transform:translateY(-24px)}to{opacity:1;transform:none}}}
-/* home: proof */
-.proof{display:flex;flex-wrap:wrap;gap:32px 64px;align-items:center}.ptext{flex:3 1 480px;min-width:0}.ptext .sub{max-width:640px}
-.links{display:flex;flex-wrap:wrap;gap:4px 24px;margin:16px 0 0}.links a{display:inline-flex;align-items:center;min-height:44px;font-weight:600}
-.vs{flex:2 1 320px;display:flex;flex-direction:column;gap:12px}
-.vs>div{position:relative;display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border:1px solid var(--line);
-border-radius:12px;background:var(--surface);overflow:hidden}
-.vs span{position:relative;z-index:1;font-size:15px}.vs b{position:relative;z-index:1;font-size:32px;font-weight:650;letter-spacing:-.02em}
-.vs b.zero{color:var(--muted)}.vs .lw{border-color:var(--mark)}.vs .lw b{color:var(--amber-text)}
-.vs i{position:absolute;inset:0 auto 0 0;background:var(--pill-bg);opacity:.6}
 /* home: ecosystems, CVE split, paths */
 .two{display:flex;flex-wrap:wrap;gap:48px 64px}.two>div{flex:1 1 420px;min-width:0}
 table.eco{margin-top:20px;min-width:0;font-size:15px}table.eco th,table.eco td{padding:9px 8px;border-bottom:1px solid var(--line2)}
@@ -363,8 +317,8 @@ ul.kit{margin:16px 0 0;padding:0;list-style:none}ul.kit a{display:inline-flex;mi
 @media (max-width:900px){.fcols{grid-template-columns:1fr 1fr}.fabout{grid-column:1/-1}.doc{grid-template-columns:1fr;gap:24px}
 .doc>div:first-child{position:static}}
 @media (max-width:640px){.find div{flex-direction:column}.find button{width:100%}.find #chk-version{flex:auto}.chk-v{font-size:19px}
-.chk-res{padding:20px}.flow{font-size:17px}
-.stats.three{grid-template-columns:repeat(3,minmax(0,1fr))}figure.queue{margin-top:40px}.qaxis span:nth-child(3){display:none}
+.chk-res{padding:20px}
+figure.queue{margin-top:40px}.qaxis span:nth-child(3){display:none}
 .vs b{font-size:26px}.poster{padding:4px 16px 20px}ol.quotes p{font-size:17px}.fcols{grid-template-columns:1fr;gap:24px}}
 /* scan: screenshots */
 figure.shot{margin:24px 0 0}figure.shot a{display:block;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0F1218}
@@ -381,6 +335,97 @@ table.fmts th{font-size:14px;width:130px;color:var(--ink)}table.fmts td{color:va
 .qrepo h3 small{color:var(--muted);font-weight:400;font-size:14px}.qrepo .card{padding:0}
 .qrow{padding:16px;border-top:1px solid var(--line2)}.qrow:first-child{border-top:0}.qrow p{margin:6px 0 0}
 .qrow .qh{font-size:14px;color:var(--muted)}.qrow .was{background:var(--sunk);padding:2px 6px;border-radius:6px;overflow-wrap:anywhere}
+/* home: hero, always dark */
+.hx{--bg:#0F1218;--surface:#161A22;--sunk:#1B2029;--ink:#F3F1EA;--ink2:#C3C2B7;--muted:#9A998F;--soft:#A9A8A0;--line:#2A303B;
+--line2:#232833;--border:#3A404C;--mark:#F4A62A;--amber-text:#F4A62A;--btn-bg:#F3F1EA;--btn-ink:#0F1218;--btn-hover:#fff;
+color-scheme:dark;background:var(--bg);color:var(--ink);border-bottom:1px solid var(--line)}
+.hx-body{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:48px 64px;align-items:end;padding-top:72px;padding-bottom:88px}
+.hx h1{margin:0;font-size:clamp(44px,7.2vw,100px);line-height:.98;letter-spacing:-.045em;font-weight:680;text-wrap:balance}
+.hx-lede{margin:28px 0 0;max-width:600px;font-size:20px;line-height:1.5;color:var(--ink2)}.hx-lede strong{color:var(--ink)}
+.hx-cta{margin-top:36px;display:flex;flex-wrap:wrap;gap:12px}.hx-meta{margin:20px 0 0;font-size:14px;color:var(--muted)}
+.pair{margin:0;display:grid;gap:12px}
+.res{padding:22px 24px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}
+.res p{margin:0}.rt{font-size:15px;color:var(--ink2)}.rd{font-size:15px;color:var(--ink2)}
+.rv{margin:6px 0 2px!important;font-size:64px;line-height:1;font-weight:680;letter-spacing:-.04em;color:var(--muted)}
+.res.loud{border-color:var(--mark)}.res.loud .rv{color:var(--mark)}.res.loud .rd{color:var(--ink)}
+.pair figcaption{font-size:14px;line-height:1.5;color:var(--muted)}.pair figcaption a{color:var(--ink2)}
+.intro{max-width:780px}.intro .sub{font-size:18px}
+/* home: one advisory's days */
+.gap{margin-top:36px;padding:28px;border:1px solid var(--line);border-radius:18px;background:var(--surface)}
+.gap-ctl{display:none}.gap.live .gap-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px}
+.gap-ctl label{flex:none;font-size:15px;color:var(--ink2);min-width:230px}.gap-ctl output{display:inline-block;min-width:2ch;font-size:22px;font-weight:650;color:var(--ink)}
+.gap-ctl input{flex:1 1 260px;min-width:0;height:44px;accent-color:var(--ink);cursor:pointer}
+.gap-play{min-height:44px;min-width:88px;padding:0 18px;border:1px solid var(--border);border-radius:10px;background:var(--bg);font:inherit;font-weight:600;color:var(--ink);cursor:pointer}
+.gap-play[hidden]{display:none}
+.gap-now{display:none;margin:20px 0 0;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.gap.live .gap-now{display:grid}.gap-now div{padding:14px 16px;border-radius:12px;background:var(--sunk)}
+.gap-now dt{font-size:13px;color:var(--muted)}.gap-now dd{margin:4px 0 0;font-size:17px;font-weight:600;line-height:1.35}
+.gap-now dd.alert{color:var(--ink)}.gap-now dd[data-say=limbo]{color:var(--amber-text)}.gap-now dd.done{color:var(--ink)}
+.lanes{margin-top:28px;display:grid;gap:10px}
+.lane{display:grid;grid-template-columns:150px minmax(0,1fr);gap:16px;align-items:center}.lane>p{margin:0;font-size:14px;color:var(--ink2)}
+.track{position:relative;height:32px;border-radius:8px;background:var(--sunk)}
+.track i{position:absolute;top:0;bottom:0;display:flex;align-items:center;border-radius:8px;font-style:normal;font-size:13px;font-weight:600;overflow:hidden}
+.track i span{padding:0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track .pub{background:var(--line);color:var(--ink)}.track .limbo{background:var(--mark);color:#0F1218}
+.track .done{box-shadow:inset 0 0 0 1px var(--border);color:var(--ink2)}
+.track .quiet{box-shadow:inset 0 0 0 1px var(--border);color:var(--muted);font-weight:500}
+.track .alert{background:var(--ink);color:var(--bg)}
+.gap.live .lanes .track:before{content:"";position:absolute;z-index:1;top:0;bottom:0;right:0;left:calc(var(--p,0) * 100%);background:var(--surface);opacity:.78}
+.gap.live .lanes .track:after{content:"";position:absolute;z-index:2;top:-5px;bottom:-5px;left:calc(var(--p,0) * 100%);width:2px;margin-left:-1px;background:var(--ink)}
+.lane.axis{align-items:start}.ticks{position:relative;height:18px;font-size:12px;color:var(--muted)}
+.ticks span{position:absolute;top:0;transform:translateX(-50%)}.ticks span:first-child{transform:none}.ticks span:last-child{transform:translateX(-100%)}
+.gap-ev{margin:28px 0 0;padding:0;list-style:none;display:grid;gap:0}
+.gap-ev li{display:grid;grid-template-columns:80px minmax(0,1fr);gap:2px 16px;padding:14px 0 14px 16px;border-top:1px solid var(--line2);border-left:3px solid transparent}
+.gap-ev .when{grid-row:span 2;font-size:14px;font-weight:600;color:var(--muted)}.gap-ev .what{color:var(--ink2);font-size:15px}
+.gap.live .gap-ev li{opacity:.38;transition:opacity .25s}.gap.live .gap-ev li.on{opacity:1}
+.gap.live .gap-ev li[aria-current]{border-left-color:var(--ink)}.gap.live .gap-ev li[aria-current] .when{color:var(--ink)}
+/* home: the live gap */
+.now{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:32px 64px;align-items:end}
+.huge{margin:0;font-size:clamp(88px,15vw,196px);line-height:.82;font-weight:680;letter-spacing:-.055em;color:var(--mark)}
+.huge-l{margin:16px 0 0;font-size:20px;font-weight:550}
+.flow{margin:0 0 24px;font-size:19px;line-height:1.45;color:var(--ink2)}.flow strong{color:var(--ink)}
+.stats3{margin:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 32px}
+.stats3 dt{font-size:14px;color:var(--muted)}.stats3 dd{margin:4px 0 0;font-size:28px;font-weight:620}
+blockquote.gh{margin:28px 0 0;padding:4px 0 4px 20px;border-left:3px solid var(--ink)}
+blockquote.gh p{margin:0;font-size:19px;line-height:1.45}blockquote.gh footer{margin-top:6px;font-size:14px;color:var(--muted)}
+.floor{margin:20px 0 0;padding:14px 18px;border-radius:12px;background:var(--sunk);font-size:14px;color:var(--ink2)}.floor a{white-space:nowrap}
+.links{display:flex;flex-wrap:wrap;gap:4px 24px;margin:16px 0 0}.links a{display:inline-flex;align-items:center;min-height:44px;font-weight:600}
+.proof{margin-top:56px;display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:24px 64px;align-items:center}
+.proof h3,.h3{margin:0;font-size:22px;line-height:1.25;letter-spacing:-.01em}.proof p{margin:12px 0 0;color:var(--ink2)}
+.vs{display:flex;flex-direction:column;gap:12px}
+.vs>div{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.vs span{font-size:15px}.vs b{font-size:32px;font-weight:650;letter-spacing:-.02em}
+.vs b.zero{color:var(--muted)}.vs .lw{border-color:var(--mark);background:var(--pill-bg)}.vs .lw b{color:var(--amber-text)}
+/* home: audit */
+.audit{margin-top:36px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:40px 64px;align-items:start}
+.prose-s p{margin:0 0 18px;font-size:17px;line-height:1.65;color:var(--ink2)}.prose-s strong{color:var(--ink)}
+.prose-s p.src{font-size:14px;color:var(--muted)}
+.clocks{margin:0;padding:28px;border:1px solid var(--line);border-radius:18px;background:var(--surface)}
+.clock{margin-bottom:22px}.clock p{margin:0}.ct{font-size:15px;font-weight:600;margin-bottom:10px!important}
+.cn{margin-top:8px!important;font-size:14px;color:var(--ink2)}
+.due{position:absolute;top:-5px;bottom:-5px;width:2px;margin-left:-1px;background:var(--ink)}
+/* home: the fix */
+.fix{margin-top:36px;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:32px 56px;align-items:start}
+.ci [role=tablist]{display:none}.ci.live [role=tablist]{display:flex;gap:4px;margin-bottom:12px}
+.ci [role=tab]{min-height:44px;padding:0 16px;border:1px solid var(--line);border-radius:10px;background:none;font:inherit;font-size:15px;color:var(--ink2);cursor:pointer}
+.ci [role=tab][aria-selected=true]{background:var(--ink);border-color:var(--ink);color:var(--bg);font-weight:600}
+.ci-h{margin:0 0 10px;font-weight:600}.ci.live .ci-h{display:none}.ci [role=tabpanel]+[role=tabpanel]{margin-top:24px}
+.ci.live [role=tabpanel]+[role=tabpanel]{margin-top:0}.ci [role=tabpanel][hidden]{display:none}
+.ci pre{font-size:14px;padding:20px 22px}
+.ci-f{margin:12px 0 0;display:flex;flex-wrap:wrap;gap:4px 16px;align-items:center;font-size:15px}
+.ci-f a{display:inline-flex;align-items:center;min-height:44px;font-weight:600}.ci-f span{color:var(--muted)}
+.gets{margin:0;padding:0;list-style:none}.gets li{padding:16px 0;border-top:1px solid var(--line2);color:var(--ink2);font-size:15px}
+.gets li:first-child{border-top:0;padding-top:0}.gets strong{color:var(--ink)}
+#fix figure.shot{margin-top:40px}
+#look .find{margin-top:24px}
+@media (max-width:900px){.hx-body,.now,.proof,.audit,.fix{grid-template-columns:minmax(0,1fr)}.hx-body{align-items:start}}
+@media (max-width:640px){.hx-body{padding-top:28px;padding-bottom:48px;gap:32px}.hx-lede{font-size:17px;margin-top:20px}
+.hx-cta{flex-direction:column}.hx-cta .btn{justify-content:center}.rv{font-size:52px}
+.gap,.clocks{padding:18px 16px;border-radius:14px}.gap-ctl label{min-width:0;flex:1 1 auto}.gap-ctl input{order:3;flex:1 1 100%}.gap-now{grid-template-columns:1fr;gap:6px}.gap-now div{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:10px 12px}.gap-now dd{margin:0;font-size:15px;text-align:right}
+.lane{grid-template-columns:1fr;gap:6px}.lane.axis>p{display:none}.track i span{padding:0 8px;font-size:12px}
+.gap-ev li{grid-template-columns:1fr;padding-left:12px}.gap-ev .when{grid-row:auto}
+.flow{font-size:17px}.stats3{gap:12px 16px}.stats3 dd{font-size:22px}.huge-l{font-size:18px}.intro .sub{font-size:17px}}
+@media (prefers-reduced-motion:reduce){.gap.live .gap-ev li{transition:none}}
 """
 
 TRACKER_JS = """(()=>{const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -808,18 +853,167 @@ def dataset_ld(m: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# October 2026 review lag (FINDINGS F-055: 990 advisories reviewed 2026-09-24 to 10-22) and the dates behind the
+# compliance section (F-134). Dated on the page; they don't change with the live data.
+REVIEW_MEDIAN = 23  # days from publication to GitHub's review, median
+OVER_72H, OVER_30D = 94, 44  # percent of those reviews later than 72 hours, and later than 30 days
+GAP_DAYS = 60  # the timeline's length
+POLICY_DAYS = 30  # the example remediation deadline for critical findings, counted from detection
+GITHUB_BLOG = (
+    "https://github.blog/security/supply-chain-security/"
+    "inside-the-advisory-database-and-what-happens-when-vulnerability-volume-breaks-records/"
+)
+PCI_FAQ = "https://www.pcisecuritystandards.org/faqs/1597/"
+TSC_URL = "https://www.aicpa-cima.com/resources/download/2017-trust-services-criteria-with-revised-points-of-focus-2022"
+
+# The timeline: what has happened by each day, in order. (day, what happened, what it means)
+GAP_EVENTS = [
+    (0, "The maintainer publishes the advisory, and a fixed release",
+     "Anyone can read what’s broken and which version fixes it. Your scanner reports nothing. Limbowatch reports it "
+     "on the next build, with the upgrade that clears it."),
+    (3, "GitHub’s documented 72 hours are up",
+     f"GitHub’s documentation says review “can take up to 72 hours”. In October 2026, {OVER_72H}% of advisories "
+     "waited longer."),
+    (REVIEW_MEDIAN, "GitHub reviews it, at the October median",
+     "It enters GitHub’s Advisory Database, and OSV a few hours later. Your scanner raises its first alert, and your "
+     "remediation clock starts."),
+    (30, "One month since the fix was released",
+     f"PCI DSS’s deadline for resolving critical vulnerabilities. {OVER_30D}% of the advisories reviewed in October "
+     "waited longer than this."),
+    (REVIEW_MEDIAN + POLICY_DAYS, f"The {POLICY_DAYS}-day fix deadline in your policy",
+     f"Counted from your scanner’s alert. The code was exposed for {REVIEW_MEDIAN + POLICY_DAYS} days, and the "
+     "report says you were on time."),
+]  # fmt: skip
+
+HOME_JS = """<script>(()=>{const g=document.querySelector('.gap');if(!g)return;g.classList.add('live');
+const r=g.querySelector('input'),o=g.querySelector('output'),play=g.querySelector('.gap-play'),R=+g.dataset.review,
+ev=[...g.querySelectorAll('.gap-ev li')],sc=g.querySelector('[data-say=scanner]'),lw=g.querySelector('[data-say=limbo]'),
+pub=g.querySelector('[data-say=public]'),days=n=>n===1?'1 day':n+' days';let t=null;
+function set(d){d=+d;r.value=d;o.textContent=d;g.style.setProperty('--p',d/+r.max);
+ let cur=-1;ev.forEach((li,k)=>{const on=+li.dataset.day<=d;li.classList.toggle('on',on);if(on)cur=k;});
+ ev.forEach((li,k)=>li.toggleAttribute('aria-current',k===cur));
+ pub.textContent=d?days(d):'Today';
+ sc.textContent=d<R?'No known vulnerabilities':'1 vulnerability, fix due';sc.classList.toggle('alert',d>=R);
+ lw.classList.toggle('done',d>=R);lw.textContent=d<R?'1 advisory in limbo, upgrade to fix':'Reviewed: your scanner sees it too';}
+r.addEventListener('input',()=>{stop();set(r.value);});
+function stop(){if(t){clearInterval(t);t=null;play.textContent='Play';}}
+play.hidden=false;play.addEventListener('click',()=>{if(t)return stop();if(+r.value>=+r.max)set(0);play.textContent='Pause';
+ t=setInterval(()=>{if(+r.value>=+r.max)return stop();set(+r.value+1);},110);});
+const go=()=>{if(matchMedia('(prefers-reduced-motion: reduce)').matches)return set(R);play.click();};if('IntersectionObserver' in window){const io=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting)){io.disconnect();if(+r.value===0&&!t)setTimeout(go,400);}},{threshold:.5});io.observe(g.querySelector('.lanes'));}set(0);})();
+document.querySelectorAll('.ci').forEach(c=>{const bs=[...c.querySelectorAll('[role=tab]')],ps=[...c.querySelectorAll('[role=tabpanel]')];
+c.classList.add('live');const pick=b=>{bs.forEach((x,k)=>{const on=x===b;x.setAttribute('aria-selected',on);x.tabIndex=on?0:-1;ps[k].hidden=!on;});};
+bs.forEach((b,k)=>{b.addEventListener('click',()=>pick(b));b.addEventListener('keydown',e=>{const d=e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0;
+ if(d){const n=bs[(k+d+bs.length)%bs.length];pick(n);n.focus();}});});pick(bs[0]);});</script>"""
+
+
+def gap_figure() -> str:
+    """One advisory's first 60 days, as four lanes and the events in order. A slider moves through the days; without
+    JavaScript the events are listed and the lanes show the whole span."""
+
+    def at(day: int) -> str:
+        return f"{100 * day / GAP_DAYS:.3f}%"
+
+    def seg(cls: str, start: int, end: int, text: str) -> str:
+        return f'<i class="{cls}" style="left:{at(start)};width:{at(end - start)}"><span>{text}</span></i>'
+
+    lanes = [
+        ("The advisory", seg("pub", 0, GAP_DAYS, "Public, with a fixed release")),
+        ("GitHub’s review", seg("limbo", 0, REVIEW_MEDIAN, "In limbo") + seg("done", REVIEW_MEDIAN, GAP_DAYS, "Reviewed")),
+        ("Your scanner", seg("quiet", 0, REVIEW_MEDIAN, "No known vulnerabilities") + seg("alert", REVIEW_MEDIAN, GAP_DAYS, "Alert")),
+        ("With Limbowatch", seg("alert", 0, GAP_DAYS, "Alert on the next build")),
+    ]  # fmt: skip
+    rows = "".join(f'<div class="lane"><p>{E(name)}</p><div class="track">{bars}</div></div>' for name, bars in lanes)
+    ticks = "".join(
+        f'<span style="left:{at(d)}">{d}</span>' for d in sorted({d for d, _, _ in GAP_EVENTS} | {GAP_DAYS})
+    )
+    events = "".join(
+        f'<li data-day="{d}"><span class="when">Day {d}</span><strong>{E(h)}</strong><span class="what">{E(w)}</span></li>'
+        for d, h, w in GAP_EVENTS
+    )
+    return f"""<div class="gap" data-review="{REVIEW_MEDIAN}">
+<div class="gap-ctl"><label for="gap-day">Day <output for="gap-day">0</output> after publication</label>
+<input id="gap-day" type="range" min="0" max="{GAP_DAYS}" value="0" step="1">
+<button type="button" class="gap-play" hidden>Play</button></div>
+<dl class="gap-now" aria-live="polite"><div><dt>Public for</dt><dd data-say="public">Today</dd></div>
+<div><dt>Your scanner says</dt><dd data-say="scanner">No known vulnerabilities</dd></div>
+<div><dt>Limbowatch says</dt><dd data-say="limbo">1 advisory in limbo, upgrade to fix</dd></div></dl>
+<div class="lanes" aria-hidden="true">{rows}<div class="lane axis"><p>Days</p><div class="ticks">{ticks}</div></div></div>
+<ol class="gap-ev">{events}</ol></div>"""
+
+
+def clocks() -> str:
+    """Two compliance deadlines on the timeline's scale: where the review wait falls, and what's left."""
+
+    def bar(parts: list[tuple[str, int, int, str]], due: int, note: str, title: str) -> str:
+        segs = "".join(
+            f'<i class="{c}" style="left:{100 * a / GAP_DAYS:.3f}%;width:{100 * (b - a) / GAP_DAYS:.3f}%"><span>{t}</span></i>'
+            for c, a, b, t in parts
+        )
+        return (
+            f'<div class="clock"><p class="ct">{title}</p><div class="track">{segs}'
+            f'<b class="due" style="left:{100 * due / GAP_DAYS:.3f}%"></b></div><p class="cn">{note}</p></div>'
+        )
+
+    r, p = REVIEW_MEDIAN, POLICY_DAYS
+    return (
+        '<figure class="clocks" role="img" aria-label="Three deadlines on a 60-day scale. PCI DSS, one month from the '
+        f"fix’s release: the scanner is silent for {r} days, leaving {30 - r}. A {p}-day policy from detection: due on "
+        f'day {r + p}. With Limbowatch: due on day {p}.">'
+        + bar([("limbo", 0, r, "Scanner silent"), ("alert", r, 30, f"{30 - r} left")], 30,
+              f"Your scanner tells you on day {r}, with {30 - r} days left.", "PCI DSS: within one month of the fix’s release")
+        + bar([("limbo", 0, r, "Not found yet"), ("alert", r, r + p, f"{p} days to fix")], r + p,
+              f"On time by the policy. Exposed for {r + p} days.", f"Your policy: {p} days from the scanner’s alert")
+        + bar([("alert", 0, p, f"{p} days to fix")], p, "The clock starts the day the advisory is published.",
+              "The same policy, with Limbowatch in CI")
+        + '<div class="ticks">'
+        + "".join(f'<span style="left:{100 * d / GAP_DAYS:.3f}%">{d}</span>' for d in (0, p, r, r + p, GAP_DAYS))
+        + "</div></figure>"
+    )  # fmt: skip
+
+
+GITHUB_CI = """- uses: actions/checkout@v4
+- uses: limbowatch/limbowatch-action@v{release}
+  with:
+    fail-on: high
+    sarif: limbowatch.sarif"""
+GITLAB_CI = """include:
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@{component}
+    inputs:
+      fail_on: high"""
+
+
+def ci_tabs() -> str:
+    tabs = [
+        ("gh", "GitHub Actions", GITHUB_CI.format(release=RELEASE), MARKETPLACE_URL, "In GitHub Marketplace",
+         "Also runs on Gitea and Forgejo Actions."),
+        ("gl", "GitLab CI", GITLAB_CI.format(component=COMPONENT), CATALOG_URL, "In the GitLab CI/CD Catalog",
+         "Every tier, Free included."),
+    ]  # fmt: skip
+    buttons = "".join(
+        f'<button type="button" role="tab" id="ci-{k}" aria-controls="ci-{k}-p">{E(name)}</button>'
+        for k, name, *_ in tabs
+    )
+    panels = "".join(
+        f'<div role="tabpanel" id="ci-{k}-p" aria-labelledby="ci-{k}"><p class="ci-h">{E(name)}</p><pre>{E(code)}</pre>'
+        f'<p class="ci-f"><a href="{url}">{E(where)}</a><span>{E(note)}</span></p></div>'
+        for k, name, code, url, where, note in tabs
+    )
+    return f'<div class="ci"><div role="tablist" aria-label="Your CI">{buttons}</div>{panels}</div>'
+
+
 def home(items: list[Item], m: dict[str, Any], now: datetime) -> str:
     li, cov = m["in_limbo"], m["coverage"]
     flow = m.get("flow_7d") or {}
     pend = pending(items)
     ages = [a for i in pend if (a := days_since(i.adv.published_at, now)) is not None]
     sev = li["by_severity"]
-    pct = 100 * cov["on_schedule"] / cov["watchlist_repos"] if cov["watchlist_repos"] else 0
     cols, undated = queue_cols(pend, now)
     fresh = sorted(pend, key=lambda i: i.adv.published_at or now, reverse=True)[:LIST_ROWS]
     # Old advisories GitHub never backfilled would fill this list (some date from 2019), so it covers the last year.
     recent = [i for i in pend if (days_since(i.adv.published_at, now) or 0) <= 365]
     oldest = sorted(recent, key=lambda i: i.adv.published_at or now)[:LIST_ROWS]
+    count = f"{li['count']:,}"
+    no_cve = li["by_cve"].get(CveLabel.NONE.value, 0)
 
     def lst(title: str, rows: list[Item]) -> str:
         body = (
@@ -837,87 +1031,112 @@ def home(items: list[Item], m: dict[str, Any], now: datetime) -> str:
 
     updated = stamp(m["generated_at"])
     flow_html = (
-        f'<p class="flow"><strong>{flow["published"]:,}</strong> new advisories were published in the last '
-        f"{flow['days']} days. GitHub reviewed <strong>{flow['reviewed']:,}</strong> of the ones waiting.</p>"
+        f'<p class="flow">In the last {flow["days"]} days, maintainers published <strong>{flow["published"]:,}</strong> new '
+        f"advisories in the repositories we watch. GitHub reviewed <strong>{flow['reviewed']:,}</strong> of the ones waiting.</p>"
         if flow
         else ""
     )
-    body = f"""<div class="hero">{header("")}
-<section class="wrap hero-body">
-<p class="eyebrow">Live, re-checked every day. Updated {E(updated)}.</p>
-<h1>Published. Often fixed. Invisible to most scanners.</h1>
-<p class="lede">Maintainers publish security advisories on GitHub every day. Dependabot, npm audit and OSV-Scanner can’t
-see them until GitHub reviews them into its Advisory Database, and that review often takes weeks. Limbowatch tracks the
-advisories waiting in between.</p>
-{find_form()}
-<figure class="tl"><figcaption>Where an advisory waits</figcaption>
-<div class="tl-cols"><div class="f3 pr"><p class="tl-tag">In limbo</p><p class="tl-note">Public and often already fixed, but
-scanners report nothing.</p></div><div class="f1"></div></div>
-<div class="tl-row" aria-hidden="true"><span class="dot amber"></span><span class="seg f3"></span><span class="dot ring"></span>
-<span class="seg thin f1"></span><span class="dot fill"></span></div>
-<div class="tl-cols tl-labels"><div class="f3 pr"><strong>Maintainer publishes</strong><br><span>a repository advisory</span></div>
-<div class="f1"><div><strong>GitHub reviews it</strong><br><span>global Advisory DB</span></div>
-<div class="r"><strong>Scanners see it</strong><br><span>via OSV, hours later</span></div></div></div>
-<ol class="tl-v">
-<li class="pub"><b aria-hidden="true"></b><strong>Maintainer publishes</strong><span>a repository advisory</span></li>
-<li class="limbo"><p class="tl-tag">In limbo</p><span>Public and often already fixed, but scanners report nothing.</span></li>
-<li class="rev"><b aria-hidden="true"></b><strong>GitHub reviews it</strong><span>global Advisory DB</span></li>
-<li class="seen"><b aria-hidden="true"></b><strong>Scanners see it</strong><span>via OSV, hours later</span></li></ol></figure>
-<div class="count-row"><div><div class="big">{li["count"]:,}</div><div class="big-label">advisories in limbo right now</div></div>
-<div class="side">{flow_html}
-<dl class="stats three">
-<div><dt>Critical or high</dt><dd>{sev["critical"] + sev["high"]:,}</dd></div>
-<div><dt>Median wait so far</dt><dd>{fmt_days(li["age_days_median"])}</dd></div>
-<div><dt>Waiting over 90 days</dt><dd>{sum(1 for x in ages if x > 90):,}</dd></div>
-</dl></div></div>
-{queue_figure(cols, undated)}
-<div class="ctas"><a class="btn light" href="/tracker/">See all {li["count"]:,} in the tracker</a>
-<a class="btn ghost" href="/scan/">Scan your project</a></div>
-<p class="get-ci"><span>Add it to CI:</span><a href="{MARKETPLACE_URL}">GitHub Action, in GitHub Marketplace</a>
-<a href="{CATALOG_URL}">GitLab component, in the GitLab CI/CD Catalog</a></p>
+    body = f"""<div class="hx">{header("")}
+<section class="wrap hx-body">
+<div class="hx-q"><h1>Your scan came back clean. Is it?</h1>
+<p class="hx-lede">Right now, <strong>{count}</strong> published security advisories are invisible to Dependabot, npm audit
+and OSV-Scanner. They’re public, most already have a fix, and they’re waiting for GitHub to review them. Limbowatch finds
+the ones in your dependencies.</p>
+<div class="hx-cta"><a class="btn light" href="#fix">Add it to your CI</a><a class="btn ghost" href="/check/">Check a package</a></div>
+<p class="hx-meta">Live count, re-checked daily, updated {E(updated)}.</p></div>
+<figure class="pair"><div class="res quiet"><p class="rt">GitHub Dependabot alerts</p><p class="rv">0</p>
+<p class="rd">open alerts on the demo app</p></div>
+<div class="res loud"><p class="rt">limbowatch scan</p><p class="rv">16</p>
+<p class="rd">advisories in limbo, in 6 packages, each with a released fix</p></div>
+<figcaption>The same <a href="https://github.com/limbowatch/demo-app">demo app</a>, with real npm, Go, pip and Bundler
+lockfiles, on 2026-11-07. OSV-Scanner reported none of the 16 either. <a href="{EVIDENCE}">Each one, rechecked</a></figcaption></figure>
 </section></div>
-<div class="strip"><div class="wrap"><span><strong>Every number is a floor.</strong> We watch {cov["watchlist_repos"]:,} upstream
-repositories; {cov["on_schedule"]:,} are up to date. Repos with an advisory in limbo are re-checked daily, the rest after each release of their package and at least monthly.</span>
-<span class="meter" role="img" aria-label="{pct:.0f}% of the watchlist up to date"><span style="width:{min(pct, 100):.0f}%"></span></span>
-<a href="/methodology/#coverage">How coverage works</a></div></div>
 <main>
-<section class="wrap s proof"><div class="ptext"><h2>A clean scan can miss these</h2>
-<p class="sub">In November 2026 we gave GitHub’s Dependabot the dependency files of 13 popular open-source projects. It
-raised 2,020 alerts, and <strong>none</strong> for the advisories in limbo that Limbowatch found there. GitHub could see
-every affected package: each one was in its own dependency graph. The advisories just hadn’t been reviewed yet.</p>
-<p class="sub">We then rechecked each finding with the ecosystem’s own version library, independently of Limbowatch’s
-code: <strong>1,080 confirmed</strong>, from 277 advisories. 262 of them are rated critical or high, and only 95 have a CVE.</p>
-<p class="links"><a href="{COMPARE}">The 13-project comparison</a><a href="{FINDINGS_URL}#f-112">How each finding was
-checked</a><a href="{EVIDENCE}">A demo app: 16 vs 0</a></p></div>
-<div class="vs" role="img" aria-label="On the same 13 projects: affected packages in GitHub’s dependency graph, all 1,140; findings alerted by Dependabot, 0; confirmed by Limbowatch, 1,080">
-<div><span>In GitHub’s dependency graph</span><b class="zero">all</b></div>
-<div><span>Alerted by Dependabot</span><b class="zero">0</b></div>
-<div class="lw"><span>Confirmed by Limbowatch</span><b>1,080</b><i style="width:100%"></i></div></div></section>
-<section class="wrap s"><div class="two"><div><h2 class="sm">By ecosystem</h2>
+<section class="wrap s" id="gap"><div class="intro"><h2>What happens after a maintainer publishes an advisory</h2>
+<p class="sub">One advisory, day by day, at October 2026’s median wait for review: {REVIEW_MEDIAN} days. Drag the slider,
+or press play.</p></div>
+{gap_figure()}</section>
+
+<section class="wrap s" id="now"><div class="now">
+<div class="now-n"><p class="huge">{count}</p><p class="huge-l">advisories in limbo right now</p></div>
+<div class="now-t">{flow_html}
+<dl class="stats3"><div><dt>Critical or high</dt><dd>{sev["critical"] + sev["high"]:,}</dd></div>
+<div><dt>Median wait so far</dt><dd>{fmt_days(li["age_days_median"])}</dd></div>
+<div><dt>Waiting over 90 days</dt><dd>{sum(1 for x in ages if x > 90):,}</dd></div></dl>
+<blockquote class="gh"><p>“Since mid-April… we have not consistently met our internal goals for publication.”</p>
+<footer>GitHub, on its advisory review, <a href="{GITHUB_BLOG}">June 2026</a></footer></blockquote></div></div>
+{queue_figure(cols, undated)}
+<p class="floor"><strong>Every number is a floor.</strong> We watch {cov["watchlist_repos"]:,} upstream repositories, including
+the source repos of the 10,000 most-used packages in each ecosystem; {cov["on_schedule"]:,} are up to date.
+<a href="/methodology/#coverage">How coverage works</a></p>
+<div class="proof"><div><h3>Dependabot saw every package, and alerted on none</h3>
+<p>In November 2026 we gave GitHub’s Dependabot the dependency files of 13 popular open-source projects. It raised 2,020
+alerts, none for the advisories in limbo there, though each affected package was in GitHub’s own dependency graph.
+Rechecked with each ecosystem’s own version library: <strong>1,080 confirmed findings</strong> from 277 advisories, 262 of them
+critical or high, only 95 with a CVE.</p>
+<p class="links"><a href="{COMPARE}">The 13-project comparison</a><a href="{FINDINGS_URL}#f-112">How each finding was checked</a></p></div>
+<div class="vs" role="img" aria-label="Dependabot alerts for these findings: 0. Confirmed by Limbowatch: 1,080.">
+<div><span>Dependabot alerts</span><b class="zero">0</b></div><div class="lw"><span>Confirmed in limbo</span><b>1,080</b></div></div></div>
+</section>
+
+<section class="wrap s" id="audit"><div class="intro"><h2>A clean scan is also your audit evidence</h2>
+<p class="sub">If you report to SOC 2 or PCI DSS, the scanner’s output is how you show that you find and fix
+vulnerabilities in time. For advisories in limbo, that evidence is wrong, and it’s wrong in your favor.</p></div>
+<div class="audit"><div class="prose-s">
+<p><strong>SOC 2.</strong> Criterion CC7.1 asks that you identify “susceptibilities to newly discovered vulnerabilities”,
+and its points of focus include scans and fixing what they find on a timely basis. Most teams set the deadline in a policy, counted from the
+scanner’s alert. An advisory in limbo raises no alert, so the clock doesn’t start, and the fix looks on time.</p>
+<p><strong>PCI DSS.</strong> The clock starts at the other end: critical vulnerabilities must be resolved within one month
+of the fix’s release. At the October median, your scanner speaks up on day {REVIEW_MEDIAN}, with {30 - REVIEW_MEDIAN}
+days left. For {OVER_30D}% of the advisories reviewed in October, the month was over before the review.</p>
+<p class="src">This isn’t audit advice; ask your auditor how they treat advisories before review. Sources:
+<a href="{TSC_URL}">AICPA, 2017 Trust Services Criteria</a>, CC7.1;
+<a href="{PCI_FAQ}">PCI SSC FAQ 1597</a> (May 2025); review times from the
+<a href="{REPORT_URL}">October 2026 report</a>.</p></div>
+{clocks()}</div></section>
+
+<section class="wrap s" id="fix"><div class="intro"><h2>The simple part: one step in CI</h2>
+<p class="sub">Limbowatch doesn’t shorten GitHub’s queue. It checks your lockfiles against every advisory waiting in it, on
+every build, so you hear about an advisory the day it’s published.</p></div>
+<div class="fix">{ci_tabs()}
+<ul class="gets">
+<li><strong>Where your team already looks.</strong> Inline on the pull request line through code scanning, Code Quality and
+the test summary in GitLab merge requests, and a job summary with the upgrade that clears each finding.</li>
+<li><strong>Issues that keep up.</strong> One issue per advisory and package in GitLab, Gitea or Forgejo, updated when a CVE
+is assigned or GitHub reviews it, and closed once you’ve upgraded.</li>
+<li><strong>Private.</strong> Your lockfiles are read inside the job, and the limbo feed is downloaded whole, so limbo.watch
+learns nothing about your project.</li>
+<li><strong>Open source, alpha.</strong> Release {RELEASE}, Apache-2.0. <a href="/scan/">See every output</a> or
+<a href="{WATCHER_DOC}">read the guide</a>.</li></ul></div>
+{shot("github-pr-inline", "A GitHub pull request on the demo app: the line that adds scapy 2.7.0 gets a code scanning alert for an advisory in limbo.", narrow=True)}
+</section>
+
+<section class="wrap s" id="look"><h2>Look it up</h2>
+{find_form()}
+<div class="cols">{lst("Newly published", fresh)}{lst("Longest waiting, published this past year", oldest)}</div>
+<div class="two" style="margin-top:56px"><div><h3 class="h3">By ecosystem</h3>
 <p class="sub">Advisories in limbo by package ecosystem, and how long they’ve waited so far.</p>{eco_table(pend, now)}</div>
-<div><h2 class="sm">By CVE state</h2>
-<p class="sub">{li["by_cve"].get(CveLabel.NONE.value, 0):,} of {li["count"]:,} have no CVE at all, so tools that start
-from CVEs can’t see them either.</p>{cve_split(m)}</div></div></section>
-<section class="wrap s"><h2>In limbo now</h2><p class="sub">Facts only. Each advisory’s full text stays on GitHub.</p>
-<div class="cols">{lst("Newly published", fresh)}{lst("Longest waiting, published this past year", oldest)}</div></section>
-<section class="wrap s"><h2>What to do about it</h2><div class="paths">
-<div><h3>If you run security for a team</h3><p>Check your lockfiles in CI against everything in limbo. Findings show up in
-merge requests, pull requests and issues, on GitLab, GitHub, Gitea and Forgejo.</p>
-<p class="links"><a href="/scan/">Set up the scan</a><a href="{MARKETPLACE_URL}">GitHub Marketplace</a>
-<a href="{CATALOG_URL}">GitLab CI/CD Catalog</a><a href="/feed/critical.atom">Subscribe to new critical and high</a>
-<a href="/feed/">Download the OSV feed</a></p></div>
+<div><h3 class="h3">By CVE state</h3>
+<p class="sub">{no_cve:,} of {count} have no CVE at all, so tools that start from CVEs can’t see them either.</p>{cve_split(m)}</div></div>
+<p class="links"><a href="/tracker/">All {count} in the tracker</a><a href="/feed/">The limbo feed (OSV)</a>
+<a href="/feed/critical.atom">Atom: new critical and high</a></p></section>
+
+<section class="wrap s"><h2>If you’re not the one running CI</h2><div class="paths">
 <div><h3>If you maintain a project</h3><p>Request a CVE when you publish, and fill in both the affected range and the fixed
 version, so scanners can match your advisory the day it’s reviewed.</p>
 <p class="links"><a href="/quality/">Advisories scanners can’t match</a><a href="/methodology/#maintainers">What helps</a></p></div>
 <div><h3>If you’re writing about it</h3><p>Dated numbers you can cite, charts you can reuse, the method behind each
 number, and someone to ask.</p>
-<p class="links"><a href="/press/">Press and research</a><a href="/why/">The story behind it</a></p></div></div></section>
+<p class="links"><a href="/press/">Press and research</a><a href="{REPORT_URL}">The October 2026 report</a></p></div>
+<div><h3>If you want the backstory</h3><p>One critical advisory, published in June 2026, that scanners still can’t
+match months later.</p>
+<p class="links"><a href="/why/">Why I built it</a><a href="/methodology/">Methodology</a></p></div></div></section>
 </main>
-{footer()}{SEARCH_JS}"""
+{footer()}{SEARCH_JS}{HOME_JS}"""
     return page(
         "limbo.watch: security advisories your scanner can’t see yet",
         f"{li['count']:,} published security advisories are waiting for GitHub review, invisible to Dependabot, npm audit "
-        "and OSV-Scanner. Live tracker, open feed and CI scan.",
+        "and OSV-Scanner. Live tracker, open feed and a one-step CI scan for GitHub and GitLab.",
         body,
         "/",
         dataset_ld(m),

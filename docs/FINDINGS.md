@@ -1907,6 +1907,27 @@ Answered:
 - **Implication:** `watch` and Maven resolution ([F-132](#f-132)) reach users. Maven resolution is on by default (`--no-resolve-maven` opts out).
 - **Sources:** GitHub Actions runs 42865043716 (image, 8fcf60d), 42879865561 (release), 42879865719 (image, tag), limbowatch-action 42881746321; GitLab pipelines above; PyPI.
 
+### F-134
+- **Date:** 2026-11-10 · **Status:** confirmed (official documents)
+- **Question:** What do SOC 2 and PCI DSS say about finding and fixing newly published vulnerabilities, and when does the clock start? (For the home page's compliance section.)
+- **Method:** Read the criteria text directly:
+  - AICPA TSP Section 100, *2017 Trust Services Criteria* (with the March 2020 updates), CC7.1 and CC7.2, from the AICPA's PDF. The AICPA download page needs a free account, so the PDF was read from a copy of the same file;
+  - PCI Security Standards Council FAQ 1597 (May 2025) on vulnerability risk rankings and Requirement 6.3.3.
+- **Result:**
+  - **SOC 2, CC7.1:** "the entity uses detection and monitoring procedures to identify (1) changes to configurations that result in the introduction of new vulnerabilities, and (2) susceptibilities to newly discovered vulnerabilities."
+  - **SOC 2, CC7.1 point of focus "Conducts Vulnerability Scans":** scans run "on a periodic basis and after any significant change", and the entity "takes action to remediate identified deficiencies on a timely basis." CC7.2's points of focus include "use of intelligence sources to identify newly discovered threats and vulnerabilities".
+  - **SOC 2 sets no deadline.** The entity's own policy does, and the auditor tests against it.
+  - **PCI DSS, FAQ 1597:** Requirement 6.3.3 sets time frames for installing patches. Patches for critical vulnerabilities "must be resolved within one month of release"; for other vulnerabilities, the entity sets the time frames from its own risk rankings (6.3.1).
+- **Caveats:**
+  - Secondary sources disagree on whether v4.0 or v4.0.1 also put high-severity patches under the one-month rule, so the site cites only "critical", the FAQ's wording.
+  - The AICPA published an exposure draft on 2026-10-27 that would restructure the common criteria (vulnerability monitoring would move to CC5.6). It isn't final, and the text above is the current criteria.
+  - This is how the frameworks are worded, not audit advice.
+- **Implication:**
+  - Under a policy counted from the scanner's alert (common for SOC 2), time in limbo is added to the exposure without breaking the policy: at October's median review wait, a 30-day policy finishes on day 53 after publication ([F-055](#f-055)).
+  - Under PCI DSS the one month runs from the fix's release. When the fix ships with the advisory, a scanner that waits for review speaks up on day 23 with 7 days left. 44% of October's reviews took longer than 30 days.
+  - The home page says this, with sources, and adds that it isn't audit advice.
+- **Sources:** [AICPA: 2017 Trust Services Criteria](https://www.aicpa-cima.com/resources/download/2017-trust-services-criteria-with-revised-points-of-focus-2022) (TSP 100, CC7.1, CC7.2); [PCI SSC FAQ 1597](https://www.pcisecuritystandards.org/faqs/1597/).
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

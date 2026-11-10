@@ -4,6 +4,8 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+- **limbo.watch home page, redesigned.** It opens with the question ("Your scan came back clean. Is it?") and shows the demo app's result: 0 Dependabot alerts, 16 advisories in limbo. Next comes one advisory's first 60 days: drag a slider or press play to see what the maintainer, GitHub's review, your scanner and Limbowatch each show on each day. Then the live numbers and GitHub's own words on its review goals. A new section explains what this means for SOC 2 (CC7.1) and PCI DSS (6.3.3) deadlines, with sources (F-134). Last comes the CI step for GitHub Actions and GitLab CI, in tabs. The live lists, the ecosystem and CVE tables and the package checker are still there.
+
 ## 0.1.0a6 (2026-11-10)
 
 Still an **alpha**. On PyPI it's `0.1.0a6`; the GitHub tag and the action's ref are `v0.1.0a6`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a6`; the GitLab CI/CD component is `0.1.0-alpha.6`. **Maven projects get more findings:** `pom.xml` dependencies are now resolved through deps.dev and Maven Central (`--no-resolve-maven` to keep the inventory offline).

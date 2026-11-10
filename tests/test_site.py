@@ -65,3 +65,18 @@ def test_github_and_gitlab_links_open_in_a_new_tab() -> None:
     assert '<a href="/scan/">c</a>' in out and '<a href="https://limbo.watch/feed/">d</a>' in out
     assert '<a href="https://github.com.evil.example/">e</a>' in out  # only github.com and gitlab.com themselves
     assert '<a href="https://github.com/x" target="_self">f</a>' in out  # an explicit target is kept
+
+
+def test_home_timeline_and_ci_steps() -> None:
+    """The home page's timeline lists its events in order, within its 60 days; the CI steps pin the release."""
+    days = [d for d, _, _ in site.GAP_EVENTS]
+    assert days == sorted(days) and days[0] == 0 and days[-1] <= site.GAP_DAYS
+    assert site.REVIEW_MEDIAN in days and site.REVIEW_MEDIAN + site.POLICY_DAYS in days
+    gap = site.gap_figure()
+    assert gap.count("<li data-day=") == len(days) and f'max="{site.GAP_DAYS}"' in gap
+    # segments never run past the end of the track
+    for left, width in re.findall(r"left:([\d.]+)%;width:([\d.]+)%", gap + site.clocks()):
+        assert float(left) + float(width) <= 100.001
+    ci = site.ci_tabs()
+    assert f"limbowatch-action@v{site.RELEASE}" in ci and f"limbowatch@{site.COMPONENT}" in ci
+    assert site.MARKETPLACE_URL in ci and site.CATALOG_URL in ci
