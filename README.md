@@ -54,10 +54,10 @@ In June 2026 I reported a critical vulnerability in [NationalSecurityAgency/skil
 
 ## The October 2026 report
 
-📊 **[State of the Gap (October 2026)](research/2026-10-state-of-the-gap/README.md)**, *draft*. Main findings (snapshot 2026-10-22, 15 projects on GitHub, GitLab, Codeberg, Tor, GNOME, Framagit and SourceHut):
+📊 **[State of the Gap (October 2026)](research/2026-10-state-of-the-gap/README.md)**. Main findings (snapshot 2026-10-22, 15 projects on GitHub, GitLab, Codeberg, Tor, GNOME, Framagit and SourceHut):
 
 - **About 1 in 6 upstream advisories is in limbo.** That's 415 of 2,517 unique advisories (16.5%) in the upstream repos of fifteen popular projects, each verified automatically against primary sources.
-- **The median wait for GitHub review is 23 days.** 94% of advisories wait longer than GitHub's 72-hour target, and 44% longer than 30 days.
+- **The median wait for GitHub review is 23 days.** 94% of advisories wait longer than the 72 hours GitHub's documentation gives, and 44% longer than 30 days. GitHub has said it has missed its own goals since mid-April 2026.
 - **13 of 14 readable projects ship affected versions that a scanner reports as clean.** Counted per project, that's 105 package-versions (92 distinct ones) that OSV-Scanner reports as having no known vulnerabilities, including in GitLab, Forgejo, Gitea and Kubernetes. Hosting your code off GitHub doesn't help: your dependencies' advisories are still stuck there.
 - **CVE data is out of sync too.** 27 CVE IDs are reserved but public, the oldest for 119 days. 23 advisories have a VulnCheck- or Tenable-assigned CVE they don't cite. Many CVEs aren't enriched in NVD.
 
@@ -83,7 +83,7 @@ The methods, open dataset (CC BY 4.0) and scripts to reproduce it are in the [re
 
 | Phase | Status |
 |---|---|
-| 1. "State of the Gap" report | draft for review |
+| 1. "State of the Gap" report | published 2026-11-10 |
 | 2. Live Limbo Tracker and an open **limbo feed** (OSV schema) | **live** at [limbo.watch](https://limbo.watch) |
 | 3. Contributions to existing tools ([blindspot](https://github.com/munimtechnologies/advisory-import-census), OSV-Scanner) | prepared, not sent ([drafts](docs/outreach/)) |
 | 4. Limbowatch watcher for GitLab and Gitea: CI component, issues that update as advisories move through review | **released** as 0.1.0a1, an alpha; current 0.1.0a4 ([PyPI](https://pypi.org/project/limbowatch-cli/), [GitLab CI/CD Catalog](https://gitlab.com/explore/catalog/limbowatch/limbowatch-component)) |

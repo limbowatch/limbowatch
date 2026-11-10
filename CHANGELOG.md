@@ -5,6 +5,7 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 ## Unreleased
 
 - **limbo.watch package checker** (`/check/`): type a package and the site checks it and its whole dependency tree, resolved by deps.dev, against the advisories in limbo, for npm, PyPI, crates.io and Maven. It runs in the browser with the watcher's own range parsing (done at publish time) and ports of its version orderings, tested against the Python code (F-118). `limbowatch publish` writes `check/index.json`.
+- **Fix: a CVE record no longer links an advisory it only mentions.** The tracker took GHSA IDs from anywhere in a CVE record, so a description such as "distinct from GHSA-…" counted that advisory as having an uncited CVE, or as a duplicate if the CVE was reviewed under another ID. It now links only through the record's references and `source`, and re-reads records it stored under the old rule (F-120).
 
 ## 0.1.0a4 (2026-11-08)
 

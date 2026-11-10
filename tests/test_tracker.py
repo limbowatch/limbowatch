@@ -253,6 +253,40 @@ async def test_renamed_repo_does_not_duplicate_advisories(tmp_path: Path, no_sle
     assert regexp2[0].adv.repo == "dlclark/regexp2"  # canonical name from the advisory's URL
 
 
+async def test_tracker_rereads_cve_records_stored_under_an_older_link_rule(tmp_path: Path, no_sleep: Any) -> None:
+    """Records stored before F-120 took GHSA IDs from descriptions too. Where such a link would count, the record
+    is read again; a lookup that finds no record keeps the stored one."""
+    from limbowatch.store import Cve
+
+    seed = tmp_path / "seed.txt"
+    seed.write_text("gitpython-developers/gitpython\n")
+    store = Store()
+    old = {"state": "PUBLISHED", "cna": "VulnCheck", "ghsa_refs": ["GHSA-F9J4-QGGQ-H239"], "repo_refs": []}
+    with store.session() as s:
+        for cid in ("CVE-2026-900001", "CVE-2026-900002"):
+            s.add(Cve(cve_id=cid, data={**old, "cve_id": cid}, fetched_at="2026-10-30T00:00:00Z"))
+    mention = {
+        "cveMetadata": {"cveId": "CVE-2026-900001", "state": "PUBLISHED", "assignerShortName": "VulnCheck"},
+        "containers": {"cna": {"descriptions": [{"lang": "en", "value": "Distinct from GHSA-f9j4-qggq-h239."}],
+                               "references": [{"url": "https://example.com/advisory"}]}},
+    }  # fmt: skip
+    with respx.mock(assert_all_mocked=True, assert_all_called=False) as router:
+        mock_world(router)
+        router.get("https://cveawg.mitre.org/api/cve/CVE-2026-900001").mock(
+            return_value=httpx.Response(200, json=mention)
+        )
+        router.get("https://cveawg.mitre.org/api/cve/CVE-2026-900002").mock(
+            return_value=httpx.Response(404, json=load("cve_not_found.json"))
+        )
+        router.get("https://cveawg.mitre.org/api/cve-id/CVE-2026-900002").mock(
+            return_value=httpx.Response(404, json=load("cve_not_found.json"))
+        )
+        r = await run_once(store, seed, no_sleep)
+    assert r.cves_relinked == 1
+    gitpython = next(i for i in items(store) if i.adv.ghsa_id == "GHSA-f9j4-qggq-h239")
+    assert gitpython.facts.uncited_cves == ("CVE-2026-110858", "CVE-2026-900002")
+
+
 def test_cve_list_bootstrap_finds_uncited_cves(tmp_path: Path) -> None:
     """A bulk CVE List release is nested zips; only records that reference a GHSA are kept (F-050)."""
     from limbowatch.tracker import import_cve_list

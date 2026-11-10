@@ -1,5 +1,5 @@
 from conftest import load
-from limbowatch.normalize import cve_record, repo_advisory, reviewed_entry
+from limbowatch.normalize import LINK_RULE, cve_record, repo_advisory, reviewed_entry
 
 FORBIDDEN = ("REDACTED", "redacted")
 
@@ -28,6 +28,24 @@ def test_cve_record_finds_ghsa_and_repo_refs_case_insensitively() -> None:
     assert info.state == "PUBLISHED"
     assert "GHSA-F9J4-QGGQ-H239" in info.ghsa_refs  # upper-cased (F-050)
     assert "gitpython-developers/gitpython" in info.repo_refs
+
+
+def test_cve_record_links_a_ghsa_only_through_references_or_source() -> None:
+    """A description that names another advisory ("different from GHSA-…") doesn't link it (F-120)."""
+    raw = {
+        "cveMetadata": {"cveId": "CVE-2026-102521", "state": "PUBLISHED", "assignerShortName": "GitHub_M"},
+        "containers": {
+            "cna": {
+                "descriptions": [{"lang": "en", "value": "Similar to but different from GHSA-r5c8-rf4w-qrq8."}],
+                "references": [{"url": "https://github.com/dmonad/lib0/security/advisories/GHSA-g75x-89c3-rvmr"}],
+                "source": {"advisory": "GHSA-wq9v-j77v-qr26", "discovery": "UNKNOWN"},
+            }
+        },
+    }
+    info = cve_record(raw)
+    assert info.ghsa_refs == ("GHSA-G75X-89C3-RVMR", "GHSA-WQ9V-J77V-QR26")
+    assert info.link_rule == LINK_RULE
+    assert "dmonad/lib0" in info.repo_refs  # repos may come from anywhere in the record: they only widen the watchlist
 
 
 def test_reviewed_entry_origin_repo() -> None:

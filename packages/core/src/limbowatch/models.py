@@ -58,6 +58,7 @@ class CveInfo(Frozen):
     cna: str | None = None
     ghsa_refs: tuple[str, ...] = ()
     repo_refs: tuple[str, ...] = ()
+    link_rule: int = 0  # normalize.LINK_RULE the record was read with; 0: before F-120, or no record (cve-id only)
 
 
 GITHUB_CNA = "GitHub_M"  # GitHub's CNA short name in CVE records

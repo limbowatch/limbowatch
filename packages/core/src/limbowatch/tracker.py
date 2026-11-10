@@ -23,7 +23,7 @@ from limbowatch.classify import facts_hash, transitions
 from limbowatch.ecosystems import package_name
 from limbowatch.http import BudgetExhausted, DeadlineReached, HttpClient
 from limbowatch.models import GITHUB_CNA, CveInfo, Facts, RepoAdvisory
-from limbowatch.normalize import ts
+from limbowatch.normalize import LINK_RULE, ts
 from limbowatch.sources import cve as cve_src
 from limbowatch.sources import github, goproxy, nvd, osv, releases
 from limbowatch.store import (
@@ -86,6 +86,8 @@ class RunReport:
     new_advisories: int = 0
     assessed: int = 0
     changed: int = 0
+    # CVE records read again because they were stored under an older normalize.LINK_RULE (F-120)
+    cves_relinked: int = 0
     # Polls per schedule tier ("new" for first checks) by outcome: "304", "200", "404", "other", and "no_etag" for
     # polls sent without a usable ETag (never polled with this token), which can't come back 304. Shows where the
     # budget goes (FINDINGS F-100).
@@ -343,8 +345,28 @@ class Tracker:
             zip([a.ghsa_id for a in open_], await asyncio.gather(*(in_osv(a.ghsa_id) for a in open_)), strict=True)
         )
         now = datetime.now(UTC)
-        stale = [a.cve_id for a in open_ if a.cve_id and self._cve_stale(cves.get(a.cve_id), now)]
-        fresh = await asyncio.gather(*(cve_src.lookup(self.http, c) for c in sorted(set(stale))))
+        stale = sorted({a.cve_id for a in open_ if a.cve_id and self._cve_stale(cves.get(a.cve_id), now)})
+        # A record stored under an older LINK_RULE may link an advisory it only mentions (F-120). Where that link
+        # would count, as an uncited CVE or a duplicate, read the record again.
+        cited = {a.ghsa_id.upper(): a.cve_id for a, _ in todo}
+        relink = sorted(
+            c.cve_id
+            for c in cves.values()
+            if c.data.get("link_rule", 0) < LINK_RULE
+            and c.cve_id not in stale
+            and any(g in cited and cited[g] != c.cve_id for g in c.data.get("ghsa_refs", []))
+        )
+        cve_sem = asyncio.Semaphore(8)
+
+        async def lookup(c: str) -> CveInfo:
+            async with cve_sem:
+                return await cve_src.lookup(self.http, c)
+
+        fresh = list(await asyncio.gather(*(lookup(c) for c in stale)))
+        # only a full record replaces a stored one: a failed lookup mustn't erase its links
+        relinked = [i for i in await asyncio.gather(*(lookup(c) for c in relink)) if i.link_rule == LINK_RULE]
+        report.cves_relinked = len(relinked)
+        fresh += relinked
         self._merge([Cve(cve_id=i.cve_id, data=i.model_dump(mode="json"), fetched_at=now_iso()) for i in fresh])
         cves.update(
             {i.cve_id: Cve(cve_id=i.cve_id, data=i.model_dump(mode="json"), fetched_at=now_iso()) for i in fresh}

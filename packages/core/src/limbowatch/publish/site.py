@@ -1649,8 +1649,9 @@ def press(items: list[Item], m: dict[str, Any], now: datetime) -> str:
         (f"Another <strong>{perm['count']:,}</strong> published advisories are in ecosystems GitHub doesn’t review, such as "
          "C/C++ and container images. Scanners that read GitHub’s database will probably never see them.",
          "/methodology/#permanent", "What “likely permanent” means"),
-        ("GitHub’s documentation says its review of a published advisory “can take up to 72 hours”. In October 2026 "
-         "the median was <strong>23 days</strong>, for 990 reviewed advisories.", f"{FINDINGS_URL}#f-019", "Sources in the research log"),
+        ("GitHub’s documentation says its review of a published advisory “can take up to 72 hours”. GitHub has said it "
+         "has missed its own goals since mid-April 2026, and in October the median was <strong>23 days</strong>, for "
+         "990 reviewed advisories.", f"{FINDINGS_URL}#f-019", "Sources in the research log"),
         ("In October 2026, <strong>1 in 6</strong> upstream advisories behind 15 popular open-source projects was in "
          "limbo, and the median wait for GitHub’s review was 23 days.", REPORT_URL, "State of the Gap, October 2026"),
         ("On 13 popular open-source projects, GitHub’s Dependabot raised 2,020 alerts and <strong>none</strong> for "

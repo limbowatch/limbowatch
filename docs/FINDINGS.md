@@ -1561,6 +1561,10 @@ Answered:
 - **Implication:**
   - The report's claims now match its data. Mechanical recomputation catches what reading doesn't, so rerun it before publication.
   - `normalize.cve_record` takes GHSA IDs from the whole CNA container, description included, so the live tracker can make the same false link. Taking them from `references` and `source` only would avoid it. That's a product change, still to do.
+- **Update (2026-11-10, same day):**
+  - **Fixed in the tracker.** `cve_record` now reads GHSA links from `references` (url, name) and `source` only, and records `link_rule`. `Tracker.assess` re-reads a stored record from an older rule when one of its links would count (an uncited CVE or a duplicate). A lookup that finds no record keeps the stored one.
+  - **Live state (tracker-data, 2026-11-10):** 2,383 uncited links. 1,826 of their CVEs are in the 2026-10-25 CVE List, and 29 of those (1.6%) are false under the new rule. Every one is a description that names a *different* advisory ("distinct from", "after the fix for", "a different vulnerability from"). None was on an advisory marked as a duplicate. The other 557 are newer than that release and are re-read the same way.
+  - **Report published** with the corrections. The review-wait text now cites GitHub's documented 72 hours and its own statement that it has missed its goals since mid-April. Live tracker counts for the 7 days to 2026-11-10: 805 new advisories in reviewable ecosystems, 51 reviewed; 3,033 in limbo for more than three months.
 - **Sources:** `research/2026-10-state-of-the-gap/data/**`; cvelistV5 releases above; GitHub REST `/advisories`; CVE Services `cve-id`; [GitHub blog, 2026-06-29](https://github.blog/security/supply-chain-security/inside-the-advisory-database-and-what-happens-when-vulnerability-volume-breaks-records/); [Safeguard, 2026-10-18](https://safeguard.sh/resources/blog/github-repository-advisories-missing-from-advisory-database-2026-data); [munimtechnologies/advisory-import-census](https://github.com/munimtechnologies/advisory-import-census).
 
 ## Archive

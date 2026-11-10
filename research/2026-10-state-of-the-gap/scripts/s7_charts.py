@@ -188,7 +188,7 @@ def main() -> None:
             columns("fig2-review-lag", theme,
                 f"Median wait for GitHub review: {lag['lag_days']['median']:.0f} days",
                 f"Time from repo advisory publication to GitHub review, {lag['from_repo_advisories']:,} advisories reviewed "
-                f"{lag['reviewed_window'][0][:10]} → {lag['reviewed_window'][1][:10]} · gray: within GitHub's 72-hour target",
+                f"{lag['reviewed_window'][0][:10]} → {lag['reviewed_window'][1][:10]} · gray: within the 72 hours GitHub documents",
                 BUCKETS, [b.get(k, 0) for k in BUCKETS], lambda v: f"{v:,}", note, highlight_from=1)
         ab = s["limbo"]["age_buckets"]
         columns("fig3-limbo-age", theme,

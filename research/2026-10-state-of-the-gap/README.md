@@ -1,13 +1,13 @@
 # State of the Gap: security advisories in limbo (October 2026)
 
-**DRAFT for review, not published.** Snapshot taken 2026-10-22. Limbowatch research.
+Snapshot taken 2026-10-22, published 2026-11-10. Limbowatch research. Before publication, every number was recomputed from the data and every claim checked against its source ([FINDINGS F-120](../../docs/FINDINGS.md#f-120)).
 
 > When a maintainer publishes a security advisory on GitHub, most dependency scanners can't see it until GitHub reviews it into the global Advisory Database. We measured that waiting period, which we call **limbo**, across the dependencies of fifteen popular open-source projects: five hosted on GitHub and ten hosted elsewhere (GitLab, Codeberg, Tor, GNOME, Framagit, SourceHut).
 
 ## Key numbers
 
 - **About 1 in 6 upstream advisories is in limbo.** Across the upstream repositories of all fifteen projects, **415 of 2,517** unique published advisories (**16.5%**) are in neither GitHub's reviewed database nor OSV. That's 14.3% behind the GitHub-hosted projects and 17.1% behind the projects hosted elsewhere.
-- **The median wait for review is 23 days.** For 990 advisories GitHub reviewed between 2026-09-24 and 2026-10-22, **94% waited longer than 72 hours and 44% longer than 30 days.**
+- **The median wait for review is 23 days.** For 990 advisories GitHub reviewed between 2026-09-24 and 2026-10-22, **94% waited longer than the 72 hours GitHub's documentation gives, and 44% longer than 30 days.** GitHub has said it has missed its own goals since mid-April 2026.
 - **13 of the 14 projects we could read ship affected versions that a scanner reports as clean.** Counted per project, that's **105 package-versions** (92 distinct ones) affected by advisories in limbo that OSV-Scanner reports with no known vulnerability at all. It includes GitLab (14), Forgejo (7), Gitea (4) and Kubernetes (3).
 - **Three days later, little had moved.** By 2026-10-25, GitHub had reviewed 34 of the 415 (8%), all in one batch on Oct 23. 381 were still in limbo, and 249 of those still had no CVE of any kind.
 - **CVE data is out of sync too.** 27 advisories in limbo cite a CVE ID that's still *reserved*, up to 119 days later. Another 23 have a CVE, almost all assigned by **VulnCheck**, that the advisory itself doesn't cite. For those, CVE-based tools see them before GitHub-based scanners do.
@@ -81,7 +81,7 @@ We took the 1,000 most recently reviewed advisories, reviewed between 2026-09-24
 
 | Wait until review | Advisories |
 |---|---:|
-| < 3 days (within GitHub's 72-hour target) | 58 |
+| < 3 days (within the 72 hours GitHub documents) | 58 |
 | 3–7 days | 120 |
 | 1–2 weeks | 129 |
 | 2–4 weeks | 250 |
@@ -90,6 +90,12 @@ We took the 1,000 most recently reviewed advisories, reviewed between 2026-09-24
 | > 3 months | 86 |
 
 Median **23.0 days**, p25 11.6, p75 50.4, p90 86.5.
+
+**72 hours is GitHub's own number, and GitHub has missed it for months.** GitHub's documentation says review of a published advisory "can take up to 72 hours". Only 58 of these 990 advisories (6%) were reviewed that fast. This isn't one bad month. In June 2026, GitHub wrote that since mid-April it has "not consistently met our internal goals for publication" ([GitHub blog](https://github.blog/security/supply-chain-security/inside-the-advisory-database-and-what-happens-when-vulnerability-volume-breaks-records/)). Our October sample, six months after mid-April, still had a median of 23 days. More advisories keep arriving than GitHub reviews. Limbowatch's [live tracker](https://limbo.watch/tracker/) counted, for the 7 days to 2026-11-10:
+- 805 new advisories in the repositories it watches, in ecosystems GitHub reviews;
+- 51 advisories reviewed out of limbo, about one for every 16 new ones.
+
+Both counts are floors, because the tracker sees only the repositories it watches. On the same day, 3,033 advisories in limbo had waited more than three months.
 
 The CVE usually isn't the bottleneck: 92% of the CVEs (793 of 858) were published *before* the review, a median of one day earlier. The CVE itself took a median of 17 days after the repository advisory. 120 of the 1,000 reviewed advisories (12%) have no CVE at all.
 
@@ -261,8 +267,6 @@ Nobody should have to check these claims by hand. Web search results and AI summ
 3. Announce the release in your changelog, so people learn about it before scanners do.
 
 **For the ecosystem:** we'd welcome a way for scanners to see published repository advisories before review, clearly labeled *unreviewed*, so teams can choose to act on them.
-
-**[Draft note: before publication, share the draft with GitHub's Advisory Database team, the OSV maintainers, VulnCheck, and the security contacts of the projects named above for comment. Not done yet.]**
 
 ## Method
 

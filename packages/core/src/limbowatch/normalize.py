@@ -16,6 +16,8 @@ from limbowatch.models import AdvisoryPackage, CveInfo, RepoAdvisory, ReviewedEn
 _REPO_FROM_URL = re.compile(r"/repos/([^/]+/[^/]+)/security-advisories/")
 GHSA_RE = re.compile(r"GHSA(?:-[23456789cfghjmpqrvwx]{4}){3}", re.I)
 GH_REPO_RE = re.compile(r"github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)", re.I)
+# How `CveInfo.ghsa_refs` is read. Bump it when that changes, so the tracker re-reads stored records (FINDINGS F-120).
+LINK_RULE = 1
 
 
 def ts(value: Any) -> datetime | None:
@@ -91,11 +93,16 @@ def cve_record(raw: dict[str, Any]) -> CveInfo:
     md = raw.get("cveMetadata") or {}
     cna = (raw.get("containers") or {}).get("cna") or {}
     text = json.dumps(cna)
+    # A GHSA links to the record only through its references or `source`. Descriptions name other advisories too
+    # ("distinct from GHSA-…", "after the fix for GHSA-…"), and those are different vulnerabilities (F-120).
+    refs = [[r.get("url"), r.get("name")] for r in cna.get("references") or [] if isinstance(r, dict)]
+    linked = json.dumps([refs, cna.get("source")])
     return CveInfo(
         cve_id=md.get("cveId", ""),
         state=md.get("state") or "unknown",
         published_at=ts(md.get("datePublished")),
         cna=md.get("assignerShortName"),
-        ghsa_refs=tuple(sorted({g.upper() for g in GHSA_RE.findall(text)})),
+        ghsa_refs=tuple(sorted({g.upper() for g in GHSA_RE.findall(linked)})),
         repo_refs=tuple(sorted({f"{o}/{r}".lower().removesuffix(".git") for o, r in GH_REPO_RE.findall(text)})),
+        link_rule=LINK_RULE,
     )
