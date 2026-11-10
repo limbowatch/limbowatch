@@ -63,7 +63,7 @@ Current understanding at the end of Phase 5 (2026-11-10), with entries linked. P
     - Limits found only by running it: a component description over 256 characters breaks every including pipeline ([F-095](#f-095)); GitHub keeps 10 annotations per level per step and drops the rest silently, so annotations are one per package ([F-096](#f-096)); click strips colour off pipes ([F-097](#f-097)).
 28. **Without Limbowatch, nothing reports these.** On the demo app, GitHub's Dependabot alerts and OSV-Scanner reported 0 of the 16 advisories Limbowatch found; all 16 were rechecked against primary sources and are real, fixed and unreviewed, 1.6 to 23.5 days in limbo ([F-090](#f-090), [F-091](#f-091)). On 13 real projects (2026-11-08), Dependabot raised 2,020 alerts and covered **0 of 1,080 confirmed findings** in limbo, every one in GitHub's own dependency graph ([F-112](#f-112)). The same check found 5 Limbowatch false positives, from Go modules nested under another module's path ([F-113](#f-113)); the tracker now resolves each Go path's module through the Go module proxy, which removes them ([F-114](#f-114), in production since 2026-11-09, [F-117](#f-117)). Three days on, the demo's advisories were still invisible to Dependabot ([F-111](#f-111), [F-119](#f-119)).
 29. **The outputs are standard.** SARIF 2.1.0 and CycloneDX 1.6 validate against the official schemas ([F-093](#f-093)).
-30. **Released as an alpha, 0.1.0a1 (2026-11-07) to 0.1.0a5 (2026-11-10).** PyPI with PEP 740 attestations; GitHub pre-release; the CI/CD Catalog accepts pre-releases like `0.1.0-alpha.1` ([F-097](#f-097)). 0.1.0a2 adds the image and the reworked component (point 39); 0.1.0a5 the range-parser fixes (point 41, [F-126](#f-126)).
+30. **Released as an alpha, 0.1.0a1 (2026-11-07) to 0.1.0a6 (2026-11-10).** PyPI with PEP 740 attestations; GitHub pre-release; the CI/CD Catalog accepts pre-releases like `0.1.0-alpha.1` ([F-097](#f-097)). 0.1.0a2 adds the image and the reworked component (point 39); 0.1.0a5 the range-parser fixes (point 41, [F-126](#f-126)); 0.1.0a6 org-wide mode and Maven resolution (points 45–46, [F-133](#f-133)).
 31. **Both demos stay as live regression tests:** `limbowatch/demo-app` on GitHub (public, PR #1) and GitLab (private, MR !1) run the released action and component ([F-088](#f-088), [F-097](#f-097)).
 
 **Coverage (measured 2026-11-07)**
@@ -1885,6 +1885,27 @@ Answered:
   - **Never silent.** Every Maven manifest that isn't resolved (a failure, or the flag) is reported as "transitive dependencies not resolved", with the resolver's message. Every Gradle build file without a `gradle.lockfile` beside it (and no `gradle/verification-metadata.xml`) is reported as "Gradle build without a lockfile".
   - **For an exact Maven inventory,** use an SBOM from `cyclonedx-maven-plugin` (`--sbom`); docs/WATCHER.md lists the limits.
 - **Sources:** OSV-Scanner v2.7.0 docs `docs/supported_languages_and_lockfiles.md` ("Transitive dependency scanning", "Data source") and `docs/offline-mode.md`; `osv-scanner scan source --help`; the runs above (raw output in the session scratchpad; fixture in `tests/fixtures/inventory/maven/`).
+
+### F-133
+- **Date:** 2026-11-10 · **Status:** confirmed (observed)
+- **Question:** Release 0.1.0a6 (org-wide mode, Maven resolution): did the pre-release audit pass, and did every artifact ship as tested?
+- **Method:** `scripts/audit.py`, then the release order in the project's release checklist.
+- **Result:**
+  - **Audit:** passed at 17:24 UTC on the site built at 15:19 UTC (tracker-data 9f42611):
+    - 520 verdicts sampled live (300 limbo, 100 permanent, 60 duplicate, 60 reviewed), 0 wrong;
+    - reviewed sync complete (121 reviews in 7 days, 78 from repository advisories, 0 missing);
+    - 19 metrics reproduced;
+    - 24,561 feed records valid OSV and matching the state;
+    - 12,268 converted ranges consistent with the parser;
+    - checker index 4,775 = feed.
+  - **Image:** `ghcr.io/limbowatch/limbowatch:0.1.0a6@sha256:a10ccd3a…` (built from 8fcf60d; reports `limbowatch 0.1.0a6` and OSV-Scanner 2.7.0; SLSA provenance verified, signer `image.yml@refs/heads/main`), pinned in the action and the GitLab template (2e65507).
+  - **Tags:** `v0.1.0a6` is GPG-signed and verified. The release workflow published PyPI 0.1.0a6 and a GitHub pre-release, and the image workflow retagged the pinned digest.
+  - **GitLab component:** split 386d3f6 on gitlab.com `main` (pipeline 3051196247 passed; mirror digest equals the ghcr.io digest; `limbowatch-ultimate-gate` fails as designed and is allowed to, as in 0.1.0a5); signed tag `0.1.0-alpha.6` (pipeline 3051203974 passed; CI/CD Catalog release 18:55 UTC).
+  - **Action repo:** split f7152f8 on `limbowatch/limbowatch-action` `main`; self-test passed on Linux (image) and macOS (pip), though the macOS runner was queued for 10 minutes; signed tag `v0.1.0a6` and a GitHub pre-release.
+  - **Org profile:** updated (e900ebd).
+  - **Smoke test:** `uvx --from limbowatch-cli==0.1.0a6` on the demo app (`add-scapy`) found the same 67 advisories as 0.1.0a5, with identical finding keys and the same 3 unresolved entries. The demo has no Maven or Gradle builds, so the screenshots still match and weren't refreshed.
+- **Implication:** `watch` and Maven resolution ([F-132](#f-132)) reach users. Maven resolution is on by default (`--no-resolve-maven` opts out).
+- **Sources:** GitHub Actions runs 42865043716 (image, 8fcf60d), 42879865561 (release), 42879865719 (image, tag), limbowatch-action 42881746321; GitLab pipelines above; PyPI.
 
 ## Archive
 
