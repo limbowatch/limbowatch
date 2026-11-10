@@ -1749,6 +1749,7 @@ Answered:
     - Signed tag `v0.1.0a5`, and a GitHub pre-release.
     - Docs and the scan page now show `uses: limbowatch/limbowatch-action@v0.1.0a5`; the old path keeps working.
 - **Caveats:** Not listed yet: the agreement and the checkbox are the org owner's. The docs don't say whether Marketplace shows pre-releases.
+- **Update (2026-11-10):** listed. The owner accepted the agreement and published the release. [github.com/marketplace/actions/limbowatch](https://github.com/marketplace/actions/limbowatch) answers 200 and shows v0.1.0a5 marked "Latest" and "Pre-release", by limbowatch, with the README as its page. So Marketplace does list a pre-release.
 - **Implication:** Each release also pushes the action subtree and tags it (release checklist). The Marketplace listing follows once the owner ticks the box on a release.
 - **Sources:** [GitHub Docs: Publishing actions in GitHub Marketplace](https://docs.github.com/en/actions/how-tos/create-and-publish-actions/publish-in-github-marketplace); limbowatch/limbowatch-action.
 

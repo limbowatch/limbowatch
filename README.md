@@ -46,7 +46,7 @@ In a GitHub pull request (code scanning alerts inline) and a GitLab merge reques
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/github-pr-inline.png"><img src="docs/screenshots/github-pr-inline-light.png" width="720" alt="A GitHub pull request diff with a code scanning alert on the added scapy line"></picture>
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/gitlab-mr-widgets.png"><img src="docs/screenshots/gitlab-mr-widgets-light.png" width="560" alt="A GitLab merge request: Code Quality scans found 51 new findings; Test summary: 9 failed, 67 total tests; a Limbowatch report link"></picture>
 
-Guide: [docs/WATCHER.md](docs/WATCHER.md) · [limbo.watch/scan](https://limbo.watch/scan/). The current release is an alpha, 0.1.0a5: `pipx install limbowatch-cli==0.1.0a5`. Options and formats may still change before 0.1.0.
+Guide: [docs/WATCHER.md](docs/WATCHER.md) · [limbo.watch/scan](https://limbo.watch/scan/) · [GitHub Marketplace](https://github.com/marketplace/actions/limbowatch). The current release is an alpha, 0.1.0a5: `pipx install limbowatch-cli==0.1.0a5`. Options and formats may still change before 0.1.0.
 
 ## Why this exists
 
