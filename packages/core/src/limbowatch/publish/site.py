@@ -507,6 +507,14 @@ MENU_JS = (
 )
 
 
+_HOSTED = re.compile(r'<a (?![^>]*\btarget=)([^>]*\bhref="https://(?:www\.)?(?:github\.com|gitlab\.com)[/"][^>]*)>')
+
+
+def new_tab(html: str) -> str:
+    """Links to GitHub and GitLab open in a new tab, so the visitor keeps their place on limbo.watch."""
+    return _HOSTED.sub(r'<a \1 target="_blank" rel="noopener">', html)
+
+
 def page(title: str, description: str, body: str, path: str = "/", jsonld: dict[str, Any] | None = None) -> str:
     """A full HTML page, with the tags link previews and search engines read (Open Graph, canonical URL,
     the Atom feed and, where given, schema.org JSON-LD)."""
@@ -526,7 +534,7 @@ def page(title: str, description: str, body: str, path: str = "/", jsonld: dict[
         f'<link rel="icon" href="/favicon.svg" type="image/svg+xml">\n{THEME_HEAD_JS}'
         f'<link rel="stylesheet" href="/assets/site.css?v={_v(CSS)}">\n'
         + (f'<script type="application/ld+json">{ld}</script>\n' if ld else "")
-        + f"</head>\n<body>\n{body}\n{MENU_JS}</body>\n</html>\n"
+        + f"</head>\n<body>\n{new_tab(body)}\n{MENU_JS}</body>\n</html>\n"
     )
 
 

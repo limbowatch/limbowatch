@@ -49,3 +49,19 @@ def test_screenshots_match_their_files() -> None:
             head = (shots / f"{file}.png").read_bytes()[:24]
             assert head[:8] == b"\x89PNG\r\n\x1a\n", file
             assert struct.unpack(">II", head[16:24]) == (w, h), file
+
+
+def test_github_and_gitlab_links_open_in_a_new_tab() -> None:
+    from limbowatch.publish.site import new_tab
+
+    html = (
+        '<a href="https://github.com/marketplace/actions/limbowatch">a</a>'
+        '<a class="x" href="https://gitlab.com/explore/catalog/limbowatch/limbowatch-component">b</a>'
+        '<a href="/scan/">c</a><a href="https://limbo.watch/feed/">d</a>'
+        '<a href="https://github.com.evil.example/">e</a><a href="https://github.com/x" target="_self">f</a>'
+    )
+    out = new_tab(html)
+    assert out.count('target="_blank" rel="noopener"') == 2
+    assert '<a href="/scan/">c</a>' in out and '<a href="https://limbo.watch/feed/">d</a>' in out
+    assert '<a href="https://github.com.evil.example/">e</a>' in out  # only github.com and gitlab.com themselves
+    assert '<a href="https://github.com/x" target="_self">f</a>' in out  # an explicit target is kept
