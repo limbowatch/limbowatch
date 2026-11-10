@@ -1,13 +1,13 @@
 {"name":"cve_bulk","updated_at":"2026-10-28T02:31:12Z","value":"2026-10-28_all_CVEs_at_midnight.zip.zip"}
-{"name":"cve_delta","updated_at":"2026-11-10T06:39:56Z","value":"2026-11-10T06:02:04.326Z"}
+{"name":"cve_delta","updated_at":"2026-11-10T08:01:14Z","value":"2026-11-10T07:49:51.396Z"}
 {"name":"daily_report","updated_at":"2026-11-09T16:52:22Z","value":"{\"at\":\"2026-11-09T16:52:18Z\",\"event_id\":25625,\"limbo\":9567,\"permanent\":14524,\"new\":115,\"reviewed\":0,\"cve_changes\":9}"}
 {"name":"releases:crates.io","updated_at":"2026-11-10T06:41:37Z","value":"2026-11-10T06:39:07.479000Z"}
 {"name":"releases:maven-central","updated_at":"2026-11-09T16:41:58Z","value":"2026-11-09T16:34:54.228792Z"}
 {"name":"releases:npmjs.org","updated_at":"2026-11-10T06:41:37Z","value":"2026-11-10T06:38:56.062000Z"}
 {"name":"releases:nuget.org","updated_at":"2026-11-10T06:41:37Z","value":"2026-11-10T06:21:43.663000Z"}
-{"name":"releases:packagist.org","updated_at":"2026-11-10T06:41:37Z","value":"2026-11-10T06:40:01Z"}
-{"name":"releases:proxy.golang.org","updated_at":"2026-11-10T06:41:37Z","value":"2026-11-10T06:40:02.577706Z"}
+{"name":"releases:packagist.org","updated_at":"2026-11-10T08:11:00Z","value":"2026-11-10T08:01:18Z"}
+{"name":"releases:proxy.golang.org","updated_at":"2026-11-10T08:11:00Z","value":"2026-11-10T08:01:09.370858Z"}
 {"name":"releases:pypi.org","updated_at":"2026-11-10T06:41:37Z","value":"2026-11-10T06:37:20Z"}
 {"name":"releases:repo1.maven.org","updated_at":"2026-11-10T06:41:37Z","value":"2026-11-09T20:24:26Z"}
 {"name":"releases:rubygems.org","updated_at":"2026-11-10T06:41:37Z","value":"2026-11-10T06:31:45.831000Z"}
-{"name":"reviewed_at","updated_at":"2026-11-10T06:39:51Z","value":"2026-11-09T23:25:58Z"}
+{"name":"reviewed_at","updated_at":"2026-11-10T08:01:09Z","value":"2026-11-09T23:25:58Z"}
