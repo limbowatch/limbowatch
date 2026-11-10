@@ -502,7 +502,7 @@ Answered:
 - **Implication:** For dedup, use shared CVE IDs (and the CVE List reverse lookup, F-049) as proof and title overlap only as a flag. Never subtract text-only matches from headline counts.
 
 ### F-050
-- **Date:** 2026-10-22 · **Status:** confirmed (observed). **Partly refutes F-049.**
+- **Date:** 2026-10-22 · **Status:** confirmed (observed). **Partly refutes F-049.** The review-burst detail is corrected by [F-120](#f-120) (Pillow ×11, all on 2026-10-22 15:46–17:01 UTC).
 - **Question:** Was the stage-8 verification of F-049 correct?
 - **Result:** It had two bugs:
   - **GHSA IDs from the CVE List were upper-cased** before comparing with our mixed-case IDs, so the reverse lookup never matched. F-049's "no CVE List record references the 199 without a CVE" was untested. With the fix (re-verified 2026-10-22 17:25 UTC):
@@ -587,7 +587,7 @@ Answered:
 - **Implication:** These are the numbers the State of the Gap report uses. Cross-set totals must be de-duplicated by GHSA ID, because the sets share upstreams.
 
 ### F-056
-- **Date:** 2026-10-25 · **Status:** confirmed (observed)
+- **Date:** 2026-10-25 · **Status:** confirmed (observed). The "24 gained an uncited CVE" breakdown is corrected by [F-120](#f-120): 21 new, all VulnCheck; the other 3 weren't new links.
 - **Question:** Three days after the 2026-10-22 snapshots, what happened to the advisories in limbo, especially their CVEs?
 - **Method:** `s9_followup.py`, live re-check (no cache) of all 415 unique advisories in limbo on 2026-10-22 (268 GitHub-hosted set, 217 off-GitHub set, 70 overlap) at 2026-10-25 09:45 UTC:
   - repo advisory (state, cited CVE), global DB, OSV;
@@ -1530,6 +1530,38 @@ Answered:
 - **Caveats:** One small project. scapy's 51 advisories dominate the count.
 - **Implication:** The demo still shows the gap unchanged. The scan page's screenshots were refreshed from this run, in dark and light (docs/SCREENSHOTS.md), and their captions still hold.
 - **Sources:** demo run artifacts (`limbowatch-report`); GitLab merge request !1.
+
+### F-120
+- **Date:** 2026-11-10 · **Status:** confirmed (recomputed from the committed data; GitHub API, CVE Services and the CVE List for the rest). **Corrects details of F-050, F-055, F-056.**
+- **Question:** Does every number and claim in the State of the Gap report hold up against its data and its sources?
+- **Method:**
+  - Recomputed every number in the report from both folders' committed CSVs and `summary.json` (2026-10-22, 2026-10-22-offgithub, 2026-10-21), plus the chart labels.
+  - CNAs of every uncited CVE from the two cached CVE List exports (`cve_2026-10-22_0800Z`, `cve_2026-10-25_0900Z`); `GET /api/cve-id/{id}` for the 2 reserved IDs.
+  - `GET /advisories/{ghsa}` (`github_reviewed_at`) for all 294 advisories in limbo on 2026-10-21.
+  - Checked the GitHub blog quote, the Safeguard and Munim figures and the prior-work links at their sources.
+- **Result:** The headline numbers, every per-project row, the charts and the outside citations held. Errors found and fixed in the report:
+  - **NVD paragraph.** The 10 "absent from NVD" CVEs are exactly the 10 *reserved* CVEs in the sample, not published ones. The sample also isn't "every published CVE in limbo": it's the 44 CVEs cited by advisories in limbo that affect a project's package (`s4_status.py`). Of the 34 published, 17 aren't enriched. The reviewed sample of 60 is 53 published (16 not enriched), 5 rejected and 2 reserved, not "21 of 60".
+  - **Follow-up.** "24 gained a CVE from another CNA: 21 VulnCheck, 1 Red Hat, 4 GitHub" mixed advisories with CVEs (26 CVEs). Only 21 links were new (all VulnCheck, published 2026-10-22). The other 3:
+    - gorilla/websocket and moby already had their older CVEs on 2026-10-22, as duplicates of reviewed advisories. `s9` compares against the cited CVE only.
+    - lib0 GHSA-r5c8-rf4w-qrq8 is a false link. CVE-2026-102521's description calls it "similar to but different from" that advisory.
+  - **Follow-up, reserved IDs.** The 2 newly cited reserved IDs (CVE-2026-115563, CVE-2026-115472) can't be attributed to GitHub: CVE Services redacts `owning_cna`. Both were still `RESERVED` on 2026-11-10.
+  - **Review burst.** 37 of the 294 were reviewed between 2026-10-22 15:46 and 17:01 UTC, about 13 h after the first measurement. It was Pillow ×11, not ×10. 161 of the 294 were still not reviewed on 2026-11-10.
+  - **105 package-versions** is a per-project count: 92 distinct package-versions.
+  - **GitPython example.** OSV-Scanner does report *other* vulnerabilities for gitpython 3.1.50, so it isn't "reported as clean". It just doesn't report this advisory.
+  - **Examples' "Used by".** Five rows named one project where several ship the version (typebox, pillow, jsonpointer, go-jose 4.1.4, qs).
+  - **Smaller fixes:**
+    - "Commits are recorded in `inventory.json`": that file isn't committed; they're in `summary.json`.
+    - `summary.json` doesn't hold the cross-set totals.
+    - Rust isn't off-GitHub-only (11 of 66 come from the GitHub-hosted set).
+    - "The tracker is next" is out of date.
+    - The data-quality examples come from the off-GitHub set.
+- **Caveats:**
+  - `github_reviewed_at` is read today and could reflect a later re-review. Its 37 matches F-050's count.
+  - The false-link check covers the 79 reverse links in the report's data, and 1 was wrong. Across the 2026-10-25 CVE List, 150 of 28,278 records that name a GHSA name one only outside `references` and `source`. Some of those are legitimate.
+- **Implication:**
+  - The report's claims now match its data. Mechanical recomputation catches what reading doesn't, so rerun it before publication.
+  - `normalize.cve_record` takes GHSA IDs from the whole CNA container, description included, so the live tracker can make the same false link. Taking them from `references` and `source` only would avoid it. That's a product change, still to do.
+- **Sources:** `research/2026-10-state-of-the-gap/data/**`; cvelistV5 releases above; GitHub REST `/advisories`; CVE Services `cve-id`; [GitHub blog, 2026-06-29](https://github.blog/security/supply-chain-security/inside-the-advisory-database-and-what-happens-when-vulnerability-volume-breaks-records/); [Safeguard, 2026-10-18](https://safeguard.sh/resources/blog/github-repository-advisories-missing-from-advisory-database-2026-data); [munimtechnologies/advisory-import-census](https://github.com/munimtechnologies/advisory-import-census).
 
 ## Archive
 

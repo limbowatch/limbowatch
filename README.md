@@ -58,7 +58,7 @@ In June 2026 I reported a critical vulnerability in [NationalSecurityAgency/skil
 
 - **About 1 in 6 upstream advisories is in limbo.** That's 415 of 2,517 unique advisories (16.5%) in the upstream repos of fifteen popular projects, each verified automatically against primary sources.
 - **The median wait for GitHub review is 23 days.** 94% of advisories wait longer than GitHub's 72-hour target, and 44% longer than 30 days.
-- **13 of 14 readable projects ship affected versions that a scanner reports as clean.** That's 105 package-versions that OSV-Scanner reports as having no known vulnerabilities, including in GitLab, Forgejo, Gitea and Kubernetes. Hosting your code off GitHub doesn't help: your dependencies' advisories are still stuck there.
+- **13 of 14 readable projects ship affected versions that a scanner reports as clean.** Counted per project, that's 105 package-versions (92 distinct ones) that OSV-Scanner reports as having no known vulnerabilities, including in GitLab, Forgejo, Gitea and Kubernetes. Hosting your code off GitHub doesn't help: your dependencies' advisories are still stuck there.
 - **CVE data is out of sync too.** 27 CVE IDs are reserved but public, the oldest for 119 days. 23 advisories have a VulnCheck- or Tenable-assigned CVE they don't cite. Many CVEs aren't enriched in NVD.
 
 The methods, open dataset (CC BY 4.0) and scripts to reproduce it are in the [report folder](research/2026-10-state-of-the-gap/).
