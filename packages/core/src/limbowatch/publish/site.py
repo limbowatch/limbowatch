@@ -32,6 +32,8 @@ from limbowatch.versions import fixed_versions, no_fix, osv_ranges
 
 REPO_URL = "https://github.com/limbowatch/limbowatch"
 REPORT_URL = f"{REPO_URL}/tree/main/research/2026-10-state-of-the-gap"
+CATALOG_URL = "https://gitlab.com/explore/catalog/limbowatch/limbowatch-component"
+MARKETPLACE_URL = "https://github.com/marketplace/actions/limbowatch"  # limbowatch/limbowatch-action (F-127)
 ISSUE_URL = f"{REPO_URL}/issues/1"
 FINDINGS_URL = f"{REPO_URL}/blob/main/docs/FINDINGS.md"
 SITE = "https://limbo.watch"
@@ -121,6 +123,7 @@ nav.main a[aria-current]{font-weight:600;border-bottom-color:currentColor}
 .tl-labels .f1{display:flex;justify-content:space-between;gap:12px}.tl-labels .r{text-align:right}
 .tl-foot{margin:20px 0 0;font-size:14px;color:var(--soft)}
 .ctas{margin-top:56px;display:flex;flex-wrap:wrap;gap:12px}
+.get-ci{margin:16px 0 0;color:var(--soft);font-size:15px;display:flex;flex-wrap:wrap;gap:4px 20px;align-items:center}.get-ci a{display:inline-flex;align-items:center;min-height:44px;font-weight:600}
 .btn{display:inline-flex;align-items:center;min-height:48px;padding:0 22px;border-radius:10px;text-decoration:none;font-weight:600;font-size:16px;border:1px solid transparent}
 .btn.light{background:var(--btn-bg);color:var(--btn-ink)}.btn.light:hover{color:var(--btn-ink);background:var(--btn-hover)}
 .btn.ghost{border-color:var(--border);color:var(--ink);font-weight:500}
@@ -862,6 +865,8 @@ scanners report nothing.</p></div><div class="f1"></div></div>
 {queue_figure(cols, undated)}
 <div class="ctas"><a class="btn light" href="/tracker/">See all {li["count"]:,} in the tracker</a>
 <a class="btn ghost" href="/scan/">Scan your project</a></div>
+<p class="get-ci"><span>Add it to CI:</span><a href="{MARKETPLACE_URL}">GitHub Action, in GitHub Marketplace</a>
+<a href="{CATALOG_URL}">GitLab component, in the GitLab CI/CD Catalog</a></p>
 </section></div>
 <div class="strip"><div class="wrap"><span><strong>Every number is a floor.</strong> We watch {cov["watchlist_repos"]:,} upstream
 repositories; {cov["on_schedule"]:,} are up to date. Repos with an advisory in limbo are re-checked daily, the rest after each release of their package and at least monthly.</span>
@@ -890,7 +895,8 @@ from CVEs can’t see them either.</p>{cve_split(m)}</div></div></section>
 <section class="wrap s"><h2>What to do about it</h2><div class="paths">
 <div><h3>If you run security for a team</h3><p>Check your lockfiles in CI against everything in limbo. Findings show up in
 merge requests, pull requests and issues, on GitLab, GitHub, Gitea and Forgejo.</p>
-<p class="links"><a href="/scan/">Set up the scan</a><a href="/feed/critical.atom">Subscribe to new critical and high</a>
+<p class="links"><a href="/scan/">Set up the scan</a><a href="{MARKETPLACE_URL}">GitHub Marketplace</a>
+<a href="{CATALOG_URL}">GitLab CI/CD Catalog</a><a href="/feed/critical.atom">Subscribe to new critical and high</a>
 <a href="/feed/">Download the OSV feed</a></p></div>
 <div><h3>If you maintain a project</h3><p>Request a CVE when you publish, and fill in both the affected range and the fixed
 version, so scanners can match your advisory the day it’s reviewed.</p>
@@ -1283,8 +1289,6 @@ as the Go module proxy reports them.</li>
 
 RELEASE = "0.1.0a5"  # the current release (an alpha): PyPI version, action ref v{RELEASE}
 COMPONENT = "0.1.0-alpha.5"  # the same release in the GitLab CI/CD Catalog, which needs semantic versions
-CATALOG_URL = "https://gitlab.com/explore/catalog/limbowatch/limbowatch-component"
-MARKETPLACE_URL = "https://github.com/marketplace/actions/limbowatch"  # limbowatch/limbowatch-action (F-127)
 # Screenshots from the demo app (docs/screenshots/, copied to assets/screens/ by `limbowatch publish`)
 SCREENS = {
     "terminal": (
