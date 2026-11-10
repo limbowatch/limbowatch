@@ -1568,25 +1568,30 @@ Answered:
 - **Sources:** `research/2026-10-state-of-the-gap/data/**`; cvelistV5 releases above; GitHub REST `/advisories`; CVE Services `cve-id`; [GitHub blog, 2026-06-29](https://github.blog/security/supply-chain-security/inside-the-advisory-database-and-what-happens-when-vulnerability-volume-breaks-records/); [Safeguard, 2026-10-18](https://safeguard.sh/resources/blog/github-repository-advisories-missing-from-advisory-database-2026-data); [munimtechnologies/advisory-import-census](https://github.com/munimtechnologies/advisory-import-census).
 
 ### F-121
-- **Date:** 2026-11-10 · **Status:** confirmed (observed)
-- **Question:** What did coverage wave two (the top 10,000 packages per ecosystem, F-117's Phase 5 step 1) add?
+- **Date:** 2026-11-10 · **Status:** confirmed (observed). Corrected the same day: the first version of this entry miscounted first checks and counted advisories from repos that were already watched.
+- **Question:** What did coverage wave two (the top 10,000 packages per ecosystem, Phase 5 step 1) add?
 - **Method:**
   - 11 tracker runs, 2026-11-09 16:34 → 2026-11-10 08:01 UTC, dispatched at least 80 minutes apart with `--max-new 2500`.
-  - Counts from `tracker-data` `state/runs.jsonl` and `state/advisories.jsonl` (advisories first seen since 2026-11-09 16:34), classified with `publish.items`; coverage from limbo.watch `metrics.json` (2026-11-10 08:06 UTC).
+  - Counts from `tracker-data` (`state/runs.jsonl`; `state/repos.jsonl` for repos first seen on or after 2026-11-09; their advisories classified with `publish.items`).
+  - Coverage from limbo.watch `metrics.json` (2026-11-10 08:06 UTC).
 - **Result:**
-  - **Every watched repo checked at least once:** 64,021 watched, 0 never polled. 23,483 first checks; no run stopped early.
-  - **579 advisories first found, in 209 repos.** 577 are in limbo (2 duplicates):
-    - 428 in ecosystems GitHub reviews, in 176 repos (28 critical, 171 high, 176 medium, 53 low). By ecosystem: PyPI 116, Go 106, npm 70, Packagist 67, crates.io 31, Maven 21, Actions 18, RubyGems 11.
-    - 149 likely permanent.
-  - **Yield:** about 2.5% of first checks find an advisory. Top repos: tooljet/tooljet 29, supertokens/supertokens-core 27, spomky-labs/pki-framework 27, pdfcpu/pdfcpu 19, prestashop/prestashop 18.
+  - **Every watched repo checked at least once:** 64,021 watched, 0 never polled. The 11 runs made 26,983 first checks: the 19,461 repos wave two added, plus 7,522 left from wave one. No run stopped early.
+  - **First checks found 358 advisories.** The same runs found 221 more, newly published in repos already watched.
+  - **The 19,461 wave-two repos:**
+    - All polled; 377 not found; 184 with advisories.
+    - 277 advisories: 275 in limbo, 2 duplicates.
+    - Of the 275, 223 are in ecosystems GitHub reviews, in 105 repos: 13 critical, 96 high, 89 medium, 25 low. By ecosystem: Go 81, PyPI 78, npm 33, crates.io 29, Actions 11.
+    - The other 52 are likely permanent.
+    - Top repos: supertokens/supertokens-core 27, pdfcpu/pdfcpu 19, tmatens/compose-lint 12, share/sharedb 11, matthiasvalvekens/pyhanko 8.
   - **Top-10,000 coverage, repos with advisories:** Go 322, PyPI 368, npm 298, Packagist 235, Maven 187, crates.io 162, RubyGems 159, NuGet 54.
   - **Live totals:** 9,773 in limbo, 14,546 likely permanent.
 - **Caveats:**
-  - Repos map to packages through registry metadata, and a package with no repo is not watched.
-  - "First found" includes advisories that are old but newly seen.
+  - Repos map to packages through registry metadata, and a package with no repo isn't watched.
+  - Advisories found on a first check can be old.
   - The last run used code from before the F-120 link fix.
 - **Implication:**
-  - The wide tail adds fewer advisories per repo than the curated seeds, but they're mostly in limbo and often serious. Keep it: after the first pass it costs little, polled every 30 days when a repo has no advisories.
+  - The wide tail is thin: about 1% of the new repos have an advisory. But nearly all of their advisories are in limbo, and 109 of the 223 reviewable ones are high or critical.
+  - Keep the tail: after the first pass it costs little, because repos without advisories are polled every 30 days.
   - The wave is done; the daily schedule takes over.
 - **Sources:** `tracker-data` state at the 2026-11-10 08:01 run; https://limbo.watch/metrics.json.
 
