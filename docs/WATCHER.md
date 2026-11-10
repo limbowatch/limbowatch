@@ -100,7 +100,7 @@ When stdout isn't the table (`-f json`, `-q`), a one-line verdict goes to stderr
 
 ## In CI
 
-GitLab, with the [CI/CD component](https://gitlab.com/limbowatch/limbowatch-component) (inputs in [its README](../integrations/gitlab/README.md)):
+GitLab, with the [CI/CD component](https://gitlab.com/limbowatch/limbowatch-component), listed in the [GitLab CI/CD Catalog](https://gitlab.com/explore/catalog/limbowatch/limbowatch-component) (inputs in [its README](../integrations/gitlab/README.md)):
 
 ```yaml
 include:
@@ -121,7 +121,7 @@ Any other CI, or locally, with the image (linux/amd64 and linux/arm64; verify it
 docker run --rm -v "$PWD:/src" ghcr.io/limbowatch/limbowatch limbowatch scan . -o sarif=limbowatch.sarif
 ```
 
-GitHub, Gitea or Forgejo Actions, with the composite action [limbowatch/limbowatch-action](https://github.com/limbowatch/limbowatch-action) (its source is [`integrations/action/`](../integrations/action/action.yml), copied there at each release; `limbowatch/limbowatch/integrations/action@<tag>` still works). On a Linux runner with Docker it runs the same pinned, attested image as the GitLab component. On macOS or Windows, or when the job itself runs in a container (common on Gitea and Forgejo runners), it installs Limbowatch with pip instead, which needs Python 3.12 or later. The `install` input (`auto`, `image`, `python`) picks one explicitly.
+GitHub, Gitea or Forgejo Actions, with the composite action [limbowatch/limbowatch-action](https://github.com/limbowatch/limbowatch-action), listed in [GitHub Marketplace](https://github.com/marketplace/actions/limbowatch) (its source is [`integrations/action/`](../integrations/action/action.yml), copied there at each release; `limbowatch/limbowatch/integrations/action@<tag>` still works). On a Linux runner with Docker it runs the same pinned, attested image as the GitLab component. On macOS or Windows, or when the job itself runs in a container (common on Gitea and Forgejo runners), it installs Limbowatch with pip instead, which needs Python 3.12 or later. The `install` input (`auto`, `image`, `python`) picks one explicitly.
 
 ```yaml
 permissions:

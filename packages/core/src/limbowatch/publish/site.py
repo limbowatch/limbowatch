@@ -1283,6 +1283,8 @@ as the Go module proxy reports them.</li>
 
 RELEASE = "0.1.0a5"  # the current release (an alpha): PyPI version, action ref v{RELEASE}
 COMPONENT = "0.1.0-alpha.5"  # the same release in the GitLab CI/CD Catalog, which needs semantic versions
+CATALOG_URL = "https://gitlab.com/explore/catalog/limbowatch/limbowatch-component"
+MARKETPLACE_URL = "https://github.com/marketplace/actions/limbowatch"  # limbowatch/limbowatch-action (F-127)
 # Screenshots from the demo app (docs/screenshots/, copied to assets/screens/ by `limbowatch publish`)
 SCREENS = {
     "terminal": (
@@ -1420,12 +1422,12 @@ GitHub.</p></div></div>
     }">The 16 findings, rechecked</a></p></section>
 
 <section class="s"><h2>Use it</h2><ol class="steps" style="display:flex;flex-direction:column;gap:20px;max-width:860px">
-<li><span class="num">1</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">GitLab CI</p>
+<li><span class="num">1</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">GitLab CI · <a href="{CATALOG_URL}">in the CI/CD Catalog</a></p>
 <pre>include:
   - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@{COMPONENT}
     inputs:
       fail_on: high</pre></div></li>
-<li><span class="num">2</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">GitHub, Gitea or Forgejo Actions</p>
+<li><span class="num">2</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">GitHub, Gitea or Forgejo Actions · <a href="{MARKETPLACE_URL}">in GitHub Marketplace</a></p>
 <pre>permissions:
   contents: read
   security-events: write   # for the SARIF upload
