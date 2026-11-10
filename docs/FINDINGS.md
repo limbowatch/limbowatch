@@ -1567,6 +1567,29 @@ Answered:
   - **Report published** with the corrections. The review-wait text now cites GitHub's documented 72 hours and its own statement that it has missed its goals since mid-April. Live tracker counts for the 7 days to 2026-11-10: 805 new advisories in reviewable ecosystems, 51 reviewed; 3,033 in limbo for more than three months.
 - **Sources:** `research/2026-10-state-of-the-gap/data/**`; cvelistV5 releases above; GitHub REST `/advisories`; CVE Services `cve-id`; [GitHub blog, 2026-06-29](https://github.blog/security/supply-chain-security/inside-the-advisory-database-and-what-happens-when-vulnerability-volume-breaks-records/); [Safeguard, 2026-10-18](https://safeguard.sh/resources/blog/github-repository-advisories-missing-from-advisory-database-2026-data); [munimtechnologies/advisory-import-census](https://github.com/munimtechnologies/advisory-import-census).
 
+### F-121
+- **Date:** 2026-11-10 · **Status:** confirmed (observed)
+- **Question:** What did coverage wave two (the top 10,000 packages per ecosystem, F-117's Phase 5 step 1) add?
+- **Method:**
+  - 11 tracker runs, 2026-11-09 16:34 → 2026-11-10 08:01 UTC, dispatched at least 80 minutes apart with `--max-new 2500`.
+  - Counts from `tracker-data` `state/runs.jsonl` and `state/advisories.jsonl` (advisories first seen since 2026-11-09 16:34), classified with `publish.items`; coverage from limbo.watch `metrics.json` (2026-11-10 08:06 UTC).
+- **Result:**
+  - **Every watched repo checked at least once:** 64,021 watched, 0 never polled. 23,483 first checks; no run stopped early.
+  - **579 advisories first found, in 209 repos.** 577 are in limbo (2 duplicates):
+    - 428 in ecosystems GitHub reviews, in 176 repos (28 critical, 171 high, 176 medium, 53 low). By ecosystem: PyPI 116, Go 106, npm 70, Packagist 67, crates.io 31, Maven 21, Actions 18, RubyGems 11.
+    - 149 likely permanent.
+  - **Yield:** about 2.5% of first checks find an advisory. Top repos: tooljet/tooljet 29, supertokens/supertokens-core 27, spomky-labs/pki-framework 27, pdfcpu/pdfcpu 19, prestashop/prestashop 18.
+  - **Top-10,000 coverage, repos with advisories:** Go 322, PyPI 368, npm 298, Packagist 235, Maven 187, crates.io 162, RubyGems 159, NuGet 54.
+  - **Live totals:** 9,773 in limbo, 14,546 likely permanent.
+- **Caveats:**
+  - Repos map to packages through registry metadata, and a package with no repo is not watched.
+  - "First found" includes advisories that are old but newly seen.
+  - The last run used code from before the F-120 link fix.
+- **Implication:**
+  - The wide tail adds fewer advisories per repo than the curated seeds, but they're mostly in limbo and often serious. Keep it: after the first pass it costs little, polled every 30 days when a repo has no advisories.
+  - The wave is done; the daily schedule takes over.
+- **Sources:** `tracker-data` state at the 2026-11-10 08:01 run; https://limbo.watch/metrics.json.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
