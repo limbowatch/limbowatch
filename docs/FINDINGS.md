@@ -1690,6 +1690,44 @@ Answered:
 - **Implication:** The report and the tracker now read every range the same way. The report's tables and data-quality figures are updated, and `summary.json` matches them again.
 - **Sources:** `research/2026-10-state-of-the-gap/data/{2026-10-22,2026-10-22-offgithub}/` (regenerated); `.cache/http/` (not committed).
 
+### F-125
+- **Date:** 2026-11-10 · **Status:** confirmed (observed)
+- **Question:** Does limbo.watch return errors while a new site image rolls out, and does the Deployment change fix it?
+- **Method:**
+  - Polled `/`, `/metrics.json` and `/feed/index.json` through Cloudflare about 3 times a second, with a 5 s timeout, during a deploy triggered by `gh workflow run site.yml`.
+  - Read the Deployment and its events with `kubectl` on skylion.
+  - Repeated the poll after the change, across two rollouts.
+- **Result:**
+  - **Before:** one replica, the default strategy (25%/25%), a readiness probe every 10 s, no preStop. The deploy returned 502 ("error code: 502") twice and one timeout, between 09:41:03 and 09:41:09 UTC. Kubernetes stopped the old pod about a second after the new one started, while Traefik still routed to it.
+  - **Change** (`deploy/k8s/deployment.yaml`, server-side dry run first):
+    - `maxSurge: 1`, `maxUnavailable: 0`, `minReadySeconds: 5`;
+    - a readiness probe every 2 s;
+    - a 10 s `preStop` sleep (Kubernetes' built-in sleep action; k3s v1.36.6) and `terminationGracePeriodSeconds: 30`.
+  - **After:** the rollout that applied the change still had one 502, because the pod it replaced had no preStop yet. The next deploys went through 2,055 requests with 0 errors.
+- **Caveats:** Polling at about 3 requests a second can miss a sub-second gap. Two clean rollouts aren't proof that every rollout is clean.
+- **Implication:** Daily deploys are now invisible to visitors and to tools that fetch the feed.
+- **Sources:** poll logs (scratchpad); `kubectl -n limbowatch get events`.
+
+### F-126
+- **Date:** 2026-11-10 · **Status:** confirmed (observed)
+- **Question:** Release 0.1.0a5: did the pre-release audit pass, and did every artifact ship as tested?
+- **Method:** `scripts/audit.py`, then the release order in the project's release checklist.
+- **Result:**
+  - **Audit:** passed on the 08:01 tracker run, as built into the site at 09:35 UTC:
+    - 520 verdicts sampled live, 0 wrong;
+    - reviewed sync complete (121 reviews in 7 days, 78 from repository advisories, 0 missing);
+    - 19 metrics reproduced;
+    - 24,373 feed records valid OSV and matching the state;
+    - 12,099 converted ranges consistent with the parser;
+    - checker index 4,711 = feed.
+  - **Image:** `ghcr.io/limbowatch/limbowatch:0.1.0a5@sha256:785a5d3e…` (built from cbd78bb; reports `limbowatch 0.1.0a5` and OSV-Scanner 2.7.0; SLSA provenance verified), pinned in the action and the GitLab template (3988cfc).
+  - **Tags:** `v0.1.0a5` is GPG-signed and verified. The release workflow published PyPI 0.1.0a5 and a GitHub pre-release, and the image workflow retagged the pinned digest.
+  - **GitLab component:** split 26bb0d8 on gitlab.com `main` (pipeline 3048977643 passed); signed tag `0.1.0-alpha.5` (pipeline 3048996107 passed; CI/CD Catalog release 10:05 UTC).
+  - **Org profile:** updated (bd38438).
+  - **Smoke test:** `uvx --from limbowatch-cli==0.1.0a5` on the demo app found the same 67 advisories as 0.1.0a4. The screenshots still match, so they weren't refreshed.
+- **Implication:** The range-parser fixes (F-123) reach watcher users. Run the audit before every release.
+- **Sources:** GitHub Actions runs 42794370246, 42795617980, 42795618072; GitLab pipelines above; PyPI.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
