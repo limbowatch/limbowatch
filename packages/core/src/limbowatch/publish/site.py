@@ -74,7 +74,7 @@ CSS = """:root{color-scheme:light;--bg:#F7F6F2;--surface:#FCFCFB;--sunk:#EFEDE6;
 --sunk:#1B2029;--ink:#F3F1EA;--ink2:#C3C2B7;--muted:#9A998F;--line:#2A303B;--line2:#232833;--border:#3A404C;--mark:#F4A62A;
 --amber-text:#F4A62A;--pill-bg:#3A2A0A;--pill-ink:#F7C66B;--code-bg:#0A0C10;--btn-bg:#F3F1EA;--btn-ink:#0F1218;--btn-hover:#fff;
 --soft:#A9A8A0;--faint:#7C818C}}
-:root[data-theme="dark"],.poster{color-scheme:dark;--bg:#0F1218;--surface:#161A22;--sunk:#1B2029;--ink:#F3F1EA;--ink2:#C3C2B7;
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0F1218;--surface:#161A22;--sunk:#1B2029;--ink:#F3F1EA;--ink2:#C3C2B7;
 --muted:#9A998F;--line:#2A303B;--line2:#232833;--border:#3A404C;--mark:#F4A62A;--amber-text:#F4A62A;--pill-bg:#3A2A0A;
 --pill-ink:#F7C66B;--code-bg:#0A0C10;--btn-bg:#F3F1EA;--btn-ink:#0F1218;--btn-hover:#fff;--soft:#A9A8A0;--faint:#7C818C}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
@@ -346,7 +346,7 @@ ul.keys i{position:absolute;left:0;top:15px;width:14px;height:14px;border-radius
 ol.quotes{margin:24px 0 16px;padding:0;list-style:none;counter-reset:q;max-width:860px}
 ol.quotes li{padding:20px 0;border-top:1px solid var(--line)}ol.quotes p{margin:0;font-size:19px;line-height:1.5}
 ol.quotes a{display:inline-flex;min-height:36px;align-items:center;font-size:14px;color:var(--ink2)}
-.poster{margin-top:24px;padding:8px 32px 28px;background:var(--bg);color:var(--ink);border-radius:14px}.poster figure.queue{margin-top:24px}
+.poster{margin-top:24px;padding:8px 32px 28px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:14px}.poster figure.queue{margin-top:24px}
 pre.wrapcode{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:16px}
 ul.kit{margin:16px 0 0;padding:0;list-style:none}ul.kit a{display:inline-flex;min-height:40px;align-items:center}
 .tbl td.n,.tbl th.n{text-align:right}
@@ -365,6 +365,10 @@ ul.kit{margin:16px 0 0;padding:0;list-style:none}ul.kit a{display:inline-flex;mi
 .vs b{font-size:26px}.poster{padding:4px 16px 20px}ol.quotes p{font-size:17px}.fcols{grid-template-columns:1fr;gap:24px}}
 /* scan: screenshots */
 figure.shot{margin:24px 0 0}figure.shot a{display:block;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0F1218}
+figure.shot a.on-light{background:var(--surface)}figure.shot .on-dark{display:none}
+:root[data-theme="dark"] figure.shot .on-light{display:none}:root[data-theme="dark"] figure.shot .on-dark{display:block}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) figure.shot .on-light{display:none}
+:root:not([data-theme="light"]) figure.shot .on-dark{display:block}}
 figure.shot img{display:block;width:100%;height:auto}figure.shot figcaption{margin-top:10px;font-size:14px;color:var(--ink2)}
 figure.shot.narrow{max-width:820px}.shots2{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:24px;align-items:start}
 table.fmts th{font-size:14px;width:130px;color:var(--ink)}table.fmts td{color:var(--ink2)}
@@ -1315,13 +1319,23 @@ SCREENS = {
 }
 
 
+# Screenshots that also exist in light mode (docs/screenshots/<name>-light.png, same size): the page shows the one that
+# matches the site's theme, and lazy loading fetches only that one
+LIGHT_SCREENS = {"html-report"}
+
+
 def shot(name: str, caption: str, narrow: bool = False) -> str:
     w, h, alt = SCREENS[name]
-    src = f"/assets/screens/{name}.png"
-    return (
-        f'<figure class="shot{" narrow" if narrow else ""}"><a href="{src}"><img src="{src}" width="{w}" height="{h}" loading="lazy" '
-        f'alt="{E(alt)}"></a><figcaption>{caption}</figcaption></figure>'
-    )
+
+    def img(file: str, cls: str = "") -> str:
+        src = f"/assets/screens/{file}.png"
+        return (
+            f'<a href="{src}"{f' class="{cls}"' if cls else ""}><img src="{src}" width="{w}" height="{h}" loading="lazy" '
+            f'alt="{E(alt)}"></a>'
+        )
+
+    imgs = img(name, "on-dark") + img(f"{name}-light", "on-light") if name in LIGHT_SCREENS else img(name)
+    return f'<figure class="shot{" narrow" if narrow else ""}">{imgs}<figcaption>{caption}</figcaption></figure>'
 
 
 def scan(m: dict[str, Any]) -> str:
