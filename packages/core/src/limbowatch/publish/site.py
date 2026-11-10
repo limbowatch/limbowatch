@@ -1422,12 +1422,16 @@ GitHub.</p></div></div>
     }">The 16 findings, rechecked</a></p></section>
 
 <section class="s"><h2>Use it</h2><ol class="steps" style="display:flex;flex-direction:column;gap:20px;max-width:860px">
-<li><span class="num">1</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">GitLab CI · <a href="{CATALOG_URL}">in the CI/CD Catalog</a></p>
+<li><span class="num">1</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">GitLab CI · <a href="{
+        CATALOG_URL
+    }">in the CI/CD Catalog</a></p>
 <pre>include:
   - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@{COMPONENT}
     inputs:
       fail_on: high</pre></div></li>
-<li><span class="num">2</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">GitHub, Gitea or Forgejo Actions · <a href="{MARKETPLACE_URL}">in GitHub Marketplace</a></p>
+<li><span class="num">2</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">GitHub, Gitea or Forgejo Actions · <a href="{
+        MARKETPLACE_URL
+    }">in GitHub Marketplace</a></p>
 <pre>permissions:
   contents: read
   security-events: write   # for the SARIF upload
