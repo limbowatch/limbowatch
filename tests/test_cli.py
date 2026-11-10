@@ -68,6 +68,13 @@ def test_a_crash_exits_2_not_1(monkeypatch: pytest.MonkeyPatch, capsys: pytest.C
     assert e.value.code == 2 and "unexpected KeyError" in capsys.readouterr().err
 
 
+def _plain(out: str) -> str:
+    """Usage errors as text: CI forces colour, and Rich wraps its error panel at 80 columns."""
+    import re
+
+    return " ".join(re.sub(r"[│╭╮╰╯─]", " ", re.sub(r"\x1b\[[0-9;]*m", "", out)).split())
+
+
 def test_watch_never_sends_one_token_to_two_hosts(monkeypatch: pytest.MonkeyPatch) -> None:
     from limbowatch_cli.main import app
     from typer.testing import CliRunner
@@ -75,8 +82,8 @@ def test_watch_never_sends_one_token_to_two_hosts(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setenv("LIMBOWATCH_SOURCE_TOKEN", "glpat-secret")
     args = ["watch", "--gitlab-group", "https://gitlab.com/acme", "--gitea-org", "https://codeberg.org/acme"]
     r = CliRunner().invoke(app, args)
-    assert r.exit_code == 2 and "one token would be sent to all" in r.output and "secret" not in r.output
+    assert r.exit_code == 2 and "one token would be sent to all" in _plain(r.output) and "secret" not in r.output
     r = CliRunner().invoke(app, ["watch"])
-    assert r.exit_code == 2 and "at least one --gitlab-group" in r.output
+    assert r.exit_code == 2 and "at least one --gitlab-group" in _plain(r.output)
     r = CliRunner().invoke(app, ["watch", "--git", "https://user:pw@git.example.org/a/b.git"])
     assert r.exit_code == 2 and "pw@" not in r.output
