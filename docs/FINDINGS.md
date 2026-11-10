@@ -1753,6 +1753,29 @@ Answered:
 - **Implication:** Each release also pushes the action subtree and tags it (release checklist). The Marketplace listing follows once the owner ticks the box on a release.
 - **Sources:** [GitHub Docs: Publishing actions in GitHub Marketplace](https://docs.github.com/en/actions/how-tos/create-and-publish-actions/publish-in-github-marketplace); limbowatch/limbowatch-action.
 
+### F-128
+- **Date:** 2026-11-10 · **Status:** confirmed (observed)
+- **Question:** Do the published integrations work end to end on the demo app: the action from GitHub Marketplace and the component from the GitLab CI/CD Catalog?
+- **Method:**
+  - `limbowatch/demo-app` on GitHub now uses `limbowatch/limbowatch-action@v0.1.0a5`, and on GitLab component `0.1.0-alpha.5`.
+  - Both on `main`, merged into `add-scapy`, which reran pull request #1 and merge request !1.
+  - Read the runs' reports, GitLab's Code Quality summary (GraphQL) and test report.
+  - Rechecked every advisory found against `GET /advisories/{ghsa}` and OSV.
+- **Result:**
+  - **GitHub (Marketplace action):**
+    - Pull request run 42800465479, image mode: 67 findings, 67 advisories, 7 packages (9 high, 25 medium, 33 low). The job fails on the 9 high, as designed (`fail-on: high`).
+    - Report artifact with all six reports; code scanning alert inline on the added `scapy==2.7.0` line.
+    - The `main` run (42800452604): 16 findings in 6 packages (5 high), the "16 vs 0" demo.
+  - **GitLab (Catalog component):** merge request pipeline 3049133249 ran `registry.gitlab.com/limbowatch/limbowatch-component:0.1.0a5@sha256:785a5d3e…`:
+    - 81 dependencies, the same 9 high failing;
+    - Code Quality 67 (9 critical, 25 major, 33 minor), and the merge request widget reports 51 new against `main`;
+    - test summary 67 total, 9 failed.
+  - **Still in limbo:** all 67 advisories answer 404 from GitHub's global database and from OSV (10:50 UTC).
+  - **Screenshots:** all ten refreshed from these runs, in dark and light. The GitLab widget shot is now 1456×837 (was 822).
+- **Caveats:** One demo project; scapy's 51 advisories dominate.
+- **Implication:** The Marketplace action and the Catalog component give the same results as the CLI, and the scan page's captions hold on 0.1.0a5.
+- **Sources:** demo-app runs and pipelines above; `limbowatch-report` artifacts.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

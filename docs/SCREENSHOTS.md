@@ -47,5 +47,6 @@ output. Refresh all ten from one run, so the numbers agree with each other and w
    the captions in `scan()` against the run's `report.json` (findings, failing findings, advisories per package).
    `uv run pytest tests/test_site.py` catches a size mismatch or a missing variant.
 
-The last refresh: 2026-11-10, on 0.1.0a4 (GitHub run 42758588169, GitLab pipeline 3048115706). The demo's 67
-advisories were all still in limbo, the same as on 2026-11-07.
+The last refresh: 2026-11-10, on 0.1.0a5, with the action from GitHub Marketplace (`limbowatch/limbowatch-action`) and
+the component from the GitLab CI/CD Catalog (GitHub run 42800465479, GitLab pipeline 3049133249). The demo's 67
+advisories were all still in limbo, checked live against GitHub's database and OSV.

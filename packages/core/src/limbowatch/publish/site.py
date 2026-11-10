@@ -1309,7 +1309,7 @@ SCREENS = {
     ),
     "gitlab-mr-widgets": (
         1456,
-        822,
+        837,
         "A GitLab merge request: the pipeline's Limbowatch report artifact, 'Code Quality scans found 51 "
         "new findings', and 'Test summary: 9 failed, 67 total tests'.",
     ),
