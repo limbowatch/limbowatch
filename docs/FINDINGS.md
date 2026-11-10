@@ -1493,6 +1493,35 @@ Answered:
 - **Implication:** feed records from this run carry `go_module`, so 0.1.0a4 watchers match Go advisories by module (F-113 fixed in production).
 - **Sources:** `state/runs.jsonl` (tracker-data branch).
 
+### F-118
+- **Date:** 2026-11-09 · **Status:** confirmed (official docs, live probes, and a parity run on the tracker state of 2026-11-10 03:30 UTC)
+- **Question:** Can limbo.watch check a package and its dependency tree in the visitor's browser, with the same verdicts as `limbowatch scan`?
+- **Method:**
+  - **deps.dev docs:** read docs.deps.dev/api/v3.
+  - **deps.dev probes:** read-only requests to `GET https://api.deps.dev/v3/systems/{system}/packages/{name}` and `…/versions/{version}:dependencies` for react, next, django, tokio, spring-boot-starter-web and gin, with an `Origin: https://limbo.watch` header and an OPTIONS preflight.
+  - **Parity:** the browser script (`publish/check.js`) run under Node against univers and `watch.match._version`:
+    - every version bound and fixed version in the advisories in limbo for the four ecosystems, compared against 150 sampled bounds with all six operators;
+    - the full verdict for every advisory entry at each of its own bounds, plus 0.0.1 and 999.0.
+- **Result:**
+  - **deps.dev:**
+    - `GetDependencies` returns a resolved graph (nodes marked DIRECT or INDIRECT, edges, an `error` string) for npm, Cargo, Maven and PyPI only. Go isn't resolved; gin answered 404.
+    - Responses carry `access-control-allow-origin: *` and `cache-control: public, max-age=3600`, and the docs permit caching. Use falls under the Google API Terms of Service.
+    - A just-published version has no graph yet: next 16.4.6, published 2026-11-09 20:33 UTC, answered 404 "dependencies not found" while 16.4.5 resolved to 51 nodes.
+    - Resolution can fail: tokio 1.54.1 returned 0 nodes with the error "bytes/^1.2.1: no candidates found".
+    - The default version can be a pre-release: Maven's spring-boot-starter-web defaulted to 4.2.0-RC2.
+    - react 19.3.1 has no dependencies; its graph is 1 node.
+  - **Parity:** 3,589,200 comparisons had no difference from univers. They covered 1,658 npm, 1,140 PyPI, 446 crates.io and 744 Maven bounds. 24,909 verdicts had no difference from the watcher: 14,340 not affected, 9,635 affected and 934 possible.
+  - **Index:** `check/index.json` holds 4,627 advisories in limbo (npm, PyPI, crates.io, Maven): 1.2 MB, 260 KB gzipped.
+  - **Live examples:** gatsby 5.16.1 (1,383 packages) has an advisory in http2-wrapper 1.0.3, reached via got; trio-websocket 0.12.2 has one in its direct dependency trio 0.34.0.
+- **Caveats:**
+  - The tree is deps.dev's resolution of the package on its own, not a project's lockfile.
+  - Matching is by package name only: advisories with unusable names (F-069), which the watcher matches by source repo, aren't checked.
+  - The orderings are ports. A univers or packaging upgrade could change Python's behavior; tests/test_check.py would catch that.
+- **Implication:**
+  - **Same verdicts:** the browser checker gives the CLI's verdicts without a server and without limbo.watch seeing queries. The site's CSP must allow `connect-src https://api.deps.dev`.
+  - **Honest output:** where deps.dev has no tree, the page says only the package itself was checked and offers the previous release's tree. It never reports a clean tree it didn't see.
+- **Sources:** docs.deps.dev/api/v3; api.deps.dev (above); univers 30.x, packaging 26.3, semantic_version 2.10.0 source.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

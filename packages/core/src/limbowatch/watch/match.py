@@ -20,7 +20,7 @@ import re
 
 from limbowatch.ecosystems import package_name
 from limbowatch.models import AdvisoryPackage, Dependency, Finding, MatchKind
-from limbowatch.versions import affected, already_fixed, go_relation, norm_name
+from limbowatch.versions import affected, already_fixed, dotdot_readings, go_relation, norm_name
 from limbowatch.watch.candidates import Candidate, Index
 
 
@@ -34,7 +34,7 @@ def _version(dep: Dependency, p: AdvisoryPackage) -> tuple[bool | None, str]:
     """Is dep.version affected per this package entry? (verdict, evidence)."""
     rng = p.vulnerable_version_range
     hit = affected(dep.ecosystem, dep.version, rng)
-    if hit is None and rng and (readings := _dotdot(rng)):
+    if hit is None and rng and (readings := dotdot_readings(rng)):
         verdicts = {affected(dep.ecosystem, dep.version, r) for r in readings}
         if len(verdicts) == 1 and None not in verdicts:
             hit = verdicts.pop()  # both readings of "A .. B" agree (F-069)
@@ -128,19 +128,6 @@ def match(
             )
             out[c.adv.ghsa_id] = _finding(dep, c, entry, hit, MatchKind.REPOSITORY, why)
     return sorted(out.values(), key=lambda f: f.ghsa_id)
-
-
-_V = r"v?\d[\w+-]*(?:\.[\w+-]+)*"
-
-
-def _dotdot(rng: str) -> tuple[str, str] | None:
-    """Both readings of a Rust-style `A .. B`: B fixed, or B affected. Matching takes the answer only
-    when they agree; the feed never guesses (F-069)."""
-    m = re.fullmatch(rf"\s*({_V})\s*\.\.=?\s*({_V})\s*", rng)
-    if not m:
-        return None
-    a, b = m.groups()
-    return f">= {a}, < {b}", f">= {a}, <= {b}"
 
 
 def _mentions(text: str, name: str) -> bool:

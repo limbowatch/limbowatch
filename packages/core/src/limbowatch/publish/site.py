@@ -26,7 +26,7 @@ from typing import Any
 from limbowatch.csvsafe import cell
 from limbowatch.ecosystems import PackageName, package_name, reviewable
 from limbowatch.models import AdvisoryPackage, CveLabel, Status
-from limbowatch.publish import ATTRIBUTION, Item, days_since, eco_label, fixes_text
+from limbowatch.publish import ATTRIBUTION, Item, check, days_since, eco_label, fixes_text
 from limbowatch.publish.quality import NAME, Problem, problems
 from limbowatch.versions import fixed_versions, no_fix, osv_ranges
 
@@ -296,6 +296,13 @@ ol.steps li{gap:12px}pre.light{max-height:440px;overflow:auto}
 .find div{display:flex;gap:8px}.find input{flex:1;min-width:0;min-height:48px;padding:0 14px;border-radius:10px;border:1px solid var(--border);
 background:var(--surface);color:var(--ink);font:inherit}.find input::placeholder{color:var(--faint)}
 .find button{min-height:48px;padding:0 18px;border-radius:10px;border:0;background:var(--btn-bg);color:var(--btn-ink);font:inherit;font-weight:600;cursor:pointer}
+.find select{min-height:48px;padding:0 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--ink);font:inherit;font-size:15px}
+.find .alt{margin:10px 0 0;font-size:14px;color:var(--soft)}.find.wide{max-width:900px}.find #chk-version{flex:0 1 170px}
+#check-out{margin-top:32px}.chk-res{padding:24px 28px}.chk-res.hit{border-color:var(--mark)}
+.chk-v{margin:8px 0 6px;font-size:22px;line-height:1.35}.chk-res p.small{margin:6px 0 0}
+button.btn{font:inherit;font-weight:600;cursor:pointer;background:transparent;color:var(--ink)}
+.chk-pick{padding:20px 24px}.chk-pick p{margin:0}.chk-pick div{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+#check-out .note ul{margin-top:8px}
 .side{flex:1 1 380px;max-width:560px}.flow{margin:0 0 24px;font-size:19px;line-height:1.45;color:var(--ink2)}.flow strong{color:var(--ink)}
 .stats.three{grid-template-columns:repeat(3,minmax(0,1fr))}
 figure.queue{margin:64px 0 0}figure.queue svg{display:block;width:100%;height:auto}
@@ -352,7 +359,8 @@ ul.kit{margin:16px 0 0;padding:0;list-style:none}ul.kit a{display:inline-flex;mi
 .prose h2{margin-bottom:12px}.prose p,.prose li{color:var(--ink2);line-height:1.7}.prose strong{color:var(--ink)}.prose ul{padding-left:20px}
 @media (max-width:900px){.fcols{grid-template-columns:1fr 1fr}.fabout{grid-column:1/-1}.doc{grid-template-columns:1fr;gap:24px}
 .doc>div:first-child{position:static}}
-@media (max-width:640px){.find div{flex-direction:column}.find button{width:100%}.flow{font-size:17px}
+@media (max-width:640px){.find div{flex-direction:column}.find button{width:100%}.find #chk-version{flex:auto}.chk-v{font-size:19px}
+.chk-res{padding:20px}.flow{font-size:17px}
 .stats.three{grid-template-columns:repeat(3,minmax(0,1fr))}figure.queue{margin-top:40px}.qaxis span:nth-child(3){display:none}
 .vs b{font-size:26px}.poster{padding:4px 16px 20px}ol.quotes p{font-size:17px}.fcols{grid-template-columns:1fr;gap:24px}}
 /* scan: screenshots */
@@ -420,7 +428,7 @@ def mark(stroke: str, dot: str, size: int = 30) -> str:
 
 
 def header(active: str) -> str:
-    links = [("tracker", "/tracker/", "Tracker"), ("scan", "/scan/", "Scan your project"), ("feed", "/feed/", "Feed"),
+    links = [("tracker", "/tracker/", "Tracker"), ("check", "/check/", "Check a package"), ("scan", "/scan/", "Scan your project"), ("feed", "/feed/", "Feed"),
              ("methodology", "/methodology/", "Methodology"), ("press", "/press/", "Press"), ("why", "/why/", "Why"),
              ("", REPO_URL, "GitHub ↗")]  # fmt: skip
     current = ' aria-current="page"'
@@ -733,17 +741,34 @@ DEMO_PR = "https://github.com/limbowatch/demo-app/pull/1"
 WATCHER_DOC = f"{REPO_URL}/blob/main/docs/WATCHER.md"
 EVIDENCE = f"{REPO_URL}/tree/main/research/2026-11-demo-evidence"
 COMPARE = f"{REPO_URL}/tree/main/research/2026-11-dependabot-compare"  # 13 projects vs Dependabot (F-112)
+# The site's CSP has form-action 'none', so forms navigate with a script
 SEARCH_JS = (
-    "<script>document.querySelectorAll('form.find').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();"
-    "const q=f.querySelector('input').value.trim();location.href='/tracker/'+(q?'?q='+encodeURIComponent(q):'');}));</script>"
+    "<script>document.querySelectorAll('form.find[data-to]').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();"
+    "const q=f.querySelector('input').value.trim(),eco=f.querySelector('select').value;"
+    "location.href='/check/'+(q?'?'+new URLSearchParams({eco,name:q}):'');}));</script>"
 )
+CHECK_ECOSYSTEMS = [
+    ("any", "Any ecosystem"),
+    ("npm", "npm"),
+    ("pip", "PyPI"),
+    ("rust", "crates.io"),
+    ("maven", "Maven"),
+]
+
+
+def eco_select(id_: str) -> str:
+    opts = "".join(f'<option value="{k}">{E(v)}</option>' for k, v in CHECK_ECOSYSTEMS)
+    return f'<select id="{id_}" aria-label="Ecosystem">{opts}</select>'
 
 
 def find_form() -> str:
     return (
-        '<form class="find" role="search"><label for="find-q">Is a package you use waiting?</label>'
-        '<div><input id="find-q" name="q" type="search" placeholder="Package, repository, GHSA or CVE ID" autocomplete="off">'
-        '<button type="submit">Search the tracker</button></div></form>'
+        '<form class="find" role="search" data-to="/check/"><label for="find-q">Does a package you use depend on '
+        "an advisory in limbo?</label>"
+        '<div><input id="find-q" type="search" placeholder="Package name, e.g. react, django, serde" autocomplete="off">'
+        f'{eco_select("find-eco")}<button type="submit">Check it</button></div>'
+        '<p class="alt">Checks the package and its whole dependency tree. Or <a href="/tracker/">search the tracker</a> '
+        "by repository, GHSA or CVE ID.</p></form>"
     )
 
 
@@ -958,6 +983,47 @@ reviewed database or OSV.</p></div>
         f"{li['count']:,} security advisories published on GitHub and waiting for review: filter by package, ecosystem, severity and CVE state.",
         body,
         "/tracker/",
+    )
+
+
+# --- package checker ------------------------------------------------------------------------------
+
+
+def check_page(m: dict[str, Any]) -> str:
+    body = f"""<header class="top">{header("check")}</header>
+<main class="wrap">
+<div class="head"><div><p class="eyebrow">npm, PyPI, crates.io and Maven. Data updated {E(stamp(m["generated_at"]))}.</p>
+<h1 class="page">Check a package and its dependencies</h1>
+<p class="sub lead" style="max-width:720px">Type a package. The checker resolves its whole dependency tree and checks every
+package in it against the advisories in limbo: published by maintainers, not yet in the databases Dependabot, npm
+audit and OSV-Scanner read.</p></div></div>
+<form class="find wide" role="search" id="check-form"><label for="chk-name">Package</label>
+<div><input id="chk-name" type="search" placeholder="e.g. react, django, serde, org.springframework:spring-web" autocomplete="off"
+ spellcheck="false" required>{eco_select("chk-eco")}<input id="chk-version" type="text" placeholder="Version (optional)"
+ autocomplete="off" spellcheck="false" aria-label="Version (optional)"><button type="submit">Check</button></div>
+<p class="alt">Without a version, the checker uses the newest release.</p></form>
+<div id="check-out" aria-live="polite"></div>
+<section class="s"><div class="note" style="max-width:860px"><h3>What it checks, and what it doesn’t</h3><ul>
+<li>The dependency tree comes from <a href="https://deps.dev">deps.dev</a>, resolved for the package on its own. Your
+browser asks deps.dev directly, so limbo.watch doesn’t see what you check. Your own lockfile may resolve other versions:
+to check exactly what you install, run <a href="/scan/"><span class="mono">limbowatch scan</span></a> on your project.</li>
+<li>Only advisories in limbo are checked. Advisories GitHub has reviewed already reach your usual scanner.</li>
+<li>Each package is matched by name and version, with the same rules as <span class="mono">limbowatch scan</span>. A range
+that can’t be read exactly, or that contradicts its own fixed version, is shown as “possibly affected”, never passed
+silently. Ranges are as entered by maintainers and haven’t been reviewed.</li>
+<li>Advisories whose package name is unusable are matched by <span class="mono">limbowatch scan</span> through the
+package’s source repository; this page can’t do that.</li>
+<li>deps.dev resolves trees for npm, PyPI, crates.io and Maven. For Go, RubyGems, Packagist and NuGet, use
+<span class="mono">limbowatch scan</span> or <a href="/tracker/">search the tracker</a>.</li>
+</ul></div></section></main>
+{footer()}
+<script src="/assets/check.js?v={_v(check.SCRIPT)}" defer></script>"""
+    return page(
+        "Check a package · limbo.watch",
+        "Check a package and its whole dependency tree against security advisories your scanner can’t see yet: "
+        "npm, PyPI, crates.io and Maven.",
+        body,
+        "/check/",
     )
 
 
@@ -1877,7 +1943,7 @@ def limbo_csv(items: list[Item], now: datetime) -> str:
     return buf.getvalue()
 
 
-SITEMAP_PAGES = ["/", "/tracker/", "/scan/", "/feed/", "/methodology/", "/press/", "/why/", "/quality/"]
+SITEMAP_PAGES = ["/", "/tracker/", "/check/", "/scan/", "/feed/", "/methodology/", "/press/", "/why/", "/quality/"]
 
 
 def sitemap(advisories: list[str], now: datetime) -> str:
@@ -1945,6 +2011,9 @@ def build(
         "index.html": home(items, metrics, now),
         "tracker/index.html": tracker(metrics, data),
         "tracker/data.json": json.dumps(data, separators=(",", ":")),
+        "check/index.html": check_page(metrics),
+        "check/index.json": json.dumps(check.index(items, metrics["generated_at"]), separators=(",", ":")),
+        "assets/check.js": check.SCRIPT,
         "feed/index.html": feed(metrics, sample),
         "scan/index.html": scan(metrics),
         "why/index.html": why(metrics),

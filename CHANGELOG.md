@@ -4,6 +4,8 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+- **limbo.watch package checker** (`/check/`): type a package and the site checks it and its whole dependency tree, resolved by deps.dev, against the advisories in limbo, for npm, PyPI, crates.io and Maven. It runs in the browser with the watcher's own range parsing (done at publish time) and ports of its version orderings, tested against the Python code (F-118). `limbowatch publish` writes `check/index.json`.
+
 ## 0.1.0a4 (2026-11-08)
 
 Still an **alpha**. On PyPI it's `0.1.0a4`; the GitHub tag and the action's ref are `v0.1.0a4`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a4`; the GitLab CI/CD component is `0.1.0-alpha.4`.

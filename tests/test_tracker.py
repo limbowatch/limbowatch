@@ -29,6 +29,9 @@ PAGES = (
     "index.html",
     "tracker/index.html",
     "tracker/data.json",
+    "check/index.html",
+    "check/index.json",
+    "assets/check.js",
     "feed/index.html",
     "scan/index.html",
     "why/index.html",
@@ -191,6 +194,8 @@ async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any) -> None:
     left = json.loads(pages["tracker/data.json"])["left"]
     assert [r["id"] for r in left] == ["GHSA-wq9v-j77v-qr26"] and left[0]["to"] == "Reviewed by GitHub"
     assert all("REDACTED" not in text for text in pages.values())
+    checker = json.loads(pages["check/index.json"])  # the package checker's data: facts only, no advisory text
+    assert checker["advisories"] >= 1 and "/assets/check.js?v=" in pages["check/index.html"]
     for path in ("feed/limbo.atom", "feed/critical.atom", "sitemap.xml", "press/queue.svg"):
         ElementTree.fromstring(pages[path])  # well-formed XML
     assert "<loc>https://limbo.watch/advisory/GHSA-f9j4-qggq-h239/</loc>" in pages["sitemap.xml"]

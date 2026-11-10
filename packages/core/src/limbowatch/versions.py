@@ -245,6 +245,19 @@ def norm_name(ghsa_ecosystem: str, name: str) -> str:
     return name
 
 
+_DOTDOT_V = r"v?\d[\w+-]*(?:\.[\w+-]+)*"
+
+
+def dotdot_readings(rng: str) -> tuple[str, str] | None:
+    """Both readings of a Rust-style `A .. B`: B fixed, or B affected. Matching takes the answer only
+    when they agree; the feed never guesses (F-069)."""
+    m = re.fullmatch(rf"\s*({_DOTDOT_V})\s*\.\.=?\s*({_DOTDOT_V})\s*", rng)
+    if not m:
+        return None
+    a, b = m.groups()
+    return f">= {a}, < {b}", f">= {a}, <= {b}"
+
+
 def go_relation(advisory_path: str, module: str) -> str | None:
     """How a Go advisory path relates to a module: same / package_in_module / major_version_variant.
 
