@@ -1522,6 +1522,15 @@ Answered:
   - **Honest output:** where deps.dev has no tree, the page says only the package itself was checked and offers the previous release's tree. It never reports a clean tree it didn't see.
 - **Sources:** docs.deps.dev/api/v3; api.deps.dev (above); univers 30.x, packaging 26.3, semantic_version 2.10.0 source.
 
+### F-119
+- **Date:** 2026-11-10 · **Status:** confirmed (observed; one demo project)
+- **Question:** After three days, are the demo app's advisories in limbo still invisible to scanners?
+- **Method:** Reran the demo pull request (GitHub `limbowatch/demo-app` #1, run 42758588169) and merge request (GitLab !1, pipeline 3048115706) on 0.1.0a4 against the limbo feed of 2026-11-10 04:43 UTC, and compared `report.json` with the 2026-11-07 run (F-088, F-097).
+- **Result:** Identical: 67 advisories in limbo in 7 packages (9 high, 25 medium, 33 low), 9 findings failing `--fail-on high`, Code Quality "51 new findings" and test summary "9 failed, 67 total tests". None of the 67 was reviewed or reached OSV in the 3 days.
+- **Caveats:** One small project. scapy's 51 advisories dominate the count.
+- **Implication:** The demo still shows the gap unchanged. The scan page's screenshots were refreshed from this run, in dark and light (docs/SCREENSHOTS.md), and their captions still hold.
+- **Sources:** demo run artifacts (`limbowatch-report`); GitLab merge request !1.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

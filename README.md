@@ -39,12 +39,12 @@ What it finds, measured 2026-11-07 and 11-08 against the live feed:
 - **1,080 confirmed findings in 13 popular open-source projects that Dependabot didn't alert on.** On the same dependency files GitHub's Dependabot raised 2,020 alerts, none for any of them, though every affected package was in GitHub's own dependency graph: the advisories hadn't been reviewed yet. 277 advisories; 262 findings rated critical or high; only 95 with a CVE. Each was rechecked with the ecosystem's own version library. [The comparison](research/2026-11-dependabot-compare/), [FINDINGS F-112](docs/FINDINGS.md#f-112).
 - **16 vs 0 on a demo app** with real npm, Go, pip and Bundler lockfiles: Limbowatch found 16 advisories in limbo; OSV-Scanner and GitHub's Dependabot alerts reported none of them. See the [demo pull request](https://github.com/limbowatch/demo-app/pull/1): 51 new alerts, inline on the line that adds the package. [Evidence: all 16 rechecked against GitHub and OSV](research/2026-11-demo-evidence/), 1.6 to 23.5 days in limbo.
 
-<img src="docs/screenshots/terminal.png" width="720" alt="limbowatch scan output: a table of findings per lockfile, a To fix list of upgrades, and the verdict FAILED, 9 findings at or above high">
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/terminal.png"><img src="docs/screenshots/terminal-light.png" width="720" alt="limbowatch scan output: a table of findings per lockfile, a To fix list of upgrades, and the verdict FAILED, 9 findings at or above high"></picture>
 
 In a GitHub pull request (code scanning alerts inline) and a GitLab merge request (Code Quality, test summary, report link):
 
-<img src="docs/screenshots/github-pr-inline.png" width="720" alt="A GitHub pull request diff with a code scanning alert on the added scapy line">
-<img src="docs/screenshots/gitlab-mr-widgets.png" width="560" alt="A GitLab merge request: Code Quality scans found 51 new findings; Test summary: 9 failed, 67 total tests; a Limbowatch report link">
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/github-pr-inline.png"><img src="docs/screenshots/github-pr-inline-light.png" width="720" alt="A GitHub pull request diff with a code scanning alert on the added scapy line"></picture>
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/gitlab-mr-widgets.png"><img src="docs/screenshots/gitlab-mr-widgets-light.png" width="560" alt="A GitLab merge request: Code Quality scans found 51 new findings; Test summary: 9 failed, 67 total tests; a Limbowatch report link"></picture>
 
 Guide: [docs/WATCHER.md](docs/WATCHER.md) · [limbo.watch/scan](https://limbo.watch/scan/). The current release is an alpha, 0.1.0a4: `pipx install limbowatch-cli==0.1.0a4`. Options and formats may still change before 0.1.0.
 

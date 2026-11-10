@@ -34,3 +34,18 @@ def test_csv_cells_cannot_start_a_formula() -> None:
     assert cell("-1") == "-1"
     assert cell("lodash") == "lodash"
     assert cell(">= 1.0, < 2.0") == ">= 1.0, < 2.0"
+
+
+def test_screenshots_match_their_files() -> None:
+    """Every scan-page screenshot exists in dark and light, at the size the page declares (docs/SCREENSHOTS.md)."""
+    import struct
+    from pathlib import Path
+
+    from limbowatch.publish.site import LIGHT_SCREENS, SCREENS
+
+    shots = Path(__file__).resolve().parent.parent / "docs" / "screenshots"
+    for name, (w, h, _alt) in SCREENS.items():
+        for file in [name] + ([f"{name}-light"] if name in LIGHT_SCREENS else []):
+            head = (shots / f"{file}.png").read_bytes()[:24]
+            assert head[:8] == b"\x89PNG\r\n\x1a\n", file
+            assert struct.unpack(">II", head[16:24]) == (w, h), file

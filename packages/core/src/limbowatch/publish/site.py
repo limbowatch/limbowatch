@@ -1285,8 +1285,8 @@ COMPONENT = "0.1.0-alpha.4"  # the same release in the GitLab CI/CD Catalog, whi
 # Screenshots from the demo app (docs/screenshots/, copied to assets/screens/ by `limbowatch publish`)
 SCREENS = {
     "terminal": (
-        1600,
-        1749,
+        2035,
+        2190,
         "Terminal output of limbowatch scan: a table of findings per lockfile with severity, package, "
         "installed and fixed version and advisory; a To fix list of seven upgrades; and the verdict FAILED, "
         "9 findings at or above high.",
@@ -1305,23 +1305,23 @@ SCREENS = {
         "limbo; a To fix list; and a table of the findings that fail the build.",
     ),
     "gitlab-mr-widgets": (
-        1486,
-        812,
-        "A GitLab merge request: a Limbowatch report artifact link, 'Code Quality scans found 51 "
+        1456,
+        822,
+        "A GitLab merge request: the pipeline's Limbowatch report artifact, 'Code Quality scans found 51 "
         "new findings', and 'Test summary: 9 failed, 67 total tests'.",
     ),
     "html-report": (
         1600,
-        1455,
+        1456,
         "The standalone HTML report: Failed, 9 findings at or above high; a To fix list; and a table "
         "per lockfile with severity badges, versions, advisory links and affected ranges.",
     ),
 }
 
 
-# Screenshots that also exist in light mode (docs/screenshots/<name>-light.png, same size): the page shows the one that
-# matches the site's theme, and lazy loading fetches only that one
-LIGHT_SCREENS = {"html-report"}
+# Every screenshot also exists in light mode (docs/screenshots/<name>-light.png, same size): the page shows the one that
+# matches the site's theme, and lazy loading fetches only that one. docs/SCREENSHOTS.md says how to refresh them.
+LIGHT_SCREENS = set(SCREENS)
 
 
 def shot(name: str, caption: str, narrow: bool = False) -> str:
