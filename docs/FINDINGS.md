@@ -1776,6 +1776,67 @@ Answered:
 - **Implication:** The Marketplace action and the Catalog component give the same results as the CLI, and the scan page's captions hold on 0.1.0a5.
 - **Sources:** demo-app runs and pipelines above; `limbowatch-report` artifacts.
 
+### F-129
+- **Date:** 2026-11-10 · **Status:** confirmed (official docs and direct observation)
+- **Question:** How do GitLab and Gitea/Forgejo list a group's or org's projects for org-wide mode (Phase 5 step 3): defaults, pagination, and what a private group looks like without access?
+- **Method:**
+  - GitLab docs, "List projects" of a group (`GET /groups/:id/projects`).
+  - Read-only requests to gitlab.com, no token: groups `limbowatch`, `gitlab-org/ci-cd`, `gitlab-org/cluster-integration`, `gitlab-org/security-products/analyzers`, with and without `archived`, `with_shared`, `simple`.
+  - Codeberg (Forgejo 17.0.0, "gitea-1.22.0" compatible): `GET /api/v1/orgs/forgejo/repos`, `/api/v1/settings/api`.
+  - Gitea 28.3.0 in Docker (`scripts/e2e_gitea.py`): a private org with private repos, listed with and without a token, as an org and as a user.
+- **Result:**
+  - **GitLab:**
+    - `include_subgroups` defaults to false and `with_shared` (projects shared into the group from elsewhere) to true, so org-wide mode sets both explicitly.
+    - `archived` has no default: archived projects are listed unless filtered. In `gitlab-org/ci-cd`, 41 of 234 are archived; in `cluster-integration`, 5 of 17.
+    - Paging is by offset: `x-next-page`, `x-total`, and a `Link` header with `rel="next"` carrying every parameter. No offset limit is documented for this endpoint, and keyset paging isn't offered for it.
+    - Fields used: `path_with_namespace`, `http_url_to_repo`, `web_url`, `visibility`, `archived`, `empty_repo`, `repository_access_level`, `marked_for_deletion_on`. Unauthenticated, the 500-requests-a-minute `throttle_unauthenticated_api` limit applies.
+  - **Forgejo/Gitea:**
+    - `max_response_items` is 50 on Codeberg; pages carry `Link: rel="next"` and `x-total-count`.
+    - Fields used: `full_name`, `clone_url`, `html_url`, `private`, `internal`, `archived`, `empty`. In `forgejo`, 4 of 20 repos are archived and 3 empty.
+    - An org that doesn't exist answers 404 on `/orgs/{name}/repos`; a user's repos are at `/users/{name}/repos`.
+    - **A private org answers `200 []` to a request without access**, on both `/orgs/` and `/users/`, the same as an empty org.
+  - **Git over HTTP with a token:** GitLab accepts Basic `oauth2:<token>` (checked with an OAuth token on the private `limbowatch/limbowatch-e2e`); a `Bearer` header is refused (git asks for a user name). Gitea accepts Basic with the token as password and any user name. Both work with the header passed as `http.<base>/.extraHeader` through `GIT_CONFIG_COUNT`.
+- **Caveats:** GitLab behaviour was observed on gitlab.com only; self-managed versions before 18.8 lack the `active` filter, which isn't used.
+- **Implication:** Org-wide mode sets `include_subgroups=true` and `with_shared=false`, filters archived, empty and deleted projects itself so each is reported, follows `rel="next"` only on the same host, and treats a source with no projects at all as an error that names the token, because Gitea hides a private org behind an empty list.
+- **Sources:** [GitLab groups API](https://docs.gitlab.com/api/groups/); gitlab.com and codeberg.org responses; trimmed fixtures in `tests/fixtures/hosts/`; `scripts/e2e_gitea.py`.
+
+### F-130
+- **Date:** 2026-11-10 · **Status:** confirmed (observed); tentative for other groups (two groups, one machine)
+- **Question:** What does org-wide mode (`limbowatch watch`) cost on real groups, and how much does polling each source repo once for all projects save?
+- **Method:**
+  - `limbowatch watch --gitlab-group …` on two public gitlab.com groups, no source token, with a GitHub token, OSV-Scanner 2.7.0, `--jobs 4`, on an Apple-silicon laptop, 2026-11-10.
+  - `gitlab-org/cluster-integration` (17 projects) twice, with `--state`; `gitlab-org/security-products/analyzers` (98 projects) twice, before and after the F-131 fix.
+  - Per-project polling cost read from each project's own `repos_polled` (what a separate `scan` of that project would have polled).
+  - 12 of the 193 advisories found in `analyzers` sampled at random and checked against `GET /advisories/{ghsa}` and OSV.
+- **Result:**
+  - **cluster-integration:** 12 checked, 5 archived (listed as not checked). 1,270 dependencies, 528 source repos: 508 recently checked by the tracker, 20 polled. 42 findings in 6 projects. 14 s; the second run 12 s, with no changes reported.
+  - **analyzers:** 98 listed, 50 checked; 46 archived and 2 empty listed as not checked.
+    - 43,819 dependencies, 8,572 unique; 3,318 source repos, 2,853 recently checked by the tracker.
+    - **465 repos polled for the whole group, against 784 if each project were scanned on its own** (7,867 repo look-ups summed over projects).
+    - 907 findings, 193 advisories, in 31 projects (46 critical, 282 high).
+    - About 3 minutes (179 s wall, 123 s CPU, mostly OSV-Scanner), 250 MB peak memory on the small group.
+    - The first run left `analyzers/command` unchecked (F-131); after the fix all 50 were checked.
+  - **Still in limbo:** all 12 sampled advisories answer 404 from GitHub's global database and from OSV (2026-11-10).
+  - **Image:** git from Debian (2.47.3) adds a 102 MB layer to the image (359 MB in all, linux/arm64 local build); `watch` ran in it on cluster-integration with the same result.
+- **Caveats:**
+  - Public groups on gitlab.com; clone time grows with repo size, and these repos are small to medium.
+  - The saving depends on how much the projects share; these analyzers share a lot (Go modules).
+  - Without a GitHub token, 465 polls exceed the anonymous limit of 60 an hour; such repos are reported as checked by name only.
+- **Implication:** One scheduled run covers a 50-project group in minutes, and shared polling cuts GitHub requests by about 40% there. A GitHub token is still needed for any real group.
+- **Sources:** run JSON in the session scratchpad (not committed); gitlab.com group listings; GitHub and OSV lookups.
+
+### F-131
+- **Date:** 2026-11-10 · **Status:** confirmed (observed)
+- **Question:** Why did `gitlab-org/security-products/analyzers/command` fail the inventory with "osv-scanner exited with 127"?
+- **Method:** OSV-Scanner 2.7.0, offline as the watcher runs it, on a directory with one empty `pom.xml`, then on one with an empty `pom.xml` and two broken `package-lock.json`.
+- **Result:**
+  - One unreadable file of a kind: `Error during extraction: (extracting as java/pomxml) PATH: ERROR`, on one line (the format F-078 recorded).
+  - Several of the same kind: the line ends after `(extracting as javascript/packagelockjson) `, and each file follows on its own tab-indented line, `\tPATH: ERROR`.
+  - The parser read only the one-line form. With exit code 127 and no file it recognised, it treated the run as failed, so the whole project went unchecked. `analyzers/command` has two empty `pom.xml` test fixtures.
+- **Caveats:** One OSV-Scanner version; the format comes from its error aggregation and may change.
+- **Implication:** Fixed: both forms are read, and each file is reported as "lockfile couldn't be read". `limbowatch scan` had the same bug on any project with two unreadable lockfiles of one kind.
+- **Sources:** recorded stderr in `tests/test_inventory.py`.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

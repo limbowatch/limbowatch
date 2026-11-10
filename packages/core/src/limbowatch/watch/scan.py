@@ -53,39 +53,63 @@ async def fetch(http: HttpClient, url: str, cache: Path | None) -> bytes:
     return r.body
 
 
-async def scan(
-    inv: Inventory,
+@dataclass
+class Shared:
+    """What every project in a run shares: the feed plus repos polled just now, and each dependency's source
+    repo. Org-wide mode builds it once over all projects, so each upstream repo is mapped and polled once."""
+
+    index: Index
+    mapped: dict[tuple[str, str, str], mapping.Mapped] = field(default_factory=dict)
+    on_watchlist: set[str] = field(default_factory=set)
+    polled: set[str] = field(default_factory=set)
+    not_polled: set[str] = field(default_factory=set)
+    upstream_check: bool = True
+
+
+async def prepare(
+    deps: list[Dependency],
     http: HttpClient,
     *,
     feed_zip: bytes,
     watchlist: dict[str, str],
     now: datetime,
     upstream_check: bool = True,
-) -> ScanResult:
+) -> Shared:
     index = Index()
     for c in from_feed_zip(feed_zip):
         index.add(c)
-    res = ScanResult(inventory=inv, unresolved=list(inv.unresolved))
-    deps = list(inv.dependencies)
-    mapped: dict[tuple[str, str, str], mapping.Mapped] = {}
+    sh = Shared(index, upstream_check=upstream_check)
     if upstream_check:
-        mapped = await mapping.map_all(http, deps)
-        repos = {m.repo for m in mapped.values() if m.repo}
+        sh.mapped = await mapping.map_all(http, deps)
+        repos = {m.repo for m in sh.mapped.values() if m.repo}
         due = {r for r in repos if not _fresh(watchlist.get(r), now)}
         polled = await upstream.poll(http, due)
         for c in polled.candidates:
             index.add(c)
+        sh.on_watchlist, sh.polled, sh.not_polled = repos - due, polled.polled, polled.not_polled
+    return sh
+
+
+def assess(inv: Inventory, sh: Shared) -> ScanResult:
+    """One project's findings against the shared feed, polls and mappings. No I/O."""
+    res = ScanResult(inventory=inv, unresolved=list(inv.unresolved))
+    deps = list(inv.dependencies)
+    keys = {(d.ecosystem, d.name, d.version) for d in deps}
+    mapped = {k: m for k, m in sh.mapped.items() if k in keys}
+    if sh.upstream_check:
+        repos = {m.repo for m in mapped.values() if m.repo}
         res.stats |= {
             "repos": len(repos),
-            "repos_on_watchlist": len(repos) - len(due),
-            "repos_polled": len(polled.polled),
+            "repos_on_watchlist": len(repos & sh.on_watchlist),
+            "repos_polled": len(repos & sh.polled),
         }
         for d in deps:
             m = mapped[(d.ecosystem, d.name, d.version)]
             if m.repo is None:
                 res.unresolved.append(_partial(d, Unchecked.NO_REPO, m.method))
-            elif m.repo in polled.not_polled:
+            elif m.repo in sh.not_polled:
                 res.unresolved.append(_partial(d, Unchecked.REPO_NOT_POLLED, m.repo))
+    index = sh.index
     go = [c for cs in index.by_repo.values() for c in cs if any(p.ecosystem == "go" for p in c.adv.packages)]
     per_repo: dict[str, set[tuple[str, str]]] = {}
     for (eco, name, _), m in mapped.items():
@@ -99,6 +123,20 @@ async def scan(
     res.findings.sort(key=lambda f: (f.dependency.source, f.dependency.line, f.dependency.name, f.ghsa_id))
     res.stats |= {"dependencies": len(deps), "feed_advisories": len(index.ids), "findings": len(res.findings)}
     return res
+
+
+async def scan(
+    inv: Inventory,
+    http: HttpClient,
+    *,
+    feed_zip: bytes,
+    watchlist: dict[str, str],
+    now: datetime,
+    upstream_check: bool = True,
+) -> ScanResult:
+    sh = await prepare(list(inv.dependencies), http, feed_zip=feed_zip, watchlist=watchlist, now=now,
+                       upstream_check=upstream_check)  # fmt: skip
+    return assess(inv, sh)
 
 
 def _fresh(last: str | None, now: datetime) -> bool:

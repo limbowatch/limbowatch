@@ -69,6 +69,26 @@ def test_osv_scanner_exit_codes() -> None:
         osv_scanner.parse({}, "something else broke", 127, ROOT, _read)
 
 
+def test_osv_scanner_groups_unreadable_files_of_one_kind() -> None:
+    """Several unreadable files of one kind follow the error line, one per tab-indented line (F-131).
+    Recorded from OSV-Scanner 2.7.0, paths rewritten; it drops their leading "/" (F-078)."""
+    stderr = (
+        "Error during extraction: (extracting as java/pomxml) ROOT/a/pom.xml: could not extract pom from "
+        "ROOT/a/pom.xml: EOF\n"
+        "Error during extraction: (extracting as javascript/packagelockjson) \n"
+        "\tROOT/w1/package-lock.json: could not extract: invalid character 'x' looking for beginning of object key "
+        "string\n"
+        "\tROOT/w2/package-lock.json: could not extract: invalid character 'x' looking for beginning of object key "
+        "string\n"
+        "No package sources found, --help for usage information.\n"
+    )
+    inv = osv_scanner.parse({}, stderr, 127, ROOT, _read)
+    got = [(u.reason, u.source) for u in inv.unresolved]
+    assert got == [(Unchecked.LOCKFILE_UNREADABLE, p) for p in ("a/pom.xml", "w1/package-lock.json",
+                                                               "w2/package-lock.json")]  # fmt: skip
+    assert inv.unresolved[1].detail.startswith("could not extract: invalid character")
+
+
 @pytest.mark.skipif(shutil.which("osv-scanner") is None, reason="osv-scanner not installed")
 def test_osv_scanner_runs_offline_on_the_fixture_tree(tmp_path: Path) -> None:
     shutil.copytree(INV / "proj", tmp_path / "proj")

@@ -13,12 +13,17 @@ import sys
 import tempfile
 import time
 import traceback
+from collections.abc import Collection
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
+from urllib.parse import urlsplit
 
 import typer
+from limbowatch import hosts
 from limbowatch.ecosystems import info
+from limbowatch.hosts import gitea as gitea_host
+from limbowatch.hosts import gitlab as gitlab_host
 from limbowatch.http import HttpClient
 from limbowatch.inventory import osv_scanner, sbom
 from limbowatch.models import Inventory, Unchecked
@@ -32,7 +37,8 @@ from limbowatch.store import Store
 from limbowatch.tracker import Tracker, TrackerConfig, import_cve_list
 from limbowatch.versions import norm_name
 from limbowatch.watch import issues as watch_issues
-from limbowatch.watch import output, trackers
+from limbowatch.watch import org as org_mod
+from limbowatch.watch import org_output, output, trackers
 from limbowatch.watch import scan as watch_scan
 from limbowatch.watch import state as watch_state
 
@@ -252,6 +258,14 @@ def load_inventory(path: Path, sbom_file: Path | None, binary: str, include_igno
     """A project's dependencies, from an SBOM or by running OSV-Scanner offline over its tree."""
     if sbom_file is not None:
         return sbom.parse(sbom_file.read_text(errors="replace"), sbom_file.name)
+    _check_osv_scanner(binary)
+    try:
+        return osv_scanner.run(path, binary, include_ignored=include_ignored)
+    except osv_scanner.InventoryError as e:
+        raise typer.Exit(_fail(str(e))) from e
+
+
+def _check_osv_scanner(binary: str) -> None:
     if shutil.which(binary) is None:
         raise typer.BadParameter(
             f"{binary} not found. Install OSV-Scanner {osv_scanner.TESTED_VERSION} "
@@ -261,10 +275,6 @@ def load_inventory(path: Path, sbom_file: Path | None, binary: str, include_igno
     found = osv_scanner.version(binary)
     if found != osv_scanner.TESTED_VERSION:
         typer.echo(f"warning: tested with osv-scanner {osv_scanner.TESTED_VERSION}, found {found}", err=True)
-    try:
-        return osv_scanner.run(path, binary, include_ignored=include_ignored)
-    except osv_scanner.InventoryError as e:
-        raise typer.Exit(_fail(str(e))) from e
 
 
 def _fail(msg: str) -> int:
@@ -356,10 +366,8 @@ def scan(
     if color not in ("auto", "always", "never"):
         raise typer.BadParameter("--color wants auto, always or never")
     stdout_fmt, targets = _outputs(fmt, outputs or [])
-    accepted = set(ignore or [])
-    if ignore_file is not None:
-        accepted |= {ln.split("#", 1)[0].strip() for ln in ignore_file.read_text().splitlines()} - {""}
-    cache = cache or Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "limbowatch"
+    accepted = _accepted(ignore, ignore_file)
+    cache = cache or _cache_dir()
     inv = load_inventory(path, sbom_file, binary, scan_ignored)
     for skipped in inv.skipped:
         typer.echo(f"limbowatch: skipped {skipped}: a report from an earlier Limbowatch scan, not an SBOM", err=True)
@@ -421,20 +429,33 @@ def scan(
         raise typer.Exit(1)
 
 
-def _outputs(fmt: str | None, specs: list[str]) -> tuple[str, list[tuple[str, Path]]]:
+def _accepted(ignore: list[str] | None, ignore_file: Path | None) -> set[str]:
+    accepted = set(ignore or [])
+    if ignore_file is not None:
+        accepted |= {ln.split("#", 1)[0].strip() for ln in ignore_file.read_text().splitlines()} - {""}
+    return accepted
+
+
+def _cache_dir() -> Path:
+    return Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "limbowatch"
+
+
+def _outputs(
+    fmt: str | None, specs: list[str], formats: Collection[str] = tuple(output.FORMATS)
+) -> tuple[str, list[tuple[str, Path]]]:
     """The stdout format and the FORMAT=FILE targets from --format and repeated --output."""
-    known = ", ".join(output.FORMATS)
+    known = ", ".join(formats)
     stdout = [fmt] if fmt else []
     files: list[tuple[str, Path]] = []
     for spec in specs:
         name, eq, file = spec.partition("=")
-        if name not in output.FORMATS or (eq and not file):
+        if name not in formats or (eq and not file):
             raise typer.BadParameter(f"--output wants FORMAT or FORMAT=FILE, with FORMAT one of {known}; got {spec!r}")
         if not eq or file == "-":
             stdout.append(name)
         else:
             files.append((name, Path(file)))
-    if fmt is not None and fmt not in output.FORMATS:
+    if fmt is not None and fmt not in formats:
         raise typer.BadParameter(f"--format wants one of {known}; got {fmt!r}")
     if len(stdout) > 1:
         raise typer.BadParameter(
@@ -502,6 +523,200 @@ async def _sync_issues(
         return [*lines, *(f"would {a.kind}: {a.title or ('#' + str(a.issue.number) if a.issue else a.key)}"
                           for a in actions)]  # fmt: skip
     return [*lines, *await watch_issues.apply(tracker, actions)]
+
+
+def _source_token(hosts: set[str]) -> str | None:
+    """LIMBOWATCH_SOURCE_TOKEN reads the groups and clones their projects; it's sent to one host only."""
+    token = os.environ.get("LIMBOWATCH_SOURCE_TOKEN") or os.environ.get("LIMBOWATCH_ISSUES_TOKEN")
+    if token and len(hosts) > 1:
+        raise typer.BadParameter(
+            f"the sources are on {len(hosts)} hosts ({', '.join(sorted(hosts))}), and one token would be sent to all "
+            "of them; run `limbowatch watch` once per host"
+        )
+    return token
+
+
+async def _list_sources(
+    http: HttpClient, groups: list[tuple[str, str]], orgs: list[tuple[str, str]], git_urls: list[str],
+    token: str | None, include_archived: bool,
+) -> list[hosts.Listing]:  # fmt: skip
+    listings = list(
+        await asyncio.gather(
+            *(gitlab_host.list_group(http, base, path, token, include_archived) for base, path in groups),
+            *(gitea_host.list_org(http, base, path, token, include_archived) for base, path in orgs),
+        )
+    )
+    for url in git_urls:
+        listings.append(hosts.Listing(hosts.redact(url), hosts.HostKind.GIT, [hosts.git_project(url)]))
+    return listings
+
+
+def _state_path(state_dir: Path, project: hosts.Project) -> Path:
+    """`<state>/<host>/<group>/<project>.json`; the path was checked by hosts.safe_path."""
+    return state_dir / project.host.replace(":", "_") / f"{hosts.safe_path(project.path)}.json"
+
+
+@app.command()
+def watch(
+    gitlab_group: Annotated[
+        list[str] | None,
+        typer.Option(
+            help="GitLab group URL (https://gitlab.example.com/group/sub), or a path with --gitlab-url; "
+            "repeatable. Subgroups are included."
+        ),
+    ] = None,
+    gitea_org: Annotated[
+        list[str] | None,
+        typer.Option(help="Gitea or Forgejo organization (or user) URL, e.g. https://codeberg.org/org; repeatable."),
+    ] = None,
+    git: Annotated[list[str] | None, typer.Option(help="A git repository's https URL; repeatable.")] = None,
+    gitlab_url: Annotated[
+        str | None, typer.Option(help="Base URL for --gitlab-group paths [default: $CI_SERVER_URL or gitlab.com].")
+    ] = None,
+    exclude: Annotated[
+        list[str] | None, typer.Option(help="Skip projects whose path matches this glob (group/legacy-*); repeatable.")
+    ] = None,
+    include_archived: Annotated[bool, typer.Option(help="Also check archived projects.")] = False,
+    state_dir: Annotated[
+        Path | None, typer.Option("--state", help="Directory of per-project state files: report what changed.")
+    ] = None,
+    fmt: Annotated[
+        str | None,
+        typer.Option("--format", "-f", help=f"Format on stdout [default: table]: {', '.join(org_output.FORMATS)}."),
+    ] = None,
+    outputs: Annotated[
+        list[str] | None,
+        typer.Option("--output", "-o", help="FORMAT or FORMAT=FILE, repeatable (table, json, markdown)."),
+    ] = None,
+    color: Annotated[str, typer.Option(help="Colour the table: auto, always or never.")] = "auto",
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Nothing on stdout; files and exit code only.")] = False,
+    fail_on: Annotated[str, typer.Option(help="Fail at or above: critical, high, medium, low, or none.")] = "low",
+    fail_on_unknown: Annotated[bool, typer.Option(help="Fail on findings with no severity.")] = True,
+    ignore: Annotated[list[str] | None, typer.Option(help="Accept an advisory by GHSA or CVE ID; repeatable.")] = None,
+    ignore_file: Annotated[Path | None, typer.Option(help="File of accepted IDs, one per line, # comments.")] = None,
+    upstream: Annotated[bool, typer.Option(help="Also check source repos the tracker doesn't cover.")] = True,
+    cache: Annotated[Path | None, typer.Option(help="Where the feed is cached [default: ~/.cache/limbowatch].")] = None,
+    binary: Annotated[str, typer.Option("--osv-scanner", help="OSV-Scanner executable.")] = "osv-scanner",
+    jobs: Annotated[int, typer.Option(help="Projects cloned and inventoried at a time.")] = 4,
+    verbose: Annotated[
+        bool, typer.Option("--verbose", "-v", help="Show every project's unchecked dependencies.")
+    ] = False,
+    issues: Annotated[
+        bool, typer.Option(help="Open and update issues in each GitLab or Gitea project (LIMBOWATCH_ISSUES_TOKEN).")
+    ] = False,
+    issues_min_severity: Annotated[str, typer.Option(help="Open issues at or above this severity.")] = "low",
+    issues_public: Annotated[bool, typer.Option(help="Allow issues anyone can read (public Gitea repos).")] = False,
+    issues_confidential: Annotated[bool, typer.Option(help="GitLab: open confidential issues.")] = True,
+    issues_dry_run: Annotated[bool, typer.Option(help="Print the issue changes instead of making them.")] = False,
+) -> None:
+    """Check every project of GitLab groups, Gitea or Forgejo orgs, or git URLs, in one run (org-wide mode).
+
+    Each project is cloned shallowly and inventoried like `scan`; each source repo is polled once for all
+    projects. Run it on a schedule. Exit codes: 0 passed, 1 a project's findings meet --fail-on, 2 a source
+    couldn't be listed or no project could be checked. LIMBOWATCH_SOURCE_TOKEN reads private groups.
+    """
+    if fail_on not in (*output.SEVERITIES, "none"):
+        raise typer.BadParameter(f"--fail-on wants one of {', '.join((*output.SEVERITIES, 'none'))}, not {fail_on!r}")
+    if color not in ("auto", "always", "never"):
+        raise typer.BadParameter("--color wants auto, always or never")
+    stdout_fmt, targets = _outputs(fmt, outputs or [], tuple(org_output.FORMATS))
+    accepted = _accepted(ignore, ignore_file)
+    gl_base = gitlab_url or os.environ.get("CI_SERVER_URL") or "https://gitlab.com"
+    try:
+        groups = [hosts.split_url(g, gl_base) for g in gitlab_group or []]
+        orgs = [hosts.split_url(o) for o in gitea_org or []]
+        git_projects = [hosts.git_project(u) for u in git or []]
+    except hosts.SourceError as e:
+        raise typer.BadParameter(str(e)) from e
+    if not (groups or orgs or git_projects):
+        raise typer.BadParameter("name at least one --gitlab-group, --gitea-org or --git")
+    token = _source_token({urlsplit(b).netloc for b, _ in groups + orgs} | {p.host for p in git_projects})
+    issues_token = os.environ.get("LIMBOWATCH_ISSUES_TOKEN")
+    if issues and not issues_token and not issues_dry_run:
+        raise typer.BadParameter("set LIMBOWATCH_ISSUES_TOKEN to a token that can write issues", param_hint="--issues")
+    _check_osv_scanner(binary)
+    cache = cache or _cache_dir()
+    now = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+    policy = watch_issues.Policy(issues_min_severity, issues_public)
+    log_lines: list[str] = []
+
+    def take(path: Path) -> Inventory:
+        return osv_scanner.run(path, binary)
+
+    async def run() -> org_output.OrgReport:
+        async with HttpClient(_token()) as http:
+            listings = await _list_sources(http, groups, orgs, git or [], token, include_archived)
+            feed = await watch_scan.fetch(http, watch_scan.FEED_URL, cache)
+            wl_doc = json.loads(await watch_scan.fetch(http, watch_scan.WATCHLIST_URL, cache))
+            w = await org_mod.run(listings, http, feed_zip=feed, watchlist=dict(wl_doc.get("repos") or {}),
+                                  now=datetime.now(UTC), inventory=take, token=token, exclude=exclude or [],
+                                  upstream_check=upstream, jobs=jobs)  # fmt: skip
+            olds: dict[str, Any] = {}
+            for c in w.checked:
+                f = _state_path(state_dir, c.project) if state_dir and c.result else None
+                olds[c.project.name] = json.loads(f.read_text()) if f and f.exists() else None
+            gone = sorted(
+                {
+                    g
+                    for c in w.checked
+                    if c.result
+                    for g in watch_state.vanished(olds[c.project.name], c.result.findings)
+                }
+            )
+            seen = await asyncio.gather(*(osv_source.present(http, g) for g in gone))
+            visible = {g for g, v in zip(gone, seen, strict=True) if v}
+            entries: list[org_output.Entry] = []
+            for c in w.checked:
+                if c.result is None:
+                    entries.append(org_output.Entry(c.project, None, c.commit, c.error))
+                    continue
+                changes: list[watch_state.Change] | None = None
+                if state_dir is not None:
+                    new_state, changes = watch_state.diff(olds[c.project.name], c.result.findings, now, visible)
+                    f = _state_path(state_dir, c.project)
+                    f.parent.mkdir(parents=True, exist_ok=True)
+                    f.write_text(json.dumps(new_state | {"project": c.project.web_url, "commit": c.commit},
+                                            indent=1, sort_keys=True) + "\n")  # fmt: skip
+                rep = output.Report(c.result.findings, c.result.unresolved, c.result.stats, c.result.inventory.tool,
+                                    wl_doc.get("generated_at"), changes, accepted, "", fail_on, fail_on_unknown, now,
+                                    c.project.name)  # fmt: skip
+                entries.append(org_output.Entry(c.project, rep, c.commit))
+                if issues and c.project.kind is not hosts.HostKind.GIT:
+                    try:
+                        lines = await _sync_issues(
+                            http, c.result, c.result.inventory, changes or [], c.project.kind.value,
+                            issues_token or "", c.project.base_url, c.project.path, policy, issues_confidential,
+                            issues_dry_run,
+                        )  # fmt: skip
+                    except (trackers.TrackerError, RuntimeError) as e:
+                        lines = [f"issues: {e}"]
+                    log_lines.extend(f"{c.project.name}: {ln}" for ln in lines)
+            if issues:
+                n_git = sum(1 for e in entries if e.project.kind is hosts.HostKind.GIT)
+                if n_git:
+                    log_lines.append(f"issues: {n_git} plain git project(s) have no issue tracker; none opened")
+            return org_output.OrgReport(entries, listings, w.skipped, w.stats, wl_doc.get("generated_at"), now,
+                                        fail_on)  # fmt: skip
+
+    try:
+        rep = asyncio.run(run())
+    except (RuntimeError, OSError, hosts.SourceError) as e:
+        raise typer.Exit(_fail(str(e))) from e
+    for name, dest in targets:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(org_output.FORMATS[name](rep))
+    for line in log_lines:
+        typer.echo(line, err=True)
+    if stdout_fmt == "table" and not quiet:
+        on, links = _color(color)
+        typer.echo(org_output.table(rep, verbose, output.Paint(on, links)), nl=False, color=on)
+    elif not quiet:
+        typer.echo(org_output.FORMATS[stdout_fmt](rep), nl=False)
+    if stdout_fmt != "table" or quiet:
+        word, why = org_output.verdict(rep)
+        typer.echo(f"limbowatch: {word}: {why}", err=True)
+    if rep.exit_code:
+        raise typer.Exit(rep.exit_code)
 
 
 def main() -> None:

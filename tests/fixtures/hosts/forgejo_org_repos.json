@@ -1,0 +1,50 @@
+[
+ {
+  "id": 70845,
+  "full_name": "forgejo/gitea-open-letter",
+  "clone_url": "https://codeberg.org/forgejo/gitea-open-letter.git",
+  "html_url": "https://codeberg.org/forgejo/gitea-open-letter",
+  "private": false,
+  "internal": false,
+  "archived": true,
+  "empty": false,
+  "mirror": false,
+  "fork": false
+ },
+ {
+  "id": 96959,
+  "full_name": "forgejo/discussions",
+  "clone_url": "https://codeberg.org/forgejo/discussions.git",
+  "html_url": "https://codeberg.org/forgejo/discussions",
+  "private": false,
+  "internal": false,
+  "archived": false,
+  "empty": true,
+  "mirror": false,
+  "fork": false
+ },
+ {
+  "id": 73144,
+  "full_name": "forgejo/forgejo",
+  "clone_url": "https://codeberg.org/forgejo/forgejo.git",
+  "html_url": "https://codeberg.org/forgejo/forgejo",
+  "private": false,
+  "internal": false,
+  "archived": false,
+  "empty": false,
+  "mirror": false,
+  "fork": false
+ },
+ {
+  "id": 73168,
+  "full_name": "forgejo/website",
+  "clone_url": "https://codeberg.org/forgejo/website.git",
+  "html_url": "https://codeberg.org/forgejo/website",
+  "private": false,
+  "internal": false,
+  "archived": false,
+  "empty": false,
+  "mirror": false,
+  "fork": false
+ }
+]

@@ -64,7 +64,7 @@ forbidden_modules = ["limbowatch_cli"]
 [[tool.importlinter.contracts]]
 name = "Pure modules do no I/O"
 type = "forbidden"
-source_modules = ["limbowatch.versions", "limbowatch.classify", "limbowatch.normalize", "limbowatch.ecosystems", "limbowatch.models", "limbowatch.schedule", "limbowatch.csvsafe", "limbowatch.watch.output"]
+source_modules = ["limbowatch.versions", "limbowatch.classify", "limbowatch.normalize", "limbowatch.ecosystems", "limbowatch.models", "limbowatch.schedule", "limbowatch.csvsafe", "limbowatch.watch.output", "limbowatch.watch.org_output"]
 forbidden_modules = ["httpx", "sqlalchemy", "limbowatch.http", "limbowatch.store", "limbowatch.sources"]
 allow_indirect_imports = true
 

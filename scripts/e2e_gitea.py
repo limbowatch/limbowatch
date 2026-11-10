@@ -1,7 +1,8 @@
 """End-to-end test of the watcher's issue lifecycle against a throwaway local Gitea (PHASE0_PLAN §13.8).
 
 Not part of the test suite: it needs Docker, OSV-Scanner on PATH, and the network (the live limbo feed).
-Everything it creates lives in a container bound to 127.0.0.1 and is removed at the end.
+Everything it creates lives in a container bound to 127.0.0.1 and is removed at the end. It also runs org-wide
+mode (`limbowatch watch`) on a private org: listing and cloning with a token, per-project state and issues.
 
     uv run python scripts/e2e_gitea.py
 
@@ -11,6 +12,7 @@ Uses a Go module pinned to github.com/andybalholm/brotli v1.2.1, affected by GHS
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import secrets
@@ -57,6 +59,48 @@ def check(cond: bool, what: str) -> None:
     print(("ok   " if cond else "FAIL ") + what)
     if not cond:
         raise SystemExit(1)
+
+
+def watch(token: str | None, state: Path, *extra: str) -> subprocess.CompletedProcess[str]:
+    env = {k: v for k, v in os.environ.items() if not k.startswith("LIMBOWATCH_")}
+    if token:
+        env |= {"LIMBOWATCH_SOURCE_TOKEN": token, "LIMBOWATCH_ISSUES_TOKEN": token}
+    return sh("uv", "run", "limbowatch", "watch", "--gitea-org", f"{BASE}/lworg", "--state", str(state),
+              "--fail-on", "none", "-f", "json", *extra, env=env)  # fmt: skip
+
+
+def org_wide(token: str, tmp: Path) -> None:
+    """`limbowatch watch` on a private org: listed and cloned with the token only, issues in each repo."""
+    api(token, "POST", "/orgs", {"username": "lworg", "visibility": "private"})
+    for name in ("svc", "old"):
+        api(token, "POST", "/orgs/lworg/repos", {"name": name, "private": True, "auto_init": True,
+                                                 "default_branch": "main"})  # fmt: skip
+        content = base64.b64encode(GO_MOD.format(v="v1.2.1").encode()).decode()
+        api(token, "POST", f"/repos/lworg/{name}/contents/go.mod", {"content": content, "message": "go.mod"})
+    api(token, "PATCH", "/repos/lworg/old", {"archived": True})
+    api(token, "POST", "/orgs/lworg/repos", {"name": "empty", "private": True})
+
+    anon = watch(None, tmp / "w0")
+    check(anon.returncode == 2, f"without a token, the private org can't be listed (exit {anon.returncode})")
+
+    r = watch(token, tmp / "w1", "--issues")
+    print(r.stderr.strip())
+    doc = json.loads(r.stdout)
+    checked = {p["project"]: p for p in doc["projects"]}
+    skipped = {p["project"]: p["reason"] for p in doc["not_checked"]}
+    host = f"127.0.0.1:{PORT}"
+    check(list(checked) == [f"{host}/lworg/svc"] and checked[f"{host}/lworg/svc"]["error"] is None,
+          "the private repo is listed and cloned with the token")  # fmt: skip
+    check(skipped.get(f"{host}/lworg/old", "").startswith("archived") and
+          skipped.get(f"{host}/lworg/empty") == "empty repository", "archived and empty repos are listed, not checked")  # fmt: skip
+    found = [f["ghsa_id"] for f in checked[f"{host}/lworg/svc"]["report"]["findings"]]
+    check(GHSA in found, "the org-wide run finds the advisory")
+    got = issues(token, "lworg/svc")
+    check(len(got) == 1 and GHSA in got[0]["title"], "an issue opens in the project itself")
+    check((tmp / "w1" / host.replace(":", "_") / "lworg" / "svc.json").exists(), "state is kept per project")
+    r = watch(token, tmp / "w1", "--issues")
+    again = json.loads(r.stdout)["projects"][0]["report"]["changes"]
+    check(again == [] and len(issues(token, "lworg/svc")) == 1, "a second run changes nothing")
 
 
 def main() -> None:
@@ -109,6 +153,8 @@ def main() -> None:
             r = scan(proj, f"{USER}/public-app", token, Path(tmp) / "state2.json")
             check(issues(token, f"{USER}/public-app") == [] and "are public" in r.stderr,
                   "a public repo gets no issues by default")  # fmt: skip
+
+            org_wide(token, Path(tmp))
         print("e2e passed")
     finally:
         sh("docker", "rm", "-f", NAME)

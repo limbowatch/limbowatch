@@ -250,13 +250,14 @@ def _shown_rows(r: Report, fs: list[Finding]) -> int:
     return len(fs) if len(fs) - n <= 1 else n
 
 
-def table(r: Report, verbose: bool = False, paint: Paint | None = None) -> str:
+def table(r: Report, verbose: bool = False, paint: Paint | None = None, embedded: bool = False) -> str:
+    """`embedded`: one project's part of an org-wide table, without the header line and the attribution."""
     p = paint or Paint()
     act = r.active
     head = f"limbowatch {__version__} · {_plural(r.stats.get('dependencies', 0), 'dependency', 'dependencies')} scanned ({r.tool})"
     if r.feed_generated_at:
         head += f" · limbo feed of {r.feed_generated_at[:16].replace('T', ' ')} UTC"
-    out = [p("2", head), ""]
+    out = [] if embedded else [p("2", head), ""]
     if not act:
         out.append("No dependency is affected by an advisory in limbo.")
     else:
@@ -320,7 +321,7 @@ def table(r: Report, verbose: bool = False, paint: Paint | None = None) -> str:
                     "? possibly affected: the advisory’s range couldn’t be evaluated exactly. See the note under it.",
                 ),
             ]
-        if not verbose:
+        if not verbose and not embedded:
             out.append(p("2", "Links and evidence for every finding: limbowatch scan -v"))
     accepted = [f for f in r.findings if r.is_ignored(f)]
     if accepted:
@@ -344,7 +345,8 @@ def table(r: Report, verbose: bool = False, paint: Paint | None = None) -> str:
         if part and not verbose:
             out.append(p("2", "  (-v lists the ones checked by name only)"))
     failed, why = verdict(r)
-    out += ["", p("2", ATTRIBUTION), "", (p("1;31", "FAILED") if failed else p("1;32", "PASSED")) + "  " + why]
+    out += [] if embedded else ["", p("2", ATTRIBUTION)]
+    out += ["", (p("1;31", "FAILED") if failed else p("1;32", "PASSED")) + "  " + why]
     return "\n".join(out) + "\n"
 
 

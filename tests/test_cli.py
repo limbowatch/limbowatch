@@ -9,7 +9,7 @@ from typer.core import TyperGroup
 def test_every_command_is_registered() -> None:
     cli = typer.main.get_command(app)
     assert isinstance(cli, TyperGroup)
-    assert {"track", "publish", "report", "inventory", "scan"} <= set(cli.commands)
+    assert {"track", "publish", "report", "inventory", "scan", "watch"} <= set(cli.commands)
 
 
 def test_version_flag() -> None:
@@ -66,3 +66,17 @@ def test_a_crash_exits_2_not_1(monkeypatch: pytest.MonkeyPatch, capsys: pytest.C
     with pytest.raises(SystemExit) as e:
         cli.main()
     assert e.value.code == 2 and "unexpected KeyError" in capsys.readouterr().err
+
+
+def test_watch_never_sends_one_token_to_two_hosts(monkeypatch: pytest.MonkeyPatch) -> None:
+    from limbowatch_cli.main import app
+    from typer.testing import CliRunner
+
+    monkeypatch.setenv("LIMBOWATCH_SOURCE_TOKEN", "glpat-secret")
+    args = ["watch", "--gitlab-group", "https://gitlab.com/acme", "--gitea-org", "https://codeberg.org/acme"]
+    r = CliRunner().invoke(app, args)
+    assert r.exit_code == 2 and "one token would be sent to all" in r.output and "secret" not in r.output
+    r = CliRunner().invoke(app, ["watch"])
+    assert r.exit_code == 2 and "at least one --gitlab-group" in r.output
+    r = CliRunner().invoke(app, ["watch", "--git", "https://user:pw@git.example.org/a/b.git"])
+    assert r.exit_code == 2 and "pw@" not in r.output

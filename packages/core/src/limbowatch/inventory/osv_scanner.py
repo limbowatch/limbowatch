@@ -25,7 +25,27 @@ from limbowatch.models import Dependency, Inventory, Unchecked, UnresolvedDepend
 TESTED_VERSION = "2.7.0"  # behaviour verified in F-074 and F-078
 
 # Exit codes (F-078): 0 no findings, 1 findings, 127 an error (e.g. an unreadable lockfile), 128 no lockfiles.
-_EXTRACT_ERROR = re.compile(r"^Error during extraction: \(extracting as [^)]+\) (.+?): (.+)$", re.M)
+# One unreadable file of a kind: "Error during extraction: (extracting as java/pomxml) PATH: ERROR". Several of
+# the same kind: that line ends after the kind, and each file follows on its own tab-indented line (F-131).
+_EXTRACT_ERROR = re.compile(r"^Error during extraction: \(extracting as [^)]+\) ?(.*)$")
+_PATH_ERROR = re.compile(r"^(.+?): (.+)$")
+
+
+def extraction_errors(stderr: str) -> list[tuple[str, str]]:
+    """(path, error) for every file OSV-Scanner couldn't read, as printed (paths may lack their leading "/")."""
+    out: list[tuple[str, str]] = []
+    listing = False
+    for line in stderr.splitlines():
+        if m := _EXTRACT_ERROR.match(line):
+            rest = m.group(1).strip()
+            listing = not rest
+            if rest and (pe := _PATH_ERROR.match(rest)):
+                out.append((pe.group(1), pe.group(2)))
+        elif listing and line.startswith("\t") and (pe := _PATH_ERROR.match(line.strip())):
+            out.append((pe.group(1), pe.group(2)))
+        else:
+            listing = False
+    return out
 
 
 class InventoryError(RuntimeError):
@@ -89,7 +109,7 @@ def parse(
     deps: list[Dependency] = []
     unresolved: list[UnresolvedDependency] = []
     sources: list[str] = []
-    failed = {_rel(m.group(1), root): m.group(2) for m in _EXTRACT_ERROR.finditer(stderr)}
+    failed = {_rel(path, root): err for path, err in extraction_errors(stderr)}
     for path, err in sorted(failed.items()):
         unresolved.append(UnresolvedDependency(reason=Unchecked.LOCKFILE_UNREADABLE, source=path, detail=err))
     if code == 128:

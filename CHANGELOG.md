@@ -4,6 +4,9 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+- **Org-wide mode: `limbowatch watch`** checks every project of GitLab groups (with subgroups), Gitea or Forgejo organizations, or git URLs, in one run. Each project is cloned shallowly and inventoried like `scan`; each source repo is polled once for all projects. It reports one line per project, with archived, empty and excluded projects listed as not checked, and keeps state and issues per project. Formats: table, JSON, Markdown. A source that can't be listed exits 2 (docs/WATCHER.md, F-129, F-130).
+- **Image:** includes git, for `limbowatch watch` (about 100 MB more).
+- **Fix: several unreadable lockfiles of one kind no longer stop the inventory.** OSV-Scanner lists them on indented lines under one error line, which the parser didn't read, so the scan exited 2 instead of reporting each file as unreadable (F-131).
 - **The GitHub Action has its own repository, [limbowatch/limbowatch-action](https://github.com/limbowatch/limbowatch-action)**, so it can be listed in GitHub Marketplace: `uses: limbowatch/limbowatch-action@v0.1.0a5`. It's a copy of `integrations/action/`, made at each release, and `limbowatch/limbowatch/integrations/action@<tag>` keeps working.
 
 ## 0.1.0a5 (2026-11-10)

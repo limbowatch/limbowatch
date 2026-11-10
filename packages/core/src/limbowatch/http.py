@@ -166,21 +166,24 @@ class HttpClient:
         method: str,
         url: str,
         *,
-        auth: tuple[str, str],
+        auth: tuple[str, str] | None,
         json_body: Any = None,
         params: dict[str, Any] | None = None,
     ) -> Response:
-        """A request to an issue tracker (GitLab, Gitea): any method, a caller-supplied auth header.
+        """A request to a code host (GitLab, Gitea): any method, a caller-supplied auth header (or none, for
+        public data).
 
-        The header value is a token; it's sent only to `url`'s host and never logged.
+        The header value is a token; it's sent only to `url`'s host and never logged. Redirects to another
+        host aren't followed with it (httpx drops Authorization on a cross-origin redirect).
         """
         self._check_deadline()
         host = urlsplit(url).hostname or ""
         r: httpx.Response | None = None
+        headers = {auth[0]: auth[1]} if auth else {}
         async with self._sems.get(host, self._default_sem):
             for attempt in range(5):
                 try:
-                    r = await self._client.request(method, url, headers={auth[0]: auth[1]}, json=json_body,
+                    r = await self._client.request(method, url, headers=headers, json=json_body,
                                                    params=params)  # fmt: skip
                 except httpx.HTTPError as e:
                     log.warning("http error", extra={"host": host, "error": type(e).__name__, "attempt": attempt})

@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# The Limbowatch watcher image: `limbowatch` and OSV-Scanner, nothing installed at run time.
+# The Limbowatch watcher image: `limbowatch`, OSV-Scanner and git, nothing installed at run time.
 #   docker run --rm -v "$PWD:/src" -w /src ghcr.io/limbowatch/limbowatch:<release> limbowatch scan .   (no `latest` for alphas)
 # Built, attested and published by .github/workflows/image.yml for linux/amd64 and linux/arm64. The base images
 # are pinned by digest (Dependabot updates them); Python dependencies come from uv.lock with hashes; OSV-Scanner is
@@ -37,6 +37,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1
+# git: `limbowatch watch` clones each project of a group (org-wide mode). From the base image's Debian release.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git \
+ && rm -rf /var/lib/apt/lists/*
 RUN --mount=type=bind,from=build,source=/dist,target=/dist \
     pip install --require-hashes -r /dist/requirements.txt \
  && pip install --no-deps /dist/*.whl \

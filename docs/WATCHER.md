@@ -150,6 +150,64 @@ The action annotates each finding on its lockfile line in the pull request (`ann
     with: { name: limbowatch-report, path: limbowatch-report/ }
 ```
 
+## Org-wide mode
+
+`limbowatch watch` checks every project of some GitLab groups (subgroups included), Gitea or Forgejo organizations, or git URLs, in one run. Run it on a schedule from one place, for example a scheduled pipeline in a dedicated project, instead of adding a job to each project.
+
+```sh
+LIMBOWATCH_SOURCE_TOKEN=… limbowatch watch \
+  --gitlab-group https://gitlab.example.com/acme --exclude 'acme/sandbox/*' \
+  --state limbowatch-state -o markdown=limbowatch.md -o json=limbowatch.json
+limbowatch watch --gitea-org https://codeberg.org/some-org --git https://git.example.org/team/tool.git
+```
+
+1. **List.** GitLab: the group's own projects and its subgroups' (projects shared into the group from elsewhere aren't included). Gitea and Forgejo: the organization's repos, or a user's. Archived and empty projects, projects marked for deletion and `--exclude` matches are listed as **not checked**, with the reason; `--include-archived` checks archived ones. A project in two groups is checked once.
+2. **Clone and inventory.** Each project's default branch is cloned with `--depth 1` into a temporary directory, inventoried exactly as `scan` does, and deleted. `--jobs` (default 4) sets how many at a time. No submodules, no LFS files, no tags; symlinks come out as plain files, so a lockfile can't point OSV-Scanner outside the clone.
+3. **Check.** Source repos are mapped and polled **once for all projects**: on 49 projects of one GitLab group, 465 repos were polled instead of 784 (F-130).
+4. **Report.** One line per project, then each affected project's findings in the same layout as `scan`.
+
+| Option | |
+|---|---|
+| `--gitlab-group URL` | `https://host/group/subgroup`, or a path with `--gitlab-url` (default `$CI_SERVER_URL`, else gitlab.com). Repeatable |
+| `--gitea-org URL` | `https://host/org` (or a user). Repeatable |
+| `--git URL` | Any https git URL. Repeatable. No issues for these: there's no tracker to open them in |
+| `--exclude GLOB` | Skip projects whose path (`acme/legacy-*`) or host/path matches. Repeatable |
+| `--include-archived` | Also check archived projects |
+| `--state DIR` | One state file per project, `DIR/<host>/<path>.json`, to report what changed since the last run |
+| `-o`, `-f` | `table`, `json` or `markdown` for the whole run. The JSON nests each project's `scan` JSON unchanged |
+| `--issues` | Open and update issues in each GitLab or Gitea project, as `scan --issues` does (`LIMBOWATCH_ISSUES_TOKEN`) |
+| `--jobs N` | Projects cloned and inventoried at a time (default 4) |
+
+`--fail-on`, `--fail-on-unknown`, `--ignore`, `--ignore-file`, `--no-upstream`, `--osv-scanner` and `-v` work as for `scan`.
+
+| Exit code | Meaning |
+|---|---|
+| **0** | Passed: no project has a finding that meets `--fail-on` |
+| **1** | Failed: at least one project does |
+| **2** | Error: a source couldn't be listed, so projects may be missing, or no project could be checked |
+
+A project that can't be cloned or inventoried is listed under **couldn't be checked** with the error; the other projects are still checked.
+
+**Tokens.**
+- `LIMBOWATCH_SOURCE_TOKEN` lists private groups and clones their projects. On GitLab, a group access token with `read_api` and `read_repository` (Reporter role); on Gitea and Forgejo, a token that can read the organization and its repositories. It defaults to `LIMBOWATCH_ISSUES_TOKEN`.
+- A token is sent only to its own host. When the sources span several hosts, run `limbowatch watch` once per host; with a token set, a run that names two hosts is refused.
+- Clones get the token from git's environment, never from the command line or the URL.
+- Gitea and Forgejo show a private organization as empty to a request without access (F-129). So a source that lists no projects at all is an error, not a pass.
+
+**Scheduled GitLab pipeline.** The image includes git. In a project of its own, with `LIMBOWATCH_SOURCE_TOKEN` and `LIMBOWATCH_GITHUB_TOKEN` as masked CI/CD variables and a pipeline schedule:
+
+```yaml
+limbowatch-watch:
+  image: ghcr.io/limbowatch/limbowatch:<release>   # a release that includes `watch`
+  rules: [{ if: $CI_PIPELINE_SOURCE == "schedule" }]
+  cache: { key: limbowatch-state, paths: [limbowatch-state/] }
+  script:
+    - limbowatch watch --gitlab-group "$CI_SERVER_URL/acme" --state limbowatch-state -o markdown=limbowatch.md -o json=limbowatch.json
+  artifacts: { when: always, paths: [limbowatch.md, limbowatch.json] }
+```
+
+A CI cache can be evicted, and then the next run reports every finding as new. Keep the state somewhere durable (a branch, a package registry, an object store) if that matters, as with `scan --state`.
+
 ## Issues
 
 ```sh
@@ -172,6 +230,7 @@ In CI, `--issues-url` and `--issues-project` default to `CI_SERVER_URL` / `GITHU
 - **Only what the lockfiles list.** The inventory runs offline, so a `requirements.txt` gives its direct entries only; plain OSV-Scanner resolves Python's transitive dependencies online (F-088). Pin them with `pip-compile` or `uv pip compile` to have them checked.
 - **Ranges are as entered by maintainers** and haven't been reviewed. Unreadable ranges give *possible* findings.
 - **Upstream polling is GitHub only.** Off-GitHub upstreams, and vanity Go paths deps.dev can't map, are checked by name only.
+- **Org-wide mode reads the default branch only,** at its tip. Release branches aren't checked; run `scan` in their pipelines.
 - **Polled upstream repos get fewer CVE facts.** Uncited CVEs and duplicates need the CVE List, so they're only detected for repos the tracker watches.
 
 Advisory data: GitHub repository security advisories and the GitHub Advisory Database (CC BY 4.0), via the limbo feed (CC BY 4.0).
