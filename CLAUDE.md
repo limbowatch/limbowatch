@@ -64,6 +64,7 @@ uv run limbowatch scan <project> [--state F] [-o FORMAT=FILE ...] [--issues gitl
 uv run python scripts/e2e_gitea.py                       # issue lifecycle against a local Gitea in Docker (network)
 LIMBOWATCH_ISSUES_TOKEN=… uv run python scripts/e2e_gitlab.py   # GitLab issues in the private project limbowatch/limbowatch-e2e (network)
 uv run --with pyyaml python scripts/check_integrations.py # GitLab component and Action in a container (network)
+uv run --with jsonschema python scripts/audit.py           # audit tracker, site and feed against GitHub/OSV/CVE Services; run before every release (network)
 ```
 
 The watcher needs OSV-Scanner 2.7.0 on PATH (the research pipeline builds one at `research/2026-10-state-of-the-gap/.cache/bin/`). The `scripts/` need Docker or a GitLab token, and the network, so they aren't part of the test suite.

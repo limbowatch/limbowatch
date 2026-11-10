@@ -4,6 +4,10 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+## 0.1.0a5 (2026-11-10)
+
+Still an **alpha**. On PyPI it's `0.1.0a5`; the GitHub tag and the action's ref are `v0.1.0a5`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a5`; the GitLab CI/CD component is `0.1.0-alpha.5`.
+
 - **limbo.watch package checker** (`/check/`): type a package and the site checks it and its whole dependency tree, resolved by deps.dev, against the advisories in limbo, for npm, PyPI, crates.io and Maven. It runs in the browser with the watcher's own range parsing (done at publish time) and ports of its version orderings, tested against the Python code (F-118). `limbowatch publish` writes `check/index.json`.
 - **Fix: a CVE record no longer links an advisory it only mentions.** The tracker took GHSA IDs from anywhere in a CVE record, so a description such as "distinct from GHSA-…" counted that advisory as having an uncited CVE, or as a duplicate if the CVE was reviewed under another ID. It now links only through the record's references and `source`, and re-reads records it stored under the old rule (F-120).
 - **Fix: version ranges are read the way maintainers wrote them** (F-123). Commas re-read as "or" keep each interval whole (`>= 2.2.0, < 2.2.10, >= 2.3.0, < 2.3.7` no longer covers every version), `>= 3.8.8, <= 3.8.8` is one version, `2.16.*` and `11.0.0-11.5.50` are intervals, and Packagist versions with four parts order correctly (`6.7.13.0 < 6.7.13.1`). A range that still contradicts itself is reported as possibly affected, never as affected or clean.
