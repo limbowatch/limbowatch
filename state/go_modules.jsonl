@@ -574,6 +574,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/cloudnativelabs/kube-router","path":"github.com/cloudnativelabs/kube-router"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/cloudreve/Cloudreve/v4","path":"github.com/cloudreve/Cloudreve/v4"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/cloudreve/cloudreve","path":"github.com/cloudreve/cloudreve"}
+{"checked_at":"2026-11-10T00:03:23Z","module":"github.com/cnabio/cnab-go","path":"github.com/cnabio/cnab-go"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/codeclysm/extract/v3","path":"github.com/codeclysm/extract/v3"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/codenotary/immudb","path":"github.com/codenotary/immudb/pkg/client"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/coder/coder","path":"github.com/coder/coder"}
@@ -654,6 +655,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/dunglas/frankenphp/caddy","path":"github.com/dunglas/frankenphp/caddy"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/dunglas/mercure","path":"github.com/dunglas/mercure"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/dunglas/mercure/caddy","path":"github.com/dunglas/mercure/caddy"}
+{"checked_at":"2026-11-10T00:03:23Z","module":"github.com/dvsekhvalnov/jose2go","path":"github.com/dvsekhvalnov/jose2go"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/eat-pray-ai/yutu","path":"github.com/eat-pray-ai/yutu"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/ecies/go","path":"github.com/ecies/go"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/eclipse-keypont/crypto11","path":"github.com/eclipse-keypont/crypto11"}
@@ -1207,6 +1209,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/zarf-dev/zarf","path":"github.com/zarf-dev/zarf/src/pkg/archive"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/zeromicro/go-zero","path":"github.com/zeromicro/go-zero"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/zhenorzz/goploy","path":"github.com/zhenorzz/goploy"}
+{"checked_at":"2026-11-10T00:03:23Z","module":"github.com/zitadel/oidc/v3","path":"github.com/zitadel/oidc/v3/pkg/oidc"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/zitadel/zitadel","path":"github.com/zitadel/zitadel"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/zitadel/zitadel-go","path":"github.com/zitadel/zitadel-go"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/zxh326/kite","path":"github.com/zxh326/kite"}
