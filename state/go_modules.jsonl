@@ -1085,6 +1085,9 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/pelletier/go-toml/v2","path":"github.com/pelletier/go-toml/v2"}
 {"checked_at":"2026-11-09T16:52:05Z","module":null,"path":"github.com/perber/leafwiki"}
 {"checked_at":"2026-11-09T16:52:05Z","module":null,"path":"github.com/perber/wiki"}
+{"checked_at":"2026-11-11T12:03:36Z","module":"github.com/pgEdge/control-plane","path":"github.com/pgEdge/control-plane"}
+{"checked_at":"2026-11-11T12:03:36Z","module":"github.com/pgEdge/pgedge-go-llm-lib","path":"github.com/pgEdge/pgedge-go-llm-lib"}
+{"checked_at":"2026-11-11T12:03:36Z","module":"github.com/pgEdge/pgedge-rag-server","path":"github.com/pgEdge/pgedge-rag-server"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/phires/go-guerrilla","path":"github.com/phires/go-guerrilla"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/phishingclub/phishingclub","path":"github.com/phishingclub/phishingclub"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/pilinux/gorest","path":"github.com/pilinux/gorest"}
@@ -1293,6 +1296,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.rgst.io/stencil/v2","path":"go.rgst.io/stencil/v2"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.senan.xyz/gonic","path":"go.senan.xyz/gonic"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.woodpecker-ci.org/woodpecker/v2","path":"go.woodpecker-ci.org/woodpecker/v2"}
+{"checked_at":"2026-11-11T12:03:36Z","module":"go.woodpecker-ci.org/woodpecker/v3","path":"go.woodpecker-ci.org/woodpecker/v3"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"gogs.io/gogs","path":"gogs.io/gogs"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"golang.org/x/crypto","path":"golang.org/x/crypto"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"golang.org/x/oauth2","path":"golang.org/x/oauth2/jws"}
