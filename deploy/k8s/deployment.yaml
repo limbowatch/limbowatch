@@ -30,7 +30,7 @@ spec:
       containers:
         - name: site
           # CI (.github/workflows/site.yml) rewrites this tag to the image it just built.
-          image: ghcr.io/limbowatch/limbowatch-site:20261111-42996992821
+          image: ghcr.io/limbowatch/limbowatch-site:20261111-42998751065
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
