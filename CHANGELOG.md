@@ -4,6 +4,10 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+## 0.1.0a8 (2026-11-11)
+
+Still an **alpha**. On PyPI it's `0.1.0a8`; the GitHub tag and the action's ref are `v0.1.0a8`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a8`; the GitLab CI/CD component is `0.1.0-alpha.8`. **Replaces 0.1.0a7, which could pass upstream sources that are affected** (four cases found by an independent review, below). Upgrade if you use 0.1.0a7.
+
 - **Fixed: upstream sources could be passed when affected** (found by an independent review, F-141): a fix release of an older line in a pin's history cleared a newer affected line (`< 1.2.5 || >= 2.0.0, < 2.0.3` at 2.0.1); tag versions were read from the last digits (`v1.2.3-r2` as 2, `pcre2-10.44` as `2-10.44`); a trailing letter counted as a pre-release (`1.1.1a` before `1.1.1`); an advisory naming a registry package and the C code was skipped for upstream sources.
 - **A commit between the last affected release and the fix release is *possible*,** not certain: the fix commit may already be in it. It's certain when a release in the affected range contains it.
 - **Fixed: a malformed `vcpkg.json` or `conan.lock` ended the scan**; it's reported as unreadable, and the rest is checked.
