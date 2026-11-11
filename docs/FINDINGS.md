@@ -107,6 +107,7 @@ Open:
 - Q17. How many Go modules on vanity paths (k8s.io, golang.org/x, go.opentelemetry.io) can be mapped to a GitHub repo without deps.dev? 320 Kubernetes dependencies stay checked by name only ([F-085](#f-085)). blindspot keeps a verified list (`docs/go-vanity-coverage.md`, [F-072](#f-072)).
 - Q18. Should the tracker's seeds include the upstreams of popular GitLab-hosted projects' Ruby dependencies, so the watcher doesn't need to poll them? ([F-085](#f-085); Phase 5.) *Partly answered 2026-11-10: the repos of the top 10,000 gems are now watched ([F-121](#f-121)); how much of GitLab's 356 polls that removes wasn't measured.*
 - Q25. Which Maven builds does the resolver get wrong beyond JDK-activated profiles and unreleased siblings: `<repositories>`, private registries, plugin-managed dependencies? Four projects were checked ([F-132](#f-132)).
+- Q26. For limbo advisories without a package, how often does the patched version map to a tag in the upstream repo (`v1.2.3`, `1.2.3`, `name-1.2.3`, `release-1_2_3`), so that a pinned commit can be compared with the fix? And how many of the 1,858 repos are libraries other projects consume? ([F-135](#f-135); Phase 6.)
 - Q22. Does GitHub's "more than 5,000 repository advisories a week" count the same thing as the tracker (published, any ecosystem)? It sets the coverage estimate ([F-035](#f-035), [F-098](#f-098)).
 
 Answered:
@@ -1927,6 +1928,32 @@ Answered:
   - Under PCI DSS the one month runs from the fix's release. When the fix ships with the advisory, a scanner that waits for review speaks up on day 23 with 7 days left. 44% of October's reviews took longer than 30 days.
   - The home page says this, with sources, and adds that it isn't audit advice.
 - **Sources:** [AICPA: 2017 Trust Services Criteria](https://www.aicpa-cima.com/resources/download/2017-trust-services-criteria-with-revised-points-of-focus-2022) (TSP 100, CC7.1, CC7.2); [PCI SSC FAQ 1597](https://www.pcisecuritystandards.org/faqs/1597/).
+
+### F-135
+- **Date:** 2026-11-10 · **Status:** confirmed (measured on the live feed and tracker state; docs and single probes for the rest)
+- **Question:** Before planning Phase 6 (upstream-watch): how much of the limbo feed has no package a consumer can match, what does the watcher do with C/C++-style dependencies today, and what do existing tools and package indexes already give us?
+- **Method:**
+  - Feed: `limbo.watch/feed/all.zip` (24,561 records, modified 2026-11-10) joined to `state/advisories.jsonl` on the `tracker-data` branch (same day). A record "has no package" when `affected` is empty.
+  - Watcher: `limbowatch inventory` (0.1.0a6) and OSV-Scanner 2.7.0, offline as the watcher runs it and online, on a test repo with a git submodule, a CMake `FetchContent_Declare(zlib GIT_REPOSITORY … GIT_TAG v1.3.1)` and a `vcpkg.json`.
+  - Docs: OSV-Scanner v2.7.0 `docs/supported_languages_and_lockfiles.md` ("C/C++ scanning") and `docs/offline-mode.md`.
+  - Package indexes: `microsoft/vcpkg` `ports/zlib/portfile.cmake` and `vcpkg.json`; `bazelbuild/bazel-central-registry` `modules/zlib/metadata.json`.
+  - blindspot: the README of munimtechnologies/advisory-import-census (pushed 2026-11-11 00:58 UTC).
+- **Result:**
+  - **60% of the feed has no package.** 14,785 of 24,561 limbo records have an empty `affected`: their advisories name ecosystem `other` (11,426 packages), `bottlerocket`, `c`, `frappe`, `c/c++`, `php`, `docker`, … for which OSV has no ecosystem, so the feed leaves them out. They come from 1,858 repos (bottlerocket-os/bottlerocket 462, freerdp/freerdp 338, discourse/discourse 298, …, imagemagick/imagemagick 116, envoyproxy/envoy 108). 14,632 of them are likely permanent.
+  - **Their versions are there.** 14,578 of the 14,785 carry a vulnerable range or patched version in the tracker state (207 don't). Formats vary: `<= 8.6.3`; `10.6.1-10.6.27, 10.11.1-10.11.18`; `2.1.15-2.1.38 (Earlier versions may be affected but were not tested)`.
+  - **The watcher sees none of a C/C++ project's dependencies.** On the test repo, the inventory reports "0 dependencies from 0 files" and one "can't be checked" line whose hint (`.gitignore`) doesn't apply. Offline, OSV-Scanner makes 0 extract calls ("No package sources found"). Online it reads the submodule's `.git/modules/...` (0 packages for a local upstream with no tags or remote). CMake and vcpkg manifests aren't read in either mode.
+  - **OSV-Scanner's C/C++ support is OSV's own commit ranges, online only.** It checks submodules (checked out, with history) and vendored copies (identified by hashing files through OSV's `determineversion` API) against OSV records with GIT ranges. Offline mode lists "commit level scanning is not supported".
+  - **vcpkg and the Bazel Central Registry name the upstream.** The zlib port's `vcpkg_from_github(REPO madler/zlib REF v${VERSION})` gives the repo and the tag scheme, with version 1.3.2 in the port's `vcpkg.json`. BCR's `metadata.json` gives `repository: ["github:madler/zlib"]`, with versions like `1.3.2.bcr.3` (the BCR suffix must be stripped). Conan isn't in `limbowatch.ecosystems`; its recipes live in `conan-center-index`, a recipe repo (Q7).
+  - **blindspot still reads npm, PyPI and Go lockfiles only.**
+- **Caveats:**
+  - "No package" also covers applications (Discourse, GLPI, OpenEMR) that are never a dependency; how much of the 14,785 is libraries consumed by other projects isn't measured.
+  - One port and one module were read; coverage of `vcpkg_from_github` across ports, and of `repository` across BCR modules, isn't measured.
+  - The online submodule probe used a local upstream, so it doesn't show what OSV-Scanner reports for a real one.
+- **Implication:**
+  - Phase 6's largest gap is in our own feed and watcher, not in other tools: OSV-Scanner covers OSV's reviewed commit ranges; nobody covers repository advisories for upstreams consumed by submodule, CMake, vcpkg, Bazel, Conan or copy.
+  - Matching those needs the dependency's upstream repo plus a version or commit, and the advisory's versions mapped to the upstream's tags (Q26).
+  - The inventory should stop calling a C/C++ project "no supported lockfile": it should say which dependency files it found and couldn't read.
+- **Sources:** the probes above (raw output in the session scratchpad); OSV-Scanner v2.7.0 docs; GitHub API reads of the files named in Method.
 
 ## Archive
 
