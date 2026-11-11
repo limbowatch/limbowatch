@@ -98,16 +98,19 @@ def record(it: Item, modified: str) -> dict[str, Any]:
 
 
 def unpackaged(repo: str, p: AdvisoryPackage, git: dict[str, Any]) -> dict[str, Any]:
-    """An advisory package OSV has no ecosystem for (C/C++, `other`, ...): no `package`, the versions as entered, and
-    OSV GIT ranges on the repo where every version they name has a tag (`git`: version → [tag, commit] or None,
-    from the tracker's `git ls-remote`; F-136, F-138). Consumers match it by repository."""
+    """An advisory package OSV has no ecosystem for (C/C++, `other`, ...): package `GIT`, named by the repo URL, the
+    versions as entered, and OSV GIT ranges on the repo where every version they name has a tag (`git`: version →
+    [tag, commit] or None, from the tracker's `git ls-remote`; F-136, F-138). Consumers match it by repository.
+
+    It has a `package` because watchers before 0.1.0a7 read `affected[].package` of every entry: an entry without one
+    made them fail (F-140). As a `GIT` package they never match it, as before."""
     ds: dict[str, Any] = {
         "ecosystem_as_entered": p.ecosystem,
         "name_as_entered": p.name,
         "vulnerable_version_range": p.vulnerable_version_range,
         "patched_versions": p.patched_versions,
     }
-    entry: dict[str, Any] = {}
+    entry: dict[str, Any] = {"package": {"ecosystem": "GIT", "name": f"https://github.com/{repo}"}}
     ranges = git_ranges(repo, p, git)
     if ranges is not None:
         entry["ranges"] = ranges
@@ -115,6 +118,11 @@ def unpackaged(repo: str, p: AdvisoryPackage, git: dict[str, Any]) -> dict[str, 
     ds["range_converted"] = ranges is not None
     entry["database_specific"] = ds
     return entry
+
+
+def is_unpackaged(entry: dict[str, Any]) -> bool:
+    """An `affected` entry for an advisory package OSV has no ecosystem for (see `unpackaged`)."""
+    return "package" not in entry or "ecosystem_as_entered" in (entry.get("database_specific") or {})
 
 
 def git_versions(p: AdvisoryPackage) -> set[str]:
@@ -160,7 +168,7 @@ def _quality(affected: list[dict[str, Any]]) -> dict[str, str]:
     """How far a consumer can trust the record's package data: names and ranges (F-069). Entries without a package
     (matched by repository) count for ranges only."""
     allds = [a["database_specific"] for a in affected]
-    ds = [a["database_specific"] for a in affected if "package" in a]
+    ds = [a["database_specific"] for a in affected if not is_unpackaged(a)]
     if not allds:
         return {"names": "none", "ranges": "none"}
     names = (
@@ -198,12 +206,12 @@ def _zip(recs: Iterable[dict[str, Any]]) -> bytes:
 def by_ecosystem(recs: list[dict[str, Any]]) -> dict[str, bytes]:
     """One `all.zip` per OSV ecosystem, as OSV serves them at `<Ecosystem>/all.zip` (F-073, F-074).
 
-    A record with packages in two ecosystems goes in both; one with GIT ranges and no package goes in GIT. Every
+    A record with packages in two ecosystems goes in both; an advisory package OSV has no ecosystem for is in GIT. Every
     name in OFFLINE_ECOSYSTEMS gets a zip.
     """
 
     def eco(a: dict[str, Any]) -> str | None:
-        return a["package"]["ecosystem"] if "package" in a else "GIT" if a.get("ranges") else None
+        return a["package"]["ecosystem"] if "package" in a else None
 
     names = sorted({*OFFLINE_ECOSYSTEMS, *(e for r in recs for a in r["affected"] if (e := eco(a)))})
     return {e: _zip(r for r in recs if any(eco(a) == e for a in r["affected"])) for e in names}

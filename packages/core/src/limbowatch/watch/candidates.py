@@ -15,6 +15,7 @@ from typing import Any
 
 from limbowatch.ecosystems import by_osv, package_name
 from limbowatch.models import AdvisoryPackage, CveLabel, RepoAdvisory
+from limbowatch.publish.feed import is_unpackaged
 from limbowatch.versions import norm_name
 
 
@@ -31,7 +32,7 @@ def from_feed_record(r: dict[str, Any]) -> Candidate:
     pkgs = []
     for a in r.get("affected") or []:
         ds = a.get("database_specific") or {}
-        if "package" not in a:  # no ecosystem OSV knows (C/C++, "other"): matched by repository (F-138)
+        if is_unpackaged(a):  # no ecosystem OSV knows (C/C++, "other"): matched by repository (F-138, F-140)
             pkgs.append(
                 AdvisoryPackage(
                     ecosystem=str(ds.get("ecosystem_as_entered") or "other"),

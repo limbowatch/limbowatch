@@ -355,7 +355,7 @@ def check_ranges(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
     bad, checked = [], 0
     for g, r in recs.items():
         for e in r["affected"]:
-            if "package" not in e:
+            if "package" not in e or e["package"]["ecosystem"] == "GIT":
                 continue  # GIT ranges, checked by check_git_ranges
             info = by_osv(e["package"]["ecosystem"])
             raw = e["database_specific"].get("vulnerable_version_range")
@@ -406,7 +406,7 @@ def check_git_ranges(rep: Report, recs: dict[str, dict[str, Any]], n: int, seed:
     by_repo: dict[str, list[tuple[str, dict[str, Any]]]] = {}
     for g, r in recs.items():
         for e in r["affected"]:
-            if "package" not in e and e.get("ranges"):
+            if e.get("package", {}).get("ecosystem", "GIT") == "GIT" and e.get("ranges"):
                 by_repo.setdefault(r["database_specific"]["limbowatch"]["repository"], []).append((g, e))
     repos = sorted(by_repo)
     random.Random(seed).shuffle(repos)

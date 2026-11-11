@@ -81,8 +81,9 @@ def test_unpackaged_advisories_get_git_ranges_where_every_version_has_a_tag() ->
     rec = record(_item((tagged, untagged), git), "2026-11-11T00:00:00Z")
     jsonschema.validate(rec, schema)
     a, b = rec["affected"]
-    assert "package" not in a and a["ranges"] == [{"type": "GIT", "repo": "https://github.com/madler/zlib",
-                                                   "events": [{"introduced": C[1]}, {"fixed": C[2]}]}]  # fmt: skip
+    assert a["package"] == {"ecosystem": "GIT", "name": "https://github.com/madler/zlib"}  # read by older watchers
+    assert a["ranges"] == [{"type": "GIT", "repo": "https://github.com/madler/zlib",
+                            "events": [{"introduced": C[1]}, {"fixed": C[2]}]}]  # fmt: skip
     assert a["database_specific"]["tags"] == {"1.2.0": "v1.2.0", "1.3.1": "v1.3.1"}
     assert a["database_specific"]["range_converted"] and a["database_specific"]["ecosystem_as_entered"] == "c"
     assert "ranges" not in b and b["database_specific"]["vulnerable_version_range"] == "<= 0.9"

@@ -1504,8 +1504,8 @@ have <span class="mono">name_valid: false</span>. Each record’s <span class="m
 <li>Go packages name their module, as OSV’s Go records do. Where an advisory names a package inside a module, the module
 is in <span class="mono">package.name</span> and the package in <span class="mono">ecosystem_specific.imports</span>,
 as the Go module proxy reports them.</li>
-<li>Most advisories in limbo (C/C++ libraries, applications) name no package OSV has an ecosystem for. Their entries have
-no <span class="mono">package</span>: the versions are kept as entered, with the ecosystem and name the maintainer gave,
+<li>Most advisories in limbo (C/C++ libraries, applications) name no package OSV has an ecosystem for. Their entries name the
+repository as a <span class="mono">GIT</span> package: the versions are kept as entered, with the ecosystem and name the maintainer gave,
 and where every version they name is a tag in the repository, OSV <span class="mono">GIT</span> ranges give the commits.
 Match them by repository: the <span class="mono">limbowatch scan</span> command does, for git submodules, CMake, Bazel,
 vcpkg and Conan dependencies.</li>
