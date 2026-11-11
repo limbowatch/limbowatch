@@ -255,6 +255,13 @@ def report(
     typer.echo(str(out / f"{rep.date}.md"))
 
 
+OsvCommits = Annotated[
+    bool,
+    typer.Option(
+        help="Ask OSV which of its records include each pinned upstream commit (a submodule's, a CMake fetch's): "
+        "sends those commit hashes to OSV."
+    ),
+]
 ResolveMaven = Annotated[
     bool,
     typer.Option(
@@ -371,6 +378,7 @@ def scan(
     verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Show the evidence for every finding.")] = False,
     scan_ignored: Annotated[bool, typer.Option(help="Also read lockfiles a .gitignore excludes.")] = False,
     resolve_maven: ResolveMaven = True,
+    osv_commits: OsvCommits = True,
     issues: Annotated[str | None, typer.Option(help="Open and update issues: gitlab or gitea (also Forgejo).")] = None,
     issues_url: Annotated[str | None, typer.Option(help="Tracker base URL [default: $CI_SERVER_URL].")] = None,
     issues_project: Annotated[
@@ -412,7 +420,8 @@ def scan(
             feed = await watch_scan.fetch(http, watch_scan.FEED_URL, cache)
             wl_doc = json.loads(await watch_scan.fetch(http, watch_scan.WATCHLIST_URL, cache))
             res = await watch_scan.scan(inv, http, feed_zip=feed, watchlist=dict(wl_doc.get("repos") or {}),
-                                        now=datetime.now(UTC), upstream_check=upstream)  # fmt: skip
+                                        now=datetime.now(UTC), upstream_check=upstream, git_cache=cache,
+                                        osv_commits=osv_commits)  # fmt: skip
             gone = sorted(watch_state.vanished(old, res.findings))
             seen = await asyncio.gather(*(osv_source.present(http, g) for g in gone))
             visible = {g for g, v in zip(gone, seen, strict=True) if v}
@@ -623,6 +632,7 @@ def watch(
     binary: Annotated[str, typer.Option("--osv-scanner", help="OSV-Scanner executable.")] = "osv-scanner",
     jobs: Annotated[int, typer.Option(help="Projects cloned and inventoried at a time.")] = 4,
     resolve_maven: ResolveMaven = True,
+    osv_commits: OsvCommits = True,
     verbose: Annotated[
         bool, typer.Option("--verbose", "-v", help="Show every project's unchecked dependencies.")
     ] = False,
@@ -666,7 +676,8 @@ def watch(
     log_lines: list[str] = []
 
     def take(path: Path) -> Inventory:
-        return osv_scanner.run(path, binary, resolve_maven=resolve_maven)
+        inv = osv_scanner.run(path, binary, resolve_maven=resolve_maven)
+        return upstream_inventory.combine(inv, upstream_inventory.detect(path))
 
     async def run() -> org_output.OrgReport:
         async with HttpClient(_token()) as http:
@@ -675,7 +686,8 @@ def watch(
             wl_doc = json.loads(await watch_scan.fetch(http, watch_scan.WATCHLIST_URL, cache))
             w = await org_mod.run(listings, http, feed_zip=feed, watchlist=dict(wl_doc.get("repos") or {}),
                                   now=datetime.now(UTC), inventory=take, token=token, exclude=exclude or [],
-                                  upstream_check=upstream, jobs=jobs)  # fmt: skip
+                                  upstream_check=upstream, jobs=jobs, git_cache=cache,
+                                  osv_commits=osv_commits)  # fmt: skip
             olds: dict[str, Any] = {}
             for c in w.checked:
                 f = _state_path(state_dir, c.project) if state_dir and c.result else None

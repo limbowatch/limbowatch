@@ -355,7 +355,7 @@ def test_yaml_block() -> None:
 
 def test_upstream_unchecked_says_how_far_it_got() -> None:
     known = upstream_unchecked(_u(UpstreamKind.SUBMODULE, "z", host="github.com", repo="madler/zlib", ref="abc1234"))
-    assert known.reason is Unchecked.UPSTREAM_NOT_CHECKED and known.detail == "github.com/madler/zlib at abc1234"
+    assert known.reason is Unchecked.UPSTREAM_NO_CHECK and known.detail == "github.com/madler/zlib at abc1234"
     noref = upstream_unchecked(_u(UpstreamKind.VCPKG, "curl", host="github.com", repo="curl/curl", version="8.23.0",
                                   via="vcpkg port", detail="the port's tag couldn't be worked out"))  # fmt: skip
     assert noref.reason is Unchecked.UPSTREAM_NO_REF

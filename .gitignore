@@ -30,3 +30,6 @@ deploy/site/public/
 
 # Gradle caches (an IDE may import the Gradle test fixtures)
 .gradle/
+
+# seed generators' sparse clones of package indexes
+tracker/seeds/.cache/

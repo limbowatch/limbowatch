@@ -82,6 +82,125 @@ class ComposerVersion:
         return f"ComposerVersion({self.string!r})"
 
 
+_PRE = {
+    "dev": 0,
+    "snapshot": 0,
+    "pre": 1,
+    "preview": 1,
+    "alpha": 1,
+    "a": 1,
+    "beta": 2,
+    "b": 2,
+    "rc": 3,
+    "cr": 3,
+    "m": 1,
+}
+_UPSTREAM_TOKEN = re.compile(r"\d+|[a-z]+")
+
+
+class UpstreamVersion:
+    """A version of a C/C++ (or other unpackaged) upstream, as its tags and advisories write it (PHASE0_PLAN §13.18).
+
+    Numbers compare as numbers and any number of parts is allowed; `1.0` equals `1.0.0`. A word starting a
+    pre-release (`rc1`, `beta`, `alpha.2`, `dev`) sorts before the release; any other part after the release
+    numbers is a later patch level: ImageMagick's `7.1.1-38` comes after `7.1.1` (FINDINGS F-136)."""
+
+    __slots__ = ("key", "string")
+
+    def __init__(self, string: str) -> None:
+        s = string.strip().lower()
+        s = s[1:] if s[:1] == "v" and s[1:2].isdigit() else s
+        if not s or not s[0].isdigit():
+            raise ValueError(f"not a version: {string!r}")
+        key: list[tuple[int, int | str]] = []
+        for tok in _UPSTREAM_TOKEN.findall(s):
+            if tok.isdigit():
+                key.append((2, int(tok)))
+            elif tok in _PRE:
+                key.append((0, _PRE[tok]))
+            else:
+                key.append((1, tok))  # p, patch, post, a build word: after the release
+        n = next((i for i, k in enumerate(key) if k[0] != 2), len(key))
+        release, rest = key[:n], key[n:]
+        while len(release) > 1 and release[-1] == (2, 0):  # 1.0.0 == 1.0, also before "-rc1"
+            release.pop()
+        self.string, self.key = string, tuple(release + rest)
+
+    def _cmp(self, other: UpstreamVersion) -> int:
+        a, b = self.key, other.key
+        for i in range(max(len(a), len(b))):
+            x = a[i] if i < len(a) else (1, "")  # the end: after a pre-release, before a number or patch word
+            y = b[i] if i < len(b) else (1, "")
+            if x != y:
+                return -1 if (x[0], str(x[1]).zfill(12)) < (y[0], str(y[1]).zfill(12)) else 1
+        return 0
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, UpstreamVersion) and self._cmp(other) == 0
+
+    def __hash__(self) -> int:
+        return hash(self.key)
+
+    def __lt__(self, other: UpstreamVersion) -> bool:
+        return self._cmp(other) < 0
+
+    def __le__(self, other: UpstreamVersion) -> bool:
+        return self._cmp(other) <= 0
+
+    def __gt__(self, other: UpstreamVersion) -> bool:
+        return self._cmp(other) > 0
+
+    def __ge__(self, other: UpstreamVersion) -> bool:
+        return self._cmp(other) >= 0
+
+    def __str__(self) -> str:
+        return self.string
+
+    def __repr__(self) -> str:
+        return f"UpstreamVersion({self.string!r})"
+
+
+UPSTREAM = "upstream"  # the VERSION_CLASS key for upstream sources' versions and their advisories' ranges
+_TAG_VERSION = re.compile(r"\d+(?:[._-]\d+)*(?:[.-]?(?:a|b|rc|alpha|beta|pre|p|patch)\.?\d*)?", re.I)
+
+
+def version_of_tag(tag: str) -> str | None:
+    """The version a tag names: `v1.2.3` → 1.2.3, `curl-8_10_0` → 8.10.0, `release-22.1.8` → 22.1.8; a tag without
+    digits names none."""
+    runs = list(_TAG_VERSION.finditer(tag))
+    m = runs[-1] if runs else None  # the last version-looking run: "openssl-3.0.15" → 3.0.15
+    if m is None:
+        return None
+    v = m.group(0)
+    if "." not in v and "_" in v:
+        v = v.replace("_", ".")
+    return v
+
+
+def tag_for(version: str, tags: dict[str, str]) -> str | None:
+    """The tag that names `version` among `tags` (name → commit): `X` or `vX`, else the one tag whose version reads
+    the same (`bacnet-stack-1.6.0`, `release-22.1.8`, `curl-8_10_0`). None when there's none, or several disagree
+    (FINDINGS F-136)."""
+    v = version.strip()
+    for t in (v, f"v{v}", v.removeprefix("v")):
+        if t in tags:
+            return t
+    try:
+        want = UpstreamVersion(v)
+    except ValueError:
+        return None
+    hits = []
+    for t in tags:
+        tv = version_of_tag(t)
+        try:
+            if tv is not None and UpstreamVersion(tv) == want:
+                hits.append(t)
+        except ValueError:
+            continue
+    commits = {tags[t] for t in hits}
+    return sorted(hits)[0] if hits and len(commits) == 1 else None
+
+
 VERSION_CLASS: dict[str, Any] = {
     "npm": SemverVersion,
     "pip": PypiVersion,
@@ -95,6 +214,7 @@ VERSION_CLASS: dict[str, Any] = {
     "erlang": SemverVersion,
     "pub": SemverVersion,
     "swift": SemverVersion,
+    UPSTREAM: UpstreamVersion,
 }
 SEMVER_ECOSYSTEMS = {"npm", "go", "rust"}
 

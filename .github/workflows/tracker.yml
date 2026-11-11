@@ -57,7 +57,8 @@ jobs:
           extra=""; [ -n "${CVE_LIST:-}" ] && extra="--cve-list $CVE_LIST"
           # shellcheck disable=SC2086 # $extra is either empty or two arguments
           uv run limbowatch track --state tracker-data/state --seed tracker/seeds/popular-upstreams.txt \
-            --seed tracker/seeds/top100-upstreams.txt --seed tracker/seeds/top-packages.txt --max-new 2500 \
+            --seed tracker/seeds/top100-upstreams.txt --seed tracker/seeds/top-packages.txt \
+            --seed tracker/seeds/cpp-upstreams.txt --max-new 2500 \
             --maven-packages tracker/seeds/maven-packages.txt \
             --budget "${BUDGET_INPUT:-$budget}" --minutes 50 --max-nvd 40 $extra
       # Only the scheduled run reports: manual runs (e.g. to speed up a watchlist expansion) would otherwise email

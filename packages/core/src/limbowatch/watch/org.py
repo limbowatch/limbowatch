@@ -118,6 +118,8 @@ async def run(
     upstream_check: bool = True,
     jobs: int = 4,
     clone: CloneFn = git_host.clone,
+    git_cache: Path | None = None,
+    osv_commits: bool = True,
 ) -> Watch:
     out = Watch(listings)
     for ls in listings:
@@ -133,7 +135,8 @@ async def run(
             deps.setdefault((d.ecosystem, d.name, d.version), d)
     ups = list(dict.fromkeys(u for _, inv in taken if inv for u in inv.upstreams))
     sh: Shared = await prepare(list(deps.values()), http, feed_zip=feed_zip, watchlist=watchlist, now=now,
-                               upstream_check=upstream_check, upstreams=ups)  # fmt: skip
+                               upstream_check=upstream_check, upstreams=ups, git_cache=git_cache,
+                               osv_commits=osv_commits)  # fmt: skip
     for checked, inv in taken:
         if inv is not None:
             checked.result = assess(inv, sh)

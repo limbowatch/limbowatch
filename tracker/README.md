@@ -43,6 +43,7 @@ A daily job that counts published GitHub security advisories still **in limbo**:
 
 - `seeds/popular-upstreams.txt`: upstream repos of the 15 projects in the October report.
 - `seeds/top-packages.txt`: source repos of the most-used packages per ecosystem (npm, PyPI, Go, Maven, crates.io, NuGet, RubyGems, Packagist), ranked by dependent repositories on ecosyste.ms (F-099). Regenerate with `uv run tracker/seeds/make_top_packages.py --top 1000 --deeper nuget.org=10000 …` (per-registry depth with `--deeper`). The ranking is CC BY-SA 4.0, so this file and the published watchlist files are too. A run polls at most `--max-new` never-checked repos (2,500 in CI), so a large list can't starve the daily re-checks.
+- `seeds/cpp-upstreams.txt`: C/C++ upstreams, the GitHub repos that vcpkg ports, Bazel Central Registry modules and ConanCenter recipes build from (3,603 on 2026-11-11; F-138). Their advisories mostly name no package, so the watcher matches them to submodules, CMake fetches, Bazel, vcpkg and Conan dependencies by repository. Regenerate with `uv run python tracker/seeds/make_cpp_upstreams.py`.
 - `seeds/top100-upstreams.txt`: upstream repos of the dependencies of `seeds/top100-projects.txt`, the 100 most-starred GitHub repos with a readable lockfile (FINDINGS F-063). To regenerate:
 
 ```sh

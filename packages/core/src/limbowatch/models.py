@@ -130,7 +130,8 @@ class Unchecked(StrEnum):
     UPSTREAM_UNKNOWN = "upstream repository unknown"
     UPSTREAM_NO_REF = "upstream version or commit unknown"
     VENDORED = "vendored copy; its version is unknown"
-    UPSTREAM_NOT_CHECKED = "upstream source dependency; not yet checked against advisories"
+    UPSTREAM_OFF_GITHUB = "upstream not on GitHub, where repository advisories are published"
+    UPSTREAM_NO_CHECK = "upstream source not checked (--no-upstream-check)"
     NO_REPO = "source repository unknown; checked against the limbo feed by name only"
     REPO_NOT_POLLED = "source repository not checked (GitHub rate limit); checked against the limbo feed by name only"
 
@@ -206,6 +207,7 @@ class Inventory(Frozen):
 class MatchKind(StrEnum):
     PACKAGE = "package and version"  # the advisory names this package, and the version is in its range
     REPOSITORY = "repository"  # the advisory's package name is unusable; it's from this package's source repo
+    UPSTREAM = "upstream source"  # an advisory naming no registry package, about the repo a project builds from
 
 
 class Finding(Frozen):

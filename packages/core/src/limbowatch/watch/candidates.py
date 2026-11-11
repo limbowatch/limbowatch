@@ -31,6 +31,16 @@ def from_feed_record(r: dict[str, Any]) -> Candidate:
     pkgs = []
     for a in r.get("affected") or []:
         ds = a.get("database_specific") or {}
+        if "package" not in a:  # no ecosystem OSV knows (C/C++, "other"): matched by repository (F-138)
+            pkgs.append(
+                AdvisoryPackage(
+                    ecosystem=str(ds.get("ecosystem_as_entered") or "other"),
+                    name=ds.get("name_as_entered"),
+                    vulnerable_version_range=ds.get("vulnerable_version_range"),
+                    patched_versions=ds.get("patched_versions"),
+                )
+            )
+            continue
         eco = by_osv(a["package"]["ecosystem"])
         imports = [i.get("path") for i in (a.get("ecosystem_specific") or {}).get("imports") or [] if i.get("path")]
         pkgs.append(

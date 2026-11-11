@@ -20,17 +20,19 @@ from sqlalchemy import select
 
 from limbowatch import schedule
 from limbowatch.classify import facts_hash, transitions
+from limbowatch.ecosystems import info as eco_info
 from limbowatch.ecosystems import package_name
 from limbowatch.http import BudgetExhausted, DeadlineReached, HttpClient
 from limbowatch.models import GITHUB_CNA, CveInfo, Facts, RepoAdvisory
 from limbowatch.normalize import LINK_RULE, ts
 from limbowatch.sources import cve as cve_src
-from limbowatch.sources import github, goproxy, nvd, osv, releases
+from limbowatch.sources import github, gitrefs, goproxy, nvd, osv, releases
 from limbowatch.store import (
     Advisory,
     Cve,
     Event,
     FactSnapshot,
+    GitTag,
     GoModule,
     Nvd,
     PackageMeta,
@@ -40,6 +42,7 @@ from limbowatch.store import (
     Store,
     now_iso,
 )
+from limbowatch.versions import tag_for
 
 log = logging.getLogger(__name__)
 
@@ -53,6 +56,11 @@ POLL_WORKERS = 8
 GO_MODULE_RECHECK = timedelta(days=180)
 GO_MODULE_MAX_REQUESTS = 4000
 GO_MODULE_WORKERS = 8
+# Tags of repos whose advisories in limbo name no package: a version without a tag is looked for again after a week
+# (its release may not be tagged yet); at most GIT_TAG_MAX_REPOS repos a run, GIT_TAG_WORKERS at a time (F-138).
+GIT_TAG_RECHECK = timedelta(days=7)
+GIT_TAG_MAX_REPOS = 2000
+GIT_TAG_WORKERS = 16
 
 
 @dataclass
@@ -98,6 +106,7 @@ class RunReport:
     # Go advisory paths and their modules (F-113): paths named, due, resolved this run, "in_module" (a package inside
     # a shorter module), "no_module" (no prefix is a module), failed, and proxy requests
     go_modules: dict[str, int] = field(default_factory=dict)
+    git_tags: dict[str, int] = field(default_factory=dict)
     events: list[str] = field(default_factory=list)
     http: dict[str, Any] = field(default_factory=dict)
 
@@ -574,6 +583,77 @@ class Tracker:
             "requests": resolver.requests,
         }
 
+    # ------------------------------------------------------------------ tags of unpackaged advisories
+    async def resolve_git_tags(self, report: RunReport) -> None:
+        """For advisories in limbo that name no package OSV knows (C/C++ and the like), the commit of each version
+        their ranges give, by `git ls-remote` on the repo (no API quota; F-136). The feed turns them into OSV GIT
+        ranges (F-138). Repos with a version not looked up yet go first; a version without a tag is retried after
+        GIT_TAG_RECHECK."""
+        from limbowatch.classify import assess as assess_one
+        from limbowatch.models import Status
+        from limbowatch.publish.feed import git_versions
+
+        now = datetime.now(UTC)
+        latest = self.store.latest_facts()
+        needed: dict[str, set[str]] = {}
+        with self.store.session() as s:
+            stored = {g.repo: (g.versions or {}, g.checked_at) for g in s.execute(select(GitTag)).scalars()}
+            for a in s.execute(select(Advisory)).scalars():
+                if a.gone_since or a.ghsa_id not in latest:
+                    continue
+                adv = RepoAdvisory.model_validate(a.data)
+                unpackaged = [p for p in adv.packages if package_name(p.ecosystem, p.name) is None
+                              or eco_info(p.ecosystem).osv is None]  # fmt: skip
+                if (
+                    not unpackaged
+                    or assess_one(adv, Facts.model_validate(latest[a.ghsa_id])).status is not Status.LIMBO
+                ):
+                    continue
+                for p in unpackaged:
+                    needed.setdefault(adv.repo, set()).update(git_versions(p))
+
+        def due(repo: str) -> bool:
+            have, at = stored.get(repo, ({}, None))
+            stale = (_parse(at) or now) <= now - GIT_TAG_RECHECK if at else True
+            return any(v not in have or (have[v] is None and stale) for v in needed[repo])
+
+        queue = sorted((r for r in needed if needed[r] and due(r)), key=lambda r: r in stored, reverse=True)
+        queue = queue[-GIT_TAG_MAX_REPOS:]
+        results: dict[str, dict[str, Any]] = {}
+        failed = 0
+
+        async def worker() -> None:
+            nonlocal failed
+            while queue:
+                self._check_deadline()
+                repo = queue.pop()
+                listed = await gitrefs.tags(f"https://github.com/{repo}.git")
+                if listed is None:
+                    failed += 1
+                    continue
+                have = dict(stored.get(repo, ({}, None))[0])
+                for v in needed[repo]:
+                    tag = tag_for(v, listed)
+                    have[v] = [tag, listed[tag]] if tag else None
+                results[repo] = have
+
+        await asyncio.gather(*(worker() for _ in range(GIT_TAG_WORKERS)))
+        stamp = now_iso()
+        with self.store.session() as s:
+            for repo, versions in results.items():
+                s.merge(GitTag(repo=repo, versions=versions, checked_at=stamp))
+        report.git_tags = {
+            "repos": len(needed),
+            "listed": len(results),
+            "failed": failed,
+            "versions": sum(len(v) for v in needed.values()),
+            "tagged": sum(1 for r in results.values() for x in r.values() if x),
+        }
+
+    def _check_deadline(self) -> None:
+        if self.http.deadline is not None and time.monotonic() > self.http.deadline:
+            raise DeadlineReached
+
     # ------------------------------------------------------------------ run
     def _checkpoint(self) -> None:
         if self.cfg.checkpoint:
@@ -600,6 +680,10 @@ class Tracker:
             report.stopped_early = report.stopped_early or type(e).__name__
         try:
             await self.resolve_go_modules(report)
+        except DeadlineReached:
+            report.stopped_early = report.stopped_early or "DeadlineReached"
+        try:
+            await self.resolve_git_tags(report)
         except DeadlineReached:
             report.stopped_early = report.stopped_early or "DeadlineReached"
         self._checkpoint()

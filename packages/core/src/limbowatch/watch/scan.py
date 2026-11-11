@@ -15,6 +15,7 @@ from pathlib import Path
 from limbowatch.http import HttpClient
 from limbowatch.models import Dependency, Finding, Inventory, Unchecked, UnresolvedDependency, Upstream
 from limbowatch.watch import mapping, upstream
+from limbowatch.watch import upstream_check as upcheck
 from limbowatch.watch.candidates import Index, from_feed_zip
 from limbowatch.watch.match import match
 from limbowatch.watch.registries import Registries
@@ -69,6 +70,7 @@ class Shared:
     upstream_check: bool = True
     # each upstream source (submodule, CMake, Bazel, vcpkg, ...) → itself resolved, then what it pulls in
     upstreams: dict[Upstream, list[Upstream]] = field(default_factory=dict)
+    checked: dict[Upstream, upcheck.Checked] = field(default_factory=dict)  # each resolved one's outcome
 
 
 async def prepare(
@@ -80,6 +82,8 @@ async def prepare(
     now: datetime,
     upstream_check: bool = True,
     upstreams: Sequence[Upstream] = (),
+    git_cache: Path | None = None,
+    osv_commits: bool = True,
 ) -> Shared:
     index = Index()
     for c in from_feed_zip(feed_zip):
@@ -88,12 +92,16 @@ async def prepare(
     if upstream_check:
         sh.upstreams = await Registries(http).resolve(upstreams)
         sh.mapped = await mapping.map_all(http, deps)
+        sources = [r for rs in sh.upstreams.values() for r in rs]
         repos = {m.repo for m in sh.mapped.values() if m.repo}
+        repos |= {u.repo for u in sources if u.host == "github.com" and u.repo}
         due = {r for r in repos if not _fresh(watchlist.get(r), now)}
         polled = await upstream.poll(http, due)
         for c in polled.candidates:
             index.add(c)
         sh.on_watchlist, sh.polled, sh.not_polled = repos - due, polled.polled, polled.not_polled
+        sh.checked = await upcheck.check(http, sources, index, not_polled=sh.not_polled, git_cache=git_cache,
+                                                osv_commits=osv_commits)  # fmt: skip
     return sh
 
 
@@ -135,14 +143,21 @@ def assess(inv: Inventory, sh: Shared) -> ScanResult:
             if k not in seen:
                 seen.add(k)
                 res.upstreams.append(r)
-                res.unresolved.append(upstream_unchecked(r))
+                if not sh.upstream_check:
+                    res.unresolved.append(upstream_unchecked(r))
+                    continue
+                done = sh.checked.get(r) or upcheck.Checked(unchecked=upstream_unchecked(r))
+                res.findings += done.findings
+                if done.unchecked is not None:
+                    res.unresolved.append(done.unchecked)
+    res.findings.sort(key=lambda f: (f.dependency.source, f.dependency.line, f.dependency.name, f.ghsa_id))
     res.stats |= {"dependencies": len(deps), "feed_advisories": len(index.ids), "findings": len(res.findings),
                   "upstreams": len(res.upstreams)}  # fmt: skip
     return res
 
 
 def upstream_unchecked(u: Upstream) -> UnresolvedDependency:
-    """How far an upstream source got: its repo unknown, its version unknown, or known and not yet checked."""
+    """An upstream source left unchecked (`--no-upstream-check`): how far it got, its repo or its version unknown."""
     where = f"{u.host}/{u.repo}" if u.repo else ""
     pin = u.ref or (f"version {u.version}" if u.version else "")
     known = f"{where} at {pin}" if where and pin else where
@@ -151,7 +166,7 @@ def upstream_unchecked(u: Upstream) -> UnresolvedDependency:
     elif not u.ref:
         reason, detail = Unchecked.UPSTREAM_NO_REF, "; ".join(x for x in (known, u.detail) if x)
     else:
-        reason, detail = Unchecked.UPSTREAM_NOT_CHECKED, known
+        reason, detail = Unchecked.UPSTREAM_NO_CHECK, known
     if u.via:
         detail = f"{detail} ({u.via})" if detail else u.via
     return UnresolvedDependency(reason=reason, source=u.source, name=u.name, version=u.ref or u.version or "",
@@ -166,9 +181,12 @@ async def scan(
     watchlist: dict[str, str],
     now: datetime,
     upstream_check: bool = True,
+    git_cache: Path | None = None,
+    osv_commits: bool = True,
 ) -> ScanResult:
     sh = await prepare(list(inv.dependencies), http, feed_zip=feed_zip, watchlist=watchlist, now=now,
-                       upstream_check=upstream_check, upstreams=inv.upstreams)  # fmt: skip
+                       upstream_check=upstream_check, upstreams=inv.upstreams, git_cache=git_cache,
+                       osv_commits=osv_commits)  # fmt: skip
     return assess(inv, sh)
 
 

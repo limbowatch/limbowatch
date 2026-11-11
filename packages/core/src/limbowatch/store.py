@@ -115,6 +115,17 @@ class GoModule(Base):
     checked_at: Mapped[str] = mapped_column(String(32))
 
 
+class GitTag(Base):
+    """For a repo whose advisories in limbo name no package (C/C++ and the like), each version those advisories give
+    → its tag and commit, by `git ls-remote` (F-136); `null` when no tag names it. The feed turns the versions into OSV
+    GIT ranges with these commits."""
+
+    __tablename__ = "git_tags"
+    repo: Mapped[str] = mapped_column(String(200), primary_key=True)
+    versions: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)  # version -> [tag, commit] | None
+    checked_at: Mapped[str] = mapped_column(String(32))
+
+
 class Run(Base):
     __tablename__ = "runs"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -123,7 +134,9 @@ class Run(Base):
     stats: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
 
-TABLES: list[type[Base]] = [Repo, Advisory, Reviewed, Cve, Nvd, FactSnapshot, Event, Cursor, PackageMeta, GoModule, Run]
+TABLES: list[type[Base]] = [
+    Repo, Advisory, Reviewed, Cve, Nvd, FactSnapshot, Event, Cursor, PackageMeta, GoModule, GitTag, Run,
+]  # fmt: skip
 
 
 class Store:

@@ -16,9 +16,9 @@ from datetime import datetime
 from typing import Any
 
 from limbowatch.ecosystems import OFFLINE_ECOSYSTEMS, info, package_name
-from limbowatch.models import Status
+from limbowatch.models import AdvisoryPackage, Status
 from limbowatch.publish import ATTRIBUTION, Item
-from limbowatch.versions import osv_ranges
+from limbowatch.versions import UPSTREAM, osv_ranges
 
 SCHEMA_VERSION = "1.6.0"
 
@@ -33,6 +33,7 @@ def record(it: Item, modified: str) -> dict[str, Any]:
     for p in adv.packages:
         eco, name = info(p.ecosystem), package_name(p.ecosystem, p.name)
         if name is None or eco.osv is None:
+            affected.append(unpackaged(adv.repo, p, it.git))
             continue
         entry: dict[str, Any] = {"package": {"ecosystem": eco.osv, "name": name.name}}
         if p.ecosystem == "go" and p.module:
@@ -96,19 +97,82 @@ def record(it: Item, modified: str) -> dict[str, Any]:
     }
 
 
+def unpackaged(repo: str, p: AdvisoryPackage, git: dict[str, Any]) -> dict[str, Any]:
+    """An advisory package OSV has no ecosystem for (C/C++, `other`, ...): no `package`, the versions as entered, and
+    OSV GIT ranges on the repo where every version they name has a tag (`git`: version → [tag, commit] or None,
+    from the tracker's `git ls-remote`; F-136, F-138). Consumers match it by repository."""
+    ds: dict[str, Any] = {
+        "ecosystem_as_entered": p.ecosystem,
+        "name_as_entered": p.name,
+        "vulnerable_version_range": p.vulnerable_version_range,
+        "patched_versions": p.patched_versions,
+    }
+    entry: dict[str, Any] = {}
+    ranges = git_ranges(repo, p, git)
+    if ranges is not None:
+        entry["ranges"] = ranges
+        ds["tags"] = {v: git[v][0] for v in sorted(git_versions(p)) if git.get(v)}
+    ds["range_converted"] = ranges is not None
+    entry["database_specific"] = ds
+    return entry
+
+
+def git_versions(p: AdvisoryPackage) -> set[str]:
+    """The versions an unpackaged advisory package's range and fix name, as OSV events need them."""
+    conv = osv_ranges(UPSTREAM, p.vulnerable_version_range, p.patched_versions)
+    if conv is None:
+        return set()
+    ranges, versions = conv
+    return {v for r in ranges for ev in r["events"] for v in ev.values() if v != "0"} | set(versions)
+
+
+def git_ranges(repo: str, p: AdvisoryPackage, git: dict[str, Any]) -> list[dict[str, Any]] | None:
+    """OSV GIT ranges: the range's versions turned into the commits of their tags. None unless every one has a tag."""
+    conv = osv_ranges(UPSTREAM, p.vulnerable_version_range, p.patched_versions)
+    if conv is None:
+        return None
+    ranges, versions = conv
+
+    def commit(v: str) -> str | None:
+        hit = git.get(v)
+        return str(hit[1]) if hit and len(str(hit[1])) == 40 else None
+
+    out = []
+    for r in ranges:
+        events = []
+        for ev in r["events"]:
+            ((kind, v),) = ev.items()
+            c = "0" if v == "0" else commit(v)
+            if c is None:
+                return None
+            events.append({kind: c})
+        out.append({"type": "GIT", "repo": f"https://github.com/{repo}", "events": events})
+    for v in versions:  # an exact version: affected from its commit up to and including it
+        c = commit(v)
+        if c is None:
+            return None
+        out.append({"type": "GIT", "repo": f"https://github.com/{repo}", "events": [{"introduced": c},
+                                                                                    {"last_affected": c}]})  # fmt: skip
+    return out or None
+
+
 def _quality(affected: list[dict[str, Any]]) -> dict[str, str]:
-    """How far a consumer can trust the record's package data: names and ranges (F-069)."""
-    ds = [a["database_specific"] for a in affected]
-    if not ds:
+    """How far a consumer can trust the record's package data: names and ranges (F-069). Entries without a package
+    (matched by repository) count for ranges only."""
+    allds = [a["database_specific"] for a in affected]
+    ds = [a["database_specific"] for a in affected if "package" in a]
+    if not allds:
         return {"names": "none", "ranges": "none"}
     names = (
-        "invalid"
+        "none"
+        if not ds
+        else "invalid"
         if not all(d["name_valid"] for d in ds)
         else "cleaned"
         if any("name_as_entered" in d for d in ds)
         else "ok"
     )
-    conv = [d["range_converted"] for d in ds]
+    conv = [d["range_converted"] for d in allds]
     ranges = "converted" if all(conv) else "partly converted" if any(conv) else "as entered"
     return {"names": names, "ranges": ranges}
 
@@ -134,10 +198,15 @@ def _zip(recs: Iterable[dict[str, Any]]) -> bytes:
 def by_ecosystem(recs: list[dict[str, Any]]) -> dict[str, bytes]:
     """One `all.zip` per OSV ecosystem, as OSV serves them at `<Ecosystem>/all.zip` (F-073, F-074).
 
-    A record with packages in two ecosystems goes in both. Every name in OFFLINE_ECOSYSTEMS gets a zip.
+    A record with packages in two ecosystems goes in both; one with GIT ranges and no package goes in GIT. Every
+    name in OFFLINE_ECOSYSTEMS gets a zip.
     """
-    names = sorted({*OFFLINE_ECOSYSTEMS, *(a["package"]["ecosystem"] for r in recs for a in r["affected"])})
-    return {e: _zip(r for r in recs if any(a["package"]["ecosystem"] == e for a in r["affected"])) for e in names}
+
+    def eco(a: dict[str, Any]) -> str | None:
+        return a["package"]["ecosystem"] if "package" in a else "GIT" if a.get("ranges") else None
+
+    names = sorted({*OFFLINE_ECOSYSTEMS, *(e for r in recs for a in r["affected"] if (e := eco(a)))})
+    return {e: _zip(r for r in recs if any(eco(a) == e for a in r["affected"])) for e in names}
 
 
 def bundle(zips: dict[str, bytes]) -> bytes:

@@ -14,7 +14,9 @@ Checks:
 4. feed: OSV-schema validation of every record, record fields against the state, index against the zip;
 5. ranges: each converted OSV range agrees with the parser at its boundary versions, and none covers every version
    from a range that doesn't say "all";
-6. checker: /check/index.json covers the same advisories as the feed.
+6. checker: /check/index.json covers the same advisories as the feed;
+7. GIT ranges: for a sample of repos, the GIT ranges of advisories without a package (C/C++ and the like), rebuilt
+   from the repo's tags as `git ls-remote` lists them now, equal the feed's (F-138).
 
 Exit 1 if a check fails. The report is Markdown (stdout, or --out).
 """
@@ -353,6 +355,8 @@ def check_ranges(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
     bad, checked = [], 0
     for g, r in recs.items():
         for e in r["affected"]:
+            if "package" not in e:
+                continue  # GIT ranges, checked by check_git_ranges
             info = by_osv(e["package"]["ecosystem"])
             raw = e["database_specific"].get("vulnerable_version_range")
             if not e.get("ranges") or info is None or info.ghsa not in VERSION_CLASS or not raw:
@@ -384,12 +388,55 @@ def check_checker(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
     ci = http.get(f"{SITE}/check/index.json").json()
     got = {x["g"] for eco in ci["ecosystems"].values() for lst in eco.values() for x in lst}
     want = {g for g, r in recs.items() for e in r["affected"]
-            if e["package"]["ecosystem"] in CHECKER and e["database_specific"].get("name_valid")}  # fmt: skip
+            if "package" in e and e["package"]["ecosystem"] in CHECKER
+            and e["database_specific"].get("name_valid")}  # fmt: skip
     rep.check(
         "checker",
         got == want and ci["advisories"] == len(got),
         f"{len(got):,} advisories in /check/index.json, {len(want):,} expected from the feed",
     )
+
+
+def check_git_ranges(rep: Report, recs: dict[str, dict[str, Any]], n: int, seed: int) -> None:
+    from limbowatch.models import AdvisoryPackage
+    from limbowatch.publish.feed import git_ranges, git_versions
+    from limbowatch.sources.gitrefs import parse
+    from limbowatch.versions import tag_for
+
+    by_repo: dict[str, list[tuple[str, dict[str, Any]]]] = {}
+    for g, r in recs.items():
+        for e in r["affected"]:
+            if "package" not in e and e.get("ranges"):
+                by_repo.setdefault(r["database_specific"]["limbowatch"]["repository"], []).append((g, e))
+    repos = sorted(by_repo)
+    random.Random(seed).shuffle(repos)
+
+    def listed(repo: str) -> dict[str, str] | None:
+        p = subprocess.run(["git", "ls-remote", "--tags", f"https://github.com/{repo}.git"], capture_output=True,
+                           text=True, timeout=120, env={"GIT_TERMINAL_PROMPT": "0", "PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin"})  # fmt: skip
+        return parse(p.stdout) if p.returncode == 0 else None
+
+    sample = repos[:n]
+    with ThreadPoolExecutor(8) as ex:
+        tags = dict(zip(sample, ex.map(listed, sample), strict=True))
+    bad, checked = [], 0
+    for repo in sample:
+        if tags[repo] is None:
+            bad.append(f"{repo}: tags couldn't be listed")
+            continue
+        for g, e in by_repo[repo]:
+            ds = e["database_specific"]
+            p = AdvisoryPackage(ecosystem=ds["ecosystem_as_entered"], name=ds.get("name_as_entered"),
+                                vulnerable_version_range=ds.get("vulnerable_version_range"),
+                                patched_versions=ds.get("patched_versions"))  # fmt: skip
+            git = {v: [t, tags[repo][t]] if (t := tag_for(v, tags[repo])) else None for v in git_versions(p)}
+            checked += 1
+            if git_ranges(repo, p, git) != e["ranges"]:
+                bad.append(f"{g} ({repo}) `{ds.get('vulnerable_version_range')}`: GIT ranges differ from the tags now")
+    rep.check("git ranges", not bad, f"{checked:,} GIT-range entries in {len(sample)} repos rebuilt from live tags "
+                                     f"({len(repos):,} repos have them); {len(bad)} differ")  # fmt: skip
+    for b in bad[:15]:
+        rep.note(b)
 
 
 def main() -> None:
@@ -413,6 +460,7 @@ def main() -> None:
         recs = check_feed(rep, st, items, z)
         check_ranges(rep, recs)
         check_checker(rep, recs)
+        check_git_ranges(rep, recs, max(50, a.sample // 2), a.seed)
     rep.lines.append(f"\n{'All checks passed.' if not rep.failed else 'Failed: ' + ', '.join(rep.failed)}")
     text = "\n".join(rep.lines) + "\n"
     if a.out:

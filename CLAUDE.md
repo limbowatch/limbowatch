@@ -57,7 +57,7 @@ uv run ruff check packages tests && uv run ruff format --check packages tests
 uv run mypy                      # strict
 uv run lint-imports              # module boundaries: pure modules do no I/O, sources never classify, core never imports cli
 uv run pytest -q                 # recorded fixtures only; tests never hit the network
-uv run limbowatch track --state tracker/state --seed tracker/seeds/popular-upstreams.txt --seed tracker/seeds/top100-upstreams.txt --seed tracker/seeds/top-packages.txt --budget 4000 --max-new 2500
+uv run limbowatch track --state tracker/state --seed tracker/seeds/popular-upstreams.txt --seed tracker/seeds/top100-upstreams.txt --seed tracker/seeds/top-packages.txt --seed tracker/seeds/cpp-upstreams.txt --budget 4000 --max-new 2500
 uv run limbowatch publish --state tracker/state --out tracker/site
 uv run limbowatch report --state tracker/state --out tracker/reports   # daily Markdown report
 uv run limbowatch scan <project> [--state F] [-o FORMAT=FILE ...] [--issues gitlab|gitea]   # the watcher (docs/WATCHER.md); exit 0/1/2

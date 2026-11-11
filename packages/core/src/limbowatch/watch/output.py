@@ -119,8 +119,14 @@ def _cve(f: Finding) -> str:
     return f.cves[0] + (f" +{len(f.cves) - 1}" if len(f.cves) > 1 else "")
 
 
+def certain(f: Finding) -> bool:
+    """Certainly affected: the version is in the range of an advisory about this package, or of one about the code of
+    the upstream repo the project builds from. A repository match on an unusable package name is only possible."""
+    return f.affected is True and f.match in (MatchKind.PACKAGE, MatchKind.UPSTREAM)
+
+
 def _label(f: Finding) -> str:
-    return _sev(f).upper() + ("" if f.affected is True and f.match is MatchKind.PACKAGE else "?")
+    return _sev(f).upper() + ("" if certain(f) else "?")
 
 
 def counts(findings: list[Finding]) -> dict[str, int]:
@@ -140,7 +146,7 @@ def summary(r: Report) -> dict[str, Any]:
         "advisories": len({f.ghsa_id for f in act}),
         "packages": len({(f.dependency.ecosystem, f.dependency.name) for f in act}),
         "by_severity": counts(act),
-        "possibly_affected": sum(1 for f in act if f.affected is not True or f.match is not MatchKind.PACKAGE),
+        "possibly_affected": sum(1 for f in act if not certain(f)),
         "accepted": len(r.findings) - len(act),
         "dependencies": r.stats.get("dependencies", 0),
         "unchecked": len(full),
@@ -313,7 +319,7 @@ def table(r: Report, verbose: bool = False, paint: Paint | None = None, embedded
         out += ["", p("1", f"To fix: upgrade {_plural(len(ups), 'package')}")]
         for name, move, note, where in fix_rows:
             out.append(f"  {name.ljust(w[0])}  {move.ljust(w[1])}  {note.ljust(w[2])}  " + p("2", where))
-        if any(f.affected is not True or f.match is not MatchKind.PACKAGE for f in act):
+        if any(not certain(f) for f in act):
             out += [
                 "",
                 p(
@@ -423,7 +429,7 @@ def markdown(r: Report) -> str:
                 "|---|---|---|---|---|---|---|",
             ]
             return head + [
-                f"| {_sev(f)}{'' if f.affected is True and f.match is MatchKind.PACKAGE else ' (possibly)'} | "
+                f"| {_sev(f)}{'' if certain(f) else ' (possibly)'} | "
                 f"[{f.ghsa_id}]({f.url}) | `{_md(f.dependency.ecosystem)}:{_md(f.dependency.name)}` | "
                 f"{_md(f.dependency.version)} | {_md(_fix(f))} | {_md(', '.join(f.cves) or '–')} | "
                 f"`{_md(r.path(f))}:{f.dependency.line}` |"
@@ -497,7 +503,7 @@ def as_html(r: Report) -> str:
         for path in sorted(by_file):
             rows = "".join(
                 f'<tr><td><span class="sev {_sev(f)}">{e(_sev(f))}</span>'
-                f"{'' if f.affected is True and f.match is MatchKind.PACKAGE else ' <span class=mute>possibly</span>'}</td>"
+                f"{'' if certain(f) else ' <span class=mute>possibly</span>'}</td>"
                 f"<td><strong>{e(f.dependency.name)}</strong> <span class=mute>{e(f.dependency.ecosystem)}</span></td>"
                 f"<td><code>{e(f.dependency.version)}</code></td><td><code>{e(_fix(f))}</code></td>"
                 f'<td><a class="id" href="{e(f.url)}">{e(f.ghsa_id)}</a></td><td class="id">{e(", ".join(f.cves) or "–")}</td>'

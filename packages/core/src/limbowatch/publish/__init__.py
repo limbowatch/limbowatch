@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import statistics
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -49,24 +49,26 @@ class Item:
     facts: Facts
     assessment: Assessment
     first_seen: str
+    git: dict[str, Any] = field(default_factory=dict)  # the repo's version -> [tag, commit] | None (store.GitTag)
 
 
 def items(store: Store) -> list[Item]:
     """Every advisory with a recorded fact snapshot, with its current assessment. Go packages carry the module that
-    contains them, where the tracker has resolved it (F-113)."""
-    from limbowatch.store import Advisory, GoModule
+    contains them, where the tracker has resolved it (F-113); each item carries its repo's resolved tags (F-138)."""
+    from limbowatch.store import Advisory, GitTag, GoModule
 
     latest = store.latest_facts()
     out = []
     with store.session() as s:
         modules = {g.path: g.module for g in s.execute(select(GoModule)).scalars()}
+        tags = {g.repo: g.versions for g in s.execute(select(GitTag)).scalars()}
         for a in s.execute(select(Advisory)).scalars():
             f = latest.get(a.ghsa_id)
             if f is None:
                 continue
             adv = with_go_modules(RepoAdvisory.model_validate(a.data), modules)
             facts = Facts.model_validate(f)
-            out.append(Item(adv, facts, assess(adv, facts), a.first_seen))
+            out.append(Item(adv, facts, assess(adv, facts), a.first_seen, tags.get(adv.repo) or {}))
     return out
 
 

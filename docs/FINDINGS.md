@@ -2018,6 +2018,28 @@ Answered:
   - Fixed in the watcher's empty databases and the feed: `OFFLINE_ECOSYSTEMS` = OSV's list plus ConanCenter.
 - **Sources:** `research/2026-11-upstream-watch/detectors.py` and `detectors.json`; the URLs above; recorded fixtures in `tests/fixtures/upstream/`.
 
+### F-138
+- **Date:** 2026-11-11 · **Status:** confirmed (measured on the tracker's state and a local rebuild of the feed; two end-to-end cases)
+- **Question:** Phase 6, steps 2-5: can advisories without a package be given OSV GIT ranges, does the watcher decide correctly whether a pinned upstream source is affected, and how many C/C++ upstreams would the tracker add?
+- **Method:**
+  - The `tracker-data` state of 2026-11-11 with the new tracker step `resolve_git_tags` (`git ls-remote --tags` per repo, `versions.tag_for`), then `limbowatch publish` locally; every record validated against the OSV schema (`tests/fixtures/osv_schema.json`).
+  - The watcher (`watch.upstream_check`) on a test project: a git submodule of FreeRDP and a CMake `FetchContent` of ImageMagick, at old and at current releases, against that local feed, with commits-only clones and OSV `querybatch` by commit.
+  - `tracker/seeds/make_cpp_upstreams.py` on vcpkg 2ec0f17, BCR 27778ec9 and conan-center-index 152616e, compared with the watchlist.
+- **Result:**
+  - **Tags:** 1,888 repos have advisories in limbo that name no package OSV knows; 1,692 name versions to look up, 8,539 versions in all, of which **7,065 (83%) are tags** (exactly, `v`-prefixed or by the numbers in the tag). 0 repos failed to list; 47 s for all of them.
+  - **Feed:** 24,561 records, 0 invalid. 14,961 records have entries without a package (18,687 entries); **13,690 (73%) carry GIT ranges**, e.g. FreeRDP `>= 3.11.0, <= 3.30.0` → `introduced` 4312666c…, `last_affected` 6b107f0a…. No record has an empty `affected` any more (14,785 had, F-135).
+  - **Watcher, FreeRDP submodule at 3.10.0** (6e662fd): 234 of FreeRDP's 338 advisories in limbo match, 231 certainly ("older than 3.29.0, the fix release, and doesn't contain it") and 3 possibly (ranges "N/A", "3.27.1 and HEAD", and one in prose); the rest are fixed before 3.10.0 or start after it. **At 3.33.1, the newest release: 0 certain, the same 3 possible.**
+  - **ImageMagick `FetchContent` at 7.1.1-30:** 114 affected; one of them because OSV lists the commit under CVE-2026-109276, which the advisory cites. At 7.1.2-35: none.
+  - Runs took 7-25 s, mostly the two clones (cached on the second run).
+  - **A bug found on the way:** `package_name` calls any name valid in an ecosystem it doesn't know (`other`, `c`), so the first run treated FreeRDP's advisories as naming a package and matched only 2 of them. Upstream matching now counts a package only in an ecosystem OSV knows.
+  - **Seeds:** 3,603 GitHub repos (vcpkg 2,312, BCR 1,209, ConanCenter 1,585, overlapping); 245 are already watched, 3,358 are new.
+- **Caveats:**
+  - Two upstreams were checked end to end; the verdicts follow from the tags and the advisories' own ranges, not from a reading of each advisory.
+  - Advisories give versions, not fix commits: a commit between the fix commit and the fix release counts as affected, and GIT ranges built from `<= X` end at X's tag (`last_affected`), so unreleased commits after it count as unaffected.
+  - Tags can move; the audit rebuilds a sample of the GIT ranges from the tags as they are now.
+- **Implication:** advisories without a package, 60% of the feed, now reach C/C++ users through the watcher and OSV tools through GIT ranges. The tracker's seed list adds the C/C++ upstreams most projects build from.
+- **Sources:** `packages/core/src/limbowatch/watch/upstream_check.py`, `publish/feed.py`, `tracker.py` (`resolve_git_tags`); `tracker/seeds/cpp-upstreams.txt`; tests in `tests/test_upstream_check.py`.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
