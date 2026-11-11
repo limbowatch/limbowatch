@@ -4,6 +4,10 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+## 0.1.0a9 (2026-11-11)
+
+Still an **alpha**. On PyPI it's `0.1.0a9`; the GitHub tag and the action's ref are `v0.1.0a9`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a9`; the GitLab CI/CD component is `0.1.0-alpha.9`. **Replaces 0.1.0a8:** a second independent review found that a rate-limited upstream source could pass unchecked, and that a filename that isn't UTF-8 could end any scan (below).
+
 - **Fixed: a rate-limited upstream source passed silently.** When GitHub's rate limit stopped polling, the source wasn't matched against the feed either; it is now, and it's reported as partly checked.
 - **Fixed: a filename that isn't UTF-8 in the git index ended every scan** (exit 2), C/C++ or not. Upstream detection can't end a scan any more.
 - **Fixed: issues for upstream findings were closed when the source wasn't checked** (`--no-upstream`, rate limit, a failed clone). They're closed only when the source was checked in full or removed, and labelled when the advisory reaches OSV.

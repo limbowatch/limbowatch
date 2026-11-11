@@ -560,7 +560,7 @@ def new_tab(html: str) -> str:
     return _HOSTED.sub(r'<a \1 target="_blank" rel="noopener">', html)
 
 
-# Cloudflare's Email Obfuscation reads `limbowatch-action@v0.1.0a8` and `limbowatch@0.1.0-alpha.8` as email addresses and
+# Cloudflare's Email Obfuscation reads `limbowatch-action@v0.1.0a9` and `limbowatch@0.1.0-alpha.9` as email addresses and
 # swaps them for "[email protected]". The site shows no email address as text (the contact is an image), so it's off.
 EMAIL_OFF, EMAIL_ON = "<!--email_off-->", "<!--/email_off-->"
 
@@ -1524,8 +1524,8 @@ vcpkg and Conan dependencies.</li>
 # --- scan: the watcher -----------------------------------------------------------------------------
 
 
-RELEASE = "0.1.0a8"  # the current release (an alpha): PyPI version, action ref v{RELEASE}
-COMPONENT = "0.1.0-alpha.8"  # the same release in the GitLab CI/CD Catalog, which needs semantic versions
+RELEASE = "0.1.0a9"  # the current release (an alpha): PyPI version, action ref v{RELEASE}
+COMPONENT = "0.1.0-alpha.9"  # the same release in the GitLab CI/CD Catalog, which needs semantic versions
 # Screenshots from the demo app (docs/screenshots/, copied to assets/screens/ by `limbowatch publish`)
 SCREENS = {
     "terminal": (
