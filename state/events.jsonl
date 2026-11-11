@@ -18036,34 +18036,296 @@
 {"at":"2026-11-10T15:18:14Z","event":"first seen","ghsa_id":"GHSA-w6hj-6587-3jh5","id":26233}
 {"at":"2026-11-10T15:18:14Z","event":"first seen","ghsa_id":"GHSA-jhfp-4ppm-crmm","id":26234}
 {"at":"2026-11-10T15:18:14Z","event":"first seen","ghsa_id":"GHSA-4cmg-x3g6-p322","id":26235}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from another CNA: CVE-2026-126541","ghsa_id":"GHSA-233c-vfmw-6rw9","id":26236}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-2586-8ghr-69fj","id":26237}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126076","ghsa_id":"GHSA-2586-8ghr-69fj","id":26238}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-2gff-2mmg-m73p","id":26239}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-gvrc-75rc-7gj9","id":2623}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126083","ghsa_id":"GHSA-2gff-2mmg-m73p","id":26240}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-2h4w-29cv-2cmv","id":26241}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-2j8w-xcrc-x985","id":26242}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126079","ghsa_id":"GHSA-2p2f-4rq4-gjwc","id":26243}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-2vgq-wchc-25w7","id":26244}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-2w9f-fxwj-w2qf","id":26245}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126075","ghsa_id":"GHSA-2w9f-fxwj-w2qf","id":26246}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-358w-w75h-x6rx","id":26247}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-125336","ghsa_id":"GHSA-3cc4-3294-vgjf","id":26248}
+{"at":"2026-11-11T09:38:18Z","event":"CVE-2026-63653 RESERVED -> PUBLISHED","ghsa_id":"GHSA-3cp5-q6fp-mqf5","id":26249}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-q95c-ccq6-j5j6","id":2624}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126188","ghsa_id":"GHSA-3f4q-8x5m-76v8","id":26250}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-3hch-x692-6qj3","id":26251}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-3w22-6jfg-527w","id":26252}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126064","ghsa_id":"GHSA-3w22-6jfg-527w","id":26253}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126084","ghsa_id":"GHSA-3w93-6hmw-whh4","id":26254}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from another CNA: CVE-2026-126545","ghsa_id":"GHSA-3w98-8958-84rh","id":26255}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-474x-hrwr-fgx4","id":26256}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126066","ghsa_id":"GHSA-474x-hrwr-fgx4","id":26257}
+{"at":"2026-11-11T09:38:18Z","event":"CVE-2026-59192 RESERVED -> PUBLISHED","ghsa_id":"GHSA-48qj-5wxh-m8hc","id":26258}
+{"at":"2026-11-11T09:38:18Z","event":"CVE-2026-63011 RESERVED -> PUBLISHED","ghsa_id":"GHSA-4m9w-3p93-6cwx","id":26259}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-9x8p-qrf4-jq7g","id":2625}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-4p39-36wj-23h4","id":26260}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126063","ghsa_id":"GHSA-4p39-36wj-23h4","id":26261}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-4v2w-w6g6-f8f8","id":26262}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126071","ghsa_id":"GHSA-4v2w-w6g6-f8f8","id":26263}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-5957-c7qm-m469","id":26264}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126068","ghsa_id":"GHSA-5957-c7qm-m469","id":26265}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from another CNA: CVE-2026-126543","ghsa_id":"GHSA-5gg3-9jhh-xf86","id":26266}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-5m6c-38r8-5w76","id":26267}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-5v64-555j-wjxm","id":26268}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-62m9-f875-rqw6","id":26269}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-rj5m-69wp-cxq9","id":2626}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-65v8-q222-64xx","id":26270}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from another CNA: CVE-2026-126499","ghsa_id":"GHSA-6828-c7cx-hvqm","id":26271}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-6889-vf6x-f3g5","id":26272}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-125335","ghsa_id":"GHSA-6889-vf6x-f3g5","id":26273}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126069","ghsa_id":"GHSA-68p9-83h6-5wpj","id":26274}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-6972-9mcm-vhwj","id":26275}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-6cv4-p8m7-4r25","id":26276}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-125333","ghsa_id":"GHSA-6cv4-p8m7-4r25","id":26277}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-6f4g-xm8v-pgv6","id":26278}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-125121","ghsa_id":"GHSA-6f4g-xm8v-pgv6","id":26279}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-7p8w-j234-7qc8","id":2627}
+{"at":"2026-11-11T09:38:18Z","event":"duplicate of reviewed GHSA-r7j4-crjv-h467","ghsa_id":"GHSA-6f4g-xm8v-pgv6","id":26280}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-6qrw-m8cv-hcxf","id":26281}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-6wcv-rj3c-mhv3","id":26282}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-752m-7p75-49gf","id":26283}
+{"at":"2026-11-11T09:38:18Z","event":"CVE-2026-64668 RESERVED -> PUBLISHED","ghsa_id":"GHSA-7583-9cqv-j9rf","id":26284}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126065","ghsa_id":"GHSA-7w4v-2c9r-q94v","id":26285}
+{"at":"2026-11-11T09:38:18Z","event":"CVE-2026-64671 RESERVED -> PUBLISHED","ghsa_id":"GHSA-7w94-hxwm-gg99","id":26286}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-8332-j7wj-wjw4","id":26287}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-8474-xrp6-wh69","id":26288}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126080","ghsa_id":"GHSA-8474-xrp6-wh69","id":26289}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-g83f-2j6r-q6m4","id":2628}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-88f4-frh5-gmcr","id":26290}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from another CNA: CVE-2026-125759","ghsa_id":"GHSA-8m28-9wcj-v8ww","id":26291}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-8v59-qmwv-4p6q","id":26292}
+{"at":"2026-11-11T09:38:18Z","event":"cites CVE-2026-125123 (was none)","ghsa_id":"GHSA-8v59-qmwv-4p6q","id":26293}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-8vv3-6qpc-gpw6","id":26294}
+{"at":"2026-11-11T09:38:18Z","event":"CVE-2026-64678 RESERVED -> PUBLISHED","ghsa_id":"GHSA-9297-g93h-86gg","id":26295}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from another CNA: CVE-2026-126539","ghsa_id":"GHSA-97xr-jchp-xm3c","id":26296}
+{"at":"2026-11-11T09:38:18Z","event":"CVE-2026-92684 RESERVED -> PUBLISHED","ghsa_id":"GHSA-9r8x-hf5g-rh66","id":26297}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from another CNA: CVE-2026-126542","ghsa_id":"GHSA-9rvm-cfc4-q9g9","id":26298}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-9wg5-mj3p-v49q","id":26299}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-x3x7-96vm-6h2w","id":2629}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-8683-6wwr-q7rq","id":262}
+{"at":"2026-11-11T09:38:18Z","event":"CVE-2026-61810 RESERVED -> PUBLISHED","ghsa_id":"GHSA-chjj-xvqx-c8w4","id":26300}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-chp3-j5qr-2vfr","id":26301}
+{"at":"2026-11-11T09:38:18Z","event":"CVE-2026-64670 RESERVED -> PUBLISHED","ghsa_id":"GHSA-crj3-q72p-ggqm","id":26302}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126082","ghsa_id":"GHSA-f3w6-w445-fwh9","id":26303}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from another CNA: CVE-2026-126544","ghsa_id":"GHSA-f72w-prhp-h385","id":26304}
+{"at":"2026-11-11T09:38:18Z","event":"CVE-2026-64666 RESERVED -> PUBLISHED","ghsa_id":"GHSA-ffx6-xjp6-x33g","id":26305}
+{"at":"2026-11-11T09:38:18Z","event":"CVE-2026-64669 RESERVED -> PUBLISHED","ghsa_id":"GHSA-gc4c-v52c-2v34","id":26306}
+{"at":"2026-11-11T09:38:18Z","event":"CVE-2026-64667 RESERVED -> PUBLISHED","ghsa_id":"GHSA-gc6f-5hpq-ghxh","id":26307}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-gg4r-jv3p-qx3c","id":26308}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-ghwv-vrp2-2975","id":26309}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-8pf6-g464-h6h9","id":2630}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-gmj8-hvj3-49mw","id":26310}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126067","ghsa_id":"GHSA-gmj8-hvj3-49mw","id":26311}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-h46v-rmh6-fq4f","id":26312}
+{"at":"2026-11-11T09:38:18Z","event":"CVE-2026-61547 RESERVED -> PUBLISHED","ghsa_id":"GHSA-hfjv-vcp3-39wh","id":26313}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-hfr4-8rjc-97m2","id":26314}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126085","ghsa_id":"GHSA-hfr4-8rjc-97m2","id":26315}
+{"at":"2026-11-11T09:38:18Z","event":"CVE-2026-59191 RESERVED -> PUBLISHED","ghsa_id":"GHSA-hq9r-72jq-2pxp","id":26316}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-hr4h-4c45-v4q4","id":26317}
+{"at":"2026-11-11T09:38:18Z","event":"cites CVE-2026-125122 (was none)","ghsa_id":"GHSA-hr4h-4c45-v4q4","id":26318}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-j8rw-jp99-435v","id":26319}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-qrfr-wh4c-3qhw","id":2631}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-125334","ghsa_id":"GHSA-j8rw-jp99-435v","id":26320}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-jf3h-8jvx-vcrg","id":26321}
+{"at":"2026-11-11T09:38:18Z","event":"CVE-2026-59986 RESERVED -> PUBLISHED","ghsa_id":"GHSA-jgjf-7fwf-f3c7","id":26322}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from another CNA: CVE-2026-125757","ghsa_id":"GHSA-jgr3-fv33-x43c","id":26323}
+{"at":"2026-11-11T09:38:18Z","event":"CVE-2026-63010 RESERVED -> PUBLISHED","ghsa_id":"GHSA-jw34-6g49-r6cw","id":26324}
+{"at":"2026-11-11T09:38:18Z","event":"cites CVE-2026-125124 (was none)","ghsa_id":"GHSA-m4xg-839g-24cv","id":26325}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-p2pm-g2h6-7j5j","id":26326}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126074","ghsa_id":"GHSA-p2pm-g2h6-7j5j","id":26327}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-p623-mxf7-qxjm","id":26328}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-p8x9-v4hv-2w4g","id":26329}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-c59h-fq4p-r36r","id":2632}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-pcrw-h46h-c93h","id":26330}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-r7j4-crjv-h467","id":26331}
+{"at":"2026-11-11T09:38:18Z","event":"cites CVE-2026-125121 (was none)","ghsa_id":"GHSA-r7j4-crjv-h467","id":26332}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-r9jg-fmfx-2gv6","id":26333}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126073","ghsa_id":"GHSA-r9jg-fmfx-2gv6","id":26334}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-rhr8-3pm8-cq29","id":26335}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-rm8w-w798-g545","id":26336}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126070","ghsa_id":"GHSA-rq8q-p985-fjq7","id":26337}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126072","ghsa_id":"GHSA-rwvh-fw6r-pwvp","id":26338}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126078","ghsa_id":"GHSA-v6rj-xm57-3p59","id":26339}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-46qc-v7pw-4j7j","id":2633}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-v924-7rp8-4mxh","id":26340}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126186","ghsa_id":"GHSA-v924-7rp8-4mxh","id":26341}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-v995-44v6-5fqm","id":26342}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126062","ghsa_id":"GHSA-v995-44v6-5fqm","id":26343}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-w4xr-hqv8-ch44","id":26344}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-125332","ghsa_id":"GHSA-w4xr-hqv8-ch44","id":26345}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-whr6-fgpq-fpv9","id":26346}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126081","ghsa_id":"GHSA-wm3x-v3qw-4jh3","id":26347}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-wr5m-5jph-8m96","id":26348}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-wrr5-j383-f7h2","id":26349}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-gmm9-qwx3-2m3h","id":2634}
+{"at":"2026-11-11T09:38:18Z","event":"CVE-2026-79914 RESERVED -> PUBLISHED","ghsa_id":"GHSA-wrr5-j383-f7h2","id":26350}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-wvg4-6p58-3gh3","id":26351}
+{"at":"2026-11-11T09:38:18Z","event":"new CVE from GitHub's CNA, not cited: CVE-2026-126077","ghsa_id":"GHSA-x6mj-8jx9-qhqv","id":26352}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-xcf7-88g6-7xr8","id":26353}
+{"at":"2026-11-11T09:38:18Z","event":"cites CVE-2026-125125 (was none)","ghsa_id":"GHSA-xcf7-88g6-7xr8","id":26354}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-xggf-m53x-jc3f","id":26355}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-xqc2-xf4c-x3h3","id":26356}
+{"at":"2026-11-11T09:38:18Z","event":"cites CVE-2026-126187 (was none)","ghsa_id":"GHSA-xqc2-xf4c-x3h3","id":26357}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-xwgp-w3pj-q5h3","id":26358}
+{"at":"2026-11-11T09:38:18Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-xxrh-5hgg-gj4h","id":26359}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-8gff-pw32-6gr2","id":2635}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-6r4j-7r6c-xf94","id":26360}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-3jrg-j22w-mpmc","id":26361}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-q87m-xr7j-vrww","id":26362}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-jchq-39cv-q4wj","id":26363}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-frmv-5gcm-jwxh","id":26364}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-cfwj-9wp5-wqvp","id":26365}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-xvjw-fjq5-68hf","id":26366}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-rmjr-3qpm-vh98","id":26367}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-g3x5-86mr-65p5","id":26368}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-gjrx-53hj-c24w","id":26369}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-2gwc-988r-2r7x","id":2636}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-9rp9-65jw-w7vw","id":26370}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-mxr8-q875-rhwq","id":26371}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-f8vq-jw3w-q789","id":26372}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-8c6g-xf48-2fvx","id":26373}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-2wjr-jv67-4m55","id":26374}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-mvp9-qv42-59wc","id":26375}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-q9rg-x94g-mgvq","id":26376}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-pgrm-rwjh-553p","id":26377}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-rvfv-gvcj-m5f5","id":26378}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-jqfq-fwfw-xc8x","id":26379}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-fffj-6fr6-3fgf","id":2637}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-jqj2-8c2j-gx82","id":26380}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-rfjv-wwx8-fp5q","id":26381}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-2rrg-fhr9-r552","id":26382}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-hcqw-f3m9-mq7p","id":26383}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-wj7q-pq96-vq3p","id":26384}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-mxx5-m65w-5qv2","id":26385}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-6mch-4jwv-f5q2","id":26386}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-7x84-xhp8-6cqj","id":26387}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-944c-h97m-jm2r","id":26388}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-x6vq-298x-6qgq","id":26389}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-gjf2-f4jc-69xf","id":2638}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-hc33-jfp4-5fqh","id":26390}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-7pp5-4w3w-437c","id":26391}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-6jj6-w25p-jc42","id":26392}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-8mq4-3mwq-qvg6","id":26393}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-mm37-xpxv-2fr7","id":26394}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-hxrj-rv25-xcvx","id":26395}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-w829-5g45-5g7q","id":26396}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-6fg2-jjxj-rp37","id":26397}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-h6mq-3rv5-2v7m","id":26398}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-f464-2gch-9wj8","id":26399}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-wcg2-648h-mhxq","id":2639}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-v879-vjhp-gmhc","id":263}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-52ww-pw96-mgcf","id":26400}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-r9cq-5gpr-7j25","id":26401}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-qv87-w8gg-9cc8","id":26402}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-49vc-r6v2-crqc","id":26403}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-m96h-3rc9-xx6h","id":26404}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-4mc6-qmpp-g7gw","id":26405}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-6xg9-784j-24rm","id":26406}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-f4vc-345x-4mvm","id":26407}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-q4m7-9pcm-fpxh","id":26408}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-7rj6-7pqx-v7rm","id":26409}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-552r-8hg7-gq89","id":2640}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-w6x2-f5m4-xw82","id":26410}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-7557-j49j-3x26","id":26411}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-xgqq-r5j8-3mch","id":26412}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-6vpf-5947-22g5","id":26413}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-jqjw-w67q-j4r5","id":26414}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-9gj6-8569-mff3","id":26415}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-j256-7p9m-ppcm","id":26416}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-73ph-hf43-5p4g","id":26417}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-7m37-jcw4-mgw5","id":26418}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-4qrh-mvcg-349p","id":26419}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-697g-g6mq-w29r","id":2641}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-fw8c-5996-j6q5","id":26420}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-hqp3-fj6v-hrpc","id":26421}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-6vcg-8g2h-w2hg","id":26422}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-v29p-3vj4-vg4f","id":26423}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-3x95-24j9-7448","id":26424}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-v6gx-9vh4-c8qx","id":26425}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-c2fg-6v3f-77wq","id":26426}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-g5cc-5xv7-5f32","id":26427}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-82v5-r27q-xcgj","id":26428}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-666p-75rg-m3r5","id":26429}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-2x9v-g6m9-49f3","id":2642}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-vw3f-p33h-39j3","id":26430}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-69mq-vf3m-pgj6","id":26431}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-7xfm-q62h-hhjf","id":26432}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-3qc5-6fx3-whp6","id":26433}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-jp34-m864-chwm","id":26434}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-wx62-4j8r-3329","id":26435}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-rjhc-wrq8-9chg","id":26436}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-mgjc-x35g-mw3v","id":26437}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-9wfj-w8vm-j9ph","id":26438}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-279j-4q4w-6h5g","id":26439}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-cf6g-p4xj-mf5r","id":2643}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-g9mw-2cwh-6hh9","id":26440}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-8hxv-p4mf-c553","id":26441}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-wjrh-2ww5-v6pg","id":26442}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-8pmv-3r2g-3rr6","id":26443}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-72hg-9rq2-f4xr","id":26444}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-frjf-h5jg-4v46","id":26445}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-6v9c-36h3-hgmp","id":26446}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-83f3-hpv5-58cq","id":26447}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-c9qr-rh56-vvrc","id":26448}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-fqmh-x7gg-pfgw","id":26449}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-q3jm-5q5j-gp4q","id":2644}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-fw3j-wh78-34mj","id":26450}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-8vwp-6h6c-hx6h","id":26451}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-h2g7-2gxh-c5v2","id":26452}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-c3h5-4gmg-4wc5","id":26453}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-v4r6-pxvj-p7g5","id":26454}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-r6hp-gmf7-9pqq","id":26455}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-8rrv-25fw-rm86","id":26456}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-rv5j-2q4p-qm56","id":26457}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-cmhr-c7mj-hgx7","id":26458}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-m3wq-j48p-jxwh","id":26459}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-4wh8-q9rv-8q9f","id":2645}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-fxf7-wc37-p2cx","id":26460}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-5h6x-q65w-wxvf","id":26461}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-gr93-5vq9-7wh3","id":26462}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-6cw7-hxfh-8x94","id":26463}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-6qq7-r4c9-cf54","id":26464}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-pfw7-6c5v-2837","id":26465}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-4wq9-grf3-qg2p","id":26466}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-f6fr-6gh9-3r77","id":26467}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-46h5-85p4-4cp9","id":26468}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-49m3-q3m6-rmg3","id":26469}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-6p2v-mc83-63wr","id":2646}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-3q53-mvfw-q9v8","id":26470}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-2g53-87p2-4qq8","id":26471}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-qrww-3xmv-qhgm","id":26472}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-3v2p-hm54-8qcq","id":26473}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-c5wg-994r-fv4c","id":26474}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-vj29-x49r-m6q5","id":26475}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-2j3w-4m6x-38ff","id":26476}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-rjcv-hvhh-fhpg","id":26477}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-773c-7fc3-342g","id":26478}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-pv79-v2hf-5gg8","id":26479}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-4937-wfv8-7crc","id":2647}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-vpg6-crgp-fc2h","id":26480}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-xpmj-x5hg-hq6j","id":26481}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-vjqq-p9g9-42wx","id":26482}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-q9gv-q2h3-7g3x","id":26483}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-pggp-67cq-xgrg","id":26484}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-rhcj-h663-7v7w","id":26485}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-9c69-v342-vqr7","id":26486}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-g75c-9rjg-8cvj","id":26487}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-jwhj-v5mg-3f4f","id":26488}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-x252-j3fp-j593","id":26489}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-3j7j-3hq5-h3rp","id":2648}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-m9c3-99x3-77g6","id":26490}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-c3w7-ff56-j345","id":26491}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-66qv-gmq4-qcqj","id":26492}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-74fm-fwc7-3fwp","id":26493}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-39q9-qp46-w8xg","id":26494}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-92p4-j3wq-jmqx","id":26495}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-h25j-2p75-qj33","id":26496}
+{"at":"2026-11-11T09:38:18Z","event":"first seen","ghsa_id":"GHSA-9p4p-3p2f-q7h8","id":26497}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-7g73-5rrw-446p","id":2649}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-r9cj-7m9r-h6hq","id":264}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-rm48-9mqf-8jc3","id":2650}
