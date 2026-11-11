@@ -149,6 +149,7 @@ def summary(r: Report) -> dict[str, Any]:
         "possibly_affected": sum(1 for f in act if not certain(f)),
         "accepted": len(r.findings) - len(act),
         "dependencies": r.stats.get("dependencies", 0),
+        "upstreams": r.stats.get("upstreams", 0),
         "unchecked": len(full),
         "checked_by_name_only": len(r.unresolved) - len(full),
     }
@@ -260,7 +261,10 @@ def table(r: Report, verbose: bool = False, paint: Paint | None = None, embedded
     """`embedded`: one project's part of an org-wide table, without the header line and the attribution."""
     p = paint or Paint()
     act = r.active
-    head = f"limbowatch {__version__} · {_plural(r.stats.get('dependencies', 0), 'dependency', 'dependencies')} scanned ({r.tool})"
+    ups = r.stats.get("upstreams", 0)
+    also = f" and {_plural(ups, 'upstream source')}" if ups else ""
+    head = (f"limbowatch {__version__} · {_plural(r.stats.get('dependencies', 0), 'dependency', 'dependencies')}{also} "
+            f"scanned ({r.tool})")  # fmt: skip
     if r.feed_generated_at:
         head += f" · limbo feed of {r.feed_generated_at[:16].replace('T', ' ')} UTC"
     out = [] if embedded else [p("2", head), ""]
