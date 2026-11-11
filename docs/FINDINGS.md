@@ -4,7 +4,7 @@
 
 What we've verified or measured while building Limbowatch. Maintenance rules are in [CLAUDE.md](../CLAUDE.md#findings-report-docsfindingsmd).
 
-Last summarized: 2026-11-11 (end of Phase 6: C/C++ and other upstream sources, a feed that covers advisories without a package; released as 0.1.0a7, F-140; awaiting review). Before that: 2026-11-10 (end of Phase 5), 2026-11-07 (end of Phase 4).
+Last summarized: 2026-11-11 (end of Phase 6: C/C++ and other upstream sources, a feed that covers advisories without a package; released as 0.1.0a8, F-140 to F-142; awaiting review). Before that: 2026-11-10 (end of Phase 5), 2026-11-07 (end of Phase 4).
 
 ## Summary
 
@@ -63,7 +63,7 @@ Current understanding at the end of Phase 6 (2026-11-11), with entries linked. P
     - Limits found only by running it: a component description over 256 characters breaks every including pipeline ([F-095](#f-095)); GitHub keeps 10 annotations per level per step and drops the rest silently, so annotations are one per package ([F-096](#f-096)); click strips colour off pipes ([F-097](#f-097)).
 28. **Without Limbowatch, nothing reports these.** On the demo app, GitHub's Dependabot alerts and OSV-Scanner reported 0 of the 16 advisories Limbowatch found; all 16 were rechecked against primary sources and are real, fixed and unreviewed, 1.6 to 23.5 days in limbo ([F-090](#f-090), [F-091](#f-091)). On 13 real projects (2026-11-08), Dependabot raised 2,020 alerts and covered **0 of 1,080 confirmed findings** in limbo, every one in GitHub's own dependency graph ([F-112](#f-112)). The same check found 5 Limbowatch false positives, from Go modules nested under another module's path ([F-113](#f-113)); the tracker now resolves each Go path's module through the Go module proxy, which removes them ([F-114](#f-114), in production since 2026-11-09, [F-117](#f-117)). Three days on, the demo's advisories were still invisible to Dependabot ([F-111](#f-111), [F-119](#f-119)).
 29. **The outputs are standard.** SARIF 2.1.0 and CycloneDX 1.6 validate against the official schemas ([F-093](#f-093)).
-30. **Released as an alpha, 0.1.0a1 (2026-11-07) to 0.1.0a7 (2026-11-11).** PyPI with PEP 740 attestations; GitHub pre-release; the CI/CD Catalog accepts pre-releases like `0.1.0-alpha.1` ([F-097](#f-097)). 0.1.0a2 adds the image and the reworked component (point 39); 0.1.0a5 the range-parser fixes (point 41, [F-126](#f-126)); 0.1.0a6 org-wide mode and Maven resolution (points 45–46, [F-133](#f-133)); 0.1.0a7 upstream sources (points 47–51, [F-140](#f-140)).
+30. **Released as an alpha, 0.1.0a1 (2026-11-07) to 0.1.0a8 (2026-11-11).** PyPI with PEP 740 attestations; GitHub pre-release; the CI/CD Catalog accepts pre-releases like `0.1.0-alpha.1` ([F-097](#f-097)). 0.1.0a2 adds the image and the reworked component (point 39); 0.1.0a5 the range-parser fixes (point 41, [F-126](#f-126)); 0.1.0a6 org-wide mode and Maven resolution (points 45–46, [F-133](#f-133)); 0.1.0a7 upstream sources (points 47–51, [F-140](#f-140)), replaced by 0.1.0a8 after an independent review ([F-141](#f-141), [F-142](#f-142)).
 31. **Both demos stay as live regression tests:** `limbowatch/demo-app` on GitHub (public, PR #1) and GitLab (private, MR !1) run the released action and component ([F-088](#f-088), [F-097](#f-097)).
 
 **Coverage (measured 2026-11-07)**
@@ -2104,6 +2104,26 @@ Answered:
 - **Caveats:** the review covered the Phase 6 diff, not the earlier watcher; the fsmonitor exposure applies to scans of trees another user controls (org-wide mode clones fresh, so it wasn't exposed).
 - **Implication:** 0.1.0a7 could pass pins it shouldn't (the four silent passes above); 0.1.0a8 replaces it. Ask for an independent review of verdict code before a release, not only tests written by the same hand.
 - **Sources:** the tests named above; `research/2026-11-upstream-watch/agreement.json`, `detectors.json`.
+
+### F-142
+- **Date:** 2026-11-11 · **Status:** confirmed (observed)
+- **Question:** Release 0.1.0a8 (the review's fixes, F-141): did the audit pass, and what did it catch?
+- **Method:** `scripts/audit.py` before the release, then the release checklist; `scripts/check_integrations.py` on 9caf3cf's tree.
+- **Result:**
+  - **The audit caught two things before release:**
+    - its first run compared a CDN-cached `all.zip` from the build before with the new code (81 "differing" GIT ranges, all exact-only ranges the new code leaves as text); the site's own feed was right. The audit now fetches every limbo.watch file past the cache;
+    - its second run found 4 GIT ranges the fixed tag reader no longer reproduced: it missed `aide.0.13.release` (a version right after a dot) and mailcow's `2024-04` (year-month tags), and read libspdm's `3.0.0-rc` as 3.0.0, so 3.0 had two tags; Netflix dispatch's `v20230817c` is now, rightly, not 20230817. All three fixed. The tracker had kept tags it resolved once, so a better reading never replaced an old one: it now lists every repo's tags each run (1,752 repos, 0 failures; 7,271 of 8,729 versions tagged).
+  - **Audit, third run:** passed at 12:07 UTC on the site built at 12:05 UTC (tracker-data d5553ed): 520 verdicts sampled live, 0 wrong; reviewed sync complete (193 reviews in 7 days, 154 from repository advisories, 0 missing); 19 metrics reproduced; 24,816 feed records valid OSV and matching the state; 12,246 converted ranges consistent with the parser; checker index 4,762 = feed; 1,275 GIT-range entries in 150 repos rebuilt from live tags, 0 differ.
+  - **Integrations:** 13 checks passed (GitLab job script and Action, installed from the tree).
+  - **Image:** `ghcr.io/limbowatch/limbowatch:0.1.0a8@sha256:b90a82d9…` (built from 60a6c0c; reports `limbowatch 0.1.0a8`, OSV-Scanner 2.7.0 and git 2.47.3; SLSA provenance verified), pinned in the action and the GitLab template (3619b15). In the image, the test project at FreeRDP 3.33.1 and ImageMagick 7.1.2-35 gives the 3 *possible* findings of F-138, and a `vcpkg.json` of `[]` is reported as unreadable, with the scan completing.
+  - **Tags:** `v0.1.0a8` and the component's `0.1.0-alpha.8` GPG-signed and verified.
+  - **GitLab component:** split c95d6c2 on gitlab.com `main` (pipeline 3054214721 passed; mirror digest equals ghcr.io's; the gate job fails by design, allowed).
+  - **Release:** the release workflow published PyPI 0.1.0a8 and a GitHub pre-release, and the image workflow retagged the pinned digest; component tag pipeline 3054221547 passed, CI/CD Catalog release 12:20 UTC.
+  - **Action repo:** split f6907ae; self-test passed on Linux (image) and macOS (pip); signed tag `v0.1.0a8` and a GitHub pre-release. Org profile updated (06a6635).
+  - **0.1.0a7 marked superseded:** its GitHub pre-releases (main repo and action) now open with a note to upgrade, naming the four silent passes.
+  - **Smoke test (PyPI 0.1.0a8):** the demo app gives 61 findings and 3 unchecked, the same keys as 0.1.0a6; the FreeRDP/ImageMagick test project at the old pins 228 + 114 certain and 12 possible, as F-141 measured.
+- **Implication:** the audit's GIT-range check earns its place: it caught a tag-reading regression the unit tests didn't. A check against a live site must read past its CDN.
+- **Sources:** the audit reports (session scratchpad); GitHub Actions and GitLab runs above.
 
 ## Archive
 
