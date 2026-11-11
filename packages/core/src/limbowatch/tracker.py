@@ -56,10 +56,9 @@ POLL_WORKERS = 8
 GO_MODULE_RECHECK = timedelta(days=180)
 GO_MODULE_MAX_REQUESTS = 4000
 GO_MODULE_WORKERS = 8
-# Tags of repos whose advisories in limbo name no package: a version without a tag is looked for again after a week
-# (its release may not be tagged yet); at most GIT_TAG_MAX_REPOS repos a run, GIT_TAG_WORKERS at a time (F-138).
-GIT_TAG_RECHECK = timedelta(days=7)
-GIT_TAG_MAX_REPOS = 2000
+# Tags of repos whose advisories in limbo name no package, listed again every run (F-138, F-141): at most
+# GIT_TAG_MAX_REPOS repos a run, GIT_TAG_WORKERS at a time.
+GIT_TAG_MAX_REPOS = 3000
 GIT_TAG_WORKERS = 16
 
 
@@ -587,13 +586,11 @@ class Tracker:
     async def resolve_git_tags(self, report: RunReport) -> None:
         """For advisories in limbo that name no package OSV knows (C/C++ and the like), the commit of each version
         their ranges give, by `git ls-remote` on the repo (no API quota; F-136). The feed turns them into OSV GIT
-        ranges (F-138). Repos with a version not looked up yet go first; a version without a tag is retried after
-        GIT_TAG_RECHECK."""
+        ranges (F-138). Every repo is listed again each run, never-listed ones first (F-141)."""
         from limbowatch.classify import assess as assess_one
         from limbowatch.models import Status
         from limbowatch.publish.feed import git_versions
 
-        now = datetime.now(UTC)
         latest = self.store.latest_facts()
         needed: dict[str, set[str]] = {}
         with self.store.session() as s:
@@ -612,13 +609,13 @@ class Tracker:
                 for p in unpackaged:
                     needed.setdefault(adv.repo, set()).update(git_versions(p))
 
-        def due(repo: str) -> bool:
-            have, at = stored.get(repo, ({}, None))
-            stale = (_parse(at) or now) <= now - GIT_TAG_RECHECK if at else True
-            return any(v not in have or (have[v] is None and stale) for v in needed[repo])
+        # Every repo is listed again each run (1,900 repos took 47 s, F-138): tags move, and a better tag reading
+        # (F-141) must replace an old one. Never-listed repos first, then the longest unchecked (the queue pops from
+        # its end); at most GIT_TAG_MAX_REPOS.
+        def order(repo: str) -> str:
+            return stored[repo][1] or "" if repo in stored else ""
 
-        queue = sorted((r for r in needed if needed[r] and due(r)), key=lambda r: r in stored, reverse=True)
-        queue = queue[-GIT_TAG_MAX_REPOS:]
+        queue = sorted((r for r in needed if needed[r]), key=order, reverse=True)[-GIT_TAG_MAX_REPOS:]
         results: dict[str, dict[str, Any]] = {}
         failed = 0
 
@@ -631,7 +628,7 @@ class Tracker:
                 if listed is None:
                     failed += 1
                     continue
-                have = dict(stored.get(repo, ({}, None))[0])
+                have: dict[str, Any] = {}  # this listing's reading replaces the stored one
                 for v in needed[repo]:
                     tag = tag_for(v, listed)
                     have[v] = [tag, listed[tag]] if tag else None

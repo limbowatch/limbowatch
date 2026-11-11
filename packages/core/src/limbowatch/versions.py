@@ -156,14 +156,18 @@ class UpstreamVersion:
 
 
 UPSTREAM = "upstream"  # the VERSION_CLASS key for upstream sources' versions and their advisories' ranges
-_SUFFIX = r"(?:[-.]?(?:rc|alpha|beta|preview|pre|dev|a|b|p|patch|r)\.?\d+|-\d+(?![.\d]))"
+_SUFFIX = (
+    r"(?:[-.]?(?:rc|alpha|beta|preview|pre|dev)(?:\.?\d+)?"  # a pre-release word, with or without a number (3.0.0-rc)
+    r"|[-.]?(?:a|b|p|patch|r)\.?\d+"  # a letter needs one (1.0b1, -r2)
+    r"|-\d+(?![.\d]))"  # a patch number (7.1.1-38)
+)
 # The first dotted version in a tag, its separators "." or "_", a trailing letter (1.1.1w), then a pre-release, a
 # revision or a patch number (-rc.1, -r2, 7.1.1-38); words after it (-win64) and build metadata (+2024…) aren't part.
-_TAG_DOTTED = re.compile(rf"(?<![\d.])(\d+(?:[._]\d+)+)([a-z](?![a-z0-9]))?({_SUFFIX})?", re.I)
+_TAG_DOTTED = re.compile(rf"(?<!\d)(?<!\d\.)(\d+(?:[._]\d+)+)([a-z](?![a-z0-9]))?({_SUFFIX})?", re.I)
 _TAG_SINGLE = re.compile(
     r"(?<![\d.])(\d+)([a-z](?![a-z0-9]))?((?:[-.]?(?:rc|alpha|beta|preview|pre|dev)\.?\d*))?(?![\d.])", re.I
 )
-_TAG_DATE = re.compile(r"(?<!\d)(\d{4}-\d{2}-\d{2})(?!\d)")
+_TAG_DATE = re.compile(r"(?<!\d)(\d{4}-\d{2}(?:-\d{2})?[a-z]?)(?![\d-])")  # 2024-07-02, 2024-04, 2024-04a
 
 
 def version_of_tag(tag: str) -> str | None:

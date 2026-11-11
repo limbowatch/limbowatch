@@ -130,7 +130,7 @@ async def test_tracker_resolves_tags_for_unpackaged_advisories(monkeypatch: pyte
         report = tr.RunReport(started_at="x")
         await tr.Tracker(store, http, tr.TrackerConfig()).resolve_git_tags(report)
         await tr.Tracker(store, http, tr.TrackerConfig()).resolve_git_tags(tr.RunReport(started_at="y"))
-    assert asked == ["https://github.com/madler/zlib.git"]  # the second run has nothing left to look up
+    assert asked == ["https://github.com/madler/zlib.git"] * 2  # listed again each run: tags move, readings improve
     with store.session() as s:
         (g,) = s.query(GitTag).all()
     assert g.versions == {"1.3.1": ["v1.3.1", C[2]]}
@@ -355,10 +355,18 @@ def test_a_fix_of_an_older_line_doesnt_clear_a_newer_affected_one() -> None:
     ("tag", "version"),
     [("v1.2.3-r2", "1.2.3-r2"), ("v1.2.3+20240101", "1.2.3"), ("v2.5.0-win64", "2.5.0"),
      ("v3.0.0-preview2", "3.0.0-preview2"), ("pcre2-10.44", "10.44"), ("jpeg-9e", "9e"),
-     ("OpenSSL_1_1_1w", "1.1.1w"), ("7.1.1-38", "7.1.1-38"), ("2024-07-02", "2024-07-02"), ("v9", "9")],
+     ("OpenSSL_1_1_1w", "1.1.1w"), ("7.1.1-38", "7.1.1-38"), ("2024-07-02", "2024-07-02"), ("v9", "9"),
+     ("aide.0.13.release", "0.13"), ("2024-04", "2024-04"), ("3.0.0-rc", "3.0.0-rc")],
 )  # fmt: skip
 def test_tag_versions_are_read_from_the_first_dotted_run(tag: str, version: str) -> None:
     assert version_of_tag(tag) == version
+
+
+def test_tags_found_by_version() -> None:
+    assert tag_for("0.13", {"aide.0.13.release": C[1], "aide.0.12.release": C[2]}) == "aide.0.13.release"
+    assert tag_for("3.0", {"3.0.0": C[1], "3.0.0-rc": C[2]}) == "3.0.0"  # the pre-release is another version
+    assert tag_for("2024-04.", {"2024-04": C[1], "2024-04a": C[2]}) == "2024-04"
+    assert tag_for("20230817", {"v20230817c": C[1]}) is None  # a lettered build isn't that release
 
 
 def test_a_tag_version_must_lead_back_to_its_commit() -> None:

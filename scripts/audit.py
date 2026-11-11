@@ -50,6 +50,9 @@ AGE_BUCKETS = [("< 3 days", 0, 3), ("3–7 days", 3, 7), ("1–2 weeks", 7, 14),
                ("1–2 months", 30, 60), ("2–3 months", 60, 90), ("> 3 months", 90, 10**6)]  # fmt: skip
 OSV_SCHEMA = "repos/ossf/osv-schema/contents/validation/schema.json"
 http = httpx.Client(timeout=60, follow_redirects=True, headers={"User-Agent": "limbowatch-audit"})
+# Every limbo.watch file is fetched past the CDN's cache, so metrics, feed and checker come from the same build: a
+# cached all.zip from the build before made the 0.1.0a8 audit compare an old feed with new code (F-142).
+NOCACHE = {"nocache": datetime.now(UTC).strftime("%Y%m%d%H%M%S")}
 
 
 def at(s: str | None) -> datetime | None:
@@ -298,7 +301,7 @@ def check_feed(rep: Report, st: State, items: list[dict[str, Any]], z: zipfile.Z
     recs = {n.removesuffix(".json"): json.loads(z.read(n)) for n in z.namelist() if n.endswith(".json")}
     invalid = [g for g, r in recs.items() if next(validator.iter_errors(r), None) is not None]
     want = {i["g"] for i in items if i["st"] == "limbo"}
-    idx = http.get(f"{SITE}/feed/index.json").json()
+    idx = http.get(f"{SITE}/feed/index.json", params=NOCACHE).json()
     by = {i["g"]: i for i in items}
     fields = []
     for g, r in recs.items():
@@ -389,7 +392,7 @@ def check_ranges(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
 
 
 def check_checker(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
-    ci = http.get(f"{SITE}/check/index.json").json()
+    ci = http.get(f"{SITE}/check/index.json", params=NOCACHE).json()
     got = {x["g"] for eco in ci["ecosystems"].values() for lst in eco.values() for x in lst}
     want = {g for g, r in recs.items() for e in r["affected"]
             if "package" in e and e["package"]["ecosystem"] in CHECKER
@@ -450,14 +453,14 @@ def main() -> None:
     ap.add_argument("--out", type=Path)
     a = ap.parse_args()
     rep = Report()
-    m = http.get(f"{SITE}/metrics.json").json()
+    m = http.get(f"{SITE}/metrics.json", params=NOCACHE).json()
     with tempfile.TemporaryDirectory() as tmp:
         st, commit = load_state(m, Path(tmp))
         items = st.items()
         rep.lines.append(f"# Limbowatch audit, {datetime.now(UTC):%Y-%m-%d %H:%M} UTC\n")
         rep.lines.append(f"Site built {m['generated_at']} from `tracker-data` {commit[:7]} (run "
                          f"{m['last_run']['started_at']}). Sample seed {a.seed}.\n")  # fmt: skip
-        z = zipfile.ZipFile(io.BytesIO(http.get(f"{SITE}/feed/all.zip").content))
+        z = zipfile.ZipFile(io.BytesIO(http.get(f"{SITE}/feed/all.zip", params=NOCACHE).content))
         check_verdicts(rep, items, a.sample, a.seed)
         check_reviewed_sync(rep, st, at(m["flow_7d"]["ends_at"]))  # type: ignore[arg-type]
         check_metrics(rep, st, items, m)
