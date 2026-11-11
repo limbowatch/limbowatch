@@ -270,6 +270,7 @@ def parse_range(rng: str) -> list[Alternative] | None:
     s = rng.strip().replace("≤", "<=").replace("≥", ">=")
     if not s:
         return None
+    s = re.sub(r"(?i)\bversions?\s*(?=[<>=≤≥v\d])", "", s)  # "Version > v9.1.0425 and Version < v9.1.0689"
     s = _WILDCARD.sub(_wildcard, s)
     if re.fullmatch(r"(?i)(?:all|any)(?: versions)?", s):
         s = "*"

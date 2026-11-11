@@ -1,6 +1,6 @@
 # Upstream-watch: C/C++ dependencies and advisories without a package (November 2026)
 
-Phase 6, steps 0 and 1 (FINDINGS [F-135](../../docs/FINDINGS.md#f-135), [F-136](../../docs/FINDINGS.md#f-136), [F-137](../../docs/FINDINGS.md#f-137), question Q26).
+Phase 6, steps 0 and 1 (FINDINGS [F-135](../../docs/FINDINGS.md#f-135), [F-136](../../docs/FINDINGS.md#f-136), [F-137](../../docs/FINDINGS.md#f-137), [F-138](../../docs/FINDINGS.md#f-138), [F-139](../../docs/FINDINGS.md#f-139), questions Q26 and Q27).
 
 | Script | Question | Output |
 |---|---|---|
@@ -8,6 +8,7 @@ Phase 6, steps 0 and 1 (FINDINGS [F-135](../../docs/FINDINGS.md#f-135), [F-136](
 | `indexes.py` | which upstream repo each vcpkg port, BCR module and conan-center recipe builds from | `.cache/indexes.json` |
 | `libraries.py` | which limbo advisories without a package are about those libraries, and whether their patched versions are tags upstream (`git ls-remote`, no API quota) | `libraries.json` |
 | `survey.py` | how 85 C/C++ projects take in dependencies, and what the watcher could know about each | `survey.json` |
+| `agreement.py` | (Q27) the watcher's upstream verdicts against OSV's own version ranges for the same CVEs, at older releases of 7 libraries ([F-139](../../docs/FINDINGS.md#f-139)) | `agreement.json` |
 | `detectors.py` | step 1: what the watcher's own detectors and registry lookups make of the same 85 projects ([F-137](../../docs/FINDINGS.md#f-137)) | `detectors.json` |
 
 Run from the repo root, in order: `research/2026-11-upstream-watch/clone.sh`, then `uv run research/2026-11-upstream-watch/<script>.py`. `survey.py` needs an authenticated `gh` for the search; the token is never printed.

@@ -280,3 +280,32 @@ def test_git_graph_from_a_commits_only_clone(tmp_path: Path) -> None:
     assert g.contains(shas[0], shas[1]) is True and g.contains(shas[2], shas[1]) is False
     assert g.describe(shas[1]) == "v1.0"
     assert _clone(f"file://{src}", tmp_path / "x.git") is not None  # an existing clone is fetched, not re-cloned
+
+
+def test_fix_versions_come_from_the_fixed_field_before_range_bounds() -> None:
+    """`3.1.*` reads as `< 3.2.0`, but 3.2.0 isn't a fix when the advisory names its fixes (F-139)."""
+    p = _pkg("2.*, 3.0.*, 3.1.*, 3.2.0-3.2.9", "3.2.10, 3.3.12")
+    assert uc._fix_versions(p) == ["3.2.10", "3.3.12"]
+    assert uc._fix_versions(_pkg("< 2.5.1")) == ["2.5.1"]  # no fix named: the range's upper bound
+
+
+def test_a_range_of_exact_versions_isnt_read_as_only_those() -> None:
+    """Maintainers type the last affected version ("3.26.0", fixed in 3.27.0) meaning "up to it" (F-139)."""
+    p = _pkg("3.26.0", "3.27.0")
+    assert uc.exact_only("3.26.0") == ["3.26.0"] and uc.exact_only("< 3.26.0") is None
+    assert uc.by_version("3.10.0", p)[0] is None and uc.by_version("3.27.1", p)[0] is False
+    assert uc.by_version("3.26.0", p)[0] is True
+    g = FakeGraph()  # by commit: older than the fix tag, but the range doesn't say where it starts
+    assert uc.verdict(uc.pin(_u(ref=C[2], ref_is_commit=True), g), _pkg("1.1", "2.0"), g)[0] is None
+
+
+def test_an_unreadable_range_never_makes_an_older_commit_certain() -> None:
+    g = FakeGraph()
+    pn = uc.pin(_u(ref=C[2], ref_is_commit=True), g)
+    hit, why = uc.verdict(pn, _pkg("since the 1.1 rewrite", "2.0"), g)
+    assert hit is None and "can't be evaluated" in why
+
+
+def test_version_labels_in_ranges_are_read() -> None:
+    rng = "Version > v9.1.0425 and Version < v9.1.0689"
+    assert affected(UPSTREAM, "9.1.0000", rng) is False and affected(UPSTREAM, "9.1.0500", rng) is True

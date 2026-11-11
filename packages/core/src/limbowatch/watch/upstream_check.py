@@ -87,11 +87,23 @@ def pin(u: Upstream, g: Graph | None) -> Pin:
 
 
 def _fix_versions(p: AdvisoryPackage) -> list[str]:
-    """The fix releases an advisory package names: its fixed versions, else the upper bounds of `< X` ranges."""
+    """The fix releases an advisory package names: its fixed versions; only when it names none, the upper bounds of
+    its `< X` ranges. (A range's bounds aren't fixes when fixes are named: `3.1.*` reads as `< 3.2.0`, and 3.2.0 was
+    affected; F-139.)"""
     fixes = fixed_versions(p.patched_versions) or []
-    for alt in alternatives(UPSTREAM, p.vulnerable_version_range) or []:
-        fixes += [v for op, v in alt if op == "<"]
+    if not fixes:
+        for alt in alternatives(UPSTREAM, p.vulnerable_version_range) or []:
+            fixes += [v for op, v in alt if op == "<"]
     return list(dict.fromkeys(fixes))
+
+
+def exact_only(rng: str | None) -> list[str] | None:
+    """The versions of a range that lists only exact versions ("3.26.0"), else None. Maintainers often type the last
+    affected version this way, meaning "up to 3.26.0" (FINDINGS F-139), so it's never read as "only 3.26.0"."""
+    alts = alternatives(UPSTREAM, rng)
+    if not alts or not all(len(a) == 1 and a[0][0] == "=" for a in alts):
+        return None
+    return [a[0][1] for a in alts]
 
 
 def by_version(version: str | None, p: AdvisoryPackage) -> tuple[bool | None, str]:
@@ -101,6 +113,11 @@ def by_version(version: str | None, p: AdvisoryPackage) -> tuple[bool | None, st
         return None, "the advisory gives no affected or fixed version"
     if not version:
         return None, "which release this commit belongs to isn't known"
+    if rng and (listed := exact_only(rng)) is not None and version not in listed:
+        if already_fixed(UPSTREAM, version, patched):
+            return False, ""
+        fixed = f" and {patched} as fixed" if patched else ""
+        return None, f"the advisory lists only {rng} as affected{fixed}; earlier versions may be affected too"
     if rng:
         hit = affected(UPSTREAM, version, rng)
         if hit is None and (readings := dotdot_readings(rng)):
@@ -113,10 +130,10 @@ def by_version(version: str | None, p: AdvisoryPackage) -> tuple[bool | None, st
         if already_fixed(UPSTREAM, version, patched):
             return None, f"{version} is in the range “{rng}”, but at or after the fixed version “{patched}”"
         return True, f"{version} is in the range “{rng}”"
-    fixed = already_fixed(UPSTREAM, version, patched)
-    if fixed is None:
+    is_fixed = already_fixed(UPSTREAM, version, patched)
+    if is_fixed is None:
         return None, f"the fixed version “{patched}” can't be compared with {version}"
-    return (False, "") if fixed else (True, f"{version} is before the fixed version “{patched}”")
+    return (False, "") if is_fixed else (True, f"{version} is before the fixed version “{patched}”")
 
 
 def verdict(pn: Pin, p: AdvisoryPackage, g: Graph | None) -> tuple[bool | None, str]:
@@ -128,8 +145,19 @@ def verdict(pn: Pin, p: AdvisoryPackage, g: Graph | None) -> tuple[bool | None, 
         older = [(v, t) for v, (t, c) in fixes.items() if g.contains(pn.commit, c)]
         if older:
             rng = p.vulnerable_version_range
-            if pn.version and rng and affected(UPSTREAM, pn.version, rng) is False:
-                return False, ""  # older than the fix, and older than the affected range too
+            if exact_only(rng) is not None and pn.version not in (exact_only(rng) or []):
+                return None, (f"{pn.shown} is older than the fix release, and the advisory lists only {rng} as "
+                              "affected; earlier versions may be affected too")  # fmt: skip
+            if rng:
+                lower = affected(UPSTREAM, pn.version, rng) if pn.version else None
+                if lower is False:
+                    return False, ""  # older than the fix, and older than the affected range too
+                if lower is None:  # where the range starts can't be told: possibly too old to be affected
+                    t0 = older[0][1]
+                    return (
+                        None,
+                        f"{pn.shown} is older than {t0}, the fix release, but the range “{rng}” can't be evaluated",
+                    )
             v, t = older[0]
             return True, f"{pn.shown} is older than {t}, the fix release ({v}), and doesn't contain it"
         if fixes:

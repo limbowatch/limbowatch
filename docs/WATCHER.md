@@ -253,6 +253,7 @@ In CI, `--issues-url` and `--issues-project` default to `CI_SERVER_URL` / `GITHU
   - vcpkg: a port's dependencies are taken with its default features and on every platform, so a few may not be built on yours; ports from a registry other than vcpkg's own aren't mapped;
   - a submodule's own submodules and build files are read only when it's checked out;
   - vendored code is reported, not identified.
+- **Upstream verdicts are as good as the advisories' ranges.** Against OSV's own version ranges for the same CVEs, 95% agree and 1.6% disagree, where the advisory and the CVE record say different things (F-139). A range that lists only exact versions (`3.26.0`, fixed in 3.27.0) or can't be read gives a *possible* finding for older pins, never a pass.
 - **Upstream verdicts follow tags.** A fix is found by its version among the repo's tags (`v1.2.3`, `name-1.2.3`, `release-1_2_3`): 83% of the versions advisories without a package name have a tag (F-138). A commit between the fix commit and the fix release is reported as affected, since advisories give versions, not commits.
 - **Ranges are as entered by maintainers** and haven't been reviewed. Unreadable ranges give *possible* findings.
 - **Upstream polling is GitHub only.** Off-GitHub upstreams, and vanity Go paths deps.dev can't map, are checked by name only.

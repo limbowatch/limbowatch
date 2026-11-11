@@ -4,11 +4,11 @@
 
 What we've verified or measured while building Limbowatch. Maintenance rules are in [CLAUDE.md](../CLAUDE.md#findings-report-docsfindingsmd).
 
-Last summarized: 2026-11-10 (end of Phase 5: coverage, release-triggered checks, watcher completeness, org-wide mode; awaiting review before Phase 6). Before that: 2026-11-07 (end of Phase 4).
+Last summarized: 2026-11-11 (end of Phase 6: C/C++ and other upstream sources, a feed that covers advisories without a package; awaiting review). Before that: 2026-11-10 (end of Phase 5), 2026-11-07 (end of Phase 4).
 
 ## Summary
 
-Current understanding at the end of Phase 5 (2026-11-10), with entries linked. Points 1–14 come from the Phase 1 research (2026-10-21 to 10-25), 15–20 and 32 from the live tracker (Phase 2, measured again 2026-11-07), 21 from Phase 3, 22–31 from the watcher (Phase 4), 33–46 from Phase 5. Numbers are dated; review backlogs drift.
+Current understanding at the end of Phase 6 (2026-11-11), with entries linked. Points 1–14 come from the Phase 1 research (2026-10-21 to 10-25), 15–20 and 32 from the live tracker (Phase 2, measured again 2026-11-07), 21 from Phase 3, 22–31 from the watcher (Phase 4), 33–46 from Phase 5, 47–51 from Phase 6. Numbers are dated; review backlogs drift.
 
 **Phase 1: the gap in a sample of real projects**
 
@@ -87,6 +87,14 @@ Current understanding at the end of Phase 5 (2026-11-10), with entries linked. P
 45. **Org-wide mode works on real groups.** `limbowatch watch` checks a GitLab group, a Gitea/Forgejo org or git URLs in one run: 50 projects of `gitlab-org/security-products/analyzers` in about 3 minutes, with 465 GitHub polls instead of 784 when each project is scanned alone ([F-130](#f-130)). GitLab lists projects shared into a group unless told not to, and Gitea answers a private org with an empty list, so an empty source is an error ([F-129](#f-129)). It also found an OSV-Scanner error format that made `scan` give up on any project with two unreadable lockfiles of one kind; fixed ([F-131](#f-131)).
 46. **Maven needs resolving, Gradle a lockfile.** Run offline, OSV-Scanner checked 3 of the 171 dependencies Maven resolves for spring-petclinic and never said the rest were missing. Its resolver, which contacts only deps.dev and Maven Central, matched Maven exactly on two Spring Boot projects and found 37 advisories in limbo that the offline inventory missed; the inventory now resolves `pom.xml` by default, separately from every other file. It still misses profiles activated by JDK version, and modules that depend on unreleased siblings; those, and Gradle builds without a lockfile, are reported as unchecked. Gradle lockfiles are read completely ([F-132](#f-132)).
 
+**Phase 6: upstream sources and advisories without a package (2026-11-10 to 11-11)**
+
+47. **Most of the limbo feed named no package.** 14,785 of 24,561 records (60%) came from advisories whose ecosystem OSV doesn't have (`other`, `c`, `c/c++`, …), so the feed had left them without `affected` entries; 14,578 still gave versions. 1,472 of them come from 95 libraries that vcpkg, the Bazel Central Registry or ConanCenter build from (FreeRDP, ImageMagick, libheif, vim, OpenEXR), the rest mostly from applications ([F-135](#f-135), [F-136](#f-136)).
+48. **Their fixes are tags.** 83% of the versions those advisories name are tags in the repo (exactly, `v`-prefixed, or by the numbers, as in `bacnet-stack-1.6.0`), so the feed now gives 73% of such entries OSV GIT ranges, with the commits `git ls-remote` lists, at no API cost ([F-136](#f-136), [F-138](#f-138)).
+49. **C/C++ projects take code by git and archive, and offline OSV-Scanner reads none of it.** In 85 popular C/C++ projects: submodules (17 projects), CMake fetches (17), Bazel (9), vcpkg (5), vendored copies (22); 44 declare nothing (system libraries). The watcher's detectors find 857 upstream sources in 33 of them, 89% with a repo and a tag or commit after registry lookups (BCR `source.json`, vcpkg baseline and portfile, the ConanCenter remote; conan-center-index on GitHub keeps only current versions) ([F-136](#f-136), [F-137](#f-137)).
+50. **A commits-only clone answers "does this commit contain the fix?"** exactly, on any host, with no API quota (0.4–22 MB, under 3 s). A FreeRDP submodule at 3.10.0 is affected by 228 advisories in limbo, at 3.33.1 by none. Against OSV's own version ranges, 95% of verdicts agree and 1.6% disagree, each traced disagreement a conflict between the advisory and the CVE record; OSV's commit lookup lags its ranges, so it only ever raises a verdict ([F-136](#f-136), [F-138](#f-138), [F-139](#f-139)).
+51. **Two silent failures found on the way:** a `conan.lock` failed the whole offline inventory since 0.1.0a1 (OSV-Scanner needs a ConanCenter database, which isn't in OSV's list), and package names in ecosystems Limbowatch doesn't know were all treated as valid, which hid package-less advisories from repository matching. Both fixed ([F-137](#f-137), [F-138](#f-138)).
+
 ## Open questions
 
 Open:
@@ -108,6 +116,8 @@ Open:
 - Q18. Should the tracker's seeds include the upstreams of popular GitLab-hosted projects' Ruby dependencies, so the watcher doesn't need to poll them? ([F-085](#f-085); Phase 5.) *Partly answered 2026-11-10: the repos of the top 10,000 gems are now watched ([F-121](#f-121)); how much of GitLab's 356 polls that removes wasn't measured.*
 - Q25. Which Maven builds does the resolver get wrong beyond JDK-activated profiles and unreleased siblings: `<repositories>`, private registries, plugin-managed dependencies? Four projects were checked ([F-132](#f-132)).
 - ~~Q26. For limbo advisories without a package, how often does the patched version map to a tag upstream, and how many of the 1,858 repos are libraries?~~ **Answered 2026-11-11: 95 repos (1,472 records) are libraries in vcpkg, BCR or conan-center; every patched version maps to a tag for 82% of their advisories ([F-136](#f-136)).**
+- ~~Q27. How often is an upstream verdict wrong when read against the advisory itself?~~ **Answered 2026-11-11: 95% agree with OSV's version ranges, 3% possible, 1.6% disagree, each traced disagreement a conflict between the advisory and the CVE record ([F-139](#f-139)).**
+- Q28. Is identifying vendored copies (OSV's `determineversion`, which sends file hashes) worth its egress, given that 22 of 85 C/C++ projects vendor code and nothing else says which version ([F-136](#f-136))?
 - Q22. Does GitHub's "more than 5,000 repository advisories a week" count the same thing as the tracker (published, any ecosystem)? It sets the coverage estimate ([F-035](#f-035), [F-098](#f-098)).
 
 Answered:
@@ -2019,7 +2029,7 @@ Answered:
 - **Sources:** `research/2026-11-upstream-watch/detectors.py` and `detectors.json`; the URLs above; recorded fixtures in `tests/fixtures/upstream/`.
 
 ### F-138
-- **Date:** 2026-11-11 · **Status:** confirmed (measured on the tracker's state and a local rebuild of the feed; two end-to-end cases)
+- **Date:** 2026-11-11 · **Status:** confirmed (measured on the tracker's state and a local rebuild of the feed; two end-to-end cases). The FreeRDP counts are updated by [F-139](#f-139) after three verdict fixes.
 - **Question:** Phase 6, steps 2-5: can advisories without a package be given OSV GIT ranges, does the watcher decide correctly whether a pinned upstream source is affected, and how many C/C++ upstreams would the tracker add?
 - **Method:**
   - The `tracker-data` state of 2026-11-11 with the new tracker step `resolve_git_tags` (`git ls-remote --tags` per repo, `versions.tag_for`), then `limbowatch publish` locally; every record validated against the OSV schema (`tests/fixtures/osv_schema.json`).
@@ -2039,6 +2049,22 @@ Answered:
   - Tags can move; the audit rebuilds a sample of the GIT ranges from the tags as they are now.
 - **Implication:** advisories without a package, 60% of the feed, now reach C/C++ users through the watcher and OSV tools through GIT ranges. The tracker's seed list adds the C/C++ upstreams most projects build from.
 - **Sources:** `packages/core/src/limbowatch/watch/upstream_check.py`, `publish/feed.py`, `tracker.py` (`resolve_git_tags`); `tracker/seeds/cpp-upstreams.txt`; tests in `tests/test_upstream_check.py`.
+
+### F-139
+- **Date:** 2026-11-11 · **Status:** confirmed (1,082 comparisons in 7 libraries; disagreements traced by hand: 4 of 17)
+- **Question:** (Q27) Do the watcher's upstream verdicts agree with an independent judge?
+- **Method:** `research/2026-11-upstream-watch/agreement.py`: FreeRDP (3.10.0, 3.20.0), ImageMagick (7.1.1-30, 7.1.2-0), vim (v9.1.0000, v9.1.1000), Exiv2 v0.28.0, libheif v1.17.0, OpenEXR v3.2.0, c-ares 1.19.0 and zlib 1.2.11, pinned by tag. For each of their limbo advisories that cite a CVE OSV holds with GIT ranges on the same repo, the watcher's verdict (OSV's commit lookup off) is compared with OSV's version ranges for that CVE (`extracted_events` from the CVE record's affected field and NVD's CPE ranges) at the pin's release. OSV's commit lookup (`querybatch`) is recorded alongside. Feed: the local rebuild of F-138.
+- **Result:**
+  - **1,029 of 1,082 agree (95%)**, 35 are *possible* for us (3%), 17 disagree (1.6%): 12 we call affected and OSV doesn't, 5 the reverse; 1 has no usable OSV range. Each disagreement traced (4) is the advisory's own range differing from the CVE record or NVD: FreeRDP CVE-2026-111380 `<= 3.31.0` vs OSV from 3.29.0; libheif CVE-2026-62377 `>=1.20.0, <= 1.23.0` vs OSV from 0; vim CVE-2026-34714 `> v9.1.1390` vs OSV's affected field from 0.
+  - **Three watcher bugs found and fixed on the way:**
+    - a range's upper bounds were taken as fix releases even when the advisory names its fixes: OpenEXR's `2.*, 3.0.*, 3.1.*, 3.2.0-3.2.9, …` reads `3.1.*` as `< 3.2.0`, so v3.2.0 counted as "containing a fix" (13 false negatives at v3.2.0);
+    - a range of exact versions was read as only those: FreeRDP's `3.26.0` (fixed in 3.27.0) meant "up to 3.26.0"; an older pin is now *possible*, never cleared;
+    - a pin older than the fix release, with a range that can't be read, was called affected: vim's `Version > v9.1.0425 and Version < v9.1.0689` at v9.1.0000. Such a pin is now *possible*, and the parser reads a "Version" label (2 of the tracker's 58,246 ranges become readable; no reading changes).
+  - **OSV's commit lookup can't be the judge:** it differs from OSV's own ranges in 465 of the 1,082. For FreeRDP it lists no CVE at all for 3.10.0's commit (223 for 3.5.0's), and its affected versions stop at 3.5.1, though 3.10.0 is in the history of the fix commits. OSV's GIT ranges can't be read literally either: fixes made only on release branches (FreeRDP's `stable-2.0`) leave every later `master` commit "affected" under a plain reading; OSV resolves those with its own branch and cherry-pick analysis.
+  - **After the fixes,** the FreeRDP submodule at 3.10.0 of F-138 gives 228 certain and 12 possible findings (was 231 and 3); ImageMagick at 7.1.1-30 still 114.
+- **Caveats:** only advisories citing a CVE that OSV holds with ranges on the same repo could be judged (1,082 comparisons, 7 libraries, mostly FreeRDP: 650); OSV's version ranges are themselves maintainer or NVD data.
+- **Implication:** the verdicts are as good as the advisories' own ranges; where those can't be read, findings are *possible*. OSV's commit lookup is used only to raise a verdict to affected, never to clear one.
+- **Sources:** `research/2026-11-upstream-watch/agreement.py`, `agreement.json`; OSV API.
 
 ## Archive
 
