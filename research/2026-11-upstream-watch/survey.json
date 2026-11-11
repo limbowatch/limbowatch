@@ -1,0 +1,778 @@
+{
+ "projects": 85,
+ "cloned": 85,
+ "projects_by_method": {
+  "none detected": 44,
+  "vendored": 22,
+  "cmake FetchContent_Declare": 17,
+  "submodule": 17,
+  "cmake ExternalProject_Add": 13,
+  "bazel_dep": 5,
+  "vcpkg.json": 5,
+  "bazel http_archive": 4,
+  "cmake CPM": 2,
+  "meson wrap": 1
+ },
+ "dependencies_by_method": {
+  "bazel http_archive": 325,
+  "submodule": 300,
+  "bazel_dep": 163,
+  "vendored": 153,
+  "vcpkg.json": 114,
+  "cmake FetchContent_Declare": 75,
+  "cmake ExternalProject_Add": 58,
+  "cmake CPM": 8,
+  "meson wrap": 5
+ },
+ "dependencies_by_what_is_known": {
+  "name (index)": 432,
+  "repo+commit": 391,
+  "nothing": 150,
+  "repo+ref": 128,
+  "repo only": 100
+ },
+ "by_method_and_known": {
+  "bazel http_archive": {
+   "repo+ref": 112,
+   "repo only": 76,
+   "repo+commit": 70,
+   "nothing": 67
+  },
+  "bazel_dep": {
+   "name (index) \u2192 repo via index": 158,
+   "name (index)": 5
+  },
+  "cmake FetchContent_Declare": {
+   "nothing": 21,
+   "repo+commit": 20,
+   "repo only": 19,
+   "repo+ref": 15
+  },
+  "cmake ExternalProject_Add": {
+   "nothing": 51,
+   "repo+commit": 5,
+   "repo only": 2
+  },
+  "vendored": {
+   "name (index)": 153
+  },
+  "vcpkg.json": {
+   "name (index)": 73,
+   "name (index) \u2192 repo via index": 41
+  },
+  "submodule": {
+   "repo+commit": 296,
+   "nothing": 4
+  },
+  "cmake CPM": {
+   "nothing": 7,
+   "repo+ref": 1
+  },
+  "meson wrap": {
+   "repo only": 3,
+   "name (index)": 2
+  }
+ },
+ "projects_with_an_upstream_in_the_limbo_feed": 14,
+ "upstreams_in_the_limbo_feed": {
+  "github.com/protocolbuffers/protobuf": 12,
+  "github.com/fmtlib/fmt": 9,
+  "github.com/grpc/grpc": 5,
+  "github.com/c-ares/c-ares": 5,
+  "github.com/open-telemetry/opentelemetry-cpp": 3,
+  "github.com/tukaani-project/xz": 2,
+  "github.com/duckdb/duckdb": 2,
+  "github.com/pnggroup/libpng": 1,
+  "github.com/vim/vim": 1,
+  "github.com/capstone-engine/capstone": 1,
+  "github.com/ggml-org/llama.cpp": 1,
+  "github.com/harfbuzz/harfbuzz": 1,
+  "github.com/nghttp2/nghttp2": 1,
+  "github.com/yhirose/cpp-httplib": 1,
+  "github.com/moonlight-stream/moonlight-common-c": 1,
+  "github.com/pcre2project/pcre2": 1,
+  "github.com/microsoft/vcpkg": 1
+ },
+ "per_project": [
+  {
+   "repo": "tensorflow/tensorflow",
+   "deps": 353,
+   "methods": {
+    "bazel http_archive": 252,
+    "bazel_dep": 79,
+    "cmake FetchContent_Declare": 8,
+    "cmake ExternalProject_Add": 5,
+    "vendored": 9
+   },
+   "with_limbo_upstream": [
+    "github.com/c-ares/c-ares",
+    "github.com/fmtlib/fmt",
+    "github.com/grpc/grpc",
+    "github.com/pnggroup/libpng",
+    "github.com/protocolbuffers/protobuf",
+    "github.com/vim/vim"
+   ]
+  },
+  {
+   "repo": "ggml-org/llama.cpp",
+   "deps": 10,
+   "methods": {
+    "cmake ExternalProject_Add": 5,
+    "cmake FetchContent_Declare": 4,
+    "vendored": 1
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "react/react-native",
+   "deps": 1,
+   "methods": {
+    "cmake ExternalProject_Add": 1
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "electron/electron",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "godotengine/godot",
+   "deps": 66,
+   "methods": {
+    "vendored": 66
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "microsoft/terminal",
+   "deps": 6,
+   "methods": {
+    "vcpkg.json": 6
+   },
+   "with_limbo_upstream": [
+    "github.com/fmtlib/fmt"
+   ]
+  },
+  {
+   "repo": "opencv/opencv",
+   "deps": 18,
+   "methods": {
+    "vendored": 18
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "bitcoin/bitcoin",
+   "deps": 2,
+   "methods": {
+    "vcpkg.json": 1,
+    "vendored": 1
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "tesseract-ocr/tesseract",
+   "deps": 2,
+   "methods": {
+    "submodule": 2
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "nomic-ai/gpt4all",
+   "deps": 13,
+   "methods": {
+    "submodule": 8,
+    "cmake FetchContent_Declare": 5
+   },
+   "with_limbo_upstream": [
+    "github.com/fmtlib/fmt"
+   ]
+  },
+  {
+   "repo": "ocornut/imgui",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "protocolbuffers/protobuf",
+   "deps": 67,
+   "methods": {
+    "bazel http_archive": 27,
+    "bazel_dep": 35,
+    "cmake FetchContent_Declare": 3,
+    "cmake ExternalProject_Add": 1,
+    "vendored": 1
+   },
+   "with_limbo_upstream": [
+    "github.com/protocolbuffers/protobuf"
+   ]
+  },
+  {
+   "repo": "werwolv/imhex",
+   "deps": 28,
+   "methods": {
+    "submodule": 14,
+    "vcpkg.json": 10,
+    "vendored": 4
+   },
+   "with_limbo_upstream": [
+    "github.com/capstone-engine/capstone",
+    "github.com/fmtlib/fmt",
+    "github.com/tukaani-project/xz"
+   ]
+  },
+  {
+   "repo": "ggml-org/whisper.cpp",
+   "deps": 10,
+   "methods": {
+    "cmake FetchContent_Declare": 6,
+    "cmake ExternalProject_Add": 4
+   },
+   "with_limbo_upstream": [
+    "github.com/ggml-org/llama.cpp"
+   ]
+  },
+  {
+   "repo": "boykopovar/anyps5",
+   "deps": 38,
+   "methods": {
+    "submodule": 34,
+    "cmake ExternalProject_Add": 3,
+    "vendored": 1
+   },
+   "with_limbo_upstream": [
+    "github.com/harfbuzz/harfbuzz",
+    "github.com/nghttp2/nghttp2"
+   ]
+  },
+  {
+   "repo": "nlohmann/json",
+   "deps": 11,
+   "methods": {
+    "bazel_dep": 3,
+    "cmake ExternalProject_Add": 1,
+    "cmake FetchContent_Declare": 6,
+    "cmake CPM": 1
+   },
+   "with_limbo_upstream": [
+    "github.com/fmtlib/fmt"
+   ]
+  },
+  {
+   "repo": "clickhouse/clickhouse",
+   "deps": 171,
+   "methods": {
+    "submodule": 159,
+    "cmake ExternalProject_Add": 2,
+    "vendored": 10
+   },
+   "with_limbo_upstream": [
+    "github.com/c-ares/c-ares",
+    "github.com/protocolbuffers/protobuf",
+    "github.com/tukaani-project/xz"
+   ]
+  },
+  {
+   "repo": "x64dbg/x64dbg",
+   "deps": 12,
+   "methods": {
+    "submodule": 4,
+    "cmake FetchContent_Declare": 8
+   },
+   "with_limbo_upstream": [
+    "github.com/yhirose/cpp-httplib"
+   ]
+  },
+  {
+   "repo": "zhongyang219/trafficmonitor",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "zen-browser/desktop",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "grpc/grpc",
+   "deps": 117,
+   "methods": {
+    "submodule": 20,
+    "bazel http_archive": 41,
+    "bazel_dep": 42,
+    "cmake FetchContent_Declare": 1,
+    "cmake ExternalProject_Add": 10,
+    "vendored": 3
+   },
+   "with_limbo_upstream": [
+    "github.com/c-ares/c-ares",
+    "github.com/grpc/grpc",
+    "github.com/open-telemetry/opentelemetry-cpp",
+    "github.com/protocolbuffers/protobuf"
+   ]
+  },
+  {
+   "repo": "light-city/cplusplusthings",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "aria2/aria2",
+   "deps": 1,
+   "methods": {
+    "vendored": 1
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "sunshinestream/sunshine",
+   "deps": 28,
+   "methods": {
+    "submodule": 16,
+    "cmake FetchContent_Declare": 3,
+    "cmake ExternalProject_Add": 2,
+    "cmake CPM": 7
+   },
+   "with_limbo_upstream": [
+    "github.com/moonlight-stream/moonlight-common-c"
+   ]
+  },
+  {
+   "repo": "niko1221/strata",
+   "deps": 8,
+   "methods": {
+    "cmake FetchContent_Declare": 1,
+    "vendored": 7
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "torvalds/linux",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "genymobile/scrcpy",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "microsoft/powertoys",
+   "deps": 5,
+   "methods": {
+    "vcpkg.json": 4,
+    "vendored": 1
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "ventoy/ventoy",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "obsproject/obs-studio",
+   "deps": 7,
+   "methods": {
+    "submodule": 3,
+    "vendored": 4
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "redis/redis",
+   "deps": 7,
+   "methods": {
+    "vendored": 7
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "ffmpeg/ffmpeg",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "git/git",
+   "deps": 7,
+   "methods": {
+    "submodule": 1,
+    "meson wrap": 5,
+    "vendored": 1
+   },
+   "with_limbo_upstream": [
+    "github.com/pcre2project/pcre2"
+   ]
+  },
+  {
+   "repo": "tmux/tmux",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "justvugg/colibri",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "deusdata/codebase-memory-mcp",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "curl/curl",
+   "deps": 2,
+   "methods": {
+    "cmake FetchContent_Declare": 1,
+    "cmake ExternalProject_Add": 1
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "php/php-src",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "wg/wrk",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "pbatard/rufus",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "mpv-player/mpv",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "jqlang/jq",
+   "deps": 1,
+   "methods": {
+    "submodule": 1
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "raysan5/raylib",
+   "deps": 2,
+   "methods": {
+    "cmake FetchContent_Declare": 1,
+    "vendored": 1
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "nothings/stb",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "valinet/explorerpatcher",
+   "deps": 6,
+   "methods": {
+    "submodule": 6
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "bilibili/ijkplayer",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "kingtoolbox/windterm",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "nginx/nginx",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "lizongying/my-tv",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "coolsnowwolf/lede",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "wangzongming/esp-ai",
+   "deps": 10,
+   "methods": {
+    "vendored": 10
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "janmojzis/tinyssh",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "droninflight/dronin",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "tttapa/control-surface",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "vanhauser-thc/thc-ipv6",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "morrownr/8821cu-20210916",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "unetworking/usockets",
+   "deps": 2,
+   "methods": {
+    "submodule": 2
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "trepan-debuggers/remake",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "lean-dojo/leancopilot",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "plctlab/riscv-operating-system-mooc",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "moononournation/arduino_gfx",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "coop-deluxe/sm64coopdx",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "amule-project/amule",
+   "deps": 1,
+   "methods": {
+    "cmake FetchContent_Declare": 1
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "wisk/medusa",
+   "deps": 1,
+   "methods": {
+    "submodule": 1
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "sirius-db/sirius",
+   "deps": 107,
+   "methods": {
+    "submodule": 10,
+    "cmake ExternalProject_Add": 1,
+    "cmake FetchContent_Declare": 3,
+    "vcpkg.json": 93
+   },
+   "with_limbo_upstream": [
+    "github.com/duckdb/duckdb",
+    "github.com/fmtlib/fmt",
+    "github.com/microsoft/vcpkg"
+   ]
+  },
+  {
+   "repo": "urob/zmk-config",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "bruderstein/npppluginmanager",
+   "deps": 2,
+   "methods": {
+    "submodule": 2
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "xilinx-cns/onload",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "acoustid/chromaprint",
+   "deps": 11,
+   "methods": {
+    "bazel http_archive": 5,
+    "bazel_dep": 4,
+    "vendored": 2
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "brutal-org/brutal",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "fenrus75/powertop",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "lukesmithxyz/dwm",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "mithril-mine/libmdbx",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "hku-mars/fast-calib",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "rusefi/rusefi",
+   "deps": 17,
+   "methods": {
+    "submodule": 17
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "khronosgroup/opengl-registry",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "osgeo/grass",
+   "deps": 2,
+   "methods": {
+    "vendored": 2
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "avrdudes/avrdude",
+   "deps": 4,
+   "methods": {
+    "cmake FetchContent_Declare": 4
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "metartc/metartc",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "dimitri/pgcopydb",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "rockchip-linux/kernel",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "armel/uv-k1-k5v3-firmware-custom",
+   "deps": 2,
+   "methods": {
+    "vendored": 2
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "openvsp/openvsp",
+   "deps": 41,
+   "methods": {
+    "cmake ExternalProject_Add": 22,
+    "cmake FetchContent_Declare": 18,
+    "vendored": 1
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "cmangos/mangos-classic",
+   "deps": 2,
+   "methods": {
+    "cmake FetchContent_Declare": 2
+   },
+   "with_limbo_upstream": []
+  },
+  {
+   "repo": "vanhoefm/airsnitch",
+   "deps": 0,
+   "methods": {},
+   "with_limbo_upstream": []
+  }
+ ]
+}

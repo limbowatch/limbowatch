@@ -1,0 +1,160 @@
+{
+ "feed_records": 24561,
+ "package_less": {
+  "records": 14785,
+  "repos": 1858
+ },
+ "package_less_in_an_index": {
+  "records": 1472,
+  "repos": 95,
+  "repos_by_index": {
+   "conan": 58,
+   "bcr": 40,
+   "vcpkg": 78
+  }
+ },
+ "with_package_in_an_index": {
+  "records": 89,
+  "repos": 19
+ },
+ "index_repos_github": 3620,
+ "advisories_by_fix_lookup": {
+  "every fix found": 1207,
+  "some fixes found": 102,
+  "no fix found": 83,
+  "no patched version": 68,
+  "repo has no tags": 12
+ },
+ "fix_versions_by_lookup": {
+  "exact": 1663,
+  "missing": 187,
+  "by numbers": 281,
+  "by numbers, several tags": 3
+ },
+ "library_repos_by_lookup": {
+  "some advisory mapped": 82,
+  "none mapped": 12
+ },
+ "top_library_repos": [
+  [
+   "freerdp/freerdp",
+   338
+  ],
+  [
+   "imagemagick/imagemagick",
+   116
+  ],
+  [
+   "strukturag/libheif",
+   90
+  ],
+  [
+   "vim/vim",
+   82
+  ],
+  [
+   "academysoftwarefoundation/openexr",
+   73
+  ],
+  [
+   "bacnet-stack/bacnet-stack",
+   60
+  ],
+  [
+   "eprosima/fast-dds",
+   36
+  ],
+  [
+   "git/git",
+   32
+  ],
+  [
+   "exiv2/exiv2",
+   32
+  ],
+  [
+   "cesnet/libyang",
+   31
+  ],
+  [
+   "pupnp/pupnp",
+   29
+  ],
+  [
+   "samtools/htslib",
+   24
+  ],
+  [
+   "academysoftwarefoundation/openimageio",
+   24
+  ],
+  [
+   "yhirose/cpp-httplib",
+   23
+  ],
+  [
+   "c-ares/c-ares",
+   21
+  ],
+  [
+   "tesseract-ocr/tesseract",
+   20
+  ],
+  [
+   "cesanta/mongoose",
+   20
+  ],
+  [
+   "systemd/systemd",
+   17
+  ],
+  [
+   "randombit/botan",
+   17
+  ],
+  [
+   "thorvg/thorvg",
+   17
+  ],
+  [
+   "valkey-io/valkey",
+   13
+  ],
+  [
+   "libevent/libevent",
+   13
+  ],
+  [
+   "gphoto/libgphoto2",
+   13
+  ],
+  [
+   "ggml-org/llama.cpp",
+   13
+  ],
+  [
+   "pnggroup/libpng",
+   13
+  ],
+  [
+   "libvips/libvips",
+   12
+  ],
+  [
+   "zlmediakit/zlmediakit",
+   12
+  ],
+  [
+   "libgit2/libgit2",
+   11
+  ],
+  [
+   "mz-automation/libiec61850",
+   11
+  ],
+  [
+   "strukturag/libde265",
+   11
+  ]
+ ]
+}

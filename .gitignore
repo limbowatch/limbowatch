@@ -27,3 +27,6 @@ tracker/site/
 
 # Site build output (written by CI before docker build)
 deploy/site/public/
+
+# Gradle caches (an IDE may import the Gradle test fixtures)
+.gradle/

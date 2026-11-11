@@ -107,7 +107,7 @@ Open:
 - Q17. How many Go modules on vanity paths (k8s.io, golang.org/x, go.opentelemetry.io) can be mapped to a GitHub repo without deps.dev? 320 Kubernetes dependencies stay checked by name only ([F-085](#f-085)). blindspot keeps a verified list (`docs/go-vanity-coverage.md`, [F-072](#f-072)).
 - Q18. Should the tracker's seeds include the upstreams of popular GitLab-hosted projects' Ruby dependencies, so the watcher doesn't need to poll them? ([F-085](#f-085); Phase 5.) *Partly answered 2026-11-10: the repos of the top 10,000 gems are now watched ([F-121](#f-121)); how much of GitLab's 356 polls that removes wasn't measured.*
 - Q25. Which Maven builds does the resolver get wrong beyond JDK-activated profiles and unreleased siblings: `<repositories>`, private registries, plugin-managed dependencies? Four projects were checked ([F-132](#f-132)).
-- Q26. For limbo advisories without a package, how often does the patched version map to a tag in the upstream repo (`v1.2.3`, `1.2.3`, `name-1.2.3`, `release-1_2_3`), so that a pinned commit can be compared with the fix? And how many of the 1,858 repos are libraries other projects consume? ([F-135](#f-135); Phase 6.)
+- ~~Q26. For limbo advisories without a package, how often does the patched version map to a tag upstream, and how many of the 1,858 repos are libraries?~~ **Answered 2026-11-11: 95 repos (1,472 records) are libraries in vcpkg, BCR or conan-center; every patched version maps to a tag for 82% of their advisories ([F-136](#f-136)).**
 - Q22. Does GitHub's "more than 5,000 repository advisories a week" count the same thing as the tracker (published, any ecosystem)? It sets the coverage estimate ([F-035](#f-035), [F-098](#f-098)).
 
 Answered:
@@ -1954,6 +1954,41 @@ Answered:
   - Matching those needs the dependency's upstream repo plus a version or commit, and the advisory's versions mapped to the upstream's tags (Q26).
   - The inventory should stop calling a C/C++ project "no supported lockfile": it should say which dependency files it found and couldn't read.
 - **Sources:** the probes above (raw output in the session scratchpad); OSV-Scanner v2.7.0 docs; GitHub API reads of the files named in Method.
+
+### F-136
+- **Date:** 2026-11-11 · **Status:** confirmed (measured; the project survey is a sample of 85)
+- **Question:** Phase 6, step 0: which limbo advisories without a package are about libraries, do their patched versions exist as upstream tags (Q26), how do C/C++ projects take in dependencies, and how can a pinned commit be checked against a fix?
+- **Method:** `research/2026-11-upstream-watch/` (README there):
+  - `indexes.py`: upstream repo of every vcpkg port (`vcpkg_from_github`/`_gitlab`/`_git`, download URLs), Bazel Central Registry module (`metadata.json` `repository`, else `source.json` URL) and conan-center recipe (`conandata.yml` source URLs), from sparse shallow clones made 2026-11-10/11 (vcpkg e54ef0f, BCR 27778ec9, conan-center-index 355759d).
+  - `libraries.py`: the feed of 2026-11-10 (24,561 records) and `state/advisories.jsonl` (tracker-data); tags of each library repo by `git ls-remote --tags`; each patched version looked up as `X`/`vX`, then by the numbers in the tag.
+  - `survey.py`: 85 projects (25 most-starred C++ and 25 most-starred C repos on GitHub search, 35 drawn with seed 20261110 from repos with 200-2,000 stars pushed in 2026), cloned shallow and blob-less with a sparse checkout of dependency files only.
+  - Probes: `git clone --bare --filter=tree:0` of 7 upstreams; `git merge-base --is-ancestor`; `GET /repos/madler/zlib/compare/{base}...{head}`; OSV `POST /v1/query` and `/v1/querybatch` with `{"commit": …}`.
+- **Result:**
+  - **Indexes:** 2,437 of 2,917 vcpkg ports, 1,284 of 1,400 BCR modules and 1,641 of 1,977 conan-center recipes name an upstream forge repo; 3,661 repos in all, 3,620 on GitHub. The rest are vcpkg helper and meta-ports, other hosts, or recipes downloading from project sites.
+  - **Libraries among the package-less records:** 1,472 of 14,785 (10%), from 95 repos (vcpkg 78, conan 58, BCR 40): FreeRDP 338, ImageMagick 116, libheif 90, vim 82, OpenEXR 73, bacnet-stack 60, Fast DDS 36, git 32, Exiv2 32, libyang 31. Another 89 limbo records with a package come from 19 index repos.
+  - **Fixes as tags (Q26):** every patched version found for 1,207 of the 1,472 advisories (82%), some for 102, none for 83; 68 give no patched version and 12 are in repos without tags. Per patched version: 1,663 exact, 281 by numbers (`bacnet-stack-1.6.0`, `release-22.1.8`, `v26.03`; checked by hand on a sample of 14), 3 ambiguous, 187 missing. Misses seen: ImageMagick 6 versions (released from ImageMagick/ImageMagick6), `0.27.5 RC1` vs tag `v0.27.5-RC1`, commit hashes given as the patched version.
+  - **Projects (85):** 41 declare dependencies in a form the survey reads, 1,201 dependencies in all:
+    - git submodules: 17 projects, 300 dependencies, 296 with repo and commit (from the tree; the submodules weren't fetched);
+    - Bazel: `MODULE.bazel` 5 projects, 163 (158 resolved through BCR to repo and version); `http_archive` and wrappers such as `tf_http_archive` 4 projects, 325 (182 with repo and tag or commit);
+    - CMake: FetchContent 17 projects, 75 (35 with repo and ref); ExternalProject 13 projects, 58 (5; URLs are mostly variables);
+    - `vcpkg.json`: 5 projects, 114 (41 through a registry port; the rest are helper ports or the project's own overlay ports); the version needs the builtin baseline;
+    - vendored copies (a license file under `third_party/`, `3rdparty/`, `vendor/`, …): 22 projects, 153, version unknown;
+    - CPM and meson wraps: 3 projects, 13.
+    - Upstream and version or commit known: 718 of 1,201 (60%).
+    - 14 of the 85 projects (16%) depend on an upstream with records in the limbo feed (protobuf, fmt, gRPC, c-ares, xz, libpng, harfbuzz, nghttp2, PCRE2, cpp-httplib, capstone, …).
+  - **Commit vs fix:** commits-only bare clones took 0.6-2.6 s and 0.4 MB (zlib, 1,212 commits) to 22 MB (gRPC, 66,927 commits); `merge-base --is-ancestor` gives v1.2.11 ⊂ v1.3.1 and not the reverse. The compare API agrees (`v1.3.1...v1.2.11` behind 216; reversed ahead 216; same tag identical) at one request per pair. Tags must be peeled (`refs/tags/X^{}`): zlib's are annotated, and the tag object's SHA gives 404 from the compare API and nothing from OSV.
+  - **OSV by commit:** zlib v1.2.11 → 6 CVEs (CVE-2018-25032, CVE-2022-37434, CVE-2023-45853, three of 2026), v1.3.1 → 4; c-ares v1.19.0 → 6. `querybatch` returns the same IDs.
+- **Caveats:**
+  - Index membership is a lower bound for "library": a repo consumed only by submodule or copy isn't counted.
+  - "Depends on an upstream with limbo records" doesn't mean the pinned version is affected; it includes projects pinning themselves (protobuf, gRPC).
+  - The survey's parsers are regex-based; ExternalProject URLs built from variables, project-local vcpkg overlays and vendored code without a license file in the expected place are missed or unmapped.
+  - Popularity-sampled projects; enterprise C/C++ (Conan-heavy, private registries) is under-represented: no project in the sample uses Conan.
+- **Implication:**
+  - Step 1 detectors, by yield: submodules (exact repo and commit), Bazel (`MODULE.bazel` through BCR, and `http_archive` URLs including wrappers), CMake FetchContent, then vcpkg (needs the baseline), Conan (absent from the sample; keep last), vendored (report only).
+  - Step 2: check commits with a commits-only clone of the upstream and `merge-base --is-ancestor`, not the compare API: no quota, any git host, exact. Patched versions that are commit hashes are used directly. Peel tags.
+  - Step 3: one OSV `querybatch` per project covers its commits.
+  - Step 4: 82% of the library advisories can get OSV `GIT` ranges from `ls-remote` alone; the rest keep their versions as entered.
+- **Sources:** the scripts and `libraries.json`, `survey.json` in `research/2026-11-upstream-watch/`; OSV API; GitHub REST API docs ("Compare two commits").
 
 ## Archive
 
