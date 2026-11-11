@@ -15,7 +15,7 @@ from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 
-from limbowatch.ecosystems import OSV_ECOSYSTEMS, info, package_name
+from limbowatch.ecosystems import OFFLINE_ECOSYSTEMS, info, package_name
 from limbowatch.models import Status
 from limbowatch.publish import ATTRIBUTION, Item
 from limbowatch.versions import osv_ranges
@@ -134,9 +134,9 @@ def _zip(recs: Iterable[dict[str, Any]]) -> bytes:
 def by_ecosystem(recs: list[dict[str, Any]]) -> dict[str, bytes]:
     """One `all.zip` per OSV ecosystem, as OSV serves them at `<Ecosystem>/all.zip` (F-073, F-074).
 
-    A record with packages in two ecosystems goes in both. Every name in OSV_ECOSYSTEMS gets a zip.
+    A record with packages in two ecosystems goes in both. Every name in OFFLINE_ECOSYSTEMS gets a zip.
     """
-    names = sorted({*OSV_ECOSYSTEMS, *(a["package"]["ecosystem"] for r in recs for a in r["affected"])})
+    names = sorted({*OFFLINE_ECOSYSTEMS, *(a["package"]["ecosystem"] for r in recs for a in r["affected"])})
     return {e: _zip(r for r in recs if any(a["package"]["ecosystem"] == e for a in r["affected"])) for e in names}
 
 

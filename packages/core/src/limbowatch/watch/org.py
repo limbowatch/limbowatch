@@ -131,8 +131,9 @@ async def run(
     for _, inv in taken:
         for d in inv.dependencies if inv else ():
             deps.setdefault((d.ecosystem, d.name, d.version), d)
+    ups = list(dict.fromkeys(u for _, inv in taken if inv for u in inv.upstreams))
     sh: Shared = await prepare(list(deps.values()), http, feed_zip=feed_zip, watchlist=watchlist, now=now,
-                               upstream_check=upstream_check)  # fmt: skip
+                               upstream_check=upstream_check, upstreams=ups)  # fmt: skip
     for checked, inv in taken:
         if inv is not None:
             checked.result = assess(inv, sh)

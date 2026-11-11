@@ -33,13 +33,13 @@ def test_feed_by_ecosystem_matches_osv_download_layout() -> None:
     import io
     import zipfile
 
-    from limbowatch.publish.feed import OSV_ECOSYSTEMS, bundle, by_ecosystem, crc32c, goog_hash
+    from limbowatch.publish.feed import OFFLINE_ECOSYSTEMS, bundle, by_ecosystem, crc32c, goog_hash
 
     def rec(i: str, *ecos: str) -> dict[str, object]:
         return {"id": i, "affected": [{"package": {"ecosystem": e, "name": "x"}} for e in ecos]}
 
     zips = by_ecosystem([rec("GHSA-a", "PyPI"), rec("GHSA-b", "npm", "PyPI"), rec("GHSA-c", "Bitbucket")])
-    assert set(OSV_ECOSYSTEMS) | {"Bitbucket"} == set(zips)
+    assert set(OFFLINE_ECOSYSTEMS) | {"Bitbucket"} == set(zips)
     assert sorted(zipfile.ZipFile(io.BytesIO(zips["PyPI"])).namelist()) == ["GHSA-a.json", "GHSA-b.json"]
     assert zipfile.ZipFile(io.BytesIO(zips["npm"])).namelist() == ["GHSA-b.json"]
     assert zipfile.ZipFile(io.BytesIO(zips["Debian"])).namelist() == []

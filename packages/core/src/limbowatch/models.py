@@ -126,6 +126,11 @@ class Unchecked(StrEnum):
     NO_GRADLE_LOCKFILE = "Gradle build without a lockfile"
     NO_PURL = "SBOM component without a package URL"
     # Partly checked: matched against the limbo feed by name, but not against its source repo.
+    # Upstream source dependencies (C/C++ and other code taken in by git or archive, PHASE0_PLAN §13.18, F-136).
+    UPSTREAM_UNKNOWN = "upstream repository unknown"
+    UPSTREAM_NO_REF = "upstream version or commit unknown"
+    VENDORED = "vendored copy; its version is unknown"
+    UPSTREAM_NOT_CHECKED = "upstream source dependency; not yet checked against advisories"
     NO_REPO = "source repository unknown; checked against the limbo feed by name only"
     REPO_NOT_POLLED = "source repository not checked (GitHub rate limit); checked against the limbo feed by name only"
 
@@ -152,8 +157,46 @@ class UnresolvedDependency(Frozen):
     line: int = 1
 
 
+class UpstreamKind(StrEnum):
+    """How a project takes in another project's source (PHASE0_PLAN §6 Tier 3; FINDINGS F-136)."""
+
+    SUBMODULE = "git submodule"
+    FETCHCONTENT = "CMake FetchContent"
+    EXTERNALPROJECT = "CMake ExternalProject"
+    CPM = "CMake CPM"
+    BAZEL_MODULE = "Bazel module"
+    BAZEL_ARCHIVE = "Bazel http_archive"
+    BAZEL_GIT = "Bazel git_repository"
+    VCPKG = "vcpkg port"
+    CONAN = "Conan package"
+    MESON_WRAP = "meson wrap"
+
+
+class Upstream(Frozen):
+    """Another project's source, taken in by git or archive rather than from a package registry.
+
+    `repo` and `ref` say what the project builds from: a commit, or a tag; `version` is a declared package version
+    (Bazel module, vcpkg port, Conan package) that a registry maps to a repo and tag. Whatever couldn't be found is
+    None, with the reason in `detail`."""
+
+    kind: UpstreamKind
+    name: str  # as declared: the submodule path, the FetchContent/module/port/package name
+    source: str  # the file that declares it, relative to the project root
+    line: int = 1
+    url: str | None = None  # the git or archive URL as declared, variables substituted
+    host: str | None = None  # e.g. github.com
+    repo: str | None = None  # path on the host, e.g. madler/zlib (lower-case on github.com)
+    ref: str | None = None  # a commit or a tag
+    ref_is_commit: bool = False
+    version: str | None = None  # an exact version, or a minimum (">=1.2", vcpkg's "version>=")
+    baseline: str | None = None  # vcpkg: the commit of microsoft/vcpkg whose port versions apply
+    via: str = ""  # how repo and ref were found, when not from the declaration itself
+    detail: str = ""  # what's missing, and why
+
+
 class Inventory(Frozen):
     dependencies: tuple[Dependency, ...] = ()
+    upstreams: tuple[Upstream, ...] = ()  # source taken in by git or archive (submodules, CMake, Bazel, vcpkg, ...)
     unresolved: tuple[UnresolvedDependency, ...] = ()
     sources: tuple[str, ...] = ()  # files read
     tool: str = ""  # e.g. "osv-scanner 2.7.0" or "cyclonedx"

@@ -7,15 +7,17 @@ Nothing about the project is sent to limbo.watch: the feed and watchlist are dow
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 
 from limbowatch.http import HttpClient
-from limbowatch.models import Dependency, Finding, Inventory, Unchecked, UnresolvedDependency
+from limbowatch.models import Dependency, Finding, Inventory, Unchecked, UnresolvedDependency, Upstream
 from limbowatch.watch import mapping, upstream
 from limbowatch.watch.candidates import Index, from_feed_zip
 from limbowatch.watch.match import match
+from limbowatch.watch.registries import Registries
 
 FEED_URL = "https://limbo.watch/feed/all.zip"
 WATCHLIST_URL = "https://limbo.watch/feed/watchlist.json"
@@ -29,6 +31,7 @@ class ScanResult:
     inventory: Inventory
     findings: list[Finding] = field(default_factory=list)
     unresolved: list[UnresolvedDependency] = field(default_factory=list)  # the inventory's, plus partly checked
+    upstreams: list[Upstream] = field(default_factory=list)  # with registry names resolved to repos and tags
     stats: dict[str, int] = field(default_factory=dict)
 
 
@@ -64,6 +67,8 @@ class Shared:
     polled: set[str] = field(default_factory=set)
     not_polled: set[str] = field(default_factory=set)
     upstream_check: bool = True
+    # each upstream source (submodule, CMake, Bazel, vcpkg, ...) → itself resolved, then what it pulls in
+    upstreams: dict[Upstream, list[Upstream]] = field(default_factory=dict)
 
 
 async def prepare(
@@ -74,12 +79,14 @@ async def prepare(
     watchlist: dict[str, str],
     now: datetime,
     upstream_check: bool = True,
+    upstreams: Sequence[Upstream] = (),
 ) -> Shared:
     index = Index()
     for c in from_feed_zip(feed_zip):
         index.add(c)
     sh = Shared(index, upstream_check=upstream_check)
     if upstream_check:
+        sh.upstreams = await Registries(http).resolve(upstreams)
         sh.mapped = await mapping.map_all(http, deps)
         repos = {m.repo for m in sh.mapped.values() if m.repo}
         due = {r for r in repos if not _fresh(watchlist.get(r), now)}
@@ -121,8 +128,34 @@ def assess(inv: Inventory, sh: Shared) -> ScanResult:
         n_pkgs = len(per_repo.get(repo, ())) if repo else 1
         res.findings += match(d, index, repo, go if d.ecosystem == "go" else None, n_pkgs)
     res.findings.sort(key=lambda f: (f.dependency.source, f.dependency.line, f.dependency.name, f.ghsa_id))
-    res.stats |= {"dependencies": len(deps), "feed_advisories": len(index.ids), "findings": len(res.findings)}
+    seen: set[tuple[str, str, str | None, str | None]] = set()
+    for u in inv.upstreams:
+        for r in sh.upstreams.get(u, [u]):
+            k = (r.kind.value, r.name, r.repo, r.ref or r.version)
+            if k not in seen:
+                seen.add(k)
+                res.upstreams.append(r)
+                res.unresolved.append(upstream_unchecked(r))
+    res.stats |= {"dependencies": len(deps), "feed_advisories": len(index.ids), "findings": len(res.findings),
+                  "upstreams": len(res.upstreams)}  # fmt: skip
     return res
+
+
+def upstream_unchecked(u: Upstream) -> UnresolvedDependency:
+    """How far an upstream source got: its repo unknown, its version unknown, or known and not yet checked."""
+    where = f"{u.host}/{u.repo}" if u.repo else ""
+    pin = u.ref or (f"version {u.version}" if u.version else "")
+    known = f"{where} at {pin}" if where and pin else where
+    if u.repo is None:
+        reason, detail = Unchecked.UPSTREAM_UNKNOWN, u.detail
+    elif not u.ref:
+        reason, detail = Unchecked.UPSTREAM_NO_REF, "; ".join(x for x in (known, u.detail) if x)
+    else:
+        reason, detail = Unchecked.UPSTREAM_NOT_CHECKED, known
+    if u.via:
+        detail = f"{detail} ({u.via})" if detail else u.via
+    return UnresolvedDependency(reason=reason, source=u.source, name=u.name, version=u.ref or u.version or "",
+                                ecosystem=u.kind.value, detail=detail, line=u.line)  # fmt: skip
 
 
 async def scan(
@@ -135,7 +168,7 @@ async def scan(
     upstream_check: bool = True,
 ) -> ScanResult:
     sh = await prepare(list(inv.dependencies), http, feed_zip=feed_zip, watchlist=watchlist, now=now,
-                       upstream_check=upstream_check)  # fmt: skip
+                       upstream_check=upstream_check, upstreams=inv.upstreams)  # fmt: skip
     return assess(inv, sh)
 
 

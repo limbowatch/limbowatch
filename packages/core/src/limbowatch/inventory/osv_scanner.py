@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from limbowatch.ecosystems import OSV_ECOSYSTEMS, by_osv
+from limbowatch.ecosystems import OFFLINE_ECOSYSTEMS, by_osv
 from limbowatch.inventory import checks
 from limbowatch.models import Dependency, Inventory, Unchecked, UnresolvedDependency
 
@@ -103,7 +103,7 @@ class Resolution:
 
 def empty_db(root: Path) -> Path:
     """`<root>/osv-scalibr/<Ecosystem>/all.zip`, empty, for every OSV ecosystem (F-074)."""
-    for eco in OSV_ECOSYSTEMS:
+    for eco in OFFLINE_ECOSYSTEMS:
         d = root / "osv-scalibr" / eco
         d.mkdir(parents=True, exist_ok=True)
         zipfile.ZipFile(d / "all.zip", "w").close()

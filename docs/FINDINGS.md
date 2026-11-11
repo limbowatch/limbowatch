@@ -1990,6 +1990,34 @@ Answered:
   - Step 4: 82% of the library advisories can get OSV `GIT` ranges from `ls-remote` alone; the rest keep their versions as entered.
 - **Sources:** the scripts and `libraries.json`, `survey.json` in `research/2026-11-upstream-watch/`; OSV API; GitHub REST API docs ("Compare two commits").
 
+### F-137
+- **Date:** 2026-11-11 · **Status:** confirmed (measured on 85 projects; registry APIs probed live)
+- **Question:** Phase 6, step 1: on real projects, how many upstream sources do the watcher's detectors find, and how many end with a repo and a tag or commit once registry names are looked up? What do the registries need?
+- **Method:**
+  - `research/2026-11-upstream-watch/detectors.py`: `limbowatch.inventory.upstream.detect` on the 85 clones of F-136, then `limbowatch.watch.registries.Registries.resolve` (live, 2026-11-11); upstreams counted once per project.
+  - Probes: `https://bcr.bazel.build/modules/zlib/metadata.json` and `.../1.3.1.bcr.3/source.json`; `https://raw.githubusercontent.com/microsoft/vcpkg/e54ef0f…/versions/baseline.json` and `ports/*/portfile.cmake`; `https://raw.githubusercontent.com/conan-io/conan-center-index/master/recipes/zlib/{config.yml,all/conandata.yml}`; `https://center2.conan.io/v2/conans/zlib/1.3.1/_/_/latest` and `.../revisions/{rev}/files[/conan_export.tgz]`; OSV-Scanner 2.7.0 offline on a directory holding only a `conan.lock`.
+- **Result:**
+  - **Upstream sources:** 857 in 33 of the 85 projects; **763 (89%) end with a repo and a tag or commit** (411 commits, 352 tags), 7 with a repo and a version only, 14 with a repo only, 73 with no repo. 164 vendored copies are reported.
+    - git submodules 300 of 303 (commits from the index; the clones' submodules weren't fetched);
+    - Bazel modules 132 of 135 (through BCR's `source.json`), `http_archive` and wrappers 213 of 247;
+    - CMake FetchContent 45 of 54, ExternalProject 8 of 30 (19 are archives inside the tree), CPM 2 of 7;
+    - vcpkg ports 60 of 76, after reading the project's own (overlay) ports from their portfiles: without that, 35 of 76, because an overlay port's `vcpkg.json` (sirius-db: 11 of them) has no baseline of its own;
+    - meson wraps 3 of 5.
+  - **No repo:** downloads from project sites (curl.se, zlib.net, sqlite.org, ftp.gnu.org through a TensorFlow mirror, sourceforge), archives inside the tree, and URLs built from variables the project doesn't set.
+  - **Registry cost:** 119 requests to bcr.bazel.build and 108 to raw.githubusercontent.com for all 85 projects; nothing to GitHub's API.
+  - **BCR:** a module version's `source.json` names its archive, e.g. zlib 1.3.1.bcr.3 → `github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz` (tag v1.3.1); `metadata.json` lists `repository: ["github:madler/zlib"]`.
+  - **vcpkg:** the baseline file (229 KB) gives each port's version; a portfile's `vcpkg_from_github(REPO … REF …)` gives the repo and tag template (`v${VERSION}`, `"${VERSION}"`). curl's REF is computed (`string(REPLACE "." "_" curl_version "curl-${VERSION}")`), so only its version is known.
+  - **Conan:** conan-center-index on GitHub keeps only current versions (zlib: only 1.4 on 2026-11-11, so 1.3.1 isn't there). The ConanCenter remote serves every version: `…/latest` gives the recipe revision, and `…/revisions/{rev}/files/conan_export.tgz` (447 bytes for zlib 1.3.1) holds `conandata.yml` with the source URLs (zlib 1.3.1 → madler/zlib v1.3.1; openssl 3.2.1 → openssl/openssl `openssl-3.2.1`). `conandata.yml` isn't served on its own (404).
+  - **OSV-Scanner offline fails on any `conan.lock`:** "unable to fetch OSV database: no offline version of the OSV database is available", and the whole inventory is lost. Its packages are ecosystem `ConanCenter`, which isn't in OSV's ecosystem list, so our empty databases had no zip for it. With an empty `ConanCenter/all.zip` the lock is read (2 packages). This affected every release since 0.1.0a1, and OSV-Scanner users of the feed's zips.
+- **Caveats:**
+  - Survey projects only; vcpkg and Conan are thin in the sample (3 vcpkg projects, 0 Conan); the Conan path was checked on a test lock.
+  - A vcpkg override or `version>=` above the baseline uses the baseline's portfile with the new version substituted; when the REF isn't a `${VERSION}` template, the tag is left unknown.
+  - ConanCenter's latest recipe revision is read, not the one in the lock; source URLs rarely change between revisions.
+- **Implication:**
+  - Step 2 can compare 89% of upstream sources directly; for "repo and version" (curl's computed tag, 7 here) it needs the tag looked up by version, as in F-136.
+  - Fixed in the watcher's empty databases and the feed: `OFFLINE_ECOSYSTEMS` = OSV's list plus ConanCenter.
+- **Sources:** `research/2026-11-upstream-watch/detectors.py` and `detectors.json`; the URLs above; recorded fixtures in `tests/fixtures/upstream/`.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

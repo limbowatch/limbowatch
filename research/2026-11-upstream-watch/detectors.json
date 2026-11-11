@@ -1,0 +1,62 @@
+{
+ "projects": {
+  "with upstream sources": 33,
+  "without": 52
+ },
+ "upstreams": {
+  "repo and tag": 352,
+  "repo and commit": 411,
+  "repo and version (no tag)": 7,
+  "repo unknown": 73,
+  "repo only": 14
+ },
+ "by_kind": {
+  "Bazel module": {
+   "repo and tag": 116,
+   "repo and commit": 16,
+   "repo and version (no tag)": 1,
+   "repo unknown": 2
+  },
+  "Bazel http_archive": {
+   "repo and tag": 149,
+   "repo and commit": 64,
+   "repo unknown": 30,
+   "repo only": 4
+  },
+  "CMake FetchContent": {
+   "repo and tag": 25,
+   "repo and commit": 20,
+   "repo unknown": 4,
+   "repo only": 5
+  },
+  "vcpkg port": {
+   "repo and tag": 55,
+   "repo unknown": 10,
+   "repo and commit": 5,
+   "repo and version (no tag)": 6
+  },
+  "git submodule": {
+   "repo and commit": 300,
+   "repo only": 3
+  },
+  "CMake ExternalProject": {
+   "repo unknown": 20,
+   "repo and commit": 6,
+   "repo only": 2,
+   "repo and tag": 2
+  },
+  "meson wrap": {
+   "repo and tag": 3,
+   "repo unknown": 2
+  },
+  "CMake CPM": {
+   "repo and tag": 2,
+   "repo unknown": 5
+  }
+ },
+ "vendored_copies": 164,
+ "registry_requests": {
+  "raw.githubusercontent.com": 108,
+  "bcr.bazel.build": 119
+ }
+}

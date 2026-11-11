@@ -20,6 +20,16 @@ It can keep one issue per finding up to date in GitLab or Gitea/Forgejo.
 
    **Maven has no lockfile.** Offline, a `pom.xml` gives only its direct dependencies, and only those with a literal version: 3 of the 171 that Maven resolves for spring-petclinic. So when the tree has a `pom.xml`, a second OSV-Scanner run, limited to `pom.xml` and its resolver, resolves the whole tree as Maven does (BOMs, parents, properties, mediation) through deps.dev and Maven Central. On two Spring Boot projects it matched `mvn dependency:list` exactly (FINDINGS F-132). `--no-resolve-maven` keeps the inventory offline; each `pom.xml` is then reported as not fully resolved. **Gradle** resolves at build time, so only a `gradle.lockfile` (or `gradle/verification-metadata.xml`) says what a build uses.
 
+   **C/C++ and other source taken in by git or archive** (*upstream sources*). OSV-Scanner, run offline, reads none of it (FINDINGS F-135), so Limbowatch reads it from the project's own files:
+   - **git submodules:** `.gitmodules`, each at the commit in the git index, so a submodule doesn't need to be checked out;
+   - **CMake:** `FetchContent_Declare`, `ExternalProject_Add` and CPM (`CPMAddPackage`), with variables from the project's own `set()` calls filled in;
+   - **Bazel:** `bazel_dep` in `MODULE.bazel` (and its overrides), and `http_archive` / `git_repository` in MODULE.bazel, WORKSPACE and `.bzl` files, including wrappers such as `tf_http_archive` and `maybe(http_archive, ...)`;
+   - **vcpkg:** `vcpkg.json` with its `builtin-baseline` (or `vcpkg-configuration.json`), overrides and the ports' own dependencies; ports the project defines itself are read from their portfile;
+   - **Conan:** `conan.lock`, else `conanfile.txt` / `conanfile.py`;
+   - **meson:** `subprojects/*.wrap`.
+
+   Each gives the upstream repo and the commit or tag it builds from. Registry names are looked up when scanning: a Bazel module's source archive in the Bazel Central Registry, a vcpkg port's version in the baseline and its repo and tag in the port's portfile, and a Conan package's source URL in its ConanCenter recipe. On 85 popular C/C++ projects, 763 of the 857 upstream sources found end with a repo and a tag or commit (FINDINGS F-137). Directories copied into `third_party/`, `3rdparty/`, `vendor/`, `external/` and the like, recognised by a license file, are reported as **vendored**: nothing says which version was copied. A C/C++ project that declares no dependency this way (libraries from the system, through `find_package` or pkg-config) is reported as such; an SBOM (`--sbom`) covers it. *Upstream sources are listed but not yet matched against advisories; that comes next (PHASE0_PLAN §13.18).*
+
    Nothing is dropped.
 2. **Matching.** Each dependency is matched against the [limbo feed](https://limbo.watch/feed/):
    - **By package and version.** If the advisory's range can't be evaluated exactly, or contradicts its own fixed version, the finding is *possible*, never a silent pass.
@@ -32,7 +42,7 @@ It can keep one issue per finding up to date in GitLab or Gitea/Forgejo.
    - **now visible to scanners** (the advisory reached OSV);
    - **no longer affected**.
 
-**What leaves the machine.** The feed and the tracker's watchlist are downloaded whole, so limbo.watch learns nothing about the project. Package names and versions go to deps.dev, rubygems.org, Packagist, ecosyste.ms and Maven Central, to find source repos; a `pom.xml`'s dependencies go to deps.dev and Maven Central to resolve its transitive ones (`--no-resolve-maven` keeps them local). Source repo names go to GitHub, to poll their advisories, and advisory IDs go to OSV. With `--issues`, findings go to your own tracker.
+**What leaves the machine.** The feed and the tracker's watchlist are downloaded whole, so limbo.watch learns nothing about the project. Package names and versions go to deps.dev, rubygems.org, Packagist, ecosyste.ms and Maven Central, to find source repos; a `pom.xml`'s dependencies go to deps.dev and Maven Central to resolve its transitive ones (`--no-resolve-maven` keeps them local). Bazel module, vcpkg port and Conan package names (with the vcpkg baseline commit) go to bcr.bazel.build, raw.githubusercontent.com and center2.conan.io, to find their upstream repos. Source repo names go to GitHub, to poll their advisories, and advisory IDs go to OSV. With `--issues`, findings go to your own tracker.
 
 ## Use it
 
@@ -237,6 +247,11 @@ In CI, `--issues-url` and `--issues-project` default to `CI_SERVER_URL` / `GITHU
   - only Maven Central and deps.dev are used, so artifacts from a private registry fail resolution the same way.
 
   For an exact inventory, pass an SBOM from `cyclonedx-maven-plugin` with `--sbom`.
+- **Upstream sources are read from the declarations, not from a build:**
+  - CMake variables set outside the project (on the command line, by a toolchain file) or computed (`string(REPLACE ...)`) can't be filled in; the dependency is reported with the variable's name;
+  - vcpkg: a port's dependencies are taken with its default features and on every platform, so a few may not be built on yours; ports from a registry other than vcpkg's own aren't mapped;
+  - a submodule's own submodules and build files are read only when it's checked out;
+  - vendored code is reported, not identified.
 - **Ranges are as entered by maintainers** and haven't been reviewed. Unreadable ranges give *possible* findings.
 - **Upstream polling is GitHub only.** Off-GitHub upstreams, and vanity Go paths deps.dev can't map, are checked by name only.
 - **Org-wide mode reads the default branch only,** at its tip. Release branches aren't checked; run `scan` in their pipelines.

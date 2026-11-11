@@ -26,6 +26,7 @@ from limbowatch.hosts import gitea as gitea_host
 from limbowatch.hosts import gitlab as gitlab_host
 from limbowatch.http import HttpClient
 from limbowatch.inventory import osv_scanner, sbom
+from limbowatch.inventory import upstream as upstream_inventory
 from limbowatch.models import Inventory, Unchecked
 from limbowatch.publish import all_events, dumps, items, metrics, repos_with_advisories, watchlist
 from limbowatch.publish import feed as feed_mod
@@ -271,9 +272,10 @@ def load_inventory(
         return sbom.parse(sbom_file.read_text(errors="replace"), sbom_file.name)
     _check_osv_scanner(binary)
     try:
-        return osv_scanner.run(path, binary, include_ignored=include_ignored, resolve_maven=resolve_maven)
+        inv = osv_scanner.run(path, binary, include_ignored=include_ignored, resolve_maven=resolve_maven)
     except osv_scanner.InventoryError as e:
         raise typer.Exit(_fail(str(e))) from e
+    return upstream_inventory.combine(inv, upstream_inventory.detect(path, include_ignored=include_ignored))
 
 
 def _check_osv_scanner(binary: str) -> None:
@@ -310,6 +312,14 @@ def inventory(
     for d in inv.dependencies:
         note = f"  ({d.note})" if d.note else ""
         typer.echo(f"  {d.ecosystem:<9} {d.name} {d.version}  {d.source}:{d.line}{note}")
+    if inv.upstreams:
+        typer.echo(f"\n{len(inv.upstreams):,} upstream sources (git, CMake, Bazel, vcpkg, Conan, meson):")
+        for src in inv.upstreams:
+            where = f"{src.host}/{src.repo}" if src.repo else (src.url or "")
+            pin = src.ref or (f"version {src.version}" if src.version else "")
+            what = "  ".join(x for x in (src.name, where, pin) if x)
+            detail = f"  ({src.detail})" if src.detail else ""
+            typer.echo(f"  {src.kind.value:<21} {what}  {src.source}:{src.line}{detail}")
     if inv.unresolved:
         typer.echo(f"\n{len(inv.unresolved):,} can't be checked:")
         for u in inv.unresolved:

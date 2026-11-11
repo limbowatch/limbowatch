@@ -83,6 +83,9 @@ OSV_ECOSYSTEMS = (
     "Red Hat Lightwell", "Rocky Linux", "Root", "RubyGems", "SUSE", "SwiftURL", "TuxCare", "UVI", "Ubuntu", "VSCode",
     "Wolfi", "crates.io", "npm", "opam", "openEuler", "openSUSE",
 )  # fmt: skip
+# Offline, OSV-Scanner also needs a database for ecosystems it reads lockfiles of but OSV doesn't list: conan.lock's
+# packages are "ConanCenter", and without a zip for it the whole scan fails (FINDINGS F-137).
+OFFLINE_ECOSYSTEMS = (*OSV_ECOSYSTEMS, "ConanCenter")
 
 
 @dataclass(frozen=True)
