@@ -310,3 +310,10 @@ def test_an_unreadable_range_never_makes_an_older_commit_certain() -> None:
 def test_version_labels_in_ranges_are_read() -> None:
     rng = "Version > v9.1.0425 and Version < v9.1.0689"
     assert affected(UPSTREAM, "9.1.0000", rng) is False and affected(UPSTREAM, "9.1.0500", rng) is True
+
+
+def test_every_feed_entry_has_a_package_for_older_watchers() -> None:
+    """Watchers before 0.1.0a7 read affected[].package of every entry and fail without one (F-140)."""
+    untagged = AdvisoryPackage(ecosystem="other", name=None, vulnerable_version_range="weird")
+    rec = record(_item((untagged,), {}), "2026-11-11T00:00:00Z")
+    assert all("package" in a for a in rec["affected"]) and rec["affected"][0]["package"]["ecosystem"] == "GIT"

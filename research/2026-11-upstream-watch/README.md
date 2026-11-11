@@ -19,7 +19,7 @@ Run from the repo root, in order: `research/2026-11-upstream-watch/clone.sh`, th
 
 **Limbo advisories without a package that are about libraries.** 1,472 of the feed's 14,785 package-less records (10%) come from 95 repos that one of the indexes builds from: FreeRDP 338, ImageMagick 116, libheif 90, vim 82, OpenEXR 73, bacnet-stack 60, Fast DDS 36, git 32, Exiv2 32, libyang 31.
 
-**Their fixes as tags.** For 1,207 of the 1,472 every patched version is a tag (1,663 patched versions exactly, as `1.2.3` or `v1.2.3`; 284 by the numbers in the tag, as in `bacnet-stack-1.6.0` or `release-22.1.8`); for 102 some are; 83 have none; 68 give no patched version; 12 repos have no tags. The misses include ImageMagick 6 fixes (released from ImageMagick/ImageMagick6), `0.27.5 RC1` against the tag `v0.27.5-RC1`, and patched "versions" that are commit hashes.
+**Their fixes as tags.** For 1,207 of the 1,472 every patched version is a tag (1,663 patched versions exactly, as `1.2.3` or `v1.2.3`; 284 by the numbers in the tag, as in `bacnet-stack-1.6.0` or `release-22.1.8`, 3 of them matching more than one tag); for 102 some are; 83 have none; 68 give no patched version; 12 are in repos without tags. The misses include ImageMagick 6 fixes (released from ImageMagick/ImageMagick6), `0.27.5 RC1` against the tag `v0.27.5-RC1`, and patched "versions" that are commit hashes.
 
 **How projects take in dependencies** (25 most-starred C++ repos, 25 most-starred C repos, 35 random repos with 200-2,000 stars pushed in 2026):
 

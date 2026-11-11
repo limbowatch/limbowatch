@@ -4,6 +4,9 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+- **Fixed: the feed broke watchers before 0.1.0a7** from 09:21 to 10:14 UTC on 2026-11-11: its new entries for advisories without a package had no `package`, which those releases require, so they exited 2. The entries now name the repository as a `GIT` package; every release reads the feed again, and the release audit checks it.
+- **Feed:** advisories that name a registry ecosystem but no package (153, mostly Composer, Go and GitHub Actions) are kept, so dependencies from the same repo match them by repository as *possible*, as they already did for repos polled directly.
+
 ## 0.1.0a7 (2026-11-11)
 
 Still an **alpha**. On PyPI it's `0.1.0a7`; the GitHub tag and the action's ref are `v0.1.0a7`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a7`; the GitLab CI/CD component is `0.1.0-alpha.7`. **C/C++ projects get findings:** git submodules, CMake fetches, Bazel, vcpkg and Conan dependencies are checked against the advisories in limbo that name no package, 60% of the feed. New outbound requests: Bazel Central Registry, vcpkg's and ConanCenter's recipes, commits-only clones of upstreams with advisories in limbo, and the pinned commits to OSV (`--no-osv-commits` to keep those local). Also: `scripts/check_integrations.py` works again.

@@ -11,7 +11,8 @@ Checks:
 1. verdicts: a random sample of advisories in limbo, likely permanent, duplicates and reviewed, checked live;
 2. reviewed sync: every repository advisory GitHub reviewed in the last 7 days is in the tracker's list;
 3. metrics: every number in metrics.json, recomputed from the state;
-4. feed: OSV-schema validation of every record, record fields against the state, index against the zip;
+4. feed: OSV-schema validation of every record, record fields against the state, index against the zip, and a
+   package on every affected entry (older watchers need one);
 5. ranges: each converted OSV range agrees with the parser at its boundary versions, and none covers every version
    from a range that doesn't say "all";
 6. checker: /check/index.json covers the same advisories as the feed;
@@ -315,6 +316,9 @@ def check_feed(rep: Report, st: State, items: list[dict[str, Any]], z: zipfile.Z
             "published": r["published"][:19] == (i["a"]["published_at"] or "")[:19],
         }
         fields += [f"{g}: {name}" for name, ok in same.items() if not ok]
+    # watchers before 0.1.0a7 read affected[].package of every entry, and fail without one (F-140)
+    fields += [f"{g}: an affected entry without a package" for g, r in recs.items()
+               if any("package" not in a for a in r["affected"])]  # fmt: skip
     index_ok = set(idx["ids"]) == set(recs)
     rep.check("feed", not invalid and not fields and set(recs) == want and index_ok,
               f"{len(recs):,} records ({len(want):,} in limbo in the state); {len(invalid)} invalid against the OSV "
