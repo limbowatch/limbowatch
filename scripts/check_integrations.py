@@ -30,7 +30,7 @@ def sh(*cmd: str) -> subprocess.CompletedProcess[str]:
 def gitlab_script(inputs: dict[str, Any]) -> str:
     spec, job = yaml.safe_load_all((ROOT / "integrations/gitlab/templates/limbowatch.yml").read_text())
     values = {k: v.get("default") for k, v in spec["spec"]["inputs"].items()} | inputs
-    j = job["limbowatch"]
+    j = next(v for k, v in job.items() if "job_name" in k and not k.endswith("-gate"))
     env = {k: re.sub(r"\$\[\[ inputs\.(\w+) \]\]", lambda m: str(values[m.group(1)]).lower()
                      if isinstance(values[m.group(1)], bool) else str(values[m.group(1)]), str(v))
            for k, v in j["variables"].items()}  # fmt: skip
@@ -38,16 +38,21 @@ def gitlab_script(inputs: dict[str, Any]) -> str:
     return exports + "\n".join(j["script"])
 
 
-def action_script(inputs: dict[str, str]) -> str:
+def action_script(inputs: dict[str, str], only_install: bool = False) -> str:
     a = yaml.safe_load((ROOT / "integrations/action/action.yml").read_text())
     values = {k: str(v.get("default", "")) for k, v in a["inputs"].items()} | inputs
     out = []
     for step in a["runs"]["steps"]:
+        if "run" not in step or (only_install and "install.sh" not in step["run"]):
+            continue
         env = {k: re.sub(r"\$\{\{ inputs\.([\w-]+) \}\}", lambda m: values[m.group(1)], str(v))
                for k, v in (step.get("env") or {}).items()}  # fmt: skip
         env = {k: ("main" if "default_branch" in v else v) for k, v in env.items()}
         run = step["run"].replace("${{ github.action_path }}", "/work/action")
-        out.append("(\n" + "".join(f"export {k}='{v}'\n" for k, v in env.items()) + run + "\n)")
+        # as the runner does between steps: earlier steps' GITHUB_PATH and GITHUB_ENV apply
+        apply = ('[ -f "${GITHUB_PATH:-}" ] && export PATH="$(tr \'\\n\' \':\' < "$GITHUB_PATH")$PATH"\n'
+                 '[ -f "${GITHUB_ENV:-}" ] && { set -a; . "$GITHUB_ENV"; set +a; }\n')
+        out.append("(\n" + apply + "".join(f"export {k}='{v}'\n" for k, v in env.items()) + run + "\n)")
     return "set -e\n" + "\n".join(out)
 
 
@@ -78,7 +83,18 @@ def main() -> None:
         (work / "proj/go.mod").write_text(GO_MOD)
         local = {"limbowatch_source": "file:///work/src", "limbowatch_ref": "main"}
 
-        r = run("gitlab", gitlab_script(local), work, {"CI_COMMIT_BRANCH": "feature", "CI_DEFAULT_BRANCH": "main"})
+        # The component runs the Limbowatch image; here the job script runs after the Action's own installer (pip
+        # from `git archive HEAD`, OSV-Scanner checked against its SHA-256 sums), so the script is tested on HEAD.
+        install = action_script({"install": "python", "limbowatch-source": "file:///work/src", "limbowatch-ref": "main"},
+                                only_install=True)  # fmt: skip
+        prelude = ("mkdir -p /tmp/rt && touch /tmp/gh_path /tmp/gh_env\nexport RUNNER_TEMP=/tmp/rt GITHUB_PATH=/tmp/gh_path "
+                   "GITHUB_ENV=/tmp/gh_env GITHUB_ACTION_PATH=/work/action\n" + install)  # fmt: skip
+        prelude += "\nexport PATH=$(tr '\\n' ':' < /tmp/gh_path)$PATH\nset -a; . /tmp/gh_env; set +a\nset +e\n"
+
+        def gitlab_run(name: str, inputs: dict[str, Any], env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+            return run(name, prelude + gitlab_script(inputs), work, env)
+
+        r = gitlab_run("gitlab", local, {"CI_COMMIT_BRANCH": "feature", "CI_DEFAULT_BRANCH": "main"})
         out = work / "proj/limbowatch"
         cq = out / "gl-code-quality-report.json"
         check(r.returncode == 1, "GitLab job fails on a finding (fail_on low)", r.stdout + r.stderr)
@@ -87,13 +103,14 @@ def main() -> None:
         check("<failure" in (out / "junit.xml").read_text(), "GitLab job writes JUnit with the failing finding")
         check(all((out / n).exists() for n in ("report.html", "report.md", "report.json", "report.csv", "cyclonedx.json")),
               "GitLab job writes every report into limbowatch/")  # fmt: skip
-        r = run("gitlab2", gitlab_script(local | {"fail_on": "none"}), work, {"CI_COMMIT_BRANCH": "feature"})
+        r = gitlab_run("gitlab2", local | {"fail_on": "none"}, {"CI_COMMIT_BRANCH": "feature"})
         check(r.returncode == 0, "GitLab job passes with fail_on none", r.stdout + r.stderr)
 
         a = action_script({"limbowatch-source": "file:///work/src", "limbowatch-ref": "main", "sarif": "results.sarif"})
         env = {"RUNNER_TEMP": "/tmp/rt", "GITHUB_PATH": "/tmp/gh_path", "GITHUB_STEP_SUMMARY": "/work/summary.md",
+               "GITHUB_ACTION_PATH": "/work/action", "GITHUB_ENV": "/tmp/gh_env",
                "GITHUB_OUTPUT": "/work/gh_output", "GITHUB_REF_NAME": "feature"}  # fmt: skip
-        r = run("action", "mkdir -p /tmp/rt && touch /tmp/gh_path && export PATH=/tmp/rt/limbowatch-bin:$PATH\n" + a,
+        r = run("action", "mkdir -p /tmp/rt && touch /tmp/gh_path /tmp/gh_env && export PATH=/tmp/rt/limbowatch-bin:$PATH\n" + a,
                 work, env)  # fmt: skip
         check(r.returncode == 1 and "FAILED" in r.stdout, "Action fails on a finding", r.stdout + r.stderr)
         check("GHSA-c9gr-gmg4-2vqv" in (work / "proj/results.sarif").read_text(), "Action writes SARIF")
