@@ -4,7 +4,7 @@
 
 What we've verified or measured while building Limbowatch. Maintenance rules are in [CLAUDE.md](../CLAUDE.md#findings-report-docsfindingsmd).
 
-Last summarized: 2026-11-11 (end of Phase 6: C/C++ and other upstream sources, a feed that covers advisories without a package; released as 0.1.0a8, F-140 to F-142; a second review, tests and coverage in F-143; awaiting review). Before that: 2026-11-10 (end of Phase 5), 2026-11-07 (end of Phase 4).
+Last summarized: 2026-11-11 (end of Phase 6: C/C++ and other upstream sources, a feed that covers advisories without a package; released as 0.1.0a8, F-140 to F-142; a second review, tests and coverage in F-143, released as 0.1.0a9 in F-144; awaiting review). Before that: 2026-11-10 (end of Phase 5), 2026-11-07 (end of Phase 4).
 
 ## Summary
 
@@ -63,7 +63,7 @@ Current understanding at the end of Phase 6 (2026-11-11), with entries linked. P
     - Limits found only by running it: a component description over 256 characters breaks every including pipeline ([F-095](#f-095)); GitHub keeps 10 annotations per level per step and drops the rest silently, so annotations are one per package ([F-096](#f-096)); click strips colour off pipes ([F-097](#f-097)).
 28. **Without Limbowatch, nothing reports these.** On the demo app, GitHub's Dependabot alerts and OSV-Scanner reported 0 of the 16 advisories Limbowatch found; all 16 were rechecked against primary sources and are real, fixed and unreviewed, 1.6 to 23.5 days in limbo ([F-090](#f-090), [F-091](#f-091)). On 13 real projects (2026-11-08), Dependabot raised 2,020 alerts and covered **0 of 1,080 confirmed findings** in limbo, every one in GitHub's own dependency graph ([F-112](#f-112)). The same check found 5 Limbowatch false positives, from Go modules nested under another module's path ([F-113](#f-113)); the tracker now resolves each Go path's module through the Go module proxy, which removes them ([F-114](#f-114), in production since 2026-11-09, [F-117](#f-117)). Three days on, the demo's advisories were still invisible to Dependabot ([F-111](#f-111), [F-119](#f-119)).
 29. **The outputs are standard.** SARIF 2.1.0 and CycloneDX 1.6 validate against the official schemas ([F-093](#f-093)).
-30. **Released as an alpha, 0.1.0a1 (2026-11-07) to 0.1.0a8 (2026-11-11).** PyPI with PEP 740 attestations; GitHub pre-release; the CI/CD Catalog accepts pre-releases like `0.1.0-alpha.1` ([F-097](#f-097)). 0.1.0a2 adds the image and the reworked component (point 39); 0.1.0a5 the range-parser fixes (point 41, [F-126](#f-126)); 0.1.0a6 org-wide mode and Maven resolution (points 45–46, [F-133](#f-133)); 0.1.0a7 upstream sources (points 47–51, [F-140](#f-140)), replaced by 0.1.0a8 after an independent review ([F-141](#f-141), [F-142](#f-142)).
+30. **Released as an alpha, 0.1.0a1 (2026-11-07) to 0.1.0a9 (2026-11-11); 0.1.0a7 and 0.1.0a8 are yanked.** PyPI with PEP 740 attestations; GitHub pre-release; the CI/CD Catalog accepts pre-releases like `0.1.0-alpha.1` ([F-097](#f-097)). 0.1.0a2 adds the image and the reworked component (point 39); 0.1.0a5 the range-parser fixes (point 41, [F-126](#f-126)); 0.1.0a6 org-wide mode and Maven resolution (points 45–46, [F-133](#f-133)); 0.1.0a7 upstream sources (points 47–51, [F-140](#f-140)), replaced by 0.1.0a8 and 0.1.0a9 after two independent reviews ([F-141](#f-141) to [F-144](#f-144)).
 31. **Both demos stay as live regression tests:** `limbowatch/demo-app` on GitHub (public, PR #1) and GitLab (private, MR !1) run the released action and component ([F-088](#f-088), [F-097](#f-097)).
 
 **Coverage (measured 2026-11-07)**
@@ -2145,6 +2145,20 @@ Answered:
 - **Caveats:** the reviewer covered the Phase 6 integration paths; the older watcher code (Phase 4-5) was reviewed only where it touches upstream sources.
 - **Implication:** two independent reviews found eight ways to pass an affected dependency between them, after the tests and the agreement study had passed; reviews and the e2e script stay part of releasing verdict code.
 - **Sources:** `tests/test_e2e_upstream.py`, `tests/test_sources_http.py`, `tests/test_upstream*.py`; `scripts/e2e_upstream.py`; `scripts/audit.py`; PyPI's JSON API (`yanked: true`).
+
+### F-144
+- **Date:** 2026-11-11 · **Status:** confirmed (observed)
+- **Question:** Release 0.1.0a9 (the second review's fixes, F-143): did every artifact ship as tested?
+- **Method:** the release checklist; the audit of F-143 (19:35 UTC) covers the same feed code; CI on 7e82f91 with the new coverage gate on Python 3.12-3.14 and macOS.
+- **Result:**
+  - **CI:** every job passed, coverage 92.4% against the 90% gate.
+  - **Image:** `ghcr.io/limbowatch/limbowatch:0.1.0a9@sha256:5ffea84f…` (built from de52ebe; reports `limbowatch 0.1.0a9`, OSV-Scanner 2.7.0, git 2.47.3; SLSA provenance verified), pinned in the action and the GitLab template (4cf7a17). In the image: the FreeRDP/ImageMagick test project at the old pins gives 228 + 114 certain and 12 possible; a repo with a non-UTF-8 file name in its index (which ended 0.1.0a8's scan) scans and passes.
+  - **Tags:** `v0.1.0a9`, `0.1.0-alpha.9` and the action's `v0.1.0a9` GPG-signed and verified; release workflow 43101634080 (PyPI, GitHub pre-release), image retag 43101634087.
+  - **GitLab component:** split 436abb8, pipelines passed (tag pipeline 3056447322), CI/CD Catalog release 21:18 UTC; mirror digest equals ghcr.io's.
+  - **Action repo:** split 6318042, self-test 43101644252 passed on Linux and macOS, pre-release published. Org profile updated (d8adff8).
+  - **Smoke test (PyPI 0.1.0a9):** demo app 61 findings, 3 unchecked; the test project 228 + 114 certain, 12 possible.
+  - **Superseded releases:** 0.1.0a7 and 0.1.0a8 yanked on PyPI (`limbowatch` and `limbowatch-cli`), each with the reason pip shows; their GitHub pre-releases open with an upgrade note.
+- **Sources:** the runs above; PyPI's JSON API (`yanked`).
 
 ## Archive
 
