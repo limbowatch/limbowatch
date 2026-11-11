@@ -4,6 +4,10 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+## 0.1.0a7 (2026-11-11)
+
+Still an **alpha**. On PyPI it's `0.1.0a7`; the GitHub tag and the action's ref are `v0.1.0a7`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a7`; the GitLab CI/CD component is `0.1.0-alpha.7`. **C/C++ projects get findings:** git submodules, CMake fetches, Bazel, vcpkg and Conan dependencies are checked against the advisories in limbo that name no package, 60% of the feed. New outbound requests: Bazel Central Registry, vcpkg's and ConanCenter's recipes, commits-only clones of upstreams with advisories in limbo, and the pinned commits to OSV (`--no-osv-commits` to keep those local). Also: `scripts/check_integrations.py` works again.
+
 - **C/C++ and other upstream sources are checked against advisories in limbo.** 60% of the feed's advisories name no package OSV knows (C/C++, `other`); they're now matched to the upstream sources built from their repo. A commits-only clone of the upstream says whether the pinned commit contains the fix release: a FreeRDP submodule at 3.10.0 is affected by 228 advisories in limbo (12 more *possible*), at 3.33.1 by none (3 *possible*, with ranges in free text). Against OSV's own version ranges for the same CVEs, 95% of verdicts agree and 1.6% disagree, where the advisory's range and the CVE record differ. OSV is asked about pinned commits too (`--no-osv-commits` to opt out). Findings point at the `.gitmodules`, `CMakeLists.txt`, `MODULE.bazel` or `vcpkg.json` line, and "To fix" names the release to move to.
 - **The feed covers advisories without a package.** Each entry keeps the versions as entered, and where every version is a tag in the repo, carries OSV `GIT` ranges with the tags' commits (73% of such entries), so OSV tools can use them too. Records with only such entries go in `GIT/all.zip`. The tracker looks the tags up with `git ls-remote` (no API quota).
 - **The tracker watches C/C++ upstreams:** the 3,603 GitHub repos that vcpkg ports, Bazel modules and ConanCenter recipes build from (`tracker/seeds/cpp-upstreams.txt`), 3,358 of them new.
