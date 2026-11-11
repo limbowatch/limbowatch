@@ -828,6 +828,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/gotd/td","path":"github.com/gotd/td"}
 {"checked_at":"2026-11-09T16:52:05Z","module":null,"path":"github.com/gotenberg/gotenberg"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/gotenberg/gotenberg/v8","path":"github.com/gotenberg/gotenberg/v8"}
+{"checked_at":"2026-11-11T14:50:36Z","module":"github.com/gotenberg/gotenberg/v9","path":"github.com/gotenberg/gotenberg/v9"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/gotify/server","path":"github.com/gotify/server"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/gotify/server/v2","path":"github.com/gotify/server/v2"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/gotify/server/v3","path":"github.com/gotify/server/v3"}

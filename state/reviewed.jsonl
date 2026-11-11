@@ -19912,7 +19912,7 @@
 {"cve_id":"CVE-2016-5704","ghsa_id":"GHSA-gcvp-cwgw-wx8j","origin_repo":null,"reviewed_at":"2023-07-31T19:51:27Z"}
 {"cve_id":"CVE-2026-70591","ghsa_id":"GHSA-gcvv-72q8-9v76","origin_repo":"tryghost/ghost","reviewed_at":"2026-08-04T21:38:17Z"}
 {"cve_id":"CVE-2021-37711","ghsa_id":"GHSA-gcvv-gq92-x94r","origin_repo":"shopware/shopware","reviewed_at":"2021-08-23T17:22:58Z"}
-{"cve_id":"CVE-2026-77433","ghsa_id":"GHSA-gcwf-c25f-p9rv","origin_repo":"kiwitcms/kiwi","reviewed_at":"2026-11-09T23:24:14Z"}
+{"cve_id":"CVE-2026-77433","ghsa_id":"GHSA-gcwf-c25f-p9rv","origin_repo":"kiwitcms/kiwitcms","reviewed_at":"2026-11-09T23:24:14Z"}
 {"cve_id":"CVE-2026-63758","ghsa_id":"GHSA-gcwr-5mrf-fvch","origin_repo":"surrealdb/surrealdb","reviewed_at":"2026-07-01T20:14:20Z"}
 {"cve_id":"CVE-2022-24766","ghsa_id":"GHSA-gcx2-gvj7-pxv3","origin_repo":"mitmproxy/mitmproxy","reviewed_at":"2022-03-22T19:22:59Z"}
 {"cve_id":"CVE-2024-47068","ghsa_id":"GHSA-gcx4-mw62-g8wm","origin_repo":"rollup/rollup","reviewed_at":"2024-09-23T22:11:02Z"}
