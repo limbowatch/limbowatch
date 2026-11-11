@@ -82,19 +82,10 @@ class ComposerVersion:
         return f"ComposerVersion({self.string!r})"
 
 
-_PRE = {
-    "dev": 0,
-    "snapshot": 0,
-    "pre": 1,
-    "preview": 1,
-    "alpha": 1,
-    "a": 1,
-    "beta": 2,
-    "b": 2,
-    "rc": 3,
-    "cr": 3,
-    "m": 1,
-}
+# Words that start a pre-release. A single letter (a, b, m) does only with a number after it ("1.0b1"); alone it's a
+# later patch level, as in OpenSSL's 1.1.1w or libjpeg's 9e (F-141).
+_PRE = {"dev": 0, "snapshot": 0, "pre": 1, "preview": 1, "alpha": 1, "milestone": 1, "beta": 2, "rc": 3, "cr": 3}
+_PRE_LETTER = {"a": 1, "m": 1, "b": 2}
 _UPSTREAM_TOKEN = re.compile(r"\d+|[a-z]+")
 
 
@@ -103,7 +94,8 @@ class UpstreamVersion:
 
     Numbers compare as numbers and any number of parts is allowed; `1.0` equals `1.0.0`. A word starting a
     pre-release (`rc1`, `beta`, `alpha.2`, `dev`) sorts before the release; any other part after the release
-    numbers is a later patch level: ImageMagick's `7.1.1-38` comes after `7.1.1` (FINDINGS F-136)."""
+    numbers is a later patch level: ImageMagick's `7.1.1-38` comes after `7.1.1`, OpenSSL's `1.1.1w` after `1.1.1`
+    (FINDINGS F-136, F-141)."""
 
     __slots__ = ("key", "string")
 
@@ -113,13 +105,16 @@ class UpstreamVersion:
         if not s or not s[0].isdigit():
             raise ValueError(f"not a version: {string!r}")
         key: list[tuple[int, int | str]] = []
-        for tok in _UPSTREAM_TOKEN.findall(s):
+        toks = _UPSTREAM_TOKEN.findall(s)
+        for n, tok in enumerate(toks):
             if tok.isdigit():
                 key.append((2, int(tok)))
             elif tok in _PRE:
                 key.append((0, _PRE[tok]))
+            elif tok in _PRE_LETTER and n + 1 < len(toks) and toks[n + 1].isdigit():
+                key.append((0, _PRE_LETTER[tok]))  # "1.0b1"
             else:
-                key.append((1, tok))  # p, patch, post, a build word: after the release
+                key.append((1, tok))  # p, patch, post, r, a trailing letter ("1.1.1w"): after the release
         n = next((i for i, k in enumerate(key) if k[0] != 2), len(key))
         release, rest = key[:n], key[n:]
         while len(release) > 1 and release[-1] == (2, 0):  # 1.0.0 == 1.0, also before "-rc1"
@@ -161,20 +156,30 @@ class UpstreamVersion:
 
 
 UPSTREAM = "upstream"  # the VERSION_CLASS key for upstream sources' versions and their advisories' ranges
-_TAG_VERSION = re.compile(r"\d+(?:[._-]\d+)*(?:[.-]?(?:a|b|rc|alpha|beta|pre|p|patch)\.?\d*)?", re.I)
+_SUFFIX = r"(?:[-.]?(?:rc|alpha|beta|preview|pre|dev|a|b|p|patch|r)\.?\d+|-\d+(?![.\d]))"
+# The first dotted version in a tag, its separators "." or "_", a trailing letter (1.1.1w), then a pre-release, a
+# revision or a patch number (-rc.1, -r2, 7.1.1-38); words after it (-win64) and build metadata (+2024…) aren't part.
+_TAG_DOTTED = re.compile(rf"(?<![\d.])(\d+(?:[._]\d+)+)([a-z](?![a-z0-9]))?({_SUFFIX})?", re.I)
+_TAG_SINGLE = re.compile(
+    r"(?<![\d.])(\d+)([a-z](?![a-z0-9]))?((?:[-.]?(?:rc|alpha|beta|preview|pre|dev)\.?\d*))?(?![\d.])", re.I
+)
+_TAG_DATE = re.compile(r"(?<!\d)(\d{4}-\d{2}-\d{2})(?!\d)")
 
 
 def version_of_tag(tag: str) -> str | None:
-    """The version a tag names: `v1.2.3` → 1.2.3, `curl-8_10_0` → 8.10.0, `release-22.1.8` → 22.1.8; a tag without
-    digits names none."""
-    runs = list(_TAG_VERSION.finditer(tag))
-    m = runs[-1] if runs else None  # the last version-looking run: "openssl-3.0.15" → 3.0.15
-    if m is None:
-        return None
-    v = m.group(0)
-    if "." not in v and "_" in v:
-        v = v.replace("_", ".")
-    return v
+    """The version a tag names: `v1.2.3` → 1.2.3, `curl-8_10_0` → 8.10.0, `pcre2-10.44` → 10.44, `OpenSSL_1_1_1w` →
+    1.1.1w, `v2.5.0-win64` → 2.5.0, `jpeg-9e` → 9e, `2024-07-02` as is. None when the tag names none, or several
+    plain numbers and no dotted version (F-141)."""
+    s = tag.split("+", 1)[0]  # build metadata
+    if m := _TAG_DATE.search(s):
+        return m.group(1)
+    if m := _TAG_DOTTED.search(s):
+        return m.group(1).replace("_", ".") + (m.group(2) or "") + (m.group(3) or "")
+    singles = list(_TAG_SINGLE.finditer(s))
+    if len(singles) == 1:
+        m = singles[0]
+        return m.group(1) + (m.group(2) or "") + (m.group(3) or "")
+    return None
 
 
 def tag_for(version: str, tags: dict[str, str]) -> str | None:

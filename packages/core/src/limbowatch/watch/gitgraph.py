@@ -49,6 +49,11 @@ class GitGraph:
         r = self._git("merge-base", "--is-ancestor", ancestor, descendant)
         return {0: True, 1: False}.get(r.returncode)
 
+    def tags_containing(self, commit: str) -> list[str]:
+        """The tags whose history includes the commit (the commit's own tag too)."""
+        r = self._git("tag", "--contains", commit)
+        return r.stdout.split() if r.returncode == 0 else []
+
     def describe(self, commit: str) -> str | None:
         """The nearest tag in the commit's history."""
         r = self._git("describe", "--tags", "--abbrev=0", commit)

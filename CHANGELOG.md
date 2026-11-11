@@ -4,6 +4,11 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+- **Fixed: upstream sources could be passed when affected** (found by an independent review, F-141): a fix release of an older line in a pin's history cleared a newer affected line (`< 1.2.5 || >= 2.0.0, < 2.0.3` at 2.0.1); tag versions were read from the last digits (`v1.2.3-r2` as 2, `pcre2-10.44` as `2-10.44`); a trailing letter counted as a pre-release (`1.1.1a` before `1.1.1`); an advisory naming a registry package and the C code was skipped for upstream sources.
+- **A commit between the last affected release and the fix release is *possible*,** not certain: the fix commit may already be in it. It's certain when a release in the affected range contains it.
+- **Fixed: a malformed `vcpkg.json` or `conan.lock` ended the scan**; it's reported as unreadable, and the rest is checked.
+- **Security: a scanned tree's git config can't run commands** (`core.fsmonitor`); every git call on it disables fsmonitor.
+- **Also:** `*.MODULE.bazel` includes are read; relative submodule URLs under `git@host:` remotes resolve to the right repo; `www.github.com` is GitHub; renamed repos are matched under their new name; two unresolved sources with one name in different files are both reported; a vcpkg graph cut at 500 ports says so; exact-only ranges get no GIT range in the feed (67% of the entries for advisories without a package have one, down from 73%).
 - **Fixed: the feed broke watchers before 0.1.0a7** from 09:21 to 10:14 UTC on 2026-11-11: its new entries for advisories without a package had no `package`, which those releases require, so they exited 2. The entries now name the repository as a `GIT` package; every release reads the feed again, and the release audit checks it.
 - **Feed:** advisories that name a registry ecosystem but no package (153, mostly Composer, Go and GitHub Actions) are kept, so dependencies from the same repo match them by repository as *possible*, as they already did for repos polled directly.
 

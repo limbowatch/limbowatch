@@ -28,6 +28,7 @@ from typing import Any
 from limbowatch.http import HttpClient
 from limbowatch.inventory import upstream as up
 from limbowatch.models import Upstream, UpstreamKind
+from limbowatch.versions import UpstreamVersion
 
 BCR = "https://bcr.bazel.build/modules"
 RAW = "https://raw.githubusercontent.com"
@@ -36,8 +37,12 @@ CONAN_REMOTE = "https://center2.conan.io/v2/conans"  # ConanCenter's Conan 2 rem
 MAX_VCPKG_PORTS = 500  # a project's whole vcpkg graph; more is a runaway
 
 
-def _num(v: str) -> tuple[int, ...]:
-    return tuple(int(x) for x in re.findall(r"\d+", v))
+def _newer(a: str, b: str) -> bool:
+    """Is version a after b? Unreadable versions aren't."""
+    try:
+        return UpstreamVersion(a) > UpstreamVersion(b)
+    except ValueError:
+        return False
 
 
 def yaml_block(text: str, top: str, key: str) -> str | None:
@@ -178,6 +183,9 @@ class Registries:
                 child = root.model_copy(update={"name": dep, "version": None, "via": f"a dependency of {name}"})
                 out.append(await self.vcpkg_port(child, base))
                 queue.append(dep)
+        if queue:  # stopped at MAX_VCPKG_PORTS: say so on the root, never drop silently
+            why = f"its dependency graph has more than {MAX_VCPKG_PORTS} ports; the rest weren't listed"
+            out[0] = out[0].model_copy(update={"detail": "; ".join(x for x in (out[0].detail, why) if x)})
         return out
 
     async def vcpkg_port(self, u: Upstream, base: dict[str, Any]) -> Upstream:
@@ -188,7 +196,7 @@ class Registries:
         version = at_baseline
         if u.version and u.version.startswith(">="):
             minimum = u.version[2:]
-            version = minimum if _num(minimum) > _num(at_baseline) else at_baseline
+            version = minimum if _newer(minimum, at_baseline) else at_baseline
         elif u.version:
             version = u.version  # an override
         pf = await self.text(f"{RAW}/{VCPKG}/{sha}/ports/{u.name}/portfile.cmake")

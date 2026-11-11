@@ -140,6 +140,10 @@ def git_ranges(repo: str, p: AdvisoryPackage, git: dict[str, Any]) -> list[dict[
     if conv is None:
         return None
     ranges, versions = conv
+    if versions and not ranges:
+        # Only exact versions ("3.26.0", fixed in 3.27.0): maintainers mostly mean "up to 3.26.0", so a single-commit
+        # range would understate it, and "from the first commit" would overstate it; left as text (F-141)
+        return None
 
     def commit(v: str) -> str | None:
         hit = git.get(v)

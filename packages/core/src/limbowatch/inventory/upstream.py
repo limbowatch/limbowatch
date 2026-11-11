@@ -73,7 +73,7 @@ def locate(url: str) -> Located:
     if url.startswith("git+"):
         url = url[4:]
     s = urlsplit(url)
-    host, path = (s.hostname or "").lower(), s.path
+    host, path = (s.hostname or "").lower().removeprefix("www."), s.path
     if not host:
         return Located()
     for forge in _FORGES:  # a mirror's copy: .../github.com/o/r/...
@@ -369,7 +369,10 @@ def cmake(text: str, src: str, var: dict[str, str | None]) -> list[Upstream]:
 
 def _git(cwd: Path, *args: str) -> str | None:
     try:
-        r = subprocess.run(["git", "-c", "safe.directory=*", *args], cwd=cwd, capture_output=True, text=True,
+        # core.fsmonitor in a repo's config would run a command; safe.directory=* (needed for checkouts owned by
+        # another user, as in CI containers) would otherwise let it (F-141)
+        r = subprocess.run(["git", "-c", "safe.directory=*", "-c", "core.fsmonitor=false", *args], cwd=cwd,
+                           capture_output=True, text=True,
                            timeout=120, env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})  # fmt: skip
     except (OSError, subprocess.TimeoutExpired):
         return None
@@ -397,6 +400,8 @@ def _relative_url(url: str, base: str | None) -> str:
     """A submodule URL like ../lib.git is relative to the superproject's remote."""
     if not url.startswith(("./", "../")) or not base:
         return url
+    if m := re.match(r"^[\w.-]+@([\w.-]+):(?!//)(.+)$", base):  # git@github.com:o/super.git (F-141)
+        base = f"ssh://{m.group(1)}/{m.group(2)}"
     b = base.rstrip("/").removesuffix(".git")
     for part in url.split("/"):
         if part == "..":
@@ -506,6 +511,18 @@ def bazel(text: str, src: str, module_file: bool) -> list[Upstream]:
 # --- vcpkg, Conan, meson --------------------------------------------------------------------------------------------
 
 
+def _obj(x: Any) -> dict[str, Any]:
+    return x if isinstance(x, dict) else {}
+
+
+def _objs(x: Any) -> list[dict[str, Any]]:
+    return [o for o in x if isinstance(o, dict)] if isinstance(x, list) else []
+
+
+def _strs(x: Any) -> list[str]:
+    return [s for s in x if isinstance(s, str)] if isinstance(x, list) else []
+
+
 def _line_of(text: str, needle: str, start: int = 0) -> int:
     i = text.find(needle, start)
     return text.count("\n", 0, i) + 1 if i >= 0 else 1
@@ -526,28 +543,37 @@ def vcpkg(
         m = json.loads(text)
     except ValueError as e:
         return [], [UnresolvedDependency(reason=Unchecked.LOCKFILE_UNREADABLE, source=src, detail=str(e))]
-    cfg: dict[str, Any] = m.get("vcpkg-configuration") or {}
+    if not isinstance(m, dict) or not isinstance(m.get("dependencies", []), list):
+        why = "not a vcpkg manifest: expected an object with a list of dependencies"
+        return [], [UnresolvedDependency(reason=Unchecked.LOCKFILE_UNREADABLE, source=src, detail=why)]
+    cfg = _obj(m.get("vcpkg-configuration"))
     if config:
         try:
-            cfg = json.loads(config)
+            cfg = _obj(json.loads(config))
         except ValueError:
             cfg = {}
-    default = cfg.get("default-registry") or {}
+    default = _obj(cfg.get("default-registry"))
     official = default.get("kind") in ("builtin", "git") and "microsoft/vcpkg" in (
         default.get("repository") or "microsoft/vcpkg"
     )
     baseline = m.get("builtin-baseline") or project_baseline or (default.get("baseline") if official else None)
-    custom = {p: r.get("repository") or r.get("path") or r.get("kind") for r in cfg.get("registries") or []
-              for p in r.get("packages") or []}  # fmt: skip
+    custom = {p: r.get("repository") or r.get("path") or r.get("kind") for r in _objs(cfg.get("registries"))
+              for p in _strs(r.get("packages"))}  # fmt: skip
     overrides = {o["name"]: o.get("version") or o.get("version-string") or o.get("version-semver")
-                 or o.get("version-date") for o in m.get("overrides") or [] if o.get("name")}  # fmt: skip
+                 or o.get("version-date")
+                 for o in _objs(m.get("overrides")) if isinstance(o.get("name"), str)}  # fmt: skip
     start = text.find('"dependencies"')
-    out = []
+    out: list[Upstream] = []
+    out_bad: list[UnresolvedDependency] = []
     for d in m.get("dependencies") or []:
-        name = d if isinstance(d, str) else d.get("name")
+        name = d if isinstance(d, str) else d.get("name") if isinstance(d, dict) else None
+        if not isinstance(name, str):
+            why = f"a dependency that isn't a port name: {d!r}"[:200]
+            out_bad.append(UnresolvedDependency(reason=Unchecked.LOCKFILE_UNREADABLE, source=src, detail=why))
+            continue
         if not name or name.startswith("vcpkg-") or name in overlays:
             continue  # vcpkg's own CMake helper ports, not code the project ships; or a port the project defines
-        minimum = None if isinstance(d, str) else d.get("version>=")
+        minimum = d.get("version>=") if isinstance(d, dict) else None
         version = overrides.get(name) or (f">={minimum}" if minimum else None)
         detail = ""
         if name in custom:
@@ -557,7 +583,7 @@ def vcpkg(
         pin = baseline if baseline and name not in custom else None
         out.append(Upstream(kind=UpstreamKind.VCPKG, name=name, source=src, line=_line_of(text, f'"{name}"', start),
                             version=version, baseline=pin, detail=detail))  # fmt: skip
-    return out, []
+    return out, out_bad
 
 
 def overlay_port(manifest: str, portfile: str, src: str) -> Upstream | None:
@@ -565,6 +591,8 @@ def overlay_port(manifest: str, portfile: str, src: str) -> Upstream | None:
     try:
         m = json.loads(manifest)
     except ValueError:
+        return None
+    if not isinstance(m, dict):
         return None
     name = m.get("name")
     if not isinstance(name, str):
@@ -598,14 +626,14 @@ def _conan_entry(ref: str, src: str, line: int) -> Upstream:
 
 
 def conan_lock(text: str, src: str) -> list[Upstream]:
-    try:
-        m = json.loads(text)
-    except ValueError:
-        return []
+    m = json.loads(text)  # a malformed lock raises; detect() reports it as unreadable
+    if not isinstance(m, dict):
+        raise ValueError("not a Conan lockfile: expected an object")
     refs: list[str] = []
     for key in ("requires", "build_requires", "python_requires"):
-        refs += [r for r in m.get(key) or [] if isinstance(r, str)]
-    for node in ((m.get("graph_lock") or {}).get("nodes") or {}).values():  # Conan 1 lockfiles
+        refs += _strs(m.get(key))
+    nodes = _obj(_obj(m.get("graph_lock")).get("nodes"))
+    for node in nodes.values():  # Conan 1 lockfiles
         if isinstance(node, dict) and node.get("ref"):
             refs.append(node["ref"])
     return [_conan_entry(r, src, _line_of(text, r)) for r in dict.fromkeys(refs)]
@@ -691,7 +719,7 @@ def _wanted(path: str) -> bool:
     name = path.rsplit("/", 1)[-1]
     return (name in (".gitmodules", "CMakeLists.txt", "MODULE.bazel", "WORKSPACE", "WORKSPACE.bazel",
                      "WORKSPACE.bzlmod", "vcpkg.json", "conan.lock", "conanfile.txt", "conanfile.py")
-            or name.endswith((".cmake", ".bzl"))
+            or name.endswith((".cmake", ".bzl", ".MODULE.bazel"))
             or (name.endswith(".wrap") and path.rsplit("/", 2)[-2:-1] == ["subprojects"]))  # fmt: skip
 
 
@@ -731,30 +759,37 @@ def detect(root: Path, include_ignored: bool = False) -> Detected:
         name = f.rsplit("/", 1)[-1]
         d = f.rsplit("/", 1)[0] if "/" in f else ""
         found: list[Upstream] = []
-        if name == ".gitmodules":
-            found = submodules(root, d or ".", t)
-        elif name == "CMakeLists.txt" or name.endswith(".cmake"):
-            found = cmake(t, f, var)
-        elif name in ("MODULE.bazel", "WORKSPACE", "WORKSPACE.bazel", "WORKSPACE.bzlmod") or name.endswith(".bzl"):
-            found = bazel(t, f, module_file=name == "MODULE.bazel")
-        elif name == "vcpkg.json":
-            cfg_path = f"{d}/vcpkg-configuration.json" if d else "vcpkg-configuration.json"
-            cfg = texts.get(cfg_path) or read(cfg_path)
-            if f in overlay_dirs:  # a port the project defines: itself from its portfile, its dependencies
-                port = read(overlay_dirs[f])
-                own = overlay_port(t, port, overlay_dirs[f]) if port is not None else None
-                deps, bad = vcpkg(t, f, cfg, overlays=overlays, project_baseline=baseline)
-                found = ([own] if own else []) + deps
-            else:
-                found, bad = vcpkg(t, f, cfg, overlays=overlays)
-            det.unresolved += bad
-        elif name == "conan.lock":
-            found = conan_lock(t, f)
-            det.conan_locks.add(f)
-        elif name.startswith("conanfile.") and d not in lock_dirs:
-            found = conanfile(t, f)
-        elif name.endswith(".wrap"):
-            found = [u] if (u := meson_wrap(t, f, name.removesuffix(".wrap"))) else []
+        try:
+            if name == ".gitmodules":
+                found = submodules(root, d or ".", t)
+            elif name == "CMakeLists.txt" or name.endswith(".cmake"):
+                found = cmake(t, f, var)
+            elif name in ("MODULE.bazel", "WORKSPACE", "WORKSPACE.bazel", "WORKSPACE.bzlmod") or name.endswith(
+                (".bzl", ".MODULE.bazel")
+            ):  # *.MODULE.bazel: files MODULE.bazel include()s (Bazel 7.2+)
+                found = bazel(t, f, module_file=name.endswith("MODULE.bazel"))
+            elif name == "vcpkg.json":
+                cfg_path = f"{d}/vcpkg-configuration.json" if d else "vcpkg-configuration.json"
+                cfg = texts.get(cfg_path) or read(cfg_path)
+                if f in overlay_dirs:  # a port the project defines: itself from its portfile, its dependencies
+                    port = read(overlay_dirs[f])
+                    own = overlay_port(t, port, overlay_dirs[f]) if port is not None else None
+                    deps, bad = vcpkg(t, f, cfg, overlays=overlays, project_baseline=baseline)
+                    found = ([own] if own else []) + deps
+                else:
+                    found, bad = vcpkg(t, f, cfg, overlays=overlays)
+                det.unresolved += bad
+            elif name == "conan.lock":
+                found = conan_lock(t, f)
+                det.conan_locks.add(f)
+            elif name.startswith("conanfile.") and d not in lock_dirs:
+                found = conanfile(t, f)
+            elif name.endswith(".wrap"):
+                found = [u] if (u := meson_wrap(t, f, name.removesuffix(".wrap"))) else []
+        except Exception as e:  # one malformed file is reported, never the end of the scan
+            why = f"couldn't be read: {type(e).__name__}: {e}"[:200]
+            det.unresolved.append(UnresolvedDependency(reason=Unchecked.LOCKFILE_UNREADABLE, source=f, detail=why))
+            continue
         if found:
             det.sources.append(f)
             det.upstreams += found

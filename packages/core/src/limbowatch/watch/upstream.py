@@ -23,6 +23,7 @@ class Polled:
     candidates: list[Candidate] = field(default_factory=list)
     polled: set[str] = field(default_factory=set)
     not_polled: set[str] = field(default_factory=set)  # stopped by the GitHub rate limit or budget
+    aliases: dict[str, str] = field(default_factory=dict)  # a renamed repo's old name -> the one advisories carry
 
 
 async def poll(http: HttpClient, repos: set[str]) -> Polled:
@@ -41,6 +42,8 @@ async def poll(http: HttpClient, repos: set[str]) -> Polled:
             return
         out.polled.add(repo)
         for adv in res.advisories or []:
+            if adv.repo and adv.repo != repo:
+                out.aliases[repo] = adv.repo  # GitHub redirected a renamed repo
             if adv.state != "published" or adv.withdrawn_at:
                 continue
             in_osv = await osv.present(http, adv.ghsa_id)

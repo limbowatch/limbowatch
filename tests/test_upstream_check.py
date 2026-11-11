@@ -160,6 +160,9 @@ class FakeGraph:
     def contains(self, ancestor: str, descendant: str) -> bool | None:
         return ancestor in self._ancestors(descendant)
 
+    def tags_containing(self, commit: str) -> list[str]:
+        return [t for t, c in self.tags.items() if commit in self._ancestors(c)]
+
     def describe(self, commit: str) -> str | None:
         anc = self._ancestors(commit)
         return next((t for t, c in sorted(self.tags.items(), key=lambda x: x[0], reverse=True) if c in anc), None)
@@ -177,7 +180,9 @@ def _pkg(rng: str | None = None, fix: str | None = None) -> AdvisoryPackage:
 @pytest.mark.parametrize(
     ("commit", "rng", "fix", "want"),
     [
-        (C[4], "< 2.0", "2.0", True),  # on main, before v2.0
+        (C[3], "< 2.0", "2.0", True),  # v1.1 itself: an affected release
+        (C[2], "< 2.0", "2.0", True),  # in v1.1's history: older than an affected release
+        (C[4], "< 2.0", "2.0", None),  # after v1.1, the last affected release: the fix may already be in it
         (C[5], "< 2.0", "2.0", False),  # the fix release itself
         (C[2], ">= 1.1, < 2.0", "2.0", False),  # older than the affected range
         (C[7], "< 2.0", "2.0", None),  # a branch without v2.0: possibly
@@ -216,7 +221,7 @@ def test_findings_match_unpackaged_advisories_only_and_take_osv_by_commit() -> N
         _cand("GHSA-0004", _pkg("< 1.0", "1.0")),
     ):
         index.add(c)
-    u = _u(ref=C[4], ref_is_commit=True)
+    u = _u(ref=C[3], ref_is_commit=True)
     cands = uc.candidates(u, index)
     assert [c.adv.ghsa_id for c in cands] == ["GHSA-0001", "GHSA-0003", "GHSA-0004"]  # not the npm package's
     g = FakeGraph()
@@ -224,8 +229,8 @@ def test_findings_match_unpackaged_advisories_only_and_take_osv_by_commit() -> N
     assert set(got) == {"GHSA-0001", "GHSA-0003"}
     one = got["GHSA-0001"]
     assert (one.affected, one.match, one.dependency.name, one.dependency.version) == (
-        True, MatchKind.UPSTREAM, "github.com/o/x", C[4][:12])  # fmt: skip
-    assert one.dependency.purl == f"pkg:github/o/x@{C[4][:12]}" and one.dependency.note == "git submodule third_party/x"
+        True, MatchKind.UPSTREAM, "github.com/o/x", C[3][:12])  # fmt: skip
+    assert one.dependency.purl == f"pkg:github/o/x@{C[3][:12]}" and one.dependency.note == "git submodule third_party/x"
     assert "older than v2.0" in one.evidence
     # out of its range by version, but OSV lists the commit under the CVE the advisory cites
     assert got["GHSA-0003"].affected is True and "OSV lists" in got["GHSA-0003"].evidence
@@ -317,3 +322,70 @@ def test_every_feed_entry_has_a_package_for_older_watchers() -> None:
     untagged = AdvisoryPackage(ecosystem="other", name=None, vulnerable_version_range="weird")
     rec = record(_item((untagged,), {}), "2026-11-11T00:00:00Z")
     assert all("package" in a for a in rec["affected"]) and rec["affected"][0]["package"]["ecosystem"] == "GIT"
+
+
+# --- the review of 2026-11-11 (F-141): each was a silent pass, a crash or a wrong repo -------------------------------
+
+
+class LineGraph(FakeGraph):
+    """One line: C1 (v1.2.5) → C2 (v2.0.0) → C3 (v2.0.1) → C4 (v2.0.3)."""
+
+    def __init__(self) -> None:
+        self.parents = {C[2]: C[1], C[3]: C[2], C[4]: C[3]}
+        self.tags = {"v1.2.5": C[1], "v2.0.0": C[2], "v2.0.1": C[3], "v2.0.3": C[4]}
+
+
+def test_a_fix_of_an_older_line_doesnt_clear_a_newer_affected_one() -> None:
+    g, p = LineGraph(), _pkg("< 1.2.5 || >= 2.0.0, < 2.0.3", "1.2.5, 2.0.3")
+    assert uc.verdict(uc.pin(_u(ref="v2.0.1"), g), p, g)[0] is True  # contains 1.2.5's fix, not 2.0.3's
+    assert uc.verdict(uc.pin(_u(ref="v2.0.3"), g), p, g)[0] is False
+    # every fix in its history, with a range that can't be read: fixed
+    assert uc.verdict(uc.pin(_u(ref="v2.0.3"), g), _pkg("<- 1.2.4, <= 2.0.2", "1.2.5, 2.0.3"), g)[0] is False
+    # the pin's own line's fix is in its history, the other line's isn't (it's on a branch): fixed
+    g2 = LineGraph()
+    g2.tags = {**g2.tags, "v1.2.9": C[9]}  # 1.2.9 on a branch: not in 2.0.3's history
+    assert uc.verdict(uc.pin(_u(ref="v2.0.3"), g2), _pkg("<- 1.2.8, <= 2.0.2", "1.2.9, 2.0.3"), g2)[0] is False
+    # an open range closed by its only fix: "> 1.0", fixed in 1.2.5, at 2.0.1 is fixed
+    assert uc.verdict(uc.pin(_u(ref="v2.0.1"), g), _pkg("> 1.0", "1.2.5"), g)[0] is False
+    # a newer line with no fix: "< 1.2.5 || >= 2.0.0", fixed in 1.2.5 only, at 2.0.1 is possibly affected
+    assert uc.verdict(uc.pin(_u(ref="v2.0.1"), g), _pkg("< 1.2.5 || >= 2.0.0", "1.2.5"), g)[0] is None
+
+
+@pytest.mark.parametrize(
+    ("tag", "version"),
+    [("v1.2.3-r2", "1.2.3-r2"), ("v1.2.3+20240101", "1.2.3"), ("v2.5.0-win64", "2.5.0"),
+     ("v3.0.0-preview2", "3.0.0-preview2"), ("pcre2-10.44", "10.44"), ("jpeg-9e", "9e"),
+     ("OpenSSL_1_1_1w", "1.1.1w"), ("7.1.1-38", "7.1.1-38"), ("2024-07-02", "2024-07-02"), ("v9", "9")],
+)  # fmt: skip
+def test_tag_versions_are_read_from_the_first_dotted_run(tag: str, version: str) -> None:
+    assert version_of_tag(tag) == version
+
+
+def test_a_tag_version_must_lead_back_to_its_commit() -> None:
+    g = FakeGraph()
+    g.tags = {"a-2.0": C[1], "b-2.0": C[2]}  # "2.0" names two commits: not certain
+    assert uc.pin(_u(ref="a-2.0"), g).version is None
+
+
+def test_a_trailing_letter_is_a_patch_level_not_a_pre_release() -> None:
+    assert UpstreamVersion("1.1.1") < UpstreamVersion("1.1.1a") < UpstreamVersion("1.1.1w")
+    assert UpstreamVersion("1.0b1") < UpstreamVersion("1.0") and UpstreamVersion("9") < UpstreamVersion("9e")
+    assert uc.by_version("1.0.2", _pkg("< 1.0.2b", "1.0.2b"))[0] is True
+
+
+def test_an_advisory_naming_a_registry_package_and_the_c_code_matches_the_c_code() -> None:
+    index = Index()
+    index.add(_cand("GHSA-0005", AdvisoryPackage(ecosystem="pip", name="protobuf", vulnerable_version_range="< 9"),
+                    _pkg("< 2.0", "2.0")))  # fmt: skip
+    g, u = FakeGraph(), _u(ref="v1.1")
+    cands = uc.candidates(u, index)
+    assert [c.adv.ghsa_id for c in cands] == ["GHSA-0005"]
+    (f,) = uc.findings(u, uc.pin(u, g), cands, g)
+    assert f.affected is True and f.vulnerable_range == "< 2.0"  # the C code's entry, not the pip package's
+    assert [c.adv.ghsa_id for c in uc.candidates(_u(ref="v1").model_copy(update={"repo": "old/name"}), index,
+                                                  {"old/name": "o/x"})] == ["GHSA-0005"]  # a renamed repo  # fmt: skip
+
+
+def test_exact_only_ranges_get_no_git_range() -> None:
+    p = AdvisoryPackage(ecosystem="c", name="x", vulnerable_version_range="3.26.0", patched_versions="3.27.0")
+    assert git_ranges("o/x", p, {"3.26.0": ["v3.26.0", C[1]], "3.27.0": ["v3.27.0", C[2]]}) is None

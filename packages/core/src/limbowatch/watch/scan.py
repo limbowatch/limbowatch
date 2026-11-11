@@ -101,7 +101,7 @@ async def prepare(
             index.add(c)
         sh.on_watchlist, sh.polled, sh.not_polled = repos - due, polled.polled, polled.not_polled
         sh.checked = await upcheck.check(http, sources, index, not_polled=sh.not_polled, git_cache=git_cache,
-                                                osv_commits=osv_commits)  # fmt: skip
+                                         osv_commits=osv_commits, aliases=polled.aliases)  # fmt: skip
     return sh
 
 
@@ -136,10 +136,10 @@ def assess(inv: Inventory, sh: Shared) -> ScanResult:
         n_pkgs = len(per_repo.get(repo, ())) if repo else 1
         res.findings += match(d, index, repo, go if d.ecosystem == "go" else None, n_pkgs)
     res.findings.sort(key=lambda f: (f.dependency.source, f.dependency.line, f.dependency.name, f.ghsa_id))
-    seen: set[tuple[str, str, str | None, str | None]] = set()
+    seen: set[tuple[object, ...]] = set()
     for u in inv.upstreams:
         for r in sh.upstreams.get(u, [u]):
-            k = (r.kind.value, r.name, r.repo, r.ref or r.version)
+            k = (r.kind.value, r.name, r.host, r.repo, r.ref, r.version, r.url, r.source, r.line)
             if k not in seen:
                 seen.add(k)
                 res.upstreams.append(r)

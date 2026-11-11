@@ -22,6 +22,7 @@ Anything that can't be evaluated exactly is a *possible* finding, never a silent
 from __future__ import annotations
 
 import hashlib
+import re
 import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -42,6 +43,7 @@ from limbowatch.models import (
 from limbowatch.sources import osv
 from limbowatch.versions import (
     UPSTREAM,
+    UpstreamVersion,
     affected,
     already_fixed,
     alternatives,
@@ -59,6 +61,7 @@ class Graph(Protocol):
     def commit(self, ref: str) -> str | None: ...
     def contains(self, ancestor: str, descendant: str) -> bool | None: ...
     def describe(self, commit: str) -> str | None: ...
+    def tags_containing(self, commit: str) -> list[str]: ...
 
 
 @dataclass(frozen=True)
@@ -70,6 +73,28 @@ class Pin:
     shown: str  # as reported: the tag, the version or a short commit
 
 
+def _uv(s: str | None) -> UpstreamVersion | None:
+    try:
+        return UpstreamVersion(s) if s else None
+    except ValueError:
+        return None
+
+
+def _same(a: str | None, b: str | None) -> bool:
+    va, vb = _uv(a), _uv(b)
+    return va is not None and vb is not None and va == vb
+
+
+def _tag_version(tag: str, g: Graph | None) -> str | None:
+    """The version a tag names, when it's certain: with the repo's tags at hand, the version must lead back to the
+    same commit (`pcre2-10.44` → 10.44 → pcre2-10.44), so a misread tag never stands for a release (F-141)."""
+    v = version_of_tag(tag)
+    if v is None or g is None or tag not in g.tags:
+        return v
+    back = tag_for(v, g.tags)
+    return v if back is not None and g.tags[back] == g.tags[tag] else None
+
+
 def pin(u: Upstream, g: Graph | None) -> Pin:
     version = u.version if u.version and not u.version.startswith(">=") else None
     commit = None
@@ -79,9 +104,9 @@ def pin(u: Upstream, g: Graph | None) -> Pin:
         if commit is None and version and (t := tag_for(version, g.tags)):
             commit = g.tags[t]
     if version is None and u.ref and not u.ref_is_commit:
-        version = version_of_tag(u.ref)
+        version = _tag_version(u.ref, g)
     if version is None and commit and g is not None and (near := g.describe(commit)):
-        version = version_of_tag(near)
+        version = _tag_version(near, g)
     shown = (u.ref[:12] if u.ref_is_commit else u.ref) if u.ref else (u.version or "")
     return Pin(commit, version, shown)
 
@@ -113,7 +138,7 @@ def by_version(version: str | None, p: AdvisoryPackage) -> tuple[bool | None, st
         return None, "the advisory gives no affected or fixed version"
     if not version:
         return None, "which release this commit belongs to isn't known"
-    if rng and (listed := exact_only(rng)) is not None and version not in listed:
+    if rng and (listed := exact_only(rng)) is not None and not any(_same(version, x) for x in listed):
         if already_fixed(UPSTREAM, version, patched):
             return False, ""
         fixed = f" and {patched} as fixed" if patched else ""
@@ -136,16 +161,73 @@ def by_version(version: str | None, p: AdvisoryPackage) -> tuple[bool | None, st
     return (False, "") if is_fixed else (True, f"{version} is before the fixed version “{patched}”")
 
 
+def _major(v: str | None) -> int | None:
+    m = re.match(r"v?(\d+)", (v or "").strip())
+    return int(m.group(1)) if m else None
+
+
+def _open_after(p: AdvisoryPackage, fixes: list[str]) -> bool:
+    """Does a range alternative start at or after these fixes and have no upper bound (`< 1.2.5 || >= 2.0.0`: the 2.x
+    line has no fix)? Unreadable ranges don't say so."""
+    top = max((v for f in fixes if (v := _uv(f)) is not None), default=None)
+    if top is None:
+        return False
+    for alt in alternatives(UPSTREAM, p.vulnerable_version_range) or []:
+        lows = [_uv(v) for op, v in alt if op in (">=", ">")]
+        if not any(op in ("<", "<=", "=") for op, _ in alt) and any(lo is not None and lo >= top for lo in lows):
+            return True
+    return False
+
+
+def _affected_release(pn: Pin, p: AdvisoryPackage, g: Graph) -> str | None:
+    """A release whose history includes the pinned commit and that's itself in the affected range: then the pin, older
+    than it, can't have the fix either. None when there's none (a commit after the last affected release)."""
+    hits = []
+    for tag in g.tags_containing(pn.commit or ""):
+        v = _tag_version(tag, g)
+        if v is not None and by_version(v, p)[0] is True and (uv := _uv(v)) is not None:
+            hits.append((uv, tag))
+    return min(hits)[1] if hits else None
+
+
 def verdict(pn: Pin, p: AdvisoryPackage, g: Graph | None) -> tuple[bool | None, str]:
     """Is the pinned source affected per this advisory package? (verdict, evidence)."""
     if pn.commit and g is not None:
         fixes = {v: (t, g.tags[t]) for v in _fix_versions(p) if (t := tag_for(v, g.tags))}
-        if any(g.contains(c, pn.commit) for _, c in fixes.values()):
-            return False, ""
+        contained = [v for v, (_, c) in fixes.items() if g.contains(c, pn.commit)]
+        if contained:
+            # A fix release in its history clears it, unless that fix is for an older line than the pin's own
+            # release: `< 1.2.5 || >= 2.0.0, < 2.0.3` at 2.0.1 contains 1.2.5, not 2.0.3 (F-141).
+            if len(contained) == len(fixes) and not _open_after(p, contained):
+                return False, ""  # every fix release the advisory names is in its history
+            pv = _uv(pn.version)
+            if pv is None:
+                if len(fixes) == 1:
+                    return False, ""
+                return None, (f"{pn.shown} contains the fix release {fixes[contained[0]][0]}, but which release line "
+                              "it's on isn't known")  # fmt: skip
+            if any((fv := _uv(v)) is None or fv >= pv for v in contained):
+                return False, ""
+            hit, why = by_version(pn.version, p)
+            if hit is False:
+                return False, ""
+            # Fixed when its own line's fixes are all in its history (3.10.0 has 3.0.0-beta3, the 3.x fix; 2.11.0 is on
+            # a 2.x branch), or the one fix is ("> 1.0", fixed in 2.0.0, at 3.10.0), and no range runs past them (F-141)
+            line = [v for v in fixes if _major(v) == _major(pn.version)]
+            closed = (
+                (bool(line) and all(v in contained for v in line))
+                or len(fixes) == 1
+                or bool(already_fixed(UPSTREAM, pn.version or "", p.patched_versions))
+            )
+            if hit is None and closed and not _open_after(p, contained):
+                return False, ""
+            older_fix = ", ".join(fixes[v][0] for v in contained)
+            return hit, f"{pn.shown} contains {older_fix}, the fix of an older line; {why}"
         older = [(v, t) for v, (t, c) in fixes.items() if g.contains(pn.commit, c)]
         if older:
+            v, t = older[0]
             rng = p.vulnerable_version_range
-            if exact_only(rng) is not None and pn.version not in (exact_only(rng) or []):
+            if (listed := exact_only(rng)) is not None and not any(_same(pn.version, x) for x in listed):
                 return None, (f"{pn.shown} is older than the fix release, and the advisory lists only {rng} as "
                               "affected; earlier versions may be affected too")  # fmt: skip
             if rng:
@@ -153,13 +235,15 @@ def verdict(pn: Pin, p: AdvisoryPackage, g: Graph | None) -> tuple[bool | None, 
                 if lower is False:
                     return False, ""  # older than the fix, and older than the affected range too
                 if lower is None:  # where the range starts can't be told: possibly too old to be affected
-                    t0 = older[0][1]
                     return (
                         None,
-                        f"{pn.shown} is older than {t0}, the fix release, but the range “{rng}” can't be evaluated",
+                        f"{pn.shown} is older than {t}, the fix release, but the range “{rng}” can't be evaluated",
                     )
-            v, t = older[0]
-            return True, f"{pn.shown} is older than {t}, the fix release ({v}), and doesn't contain it"
+            if rel := _affected_release(pn, p, g):
+                where = "is" if g.tags.get(rel) == pn.commit else f"is in the history of {rel}, which is"
+                return True, f"{pn.shown} {where} in the affected range, and older than {t}, the fix release ({v})"
+            return None, (f"{pn.shown} is newer than the last affected release and older than {t}, the fix release: "
+                          "the fix may already be in it")  # fmt: skip
         if fixes:
             hit, why = by_version(pn.version, p)
             if hit is False:
@@ -175,11 +259,15 @@ def _usable(p: AdvisoryPackage) -> bool:
     return n is not None and n.valid and info(p.ecosystem).osv is not None
 
 
-def candidates(u: Upstream, index: Index) -> list[Candidate]:
-    """The repo's advisories in limbo that name no registry package: about its own code."""
+def candidates(u: Upstream, index: Index, aliases: dict[str, str] | None = None) -> list[Candidate]:
+    """The repo's advisories in limbo about its own code: those with an entry that names no registry package (an
+    advisory naming `pip:protobuf` and `other:protobuf C++` is about the C++ code too; F-141). `aliases` maps a repo's
+    old name (GitHub redirects renamed repos) to the one advisories are filed under."""
     if u.host != "github.com" or not u.repo:
         return []
-    return [c for c in index.by_repo.get(u.repo, []) if not any(_usable(p) for p in c.adv.packages)]
+    repo = (aliases or {}).get(u.repo, u.repo)
+    return [c for c in index.by_repo.get(repo, [])
+            if not c.adv.packages or any(not _usable(p) for p in c.adv.packages)]  # fmt: skip
 
 
 def dependency(u: Upstream, pn: Pin) -> Dependency:
@@ -194,7 +282,8 @@ def findings(u: Upstream, pn: Pin, cands: list[Candidate], g: Graph | None,
     dep = dependency(u, pn)
     out = []
     for c in cands:
-        entries: Sequence[AdvisoryPackage | None] = c.adv.packages or [None]
+        own = [p for p in c.adv.packages if not _usable(p)]  # its registry packages are their users' to match
+        entries: Sequence[AdvisoryPackage | None] = own or [None]
         verdicts = [verdict(pn, p, g) if p else (None, "the advisory gives no affected or fixed version")
                     for p in entries]  # fmt: skip
         hits = [(h, why, p) for (h, why), p in zip(verdicts, entries, strict=True) if h is not False]
@@ -241,6 +330,7 @@ async def check(
     not_polled: set[str],
     git_cache: Path | None = None,
     osv_commits: bool = True,
+    aliases: dict[str, str] | None = None,
 ) -> dict[Upstream, Checked]:
     """Every resolved upstream source against the index (the feed plus repos polled just now)."""
     out: dict[Upstream, Checked] = {}
@@ -254,7 +344,7 @@ async def check(
             out[u] = Checked(unchecked=unchecked(u, Unchecked.UPSTREAM_OFF_GITHUB, _where(u)))
         elif u.repo in not_polled:
             out[u] = Checked(unchecked=unchecked(u, Unchecked.REPO_NOT_POLLED, _where(u)))
-        elif not (cands := candidates(u, index)):
+        elif not (cands := candidates(u, index, aliases)):
             out[u] = Checked()  # checked: nothing in limbo about its code
         elif not u.ref and not u.version:
             n = len(cands)

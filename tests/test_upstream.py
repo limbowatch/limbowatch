@@ -383,3 +383,44 @@ def test_vcpkg_overlay_ports_come_from_their_own_portfile(tmp_path: Path) -> Non
     own = got[("mylib", "ports/mylib/portfile.cmake")]
     assert (own.repo, own.ref, own.version, own.via) == ("acme/mylib", "v2.1.0", "2.1.0", "the project's own port")
     assert got[("zlib", "ports/mylib/vcpkg.json")].baseline == BASELINE  # the project's baseline
+
+
+@pytest.mark.parametrize(
+    ("name", "text"),
+    [("vcpkg.json", "[]"), ("vcpkg.json", '{"dependencies": [1]}'), ("vcpkg.json", '{"dependencies": "zlib"}'),
+     ("conan.lock", "[1]"), ("conan.lock", "{not json")],
+)  # fmt: skip
+def test_malformed_manifests_are_reported_not_a_crash(tmp_path: Path, name: str, text: str) -> None:
+    (tmp_path / name).write_text(text)
+    det = up.detect(tmp_path, include_ignored=True)
+    assert not det.upstreams and [(u.reason, u.source) for u in det.unresolved] == [
+        (Unchecked.LOCKFILE_UNREADABLE, name)]  # fmt: skip
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git not installed")
+def test_a_repos_config_cant_run_commands(tmp_path: Path) -> None:
+    p = _repo(tmp_path)
+    marker = tmp_path / "PWNED"
+    _git(p, "config", "core.fsmonitor", f"touch {marker}")
+    (p / "CMakeLists.txt").write_text("project(x)\n")
+    up.detect(p)
+    assert not marker.exists()
+
+
+def test_two_sources_with_one_name_are_both_reported() -> None:
+    from limbowatch.models import Inventory as Inv
+    from limbowatch.watch.candidates import Index
+    from limbowatch.watch.scan import Shared, assess
+
+    a = Upstream(
+        kind=UpstreamKind.EXTERNALPROJECT, name="zlib", source="a/CMakeLists.txt", url="https://zlib.net/a.tgz"
+    )
+    b = a.model_copy(update={"source": "b/CMakeLists.txt", "url": "https://zlib.net/b.tgz"})
+    res = assess(Inv(upstreams=(a, b)), Shared(Index(), upstream_check=False))
+    assert sorted(u.source for u in res.unresolved) == ["a/CMakeLists.txt", "b/CMakeLists.txt"]
+
+
+def test_bazel_module_includes_and_scp_relative_submodules() -> None:
+    assert up._wanted("deps.MODULE.bazel")
+    assert up._relative_url("../../other/lib.git", "git@github.com:o/super.git") == "ssh://github.com/other/lib.git"
+    assert up.locate("https://www.github.com/O/R") == up.Located("github.com", "o/r", None)
