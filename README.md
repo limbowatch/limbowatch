@@ -90,8 +90,8 @@ The methods, open dataset (CC BY 4.0) and scripts to reproduce it are in the [re
 | 2. Live Limbo Tracker and an open **limbo feed** (OSV schema) | **live** at [limbo.watch](https://limbo.watch) |
 | 3. Contributions to existing tools ([blindspot](https://github.com/munimtechnologies/advisory-import-census), OSV-Scanner) | prepared, not sent ([drafts](docs/outreach/)) |
 | 4. Limbowatch watcher for GitLab, GitHub, Gitea and Forgejo: CI component and action, issues that update as advisories move through review | **released** as 0.1.0a1, an alpha; current 0.1.0a6 ([PyPI](https://pypi.org/project/limbowatch-cli/), [GitLab CI/CD Catalog](https://gitlab.com/explore/catalog/limbowatch/limbowatch-component), [GitHub Marketplace](https://github.com/marketplace/actions/limbowatch)) |
-| 5. Org-wide watch, more ecosystems (Maven/Gradle first) | built: tracker coverage, source repos for more ecosystems, the image, org-wide mode (`limbowatch watch`) and Maven transitive resolution; released in 0.1.0a6, awaiting review |
-| 6. C/C++ and vendored code | planned |
+| 5. Org-wide watch, more ecosystems (Maven/Gradle first) | built: tracker coverage, source repos for more ecosystems, the image, org-wide mode (`limbowatch watch`) and Maven transitive resolution; **released** in 0.1.0a6 |
+| 6. C/C++ and vendored code: git submodules, CMake, vcpkg, Bazel, Conan; a feed that covers advisories without a package | in progress (measuring) |
 
 Limbowatch builds only what existing tools don't do. See [the plan](docs/PHASE0_PLAN.md) and [research findings](docs/FINDINGS.md).
 
