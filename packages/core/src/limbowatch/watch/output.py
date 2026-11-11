@@ -261,8 +261,8 @@ def table(r: Report, verbose: bool = False, paint: Paint | None = None, embedded
     """`embedded`: one project's part of an org-wide table, without the header line and the attribution."""
     p = paint or Paint()
     act = r.active
-    ups = r.stats.get("upstreams", 0)
-    also = f" and {_plural(ups, 'upstream source')}" if ups else ""
+    n_sources = r.stats.get("upstreams", 0)
+    also = f" and {_plural(n_sources, 'upstream source')}" if n_sources else ""
     head = (f"limbowatch {__version__} · {_plural(r.stats.get('dependencies', 0), 'dependency', 'dependencies')}{also} "
             f"scanned ({r.tool})")  # fmt: skip
     if r.feed_generated_at:
