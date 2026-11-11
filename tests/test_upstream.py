@@ -424,3 +424,105 @@ def test_bazel_module_includes_and_scp_relative_submodules() -> None:
     assert up._wanted("deps.MODULE.bazel")
     assert up._relative_url("../../other/lib.git", "git@github.com:o/super.git") == "ssh://github.com/other/lib.git"
     assert up.locate("https://www.github.com/O/R") == up.Located("github.com", "o/r", None)
+
+
+async def test_registry_edges(no_sleep: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """What each registry says when it can't name a repo and tag: always a reason, never a silent drop."""
+    raw = f"{reg.RAW}/{reg.VCPKG}/{BASELINE}"
+    base = {"default": {"site": {"baseline": "1.0"}, "pinned": {"baseline": "2.0"}, "graph": {"baseline": "1.0"},
+                        "dep": {"baseline": "1.0"}, "gone": {"baseline": "1.0"}}}  # fmt: skip
+    with respx.mock(assert_all_called=False) as router:
+        gitsrc = {"type": "git_repository", "remote": "https://github.com/o/git.git", "commit": "a" * 40}
+        router.get(f"{reg.BCR}/git/1.0/source.json").mock(return_value=httpx.Response(200, json=gitsrc))
+        router.get(f"{reg.BCR}/meta/1.0/source.json").mock(return_value=httpx.Response(
+            200, json={"url": "https://example.org/meta-1.0.tar.gz"}))  # fmt: skip
+        router.get(f"{reg.BCR}/meta/metadata.json").mock(return_value=httpx.Response(
+            200, json={"repository": ["github:O/Meta"]}))  # fmt: skip
+        router.get(f"{reg.BCR}/site/1.0/source.json").mock(return_value=httpx.Response(
+            200, json={"url": "https://example.org/site-1.0.tar.gz"}))  # fmt: skip
+        router.get(f"{reg.BCR}/site/metadata.json").mock(return_value=httpx.Response(404))
+        router.get(f"{reg.RAW}/{reg.VCPKG}/bad/versions/baseline.json").mock(return_value=httpx.Response(404))
+        router.get(f"{raw}/versions/baseline.json").mock(return_value=httpx.Response(200, json=base))
+        dl = 'vcpkg_download_distfile(A URLS "https://example.org/site-${VERSION}.tgz" FILENAME x)'
+        router.get(f"{raw}/ports/site/portfile.cmake").mock(return_value=httpx.Response(200, text=dl))
+        router.get(f"{raw}/ports/pinned/portfile.cmake").mock(return_value=httpx.Response(
+            200, text=f"vcpkg_from_github(OUT_SOURCE_PATH S REPO o/pinned REF {'b' * 40})"))  # fmt: skip
+        router.get(f"{raw}/ports/gone/portfile.cmake").mock(return_value=httpx.Response(404))
+        router.get(f"{raw}/ports/graph/portfile.cmake").mock(return_value=httpx.Response(
+            200, text="vcpkg_from_github(OUT_SOURCE_PATH S REPO o/graph REF v${VERSION})"))  # fmt: skip
+        router.get(f"{raw}/ports/graph/vcpkg.json").mock(return_value=httpx.Response(
+            200, json={"dependencies": ["dep", {"name": "tool", "host": True}]}))  # fmt: skip
+        router.get(f"{raw}/ports/dep/portfile.cmake").mock(return_value=httpx.Response(
+            200, text="vcpkg_from_github(OUT_SOURCE_PATH S REPO o/dep REF v${VERSION})"))  # fmt: skip
+        router.get(f"{raw}/ports/dep/vcpkg.json").mock(
+            return_value=httpx.Response(200, json={"dependencies": ["more"]})
+        )
+        router.get(url__startswith=f"{reg.CONAN_REMOTE}/web/").mock(side_effect=[
+            httpx.Response(200, json={"revision": "r1"}), httpx.Response(200, content=b"not a tarball")])  # fmt: skip
+        router.get(url__regex=r".*/ports/[^/]+/vcpkg\.json$").mock(return_value=httpx.Response(404))  # the rest
+        monkeypatch.setattr(reg, "MAX_VCPKG_PORTS", 1)
+        async with HttpClient(sleep=no_sleep) as http:
+            got = await reg.Registries(http).resolve([
+                _u(UpstreamKind.BAZEL_MODULE, "git", version="1.0"),
+                _u(UpstreamKind.BAZEL_MODULE, "meta", version="1.0"),
+                _u(UpstreamKind.BAZEL_MODULE, "site", version="1.0"),
+                _u(UpstreamKind.VCPKG, "x", baseline="bad"),
+                _u(UpstreamKind.VCPKG, "site", baseline=BASELINE),
+                _u(UpstreamKind.VCPKG, "pinned", baseline=BASELINE, version="2.0.0"),  # 2.0.0 is the baseline's 2.0
+                _u(UpstreamKind.VCPKG, "missing", baseline=BASELINE),
+                _u(UpstreamKind.VCPKG, "gone", baseline=BASELINE),
+                _u(UpstreamKind.VCPKG, "graph", baseline=BASELINE),
+                _u(UpstreamKind.CONAN, "web", version="1.0"),
+                _u(UpstreamKind.BAZEL_MODULE, "nover"),  # nothing to look up
+            ])  # fmt: skip
+    r = {u.name: rs for u, rs in got.items() if not (u.kind is UpstreamKind.VCPKG and u.name == "site")}
+    assert (r["git"][0].repo, r["git"][0].ref_is_commit) == ("o/git", True)
+    assert (r["meta"][0].repo, r["meta"][0].ref, r["meta"][0].via) == (
+        "o/meta",
+        None,
+        "Bazel Central Registry metadata",
+    )
+    assert "isn't on a forge" in r["site"][0].detail and r["site"][0].repo is None
+    assert "couldn't be read" in r["x"][0].detail
+    vsite = next(us for u, us in got.items() if u.kind is UpstreamKind.VCPKG and u.name == "site")[0]
+    assert vsite.detail == "the port downloads from a site, not a repository"  # no deps: not truncated
+    assert r["pinned"][0].ref == "b" * 40  # 2.0.0 is the same version as the baseline's 2.0 (F-142)
+    assert "no port missing" in r["missing"][0].detail and "couldn't be read" in r["gone"][0].detail
+    graph = r["graph"]
+    assert [g.name for g in graph] == ["graph"] and "more than 1 ports" in graph[0].detail  # dep left out, said
+    assert r["web"][0].repo is None and "names no source URL" in r["web"][0].detail
+    assert r["nover"] == [_u(UpstreamKind.BAZEL_MODULE, "nover")]
+
+
+def test_installed_packages_and_caches_arent_walked(tmp_path: Path) -> None:
+    for f in (".venv/lib/site-packages/x/catch2/CMakeLists.txt", "venv/x/third_party/jq/LICENSE",
+              "third_party/real/LICENSE"):  # fmt: skip
+        (tmp_path / f).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / f).write_text("FetchContent_Declare(c GIT_REPOSITORY https://github.com/o/c GIT_TAG v1)\n")
+    det = up.detect(tmp_path, include_ignored=True)
+    assert det.upstreams == [] and [u.source for u in det.unresolved] == ["third_party/real"]
+
+
+def test_line_numbers_stay_fast_on_huge_cmake_files() -> None:
+    import time
+
+    text = "set(X 1)\n" * 70_000 + "FetchContent_Declare(z GIT_REPOSITORY https://github.com/o/z GIT_TAG v1)\n"
+    t0 = time.monotonic()
+    (u,) = up.cmake(text, "big.cmake", up.cmake_variables([text]))
+    assert u.line == 70_001 and time.monotonic() - t0 < 5
+
+
+async def test_vcpkg_overrides_apply_to_the_ports_pulled_in(no_sleep: Any) -> None:
+    raw = f"{reg.RAW}/{reg.VCPKG}/{BASELINE}"
+    with respx.mock(assert_all_called=False) as router:
+        router.get(f"{raw}/versions/baseline.json").mock(return_value=httpx.Response(
+            200, json={"default": {"curl": {"baseline": "8.0"}, "zlib": {"baseline": "1.3.2"}}}))  # fmt: skip
+        for port, deps in (("curl", ["zlib"]), ("zlib", [])):
+            router.get(f"{raw}/ports/{port}/vcpkg.json").mock(return_value=httpx.Response(
+                200, json={"dependencies": deps}))  # fmt: skip
+            router.get(f"{raw}/ports/{port}/portfile.cmake").mock(return_value=httpx.Response(
+                200, text=f"vcpkg_from_github(OUT_SOURCE_PATH S REPO o/{port} REF v${{VERSION}})"))  # fmt: skip
+        root = _u(UpstreamKind.VCPKG, "curl", baseline=BASELINE, overrides=(("zlib", "1.2.13"),))
+        async with HttpClient(sleep=no_sleep) as http:
+            (graph,) = (await reg.Registries(http).resolve([root])).values()
+    assert [(g.name, g.version, g.ref) for g in graph] == [("curl", "8.0", "v8.0"), ("zlib", "1.2.13", "v1.2.13")]

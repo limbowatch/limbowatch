@@ -22,11 +22,16 @@ class GitGraph:
 
     def __init__(self, path: Path) -> None:
         self.path = path
+        self._containing: dict[str, list[str]] = {}
         self.tags = self._tags()
 
     def _git(self, *args: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(["git", "-c", "safe.directory=*", "--git-dir", str(self.path), *args],
-                              capture_output=True, text=True, timeout=120, env={**os.environ, **_ENV})  # fmt: skip
+        try:
+            return subprocess.run(["git", "-c", "safe.directory=*", "--git-dir", str(self.path), *args],
+                                  capture_output=True, text=True, encoding="utf-8", errors="surrogateescape",
+                                  timeout=120, env={**os.environ, **_ENV})  # fmt: skip
+        except (OSError, subprocess.TimeoutExpired):  # a git question that can't be answered: "unknown", not a crash
+            return subprocess.CompletedProcess(args, 124, "", "")
 
     def _tags(self) -> dict[str, str]:
         r = self._git("for-each-ref", "refs/tags", "--format=%(refname:strip=2) %(objectname) %(*objectname)")
@@ -50,9 +55,11 @@ class GitGraph:
         return {0: True, 1: False}.get(r.returncode)
 
     def tags_containing(self, commit: str) -> list[str]:
-        """The tags whose history includes the commit (the commit's own tag too)."""
-        r = self._git("tag", "--contains", commit)
-        return r.stdout.split() if r.returncode == 0 else []
+        """The tags whose history includes the commit (the commit's own tag too); asked once per commit."""
+        if commit not in self._containing:
+            r = self._git("tag", "--contains", commit)
+            self._containing[commit] = r.stdout.split() if r.returncode == 0 else []
+        return self._containing[commit]
 
     def describe(self, commit: str) -> str | None:
         """The nearest tag in the commit's history."""

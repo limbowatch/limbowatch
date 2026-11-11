@@ -619,10 +619,14 @@ class Tracker:
         results: dict[str, dict[str, Any]] = {}
         failed = 0
 
+        stopped = False
+
         async def worker() -> None:
-            nonlocal failed
+            nonlocal failed, stopped
             while queue:
-                self._check_deadline()
+                if self.http.deadline is not None and time.monotonic() > self.http.deadline:
+                    stopped = True  # keep what's listed so far; the next run goes on (F-142)
+                    return
                 repo = queue.pop()
                 listed = await gitrefs.tags(f"https://github.com/{repo}.git")
                 if listed is None:
@@ -646,9 +650,7 @@ class Tracker:
             "versions": sum(len(v) for v in needed.values()),
             "tagged": sum(1 for r in results.values() for x in r.values() if x),
         }
-
-    def _check_deadline(self) -> None:
-        if self.http.deadline is not None and time.monotonic() > self.http.deadline:
+        if stopped:
             raise DeadlineReached
 
     # ------------------------------------------------------------------ run

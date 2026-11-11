@@ -37,6 +37,14 @@ CONAN_REMOTE = "https://center2.conan.io/v2/conans"  # ConanCenter's Conan 2 rem
 MAX_VCPKG_PORTS = 500  # a project's whole vcpkg graph; more is a runaway
 
 
+def _same(a: str, b: str) -> bool:
+    """The same version (1.3 and 1.3.0 are); unreadable versions only when spelled the same."""
+    try:
+        return UpstreamVersion(a) == UpstreamVersion(b)
+    except ValueError:
+        return a == b
+
+
 def _newer(a: str, b: str) -> bool:
     """Is version a after b? Unreadable versions aren't."""
     try:
@@ -173,17 +181,25 @@ class Registries:
         out = [await self.vcpkg_port(root, base)]
         seen = {root.name}
         queue = [root.name]
-        while queue and len(seen) < MAX_VCPKG_PORTS:
+        truncated = False
+        while queue:
             name = queue.pop(0)
+            if name not in base:
+                continue  # no such port at the baseline (reported on it): nothing to follow
             manifest = await self.doc(f"{RAW}/{VCPKG}/{sha}/ports/{name}/vcpkg.json")
             for dep in _port_deps(manifest):
                 if dep in seen:
                     continue
+                if len(seen) >= MAX_VCPKG_PORTS:
+                    truncated = True  # a port left out: said on the root below
+                    continue
                 seen.add(dep)
-                child = root.model_copy(update={"name": dep, "version": None, "via": f"a dependency of {name}"})
+                child = root.model_copy(
+                    update={"name": dep, "version": dict(root.overrides).get(dep), "via": f"a dependency of {name}"}
+                )  # an override applies to it too
                 out.append(await self.vcpkg_port(child, base))
                 queue.append(dep)
-        if queue:  # stopped at MAX_VCPKG_PORTS: say so on the root, never drop silently
+        if truncated:  # stopped at MAX_VCPKG_PORTS: say so on the root, never drop silently
             why = f"its dependency graph has more than {MAX_VCPKG_PORTS} ports; the rest weren't listed"
             out[0] = out[0].model_copy(update={"detail": "; ".join(x for x in (out[0].detail, why) if x)})
         return out
@@ -218,7 +234,7 @@ class Registries:
                 }
             )
         detail = ""
-        if ref and version != at_baseline and "${VERSION}" not in up.ref_template(pf):
+        if ref and not _same(version, at_baseline) and "${VERSION}" not in up.ref_template(pf):
             ref, detail = None, f"the port at the baseline builds {at_baseline}; the source of {version} isn't known"
         return u.model_copy(
             update={

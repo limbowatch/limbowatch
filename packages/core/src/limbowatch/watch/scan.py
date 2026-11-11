@@ -13,7 +13,15 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from limbowatch.http import HttpClient
-from limbowatch.models import Dependency, Finding, Inventory, Unchecked, UnresolvedDependency, Upstream
+from limbowatch.models import (
+    Dependency,
+    Finding,
+    Inventory,
+    Unchecked,
+    UnresolvedDependency,
+    Upstream,
+    UpstreamKind,
+)
 from limbowatch.watch import mapping, upstream
 from limbowatch.watch import upstream_check as upcheck
 from limbowatch.watch.candidates import Index, from_feed_zip
@@ -33,6 +41,7 @@ class ScanResult:
     findings: list[Finding] = field(default_factory=list)
     unresolved: list[UnresolvedDependency] = field(default_factory=list)  # the inventory's, plus partly checked
     upstreams: list[Upstream] = field(default_factory=list)  # with registry names resolved to repos and tags
+    upstreams_checked: set[str] = field(default_factory=set)  # host/repo of upstream sources checked in full
     stats: dict[str, int] = field(default_factory=dict)
 
 
@@ -139,29 +148,38 @@ def assess(inv: Inventory, sh: Shared) -> ScanResult:
     seen: set[tuple[object, ...]] = set()
     for u in inv.upstreams:
         for r in sh.upstreams.get(u, [u]):
-            k = (r.kind.value, r.name, r.host, r.repo, r.ref, r.version, r.url, r.source, r.line)
+            # whole declarations, so two sources with one name in two files are both kept (F-141); a vcpkg port
+            # pulled in by several ports is one dependency of the manifest (F-142)
+            transitive = r.kind is UpstreamKind.VCPKG and "a dependency of" in r.via
+            k = (r.kind.value, r.name, r.host, r.repo, r.ref, r.version, r.url, r.source,
+                 None if transitive else r.line)  # fmt: skip
             if k not in seen:
                 seen.add(k)
                 res.upstreams.append(r)
                 if not sh.upstream_check:
-                    res.unresolved.append(upstream_unchecked(r))
+                    res.unresolved.append(upstream_unchecked(r, checking=False))
                     continue
                 done = sh.checked.get(r) or upcheck.Checked(unchecked=upstream_unchecked(r))
                 res.findings += done.findings
                 if done.unchecked is not None:
                     res.unresolved.append(done.unchecked)
+                elif r.repo:
+                    res.upstreams_checked.add(f"{r.host}/{r.repo}")
     res.findings.sort(key=lambda f: (f.dependency.source, f.dependency.line, f.dependency.name, f.ghsa_id))
     res.stats |= {"dependencies": len(deps), "feed_advisories": len(index.ids), "findings": len(res.findings),
                   "upstreams": len(res.upstreams)}  # fmt: skip
     return res
 
 
-def upstream_unchecked(u: Upstream) -> UnresolvedDependency:
-    """An upstream source left unchecked (`--no-upstream-check`): how far it got, its repo or its version unknown."""
+def upstream_unchecked(u: Upstream, checking: bool = True) -> UnresolvedDependency:
+    """An upstream source not checked: with `--no-upstream` (`checking` False), or because its repo or its version is
+    unknown. Says how far it got."""
     where = f"{u.host}/{u.repo}" if u.repo else ""
     pin = u.ref or (f"version {u.version}" if u.version else "")
     known = f"{where} at {pin}" if where and pin else where
-    if u.repo is None:
+    if not checking:
+        reason, detail = Unchecked.UPSTREAM_NO_CHECK, known or pin or u.detail
+    elif u.repo is None:
         reason, detail = Unchecked.UPSTREAM_UNKNOWN, u.detail
     elif not u.ref:
         reason, detail = Unchecked.UPSTREAM_NO_REF, "; ".join(x for x in (known, u.detail) if x)

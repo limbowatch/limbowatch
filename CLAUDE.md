@@ -56,7 +56,7 @@ uv sync
 uv run ruff check packages tests && uv run ruff format --check packages tests
 uv run mypy                      # strict
 uv run lint-imports              # module boundaries: pure modules do no I/O, sources never classify, core never imports cli
-uv run pytest -q                 # recorded fixtures only; tests never hit the network
+uv run pytest -q --cov           # recorded fixtures only; tests never hit the network; fails below 90% coverage
 uv run limbowatch track --state tracker/state --seed tracker/seeds/popular-upstreams.txt --seed tracker/seeds/top100-upstreams.txt --seed tracker/seeds/top-packages.txt --seed tracker/seeds/cpp-upstreams.txt --budget 4000 --max-new 2500
 uv run limbowatch publish --state tracker/state --out tracker/site
 uv run limbowatch report --state tracker/state --out tracker/reports   # daily Markdown report
@@ -64,7 +64,8 @@ uv run limbowatch scan <project> [--state F] [-o FORMAT=FILE ...] [--issues gitl
 uv run python scripts/e2e_gitea.py                       # issue lifecycle against a local Gitea in Docker (network)
 LIMBOWATCH_ISSUES_TOKEN=… uv run python scripts/e2e_gitlab.py   # GitLab issues in the private project limbowatch/limbowatch-e2e (network)
 uv run --with pyyaml python scripts/check_integrations.py # GitLab component and Action in a container (network)
-uv run --with jsonschema python scripts/audit.py           # audit tracker, site and feed against GitHub/OSV/CVE Services; run before every release (network)
+uv run python scripts/e2e_upstream.py                    # upstream sources against real repos: FreeRDP, ImageMagick, vcpkg (network, OSV-Scanner on PATH)
+uv run --with jsonschema python scripts/audit.py           # audit tracker, site, feed, GIT ranges and old releases against GitHub/OSV/CVE Services; run before every release (network)
 ```
 
 The watcher needs OSV-Scanner 2.7.0 on PATH (the research pipeline builds one at `research/2026-10-state-of-the-gap/.cache/bin/`). The `scripts/` need Docker or a GitLab token, and the network, so they aren't part of the test suite.

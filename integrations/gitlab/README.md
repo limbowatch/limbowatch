@@ -1,5 +1,11 @@
 # Limbowatch CI/CD component
 
+[![pipeline](https://gitlab.com/limbowatch/limbowatch-component/badges/main/pipeline.svg)](https://gitlab.com/limbowatch/limbowatch-component/-/pipelines)
+[![latest release](https://gitlab.com/limbowatch/limbowatch-component/-/badges/release.svg)](https://gitlab.com/limbowatch/limbowatch-component/-/releases)
+[![CI/CD Catalog](https://img.shields.io/badge/CI%2FCD_Catalog-limbowatch-fc6d26?logo=gitlab)](https://gitlab.com/explore/catalog/limbowatch/limbowatch-component)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE.md)
+
+
 Checks your dependencies against security advisories **in limbo**: published by maintainers on GitHub, but not yet in GitHub's reviewed Advisory Database or OSV. Until they're reviewed, Dependency Scanning, OSV-Scanner, Trivy and Dependabot don't report them, often for weeks.
 
 - **Merge requests, every tier:** each finding on its lockfile line (Code Quality), one failed test per finding at or above `fail_on` (test summary), and a link to the full report.

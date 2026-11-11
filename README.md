@@ -9,6 +9,15 @@
 
 **Published. Not reviewed. Not scanned. In limbo.**
 
+[![CI](https://github.com/limbowatch/limbowatch/actions/workflows/ci.yml/badge.svg)](https://github.com/limbowatch/limbowatch/actions/workflows/ci.yml)
+[![Tracker](https://github.com/limbowatch/limbowatch/actions/workflows/tracker.yml/badge.svg)](https://github.com/limbowatch/limbowatch/actions/workflows/tracker.yml)
+[![PyPI](https://img.shields.io/pypi/v/limbowatch-cli?include_prereleases&label=PyPI)](https://pypi.org/project/limbowatch-cli/)
+[![Python](https://img.shields.io/pypi/pyversions/limbowatch-cli)](https://pypi.org/project/limbowatch-cli/)
+[![GitHub Marketplace](https://img.shields.io/badge/GitHub_Marketplace-limbowatch-2088ff?logo=github)](https://github.com/marketplace/actions/limbowatch)
+[![GitLab CI/CD Catalog](https://img.shields.io/badge/GitLab_CI%2FCD_Catalog-limbowatch-fc6d26?logo=gitlab)](https://gitlab.com/explore/catalog/limbowatch/limbowatch-component)
+[![Image](https://img.shields.io/badge/image-ghcr.io%2Flimbowatch%2Flimbowatch-blue?logo=docker)](https://github.com/limbowatch/limbowatch/pkgs/container/limbowatch)
+[![License](https://img.shields.io/github/license/limbowatch/limbowatch)](LICENSE)
+
 [limbo.watch](https://limbo.watch) · [GitHub Marketplace](https://github.com/marketplace/actions/limbowatch) · [GitLab CI/CD Catalog](https://gitlab.com/explore/catalog/limbowatch/limbowatch-component) · [PyPI](https://pypi.org/project/limbowatch-cli/) · [Check a package](https://limbo.watch/check/)
 
 Limbowatch measures the gap between a maintainer publishing a security advisory and your scanner being able to see it, and closes it in your CI.

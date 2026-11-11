@@ -131,7 +131,7 @@ class Unchecked(StrEnum):
     UPSTREAM_NO_REF = "upstream version or commit unknown"
     VENDORED = "vendored copy; its version is unknown"
     UPSTREAM_OFF_GITHUB = "upstream not on GitHub, where repository advisories are published"
-    UPSTREAM_NO_CHECK = "upstream source not checked (--no-upstream-check)"
+    UPSTREAM_NO_CHECK = "upstream source not checked (--no-upstream)"
     NO_REPO = "source repository unknown; checked against the limbo feed by name only"
     REPO_NOT_POLLED = "source repository not checked (GitHub rate limit); checked against the limbo feed by name only"
 
@@ -191,6 +191,7 @@ class Upstream(Frozen):
     ref_is_commit: bool = False
     version: str | None = None  # an exact version, or a minimum (">=1.2", vcpkg's "version>=")
     baseline: str | None = None  # vcpkg: the commit of microsoft/vcpkg whose port versions apply
+    overrides: tuple[tuple[str, str], ...] = ()  # vcpkg: the manifest's version overrides, for the ports pulled in
     via: str = ""  # how repo and ref were found, when not from the declaration itself
     detail: str = ""  # what's missing, and why
 

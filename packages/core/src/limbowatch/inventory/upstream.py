@@ -19,6 +19,7 @@ and tag later, at scan time (`limbowatch.watch.registries`). Whatever can't be p
 
 from __future__ import annotations
 
+import bisect
 import json
 import os
 import re
@@ -32,7 +33,11 @@ from urllib.parse import urlsplit
 from limbowatch.models import Inventory, Unchecked, UnresolvedDependency, Upstream, UpstreamKind
 
 MAX_BYTES = 2_000_000  # build files larger than this aren't read
-NOT_WALKED = {".git", ".gradle", "node_modules", "build", "target", ".idea", "bazel-out", ".cache"}
+# never read for build files or vendored copies: VCS data, build output, caches and installed packages (a .cmake file
+# in a pip package isn't the project's dependency; F-142)
+NOT_WALKED = {".git", ".gradle", "node_modules", "build", "target", ".idea", "bazel-out", ".cache", ".venv", "venv",
+              ".tox", ".nox", "site-packages", "dist-packages", "__pycache__", ".mypy_cache", ".pytest_cache",
+              ".bundle"}  # fmt: skip
 VENDOR_ROOTS = {"third_party", "third-party", "thirdparty", "3rdparty", "vendor", "vendored", "external", "extern",
                 "deps", "contrib"}  # fmt: skip
 # A vendor/ next to one of these is a package manager's (Go, Composer, Bundler, npm), already read from its lockfile.
@@ -175,6 +180,7 @@ def strip_cmake_comments(text: str) -> str:
 
 def calls(text: str, names: str) -> Iterator[tuple[str, str, int]]:
     """(name, argument text, line) of every call to a function matching `names` (a regex, case-insensitive)."""
+    starts = [0] + [m.end() for m in re.finditer("\n", text)]  # line numbers by bisection, not by counting (F-142)
     for m in re.finditer(rf"(?<![\w.]){names}\s*\(", text, re.I):
         depth, j, q = 1, m.end(), False
         while j < len(text) and depth:
@@ -184,7 +190,7 @@ def calls(text: str, names: str) -> Iterator[tuple[str, str, int]]:
             elif not q:
                 depth += {"(": 1, ")": -1}.get(ch, 0)
             j += 1
-        yield m.group(0).rstrip("( \t\n"), text[m.end() : j - 1], text.count("\n", 0, m.start()) + 1
+        yield m.group(0).rstrip("( \t\n"), text[m.end() : j - 1], bisect.bisect_right(starts, m.start())
 
 
 def cmake_args(s: str) -> list[str]:
@@ -372,7 +378,7 @@ def _git(cwd: Path, *args: str) -> str | None:
         # core.fsmonitor in a repo's config would run a command; safe.directory=* (needed for checkouts owned by
         # another user, as in CI containers) would otherwise let it (F-141)
         r = subprocess.run(["git", "-c", "safe.directory=*", "-c", "core.fsmonitor=false", *args], cwd=cwd,
-                           capture_output=True, text=True,
+                           capture_output=True, text=True, encoding="utf-8", errors="surrogateescape",
                            timeout=120, env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})  # fmt: skip
     except (OSError, subprocess.TimeoutExpired):
         return None
@@ -581,8 +587,9 @@ def vcpkg(
         elif not baseline and not overrides.get(name):
             detail = "no builtin-baseline: the version depends on the vcpkg checkout used to build"
         pin = baseline if baseline and name not in custom else None
+        pinned = tuple(sorted((k, str(v)) for k, v in overrides.items() if v))
         out.append(Upstream(kind=UpstreamKind.VCPKG, name=name, source=src, line=_line_of(text, f'"{name}"', start),
-                            version=version, baseline=pin, detail=detail))  # fmt: skip
+                            version=version, baseline=pin, overrides=pinned, detail=detail))  # fmt: skip
     return out, out_bad
 
 
@@ -817,6 +824,8 @@ def vendored(all_files: list[str], submodule_paths: set[str]) -> list[Unresolved
     out = []
     for f in all_files:
         parts = f.split("/")
+        if any(x in NOT_WALKED for x in parts[:-1]):
+            continue
         if len(parts) < 3 or not LICENSE.match(parts[-1]) or parts[-3].lower() not in VENDOR_ROOTS:
             continue
         lib = "/".join(parts[:-1])
@@ -829,6 +838,15 @@ def vendored(all_files: list[str], submodule_paths: set[str]) -> list[Unresolved
         why = "copied into the tree; list it in an SBOM (--sbom) to check it"
         out.append(UnresolvedDependency(reason=Unchecked.VENDORED, source=lib, name=parts[-2], detail=why))
     return out
+
+
+def detect_safely(root: Path, include_ignored: bool = False) -> Detected:
+    """`detect`, never raising: a failure is reported as one unchecked entry, and the rest of the scan goes on."""
+    try:
+        return detect(root, include_ignored)
+    except Exception as e:
+        why = f"upstream sources couldn't be read: {type(e).__name__}: {e}"[:300]
+        return Detected(unresolved=[UnresolvedDependency(reason=Unchecked.LOCKFILE_UNREADABLE, source=".", detail=why)])
 
 
 def combine(inv: Inventory, det: Detected) -> Inventory:

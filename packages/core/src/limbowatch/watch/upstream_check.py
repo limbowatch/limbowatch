@@ -54,6 +54,8 @@ from limbowatch.versions import (
 )
 from limbowatch.watch.candidates import Candidate, Index
 
+CLONE_URL = "https://github.com/{repo}.git"  # where an upstream's commits-only clone comes from (tests: a local repo)
+
 
 class Graph(Protocol):
     tags: dict[str, str]
@@ -193,16 +195,17 @@ def _affected_release(pn: Pin, p: AdvisoryPackage, g: Graph) -> str | None:
 def verdict(pn: Pin, p: AdvisoryPackage, g: Graph | None) -> tuple[bool | None, str]:
     """Is the pinned source affected per this advisory package? (verdict, evidence)."""
     if pn.commit and g is not None:
-        fixes = {v: (t, g.tags[t]) for v in _fix_versions(p) if (t := tag_for(v, g.tags))}
+        named = _fix_versions(p)  # every fix the advisory names; only tagged ones can be looked up (F-142)
+        fixes = {v: (t, g.tags[t]) for v in named if (t := tag_for(v, g.tags))}
         contained = [v for v, (_, c) in fixes.items() if g.contains(c, pn.commit)]
         if contained:
             # A fix release in its history clears it, unless that fix is for an older line than the pin's own
             # release: `< 1.2.5 || >= 2.0.0, < 2.0.3` at 2.0.1 contains 1.2.5, not 2.0.3 (F-141).
-            if len(contained) == len(fixes) and not _open_after(p, contained):
+            if len(contained) == len(named) and not _open_after(p, contained):
                 return False, ""  # every fix release the advisory names is in its history
             pv = _uv(pn.version)
             if pv is None:
-                if len(fixes) == 1:
+                if len(named) == 1:
                     return False, ""
                 return None, (f"{pn.shown} contains the fix release {fixes[contained[0]][0]}, but which release line "
                               "it's on isn't known")  # fmt: skip
@@ -213,10 +216,10 @@ def verdict(pn: Pin, p: AdvisoryPackage, g: Graph | None) -> tuple[bool | None, 
                 return False, ""
             # Fixed when its own line's fixes are all in its history (3.10.0 has 3.0.0-beta3, the 3.x fix; 2.11.0 is on
             # a 2.x branch), or the one fix is ("> 1.0", fixed in 2.0.0, at 3.10.0), and no range runs past them (F-141)
-            line = [v for v in fixes if _major(v) == _major(pn.version)]
+            line = [v for v in named if _major(v) == _major(pn.version)]
             closed = (
                 (bool(line) and all(v in contained for v in line))
-                or len(fixes) == 1
+                or len(named) == 1
                 or bool(already_fixed(UPSTREAM, pn.version or "", p.patched_versions))
             )
             if hit is None and closed and not _open_after(p, contained):
@@ -342,10 +345,10 @@ async def check(
             )
         elif u.host != "github.com":
             out[u] = Checked(unchecked=unchecked(u, Unchecked.UPSTREAM_OFF_GITHUB, _where(u)))
-        elif u.repo in not_polled:
-            out[u] = Checked(unchecked=unchecked(u, Unchecked.REPO_NOT_POLLED, _where(u)))
         elif not (cands := candidates(u, index, aliases)):
-            out[u] = Checked()  # checked: nothing in limbo about its code
+            # nothing in limbo about its code, in the feed or polled now; if polling stopped (rate limit), say so
+            partial = unchecked(u, Unchecked.REPO_NOT_POLLED, _where(u)) if u.repo in not_polled else None
+            out[u] = Checked(unchecked=partial)
         elif not u.ref and not u.version:
             n = len(cands)
             detail = f"{_where(u)} has {n} advisor{'y' if n == 1 else 'ies'} in limbo; " + (
@@ -360,7 +363,7 @@ async def check(
         root = git_cache / "git" if git_cache is not None else Path(tmp)
         from limbowatch.watch.gitgraph import graphs
 
-        urls = {u.repo: f"https://github.com/{u.repo}.git" for u, _ in todo if u.repo}
+        urls = {u.repo: CLONE_URL.format(repo=u.repo) for u, _ in todo if u.repo}
         gs = await graphs(urls, root)
         pins = {u: pin(u, gs.get(u.repo or "")) for u, _ in todo}
         hits: dict[str, set[str]] = {}
@@ -377,5 +380,8 @@ async def check(
                                                      f"{_where(u)} has {n} advisor{'y' if n == 1 else 'ies'} in limbo, "
                                                      f"but which release {u.ref} is can't be told: {why}"))  # fmt: skip
                 continue
-            out[u] = Checked(findings=findings(u, pn, cands, g, hits.get(pn.commit or "")))
+            # matched against the feed even when polling stopped (rate limit); then it's also reported as partly
+            # checked, since advisories newer than the tracker's last check of the repo weren't seen (F-142)
+            partial = unchecked(u, Unchecked.REPO_NOT_POLLED, _where(u)) if u.repo in not_polled else None
+            out[u] = Checked(findings=findings(u, pn, cands, g, hits.get(pn.commit or "")), unchecked=partial)
     return out

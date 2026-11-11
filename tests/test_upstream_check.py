@@ -397,3 +397,85 @@ def test_an_advisory_naming_a_registry_package_and_the_c_code_matches_the_c_code
 def test_exact_only_ranges_get_no_git_range() -> None:
     p = AdvisoryPackage(ecosystem="c", name="x", vulnerable_version_range="3.26.0", patched_versions="3.27.0")
     assert git_ranges("o/x", p, {"3.26.0": ["v3.26.0", C[1]], "3.27.0": ["v3.27.0", C[2]]}) is None
+
+
+@pytest.mark.parametrize(
+    ("version", "rng", "fix", "want"),
+    [
+        ("1.5", "1.0 .. 2.0", None, True),  # both readings of "A .. B" agree (F-069)
+        ("1.5", "who knows", "2.0", None),  # an unreadable range is never a pass
+        ("2.5", "< 3.0", "2.0", None),  # in the range, but after the fixed version: the range contradicts the fix
+        ("1.5", None, "2.0", True),  # only a fix: before it
+        ("2.5", None, "2.0", False),
+        ("1.5", None, "later", None),  # a fix that isn't a version
+        ("not-a-version", "< 2.0", "2.0", None),
+        (None, "< 2.0", "2.0", None),  # which release isn't known
+    ],
+)  # fmt: skip
+def test_by_version(version: str | None, rng: str | None, fix: str | None, want: bool | None) -> None:
+    assert uc.by_version(version, _pkg(rng, fix))[0] is want
+
+
+def test_verdict_branches() -> None:
+    g = LineGraph()
+    # the pin's release can't be told (a commit no tag precedes): one fix in its history clears it; with two, possibly
+    nameless = uc.Pin(C[4], None, "c4")
+    assert uc.verdict(nameless, _pkg("< 2.0.3", "2.0.3"), g)[0] is False
+    assert uc.verdict(nameless, _pkg("< 1.2.5 || >= 2.0.0, < 2.0.4", "1.2.5, 2.0.4"), g)[0] is None
+    g2 = FakeGraph()  # on the branch off v1.1 (C6/C7): neither v2.0 nor any other fix in its history
+    assert uc.verdict(uc.pin(_u(ref=C[7], ref_is_commit=True), g2), _pkg("< 2.0", "2.0"), g2)[0] is None
+    assert uc.verdict(uc.pin(_u(ref=C[7], ref_is_commit=True), g2), _pkg("< 1.0", "2.0"), g2)[0] is False
+    assert not uc._open_after(_pkg("who knows", "1.0"), ["1.0"]) and not uc._open_after(_pkg(">= 2", None), ["x!"])
+    assert uc.candidates(_u().model_copy(update={"host": "gitlab.com"}), Index()) == []
+
+
+async def test_check_when_the_upstream_cant_be_cloned(monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+                                                      no_sleep: Any) -> None:  # fmt: skip
+    from limbowatch.http import HttpClient
+    from limbowatch.models import Unchecked
+
+    monkeypatch.setattr(uc, "CLONE_URL", f"file://{tmp_path}/missing/{{repo}}")
+    index = Index()
+    index.add(_cand("GHSA-0001", _pkg("< 2.0", "2.0")))
+    by_commit = _u(ref=C[3], ref_is_commit=True)
+    by_tag = _u(ref="v1.1")  # the tag's name still gives the version
+    async with HttpClient(sleep=no_sleep) as http:
+        got = await uc.check(http, [by_commit, by_tag], index, not_polled=set(), osv_commits=False)
+    u1 = got[by_commit].unchecked
+    assert u1 is not None and u1.reason is Unchecked.UPSTREAM_NO_REF and "history couldn't be read" in u1.detail
+    (f,) = got[by_tag].findings
+    assert f.affected is True and "1.1 is in the range" in f.evidence
+
+
+async def test_the_tag_step_keeps_what_it_listed_when_the_deadline_hits(monkeypatch: pytest.MonkeyPatch,
+                                                                         no_sleep: Any) -> None:  # fmt: skip
+    import time as _time
+
+    from limbowatch import tracker as tr
+    from limbowatch.http import DeadlineReached, HttpClient
+    from limbowatch.store import Advisory, FactSnapshot, GitTag, Store
+
+    store = Store()
+    with store.session() as s:
+        for n in range(30):
+            gid, repo = f"GHSA-aaaa-bbbb-{n:04d}", f"o/r{n}"
+            adv = RepoAdvisory(ghsa_id=gid, repo=repo, state="published", html_url=f"https://x/{gid}",
+                               packages=(_pkg("< 1.0", "1.0"),))  # fmt: skip
+            f = Facts(ghsa_id=gid, repo=repo, repo_state="published", reviewed=False, in_osv=False)
+            s.add(Advisory(ghsa_id=gid, repo=repo, data=adv.model_dump(mode="json"), first_seen="x", last_seen="x"))
+            s.add(FactSnapshot(ghsa_id=gid, facts=f.model_dump(mode="json"), facts_hash="h", observed_at="x"))
+    calls = 0
+
+    async def tags(url: str, timeout: float = 60) -> dict[str, str]:
+        nonlocal calls
+        calls += 1
+        if calls == 10:
+            http.deadline = _time.monotonic() - 1  # the run's time is up after ten listings
+        return {"v1.0": C[1]}
+
+    monkeypatch.setattr(tr.gitrefs, "tags", tags)
+    async with HttpClient(sleep=no_sleep) as http:
+        with pytest.raises(DeadlineReached):
+            await tr.Tracker(store, http, tr.TrackerConfig()).resolve_git_tags(tr.RunReport(started_at="x"))
+    with store.session() as s:
+        assert 10 <= len(s.query(GitTag).all()) < 30  # what was listed is kept

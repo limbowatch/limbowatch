@@ -16,8 +16,10 @@ Checks:
 5. ranges: each converted OSV range agrees with the parser at its boundary versions, and none covers every version
    from a range that doesn't say "all";
 6. checker: /check/index.json covers the same advisories as the feed;
-7. GIT ranges: for a sample of repos, the GIT ranges of advisories without a package (C/C++ and the like), rebuilt
-   from the repo's tags as `git ls-remote` lists them now, equal the feed's (F-138).
+7. GIT ranges: for a sample of repos, the GIT entries of advisories without a package (C/C++ and the like), rebuilt
+   from the repo's tags as `git ls-remote` lists them now, equal the feed's, and none is missing a range (F-138, F-142);
+8. GIT packages: every entry has a package; GIT ones name their record's repo and keep the versions as entered;
+9. old watchers: the oldest release and the newest on PyPI read the live feed (F-140).
 
 Exit 1 if a check fails. The report is Markdown (stdout, or --out).
 """
@@ -405,6 +407,9 @@ def check_checker(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
 
 
 def check_git_ranges(rep: Report, recs: dict[str, dict[str, Any]], n: int, seed: int) -> None:
+    """For a sample of repos, every GIT entry (with ranges or without) rebuilt from the repo's tags as they are now:
+    ranges must be equal, and an entry without ranges must not have every version tagged by now (that range was missed,
+    F-142). Tags made since the tracker's last run (it lists every repo daily) explain a few; more than 2% fails."""
     from limbowatch.models import AdvisoryPackage
     from limbowatch.publish.feed import git_ranges, git_versions
     from limbowatch.sources.gitrefs import parse
@@ -413,20 +418,24 @@ def check_git_ranges(rep: Report, recs: dict[str, dict[str, Any]], n: int, seed:
     by_repo: dict[str, list[tuple[str, dict[str, Any]]]] = {}
     for g, r in recs.items():
         for e in r["affected"]:
-            if e.get("package", {}).get("ecosystem", "GIT") == "GIT" and e.get("ranges"):
+            if e.get("package", {}).get("ecosystem") == "GIT":
                 by_repo.setdefault(r["database_specific"]["limbowatch"]["repository"], []).append((g, e))
-    repos = sorted(by_repo)
+    repos = sorted(r for r, es in by_repo.items() if any(e.get("ranges") for _, e in es))
     random.Random(seed).shuffle(repos)
+    env = {"GIT_TERMINAL_PROMPT": "0", "PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin"}
 
     def listed(repo: str) -> dict[str, str] | None:
-        p = subprocess.run(["git", "ls-remote", "--tags", f"https://github.com/{repo}.git"], capture_output=True,
-                           text=True, timeout=120, env={"GIT_TERMINAL_PROMPT": "0", "PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin"})  # fmt: skip
+        try:
+            p = subprocess.run(["git", "ls-remote", "--tags", f"https://github.com/{repo}.git"], capture_output=True,
+                               text=True, timeout=120, env=env)  # fmt: skip
+        except subprocess.TimeoutExpired:
+            return None
         return parse(p.stdout) if p.returncode == 0 else None
 
     sample = repos[:n]
     with ThreadPoolExecutor(8) as ex:
         tags = dict(zip(sample, ex.map(listed, sample), strict=True))
-    bad, checked = [], 0
+    bad, missing, checked = [], [], 0
     for repo in sample:
         if tags[repo] is None:
             bad.append(f"{repo}: tags couldn't be listed")
@@ -437,13 +446,64 @@ def check_git_ranges(rep: Report, recs: dict[str, dict[str, Any]], n: int, seed:
                                 vulnerable_version_range=ds.get("vulnerable_version_range"),
                                 patched_versions=ds.get("patched_versions"))  # fmt: skip
             git = {v: [t, tags[repo][t]] if (t := tag_for(v, tags[repo])) else None for v in git_versions(p)}
+            want = git_ranges(repo, p, git)
             checked += 1
-            if git_ranges(repo, p, git) != e["ranges"]:
+            if e.get("ranges") and want != e["ranges"]:
                 bad.append(f"{g} ({repo}) `{ds.get('vulnerable_version_range')}`: GIT ranges differ from the tags now")
-    rep.check("git ranges", not bad, f"{checked:,} GIT-range entries in {len(sample)} repos rebuilt from live tags "
-                                     f"({len(repos):,} repos have them); {len(bad)} differ")  # fmt: skip
-    for b in bad[:15]:
+            elif not e.get("ranges") and want is not None:
+                missing.append(f"{g} ({repo}) `{ds.get('vulnerable_version_range')}`: every version is tagged now, "
+                               "but the feed has no GIT range")  # fmt: skip
+    ok = not bad and len(missing) <= 0.02 * max(checked, 1)
+    rep.check("git ranges", ok, f"{checked:,} GIT entries in {len(sample)} repos rebuilt from live tags "
+                                f"({len(repos):,} repos have ranges); {len(bad)} differ, {len(missing)} missing a "
+                                "range (at most 2% allowed: tags since the last run)")  # fmt: skip
+    for b in (bad + missing)[:15]:
         rep.note(b)
+
+
+def check_git_packages(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
+    """Every entry has a package (older watchers need one, F-140); a GIT package and its ranges name the record's own
+    repo, and keep the versions as entered."""
+    bad = []
+    n = 0
+    for g, r in recs.items():
+        repo = f"https://github.com/{r['database_specific']['limbowatch']['repository']}"
+        for e in r["affected"]:
+            pkg = e.get("package") or {}
+            if not pkg.get("ecosystem") or not pkg.get("name"):
+                bad.append(f"{g}: an entry without a package ecosystem and name")
+            if pkg.get("ecosystem") != "GIT":
+                continue
+            n += 1
+            ds = e.get("database_specific") or {}
+            if pkg["name"] != repo or any(rg.get("repo") != repo for rg in e.get("ranges") or []):
+                bad.append(f"{g}: GIT package or range names another repo than {repo}")
+            if "ecosystem_as_entered" not in ds or "vulnerable_version_range" not in ds:
+                bad.append(f"{g}: GIT entry without the versions as entered")
+    rep.check("git packages", not bad, f"{n:,} GIT entries name their record's repo and keep the versions as "
+                                       f"entered; {len(bad)} don't")  # fmt: skip
+    for b in bad[:10]:
+        rep.note(b)
+
+
+def check_old_watchers(rep: Report, z: zipfile.ZipFile) -> None:
+    """The oldest release and the newest on PyPI read the live feed: every watcher users pin parses it with its own
+    code, and a format change once made every release before 0.1.0a7 fail (F-140)."""
+    latest = http.get("https://pypi.org/pypi/limbowatch-cli/json").json()["info"]["version"]
+    n = sum(1 for x in z.namelist() if x.endswith(".json"))
+    out = []
+    with tempfile.TemporaryDirectory() as tmp:
+        feed = Path(tmp) / "all.zip"
+        feed.write_bytes(Path(z.filename).read_bytes() if z.filename else b"")
+        for v in dict.fromkeys(("0.1.0a1", latest)):
+            code = ("import sys; from limbowatch.watch.candidates import from_feed_zip; "
+                    "print(len(from_feed_zip(open(sys.argv[1], 'rb').read())))")  # fmt: skip
+            p = subprocess.run(["uvx", "-q", "--from", f"limbowatch-cli=={v}", "python", "-c", code, str(feed)],
+                               capture_output=True, text=True, timeout=600)  # fmt: skip
+            got = p.stdout.strip()
+            out.append((v, got == str(n), got or p.stderr.strip().splitlines()[-1:]))
+    rep.check("old watchers", all(ok for _, ok, _ in out),
+              "; ".join(f"{v} reads {got}" for v, _, got in out) + f" of {n:,} records")  # fmt: skip
 
 
 def main() -> None:
@@ -460,7 +520,9 @@ def main() -> None:
         rep.lines.append(f"# Limbowatch audit, {datetime.now(UTC):%Y-%m-%d %H:%M} UTC\n")
         rep.lines.append(f"Site built {m['generated_at']} from `tracker-data` {commit[:7]} (run "
                          f"{m['last_run']['started_at']}). Sample seed {a.seed}.\n")  # fmt: skip
-        z = zipfile.ZipFile(io.BytesIO(http.get(f"{SITE}/feed/all.zip", params=NOCACHE).content))
+        feed_path = Path(tmp) / "all.zip"
+        feed_path.write_bytes(http.get(f"{SITE}/feed/all.zip", params=NOCACHE).content)
+        z = zipfile.ZipFile(feed_path)
         check_verdicts(rep, items, a.sample, a.seed)
         check_reviewed_sync(rep, st, at(m["flow_7d"]["ends_at"]))  # type: ignore[arg-type]
         check_metrics(rep, st, items, m)
@@ -468,6 +530,8 @@ def main() -> None:
         check_ranges(rep, recs)
         check_checker(rep, recs)
         check_git_ranges(rep, recs, max(50, a.sample // 2), a.seed)
+        check_git_packages(rep, recs)
+        check_old_watchers(rep, z)
     rep.lines.append(f"\n{'All checks passed.' if not rep.failed else 'Failed: ' + ', '.join(rep.failed)}")
     text = "\n".join(rep.lines) + "\n"
     if a.out:

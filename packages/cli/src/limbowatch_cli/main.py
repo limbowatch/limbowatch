@@ -36,7 +36,7 @@ from limbowatch.sources import osv as osv_source
 from limbowatch.sources.releases import read_maven_packages
 from limbowatch.store import Store
 from limbowatch.tracker import Tracker, TrackerConfig, import_cve_list
-from limbowatch.versions import norm_name
+from limbowatch.versions import UPSTREAM, norm_name
 from limbowatch.watch import issues as watch_issues
 from limbowatch.watch import org as org_mod
 from limbowatch.watch import org_output, output, trackers
@@ -282,7 +282,7 @@ def load_inventory(
         inv = osv_scanner.run(path, binary, include_ignored=include_ignored, resolve_maven=resolve_maven)
     except osv_scanner.InventoryError as e:
         raise typer.Exit(_fail(str(e))) from e
-    return upstream_inventory.combine(inv, upstream_inventory.detect(path, include_ignored=include_ignored))
+    return upstream_inventory.combine(inv, upstream_inventory.detect_safely(path, include_ignored=include_ignored))
 
 
 def _check_osv_scanner(binary: str) -> None:
@@ -534,11 +534,20 @@ async def _sync_issues(
     for d in inv.dependencies:
         installed.setdefault((d.ecosystem, norm_name(d.ecosystem, d.name)), []).append(d.version)
     gone: dict[str, watch_issues.Gone] = {}
+    present = {f"{u.host}/{u.repo}" for u in res.upstreams if u.repo}
     for key, issue in existing.items():
         if not issue.open or key in current:
             continue
         meta = issue.meta
         eco = str(meta.get("ecosystem", ""))
+        if eco == UPSTREAM:  # an upstream source: closed only when checked in full or removed, never when unchecked
+            name = str(meta.get("package", ""))
+            if name in res.upstreams_checked:
+                visible = await osv_source.present(http, str(meta.get("ghsa_id")))
+                gone[key] = watch_issues.Gone.VISIBLE if visible else watch_issues.Gone.FIXED
+            elif name not in present:
+                gone[key] = watch_issues.Gone.FIXED
+            continue
         versions = installed.get((eco, norm_name(eco, str(meta.get("package", "")))), [])
         osv_eco = info(eco).osv
         ids: list[set[str] | None] = []
@@ -677,7 +686,7 @@ def watch(
 
     def take(path: Path) -> Inventory:
         inv = osv_scanner.run(path, binary, resolve_maven=resolve_maven)
-        return upstream_inventory.combine(inv, upstream_inventory.detect(path))
+        return upstream_inventory.combine(inv, upstream_inventory.detect_safely(path))
 
     async def run() -> org_output.OrgReport:
         async with HttpClient(_token()) as http:

@@ -22,6 +22,7 @@ dev = [
     "mypy>=2.4.1",
     "import-linter>=2.1",
     "pyyaml>=6",
+    "pytest-cov>=6",
 ]
 
 [tool.ruff]
@@ -50,6 +51,14 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["limbowatch", "limbowatch_cli"]
+
+[tool.coverage.report]
+fail_under = 90  # CI fails below this (without OSV-Scanner installed, as in CI: 92% on 2026-11-11)
+skip_covered = true
+show_missing = true
 
 [tool.importlinter]
 root_packages = ["limbowatch", "limbowatch_cli"]

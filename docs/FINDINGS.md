@@ -4,7 +4,7 @@
 
 What we've verified or measured while building Limbowatch. Maintenance rules are in [CLAUDE.md](../CLAUDE.md#findings-report-docsfindingsmd).
 
-Last summarized: 2026-11-11 (end of Phase 6: C/C++ and other upstream sources, a feed that covers advisories without a package; released as 0.1.0a8, F-140 to F-142; awaiting review). Before that: 2026-11-10 (end of Phase 5), 2026-11-07 (end of Phase 4).
+Last summarized: 2026-11-11 (end of Phase 6: C/C++ and other upstream sources, a feed that covers advisories without a package; released as 0.1.0a8, F-140 to F-142; a second review, tests and coverage in F-143; awaiting review). Before that: 2026-11-10 (end of Phase 5), 2026-11-07 (end of Phase 4).
 
 ## Summary
 
@@ -2124,6 +2124,27 @@ Answered:
   - **Smoke test (PyPI 0.1.0a8):** the demo app gives 61 findings and 3 unchecked, the same keys as 0.1.0a6; the FreeRDP/ImageMagick test project at the old pins 228 + 114 certain and 12 possible, as F-141 measured.
 - **Implication:** the audit's GIT-range check earns its place: it caught a tag-reading regression the unit tests didn't. A check against a live site must read past its CDN.
 - **Sources:** the audit reports (session scratchpad); GitHub Actions and GitLab runs above.
+
+### F-143
+- **Date:** 2026-11-11 · **Status:** confirmed (each finding reproduced, then covered by a test)
+- **Question:** A second independent review, of how upstream sources plug into scan, org-wide mode, outputs, issues, the tracker and the audit; and how far do the tests reach?
+- **Method:** a fresh reviewer read those paths and reproduced what it reported; each finding was reproduced again here and fixed with a regression test. Coverage measured with pytest-cov (`uv run pytest --cov`). New end-to-end tests (`tests/test_e2e_upstream.py`, offline: the real CLI on local git repos and a recorded feed) and a live script (`scripts/e2e_upstream.py`: FreeRDP, ImageMagick and a vcpkg port, at old and current releases). The audit was rerun with three new checks.
+- **Result:**
+  - **Findings, all fixed in 0.1.0a9:**
+    - **a silent pass:** an upstream repo that polling skipped (GitHub rate limit) wasn't matched against the feed either, and the table counted it as "checked by name only"; the scan passed. It's now matched against the feed and reported as partly checked;
+    - **a crash on any project:** a path in the git index that isn't UTF-8 (`caf\xe9.txt`) made every scan exit 2, C/C++ or not. git output is decoded with `surrogateescape`, upstream detection can't end a scan (`detect_safely`), and the commit graph's git calls can't raise on a timeout;
+    - **issues closed wrongly:** an upstream finding's issue was closed as "no longer affected" whenever the finding was missing, including when the source wasn't checked (`--no-upstream`, rate limit, a failed clone). It's closed only when the source was checked in full or removed from the project, and labelled "visible" when the advisory reached OSV;
+    - **duplicates:** a vcpkg port pulled in by two direct ports was listed, and its findings counted, twice; and a manifest's `overrides` weren't applied to ports pulled in. Both fixed;
+    - **the tracker's tag step lost everything at the deadline:** a worker raised mid-gather, so nothing listed was stored; it now stops, stores what it listed, and the run goes on next time;
+    - **smaller:** `.venv`, `site-packages` and other caches were walked (a pip package's `.cmake` file became an upstream); line numbers cost quadratic time (a 2 MB `.cmake` file with 70,000 `set()` calls took 19 s, now well under 5 s in the test); the commit graph asked `git tag --contains` once per advisory, now once per commit; the flag was misnamed in a message (`--no-upstream-check` for `--no-upstream`), and with `--no-upstream` registry sources were "repository unknown"; a "graph cut at 500 ports" note appeared when nothing was cut; vcpkg compared a version override with the baseline's as strings;
+    - **found by the new tests:** with an untagged fix on one line, "every fix is in its history" counted only the tagged fixes, so `< 1.2.5 || >= 2.0.0, < 2.0.4` (2.0.4 untagged) at 2.0.3 was cleared. It counts every fix named now.
+  - **Measurements unchanged after the fixes:** the agreement study (F-139: 1,029 of 1,082 agree, 35 possible, 17 disagree), the detector counts (F-137) and the FreeRDP/ImageMagick case (228 + 114 certain, 12 possible at the old pins). The live script finds 239 certain for FreeRDP (228 from the submodule at 3.10.0, 11 from the vcpkg port at 3.32.2), 114 for ImageMagick, and none for certain at the current releases.
+  - **Coverage:** 87% before, 92.4% after (93% with OSV-Scanner installed); CI now fails below 90%. The CLI went from 30% to 79%, `upstream_check` from 83% to 99%, the HTTP client from 78% to 96%, the registries from 84% to 96%.
+  - **Audit, three new checks** (all passed at 19:35 UTC on the site built at 14:52 UTC): GIT entries without a range whose versions are all tagged now (at most 2% allowed, for tags made since the last run): 0 of 1,726; every entry has a package, and GIT ones name their record's repo and keep the versions as entered: 19,268, 0 don't; the oldest release (0.1.0a1) and the newest on PyPI read the live feed: both read 25,104 of 25,104 records. The audit's own `git ls-remote` can't abort it on a timeout.
+  - **0.1.0a7 yanked on PyPI** (`limbowatch` and `limbowatch-cli`), with the reason pip shows: it "can report affected C/C++ upstream sources as not affected; use 0.1.0a8 or later".
+- **Caveats:** the reviewer covered the Phase 6 integration paths; the older watcher code (Phase 4-5) was reviewed only where it touches upstream sources.
+- **Implication:** two independent reviews found eight ways to pass an affected dependency between them, after the tests and the agreement study had passed; reviews and the e2e script stay part of releasing verdict code.
+- **Sources:** `tests/test_e2e_upstream.py`, `tests/test_sources_http.py`, `tests/test_upstream*.py`; `scripts/e2e_upstream.py`; `scripts/audit.py`; PyPI's JSON API (`yanked: true`).
 
 ## Archive
 

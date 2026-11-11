@@ -4,6 +4,13 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+- **Fixed: a rate-limited upstream source passed silently.** When GitHub's rate limit stopped polling, the source wasn't matched against the feed either; it is now, and it's reported as partly checked.
+- **Fixed: a filename that isn't UTF-8 in the git index ended every scan** (exit 2), C/C++ or not. Upstream detection can't end a scan any more.
+- **Fixed: issues for upstream findings were closed when the source wasn't checked** (`--no-upstream`, rate limit, a failed clone). They're closed only when the source was checked in full or removed, and labelled when the advisory reaches OSV.
+- **Fixed:** a vcpkg port pulled in twice was reported twice, and `overrides` didn't apply to ports pulled in; an untagged fix on one release line could clear a pin on that line; virtualenvs and caches were read for upstream sources; the tracker lost its tag listings when a run hit its time limit; huge CMake files were slow; `--no-upstream` was misnamed in a message.
+- **Tests:** end-to-end tests run the CLI on local repos and a recorded feed; coverage is 92% and CI fails below 90%. `scripts/e2e_upstream.py` checks upstream sources against real repos.
+- **Audit:** also checks that no GIT range is missing, that every feed entry has a package naming its repo, and that the oldest and newest releases read the live feed.
+- **0.1.0a7 is yanked on PyPI.** README badges; repository topics for C/C++.
 ## 0.1.0a8 (2026-11-11)
 
 Still an **alpha**. On PyPI it's `0.1.0a8`; the GitHub tag and the action's ref are `v0.1.0a8`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a8`; the GitLab CI/CD component is `0.1.0-alpha.8`. **Replaces 0.1.0a7, which could pass upstream sources that are affected** (four cases found by an independent review, below). Upgrade if you use 0.1.0a7.
