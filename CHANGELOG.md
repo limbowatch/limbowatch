@@ -4,6 +4,10 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+## 0.1.0a12 (2026-11-12)
+
+Still an **alpha**. On PyPI it's `0.1.0a12`; the GitHub tag and the action's ref are `v0.1.0a12`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a12`; the GitLab CI/CD component is `0.1.0-alpha.12`. Dependency upgrades, and a fix found while testing them.
+
 - **OSV-Scanner 2.7.1** reads the lockfiles (the image, the action's `install: python`, and the version `scan` expects). It checks npm packages whose lockfile entry has no `resolved` field itself, which Limbowatch had worked around; across 111 real projects it reads the same dependencies as 2.7.0, less one false yarn `patch:` entry (FINDINGS F-153).
 - **Fixed: a linked local npm package could be checked as the npm package of the same name.** A `file:` dependency whose target sits under another directory's `node_modules` is local code; OSV-Scanner 2.7.1, and Limbowatch's own workaround with 2.7.0, took it for a registry package. The dependency's spec in the lockfile now decides; pnpm-installed packages stay checked (F-153).
 - **The image runs Python 3.14** (was 3.12), on a refreshed Go build image. Python 3.12 or later is still supported everywhere else.
