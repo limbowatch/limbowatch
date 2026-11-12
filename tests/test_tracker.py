@@ -35,6 +35,7 @@ PAGES = (
     "feed/index.html",
     "scan/index.html",
     "why/index.html",
+    "compliance/index.html",
     "methodology/index.html",
     "press/index.html",
     "press/queue.svg",
@@ -109,7 +110,7 @@ async def run_once(store: Store, seed: Path, no_sleep: Any) -> Any:
         return await Tracker(store, http, TrackerConfig(seeds=[seed], nvd=False)).run()
 
 
-async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any) -> None:
+async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     seed = tmp_path / "seed.txt"
     seed.write_text("dlclark/regexp2\ngitpython-developers/gitpython\n# comment\nnot-a-repo\n")
     store = Store()
@@ -181,12 +182,27 @@ async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any) -> None:
     with zipfile.ZipFile(io.BytesIO(zipped)) as z:
         assert z.namelist() == ["GHSA-f9j4-qggq-h239.json"]
 
+    # the home page's examples: shown only while their advisory is in limbo, not reviewed and not in OSV
+    ex = {"ecosystem": "PyPI", "package": "pkg", "version": "1.0", "fixed": "1.1", "fix_released": "2026-01-01"}
+    monkeypatch.setattr(site, "EXAMPLES", [{**ex, "ghsa": "GHSA-f9j4-qggq-h239"}, {**ex, "ghsa": "GHSA-wq9v-j77v-qr26"},
+                                           {**ex, "ghsa": "GHSA-0000-0000-0000"}])  # fmt: skip
     pages = site.build(items(store), m, datetime.now(UTC), events=all_events(store), sample=rec)
     assert set(PAGES) <= set(pages)
+    home = pages["index.html"]
+    assert home.count('class="exc"') == 1 and 'href="/advisory/GHSA-f9j4-qggq-h239/"><div class="top2">' in home
+    assert "Fixed upstream." in home and "already name a fixed version" in home and site.POC_URL in home
+    assert '<details class="learn"><summary>Learn</summary>' in home and 'href="/compliance/"' in home
+    comp = pages["compliance/index.html"]
+    assert "Compliant, and exposed." in comp and site.BOD_2604 in comp and site.PCI_FAQ in comp
+    assert '<details class="learn on">' in comp and "<loc>https://limbo.watch/compliance/</loc>" in pages["sitemap.xml"]
+    assert site.POC_URL in pages["scan/index.html"]
+    monkeypatch.setattr(site, "EXAMPLES", [])
+    assert 'id="examples"' not in site.build(items(store), m, datetime.now(UTC))["index.html"]  # none left: no section
     adv = pages["advisory/GHSA-f9j4-qggq-h239/index.html"]
     assert "CVE-2026-110858" in adv and "published by another CNA" in adv
     left_page = pages["advisory/GHSA-wq9v-j77v-qr26/index.html"]  # reviewed: left limbo, but its link still works
     assert "Left limbo: reviewed by GitHub after" in left_page and "/feed/GHSA-wq9v-j77v-qr26.json" not in left_page
+    assert '<div class="fixbar"><p><strong>Fixed in' in adv and 'class="fixbar"' not in left_page  # the fix, up top
     assert (
         "can report it" in left_page
         and "<loc>https://limbo.watch/advisory/GHSA-wq9v-j77v-qr26/</loc>" in pages["sitemap.xml"]

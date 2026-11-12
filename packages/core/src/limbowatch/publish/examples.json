@@ -1,0 +1,12 @@
+{
+  "about": "Advisories in limbo on well-known packages, shown on the home page while they stay in limbo (FINDINGS F-157 to F-162). Each was checked: published by the package's own maintainers, high or critical, a fix released, and at the pinned version no reviewed advisory in GitHub's database or OSV and no advisory in ruby-advisory-db, so Dependabot, OSV-Scanner, npm audit, pip-audit and bundler-audit say nothing. The proof repository re-checks them daily. The site drops an example as soon as the tracker sees its advisory leave limbo.",
+  "proof": "https://github.com/limbowatch/limbo-poc",
+  "examples": [
+    {"ghsa": "GHSA-976x-prgx-qv35", "ecosystem": "npm", "package": "@sinclair/typebox", "version": "0.34.51", "fixed": "0.34.52", "fix_released": "2026-07-11"},
+    {"ghsa": "GHSA-38x3-76xf-cq45", "ecosystem": "Go", "package": "github.com/nats-io/nats-server/v2", "label": "nats-server", "version": "v2.12.6", "fixed": "v2.12.7", "fix_released": "2026-04-14"},
+    {"ghsa": "GHSA-gqhc-vf4h-h7hg", "ecosystem": "Go", "package": "github.com/go-openapi/spec", "label": "go-openapi/spec", "version": "v0.22.4", "fixed": "v0.22.9", "fix_released": "2026-07-20"},
+    {"ghsa": "GHSA-frc4-6h9q-39fq", "ecosystem": "Go", "package": "github.com/pelletier/go-toml/v2", "label": "go-toml/v2", "version": "v2.4.2", "fixed": "v2.4.3", "fix_released": "2026-07-05"},
+    {"ghsa": "GHSA-5hrj-7fc3-cmx9", "ecosystem": "RubyGems", "package": "mustache", "version": "1.1.2", "fixed": "1.1.3", "fix_released": "2026-08-20"},
+    {"ghsa": "GHSA-c547-xwrv-q9jm", "ecosystem": "PyPI", "package": "scapy", "version": "2.7.0", "fixed": "2.8.0", "fix_released": "2026-10-02"}
+  ]
+}

@@ -20,7 +20,8 @@ import json
 import re
 import statistics
 from collections import defaultdict
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from importlib.resources import files
 from typing import Any
 
 from limbowatch.csvsafe import cell
@@ -36,6 +37,13 @@ CATALOG_URL = "https://gitlab.com/explore/catalog/limbowatch/limbowatch-componen
 MARKETPLACE_URL = "https://github.com/marketplace/actions/limbowatch"  # limbowatch/limbowatch-action (F-127)
 ISSUE_URL = f"{REPO_URL}/issues/1"
 FINDINGS_URL = f"{REPO_URL}/blob/main/docs/FINDINGS.md"
+POC_URL = "https://github.com/limbowatch/limbo-poc"  # the public proof repository (F-162)
+POC_RUNS = f"{POC_URL}/actions/workflows/proof.yml"
+BOD_2604 = "https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk"
+# Advisories in limbo on well-known packages, checked one by one (F-157 to F-162); shown while they stay in limbo
+EXAMPLES: list[dict[str, str]] = json.loads(files("limbowatch.publish").joinpath("examples.json").read_text())[
+    "examples"
+]
 SITE = "https://limbo.watch"
 # The press contact is an image (brand/make_contact.py), never text, so scrapers can't harvest it.
 CONTACT_IMG = '<img class="email" src="/assets/contact.png" width="340" height="48" alt="Email address, shown as an image to keep spam away">'
@@ -96,6 +104,26 @@ nav.main{display:flex;flex-wrap:wrap;gap:0 24px;font-size:15px}
 nav.main a{text-decoration:none;padding:10px 0;border-bottom:2px solid transparent}
 nav.main a[aria-current]{font-weight:600;border-bottom-color:currentColor}
 .menu,.ftoggle,.tabs .sm{display:none}
+.learn{position:relative}.learn summary{list-style:none;cursor:pointer;padding:10px 0;border-bottom:2px solid transparent}
+.learn summary::-webkit-details-marker{display:none}.learn summary:after{content:" ▾";font-size:12px}
+.learn.on summary{font-weight:600;border-bottom-color:currentColor}
+.learn-menu{position:absolute;right:0;top:100%;z-index:30;min-width:230px;display:flex;flex-direction:column;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.18)}
+nav.main .learn-menu a{padding:9px 12px;border:0;border-radius:8px}nav.main .learn-menu a:hover{background:var(--sunk)}
+nav.main .learn-menu a[aria-current]{color:var(--amber-text)}
+.ex{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:28px}
+.exc{display:flex;flex-direction:column;gap:2px;padding:20px;background:var(--surface);border:1px solid var(--line);border-radius:14px;text-decoration:none}.exc:hover{border-color:var(--mark);color:inherit}
+.exc .top2{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.exc .pk{font:600 16px/1.3 var(--mono);overflow-wrap:anywhere}.exc .eco{font-size:13px;color:var(--muted);margin:2px 0 10px}
+.sev{font:700 11px/1 var(--mono);letter-spacing:.04em;padding:5px 7px;border-radius:6px;border:1px solid var(--border);white-space:nowrap}
+.sev.critical{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.exc dl{margin:0}.exc dl div{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--line2);font-size:14px}
+.exc dt{color:var(--ink2)}.exc dd{margin:0;font-weight:600;text-align:right}.exc .go{margin-top:10px;font-size:14px;color:var(--amber-text)}
+.fixbar{margin:24px 0 0;padding:18px 20px;border:1px solid var(--mark);border-radius:14px;background:var(--surface)}
+.fixbar p{margin:0}.fixbar strong{font-size:18px}
+.fw{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:24px}
+.fw>div{padding:20px;background:var(--surface);border:1px solid var(--line);border-radius:14px}.fw h3{margin:0 0 8px;font-size:18px}
+.fw blockquote{margin:0 0 10px;padding-left:12px;border-left:3px solid var(--mark);color:var(--ink2)}.fw p{margin:0 0 8px}
+@media (max-width:900px){.ex,.fw{grid-template-columns:1fr}}
 /* theme switch */
 .bar-end{display:flex;align-items:center;gap:8px 24px}
 .theme{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border:0;border-radius:10px;background:none;color:inherit;cursor:pointer}
@@ -340,7 +368,7 @@ table.fmts th{font-size:14px;width:130px;color:var(--ink)}table.fmts td{color:va
 --line2:#232833;--border:#3A404C;--mark:#F4A62A;--amber-text:#F4A62A;--btn-bg:#F3F1EA;--btn-ink:#0F1218;--btn-hover:#fff;
 color-scheme:dark;background:var(--bg);color:var(--ink);border-bottom:1px solid var(--line)}
 .hx-body{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:48px 64px;align-items:end;padding-top:72px;padding-bottom:88px}
-.hx h1{margin:0;font-size:clamp(44px,7.2vw,100px);line-height:.98;letter-spacing:-.045em;font-weight:680;text-wrap:balance}
+.hx h1{margin:0;font-size:clamp(40px,5.6vw,78px);line-height:.98;letter-spacing:-.045em;font-weight:680;text-wrap:balance}
 .hx-lede{margin:28px 0 0;max-width:600px;font-size:20px;line-height:1.5;color:var(--ink2)}.hx-lede strong{color:var(--ink)}
 .hx-cta{margin-top:36px;display:flex;flex-wrap:wrap;gap:12px}.hx-meta{margin:20px 0 0;font-size:14px;color:var(--muted)}
 .pair{margin:0;display:grid;gap:12px}
@@ -479,19 +507,32 @@ def mark(stroke: str, dot: str, size: int = 30) -> str:
     )
 
 
+LEARN = [("compliance", "/compliance/", "For compliance leads"), ("why", "/why/", "Why I built it"),
+         ("methodology", "/methodology/", "Methodology"), ("press", "/press/", "Press and research"),
+         ("feed", "/feed/", "Limbo feed (OSV)"), ("quality", "/quality/", "Data quality")]  # fmt: skip
+
+
 def header(active: str) -> str:
-    links = [("tracker", "/tracker/", "Tracker"), ("check", "/check/", "Check a package"), ("scan", "/scan/", "Scan your project"), ("feed", "/feed/", "Feed"),
-             ("methodology", "/methodology/", "Methodology"), ("press", "/press/", "Press"), ("why", "/why/", "Why"),
-             ("", REPO_URL, "GitHub ↗")]  # fmt: skip
+    links = [("scan", "/scan/", "Scan your project"), ("tracker", "/tracker/", "Tracker"),
+             ("check", "/check/", "Check a package")]  # fmt: skip
     current = ' aria-current="page"'
-    nav = "".join(
-        f'<a href="{href}"{current if key and key == active else ""}>{label}</a>' for key, href, label in links
+
+    def a(key: str, href: str, label: str) -> str:
+        return f'<a href="{href}"{current if key and key == active else ""}>{label}</a>'
+
+    main = "".join(a(*x) for x in links)
+    learn = "".join(a(*x) for x in LEARN)
+    on = " on" if any(k == active for k, _, _ in LEARN) else ""
+    github = f'<a href="{REPO_URL}">GitHub ↗</a>'
+    nav = (
+        f'{main}<details class="learn{on}"><summary>Learn</summary><div class="learn-menu">{learn}</div></details>'
+        f"{github}"
     )
     logo = mark("currentColor", "var(--mark)")
-    # Phones get the same links in a disclosure panel; only one of the two navs is ever displayed.
+    # Phones get every link in a disclosure panel; only one of the two navs is ever displayed.
     menu = (
         '<details class="menu"><summary><span class="burger" aria-hidden="true"></span>Menu</summary>'
-        f'<nav aria-label="Main">{nav}</nav></details>'
+        f'<nav aria-label="Main">{main}{learn}{github}</nav></details>'
     )
     return (
         f'<div class="wrap bar"><a class="brand" href="/">{logo}<span>limbo<b>.</b>watch</span></a>'
@@ -503,7 +544,8 @@ def footer(extra: str = "") -> str:
     cols = [
         ("Use it", [("/tracker/", "Tracker"), ("/scan/", "Scan your project"), ("/feed/", "Limbo feed (OSV)"),
                     ("/feed/critical.atom", "Atom: new critical and high"), ("/quality/", "Data quality")]),
-        ("Learn", [("/methodology/", "Methodology"), (REPORT_URL, "October 2026 report"), ("/why/", "Why I built it"),
+        ("Learn", [("/compliance/", "For compliance leads"), ("/methodology/", "Methodology"),
+                   (REPORT_URL, "October 2026 report"), ("/why/", "Why I built it"), (POC_URL, "Proof repository"),
                    (FINDINGS_URL, "Research log")]),
         ("Contact", [("/press/", "Press and research"), ("/press/#contact", "Email"), (REPO_URL, "GitHub"),
                      (ISSUE_URL, "Daily report by email")]),
@@ -539,8 +581,8 @@ _MOON = (
 )
 THEME_BUTTON = f'<button class="theme" type="button" hidden>{_SUN}{_MOON}</button>'
 MENU_JS = (
-    "<script>document.addEventListener('click',e=>{const m=document.querySelector('details.menu[open]');"
-    "if(m&&(!m.contains(e.target)||e.target.closest('a')))m.open=false});\n"
+    "<script>document.addEventListener('click',e=>{document.querySelectorAll('details.menu[open],details.learn[open]')"
+    ".forEach(m=>{if(!m.contains(e.target)||e.target.closest('a'))m.open=false})});\n"
     "(()=>{const r=document.documentElement,K='lw-theme',q=matchMedia('(prefers-color-scheme: dark)'),"
     "sys=()=>q.matches?'dark':'light',cur=()=>r.dataset.theme||sys(),bs=document.querySelectorAll('button.theme'),"
     "show=()=>bs.forEach(b=>{const t=cur(),n=t==='dark'?'light':'dark';b.dataset.t=t;b.title='Switch to '+n+' theme';"
@@ -1006,6 +1048,52 @@ def ci_tabs() -> str:
     return f'<div class="ci"><div role="tablist" aria-label="Your CI">{buttons}</div>{panels}</div>'
 
 
+def has_fix(i: Item) -> bool:
+    """The maintainers name a fixed version (not "none", "tbd", ...)."""
+    return any((p.patched_versions or "").strip() and not no_fix(p.patched_versions) for p in i.adv.packages)
+
+
+def live_examples(items: list[Item], now: datetime) -> list[tuple[dict[str, str], Item]]:
+    """EXAMPLES still in limbo: not reviewed and not in OSV, by the tracker's latest facts."""
+    by = {i.adv.ghsa_id: i for i in items}
+    return [
+        (e, i)
+        for e in EXAMPLES
+        if (i := by.get(e["ghsa"])) is not None
+        and i.assessment.status is Status.LIMBO
+        and not i.facts.reviewed
+        and i.facts.in_osv is False
+    ]
+
+
+def examples_section(items: list[Item], now: datetime) -> str:
+    live = live_examples(items, now)
+    if not live:
+        return ""
+    cards = []
+    for e, i in live:
+        fix_days = (now.date() - date.fromisoformat(e["fix_released"])).days
+        sev = (i.adv.severity or "unknown").lower()
+        cards.append(
+            f'<a class="exc" href="/advisory/{E(i.adv.ghsa_id)}/"><div class="top2"><span class="pk">{E(e.get("label") or e["package"])}</span>'
+            f'<span class="sev {E(sev)}">{E(sev.upper())}</span></div><p class="eco">{E(e["ecosystem"])} · '
+            f'<span class="mono">{E(e["version"])}</span></p><dl>'
+            f"<div><dt>Fix released</dt><dd>{E(e['fixed'])}, {fix_days} days ago</dd></div>"
+            f"<div><dt>Advisory public for</dt><dd>{fmt_days(days_since(i.adv.published_at, now))}</dd></div>"
+            "<div><dt>In GitHub’s database or OSV</dt><dd>Not yet</dd></div></dl>"
+            f'<span class="go">{E(i.adv.ghsa_id)} →</span></a>'
+        )
+    return f"""<section class="wrap s" id="examples"><div class="intro"><h2>Real packages, right now</h2>
+<p class="sub">The maintainers published each advisory and shipped the fix. None is in GitHub’s reviewed database or
+OSV yet, so the scanners that read them report these versions as clean, and nothing tells the teams using them to
+upgrade.</p></div>
+<div class="ex">{"".join(cards)}</div>
+<p class="floor">We pinned each version in a <a href="{POC_URL}">public proof repository</a> and
+<a href="{POC_RUNS}">check it every day</a>: Limbowatch reports every one, while OSV-Scanner, npm audit and pip-audit
+report none, and Dependabot raised 95 alerts there on old packages and none on these. An example leaves this list as
+soon as GitHub reviews its advisory.</p></section>"""
+
+
 def home(items: list[Item], m: dict[str, Any], now: datetime) -> str:
     li, cov = m["in_limbo"], m["coverage"]
     flow = m.get("flow_7d") or {}
@@ -1019,6 +1107,7 @@ def home(items: list[Item], m: dict[str, Any], now: datetime) -> str:
     oldest = sorted(recent, key=lambda i: i.adv.published_at or now)[:LIST_ROWS]
     count = f"{li['count']:,}"
     no_cve = li["by_cve"].get(CveLabel.NONE.value, 0)
+    fixed_pct = round(100 * sum(1 for i in pend if has_fix(i)) / len(pend)) if pend else 0
 
     def lst(title: str, rows: list[Item]) -> str:
         body = (
@@ -1043,20 +1132,22 @@ def home(items: list[Item], m: dict[str, Any], now: datetime) -> str:
     )
     body = f"""<div class="hx">{header("")}
 <section class="wrap hx-body">
-<div class="hx-q"><h1>Your scan came back clean. Is it?</h1>
-<p class="hx-lede">Right now, <strong>{count}</strong> published security advisories are invisible to Dependabot, npm audit
-and OSV-Scanner. They’re public, most already have a fix, and they’re waiting for GitHub to review them. Limbowatch finds
-the ones in your dependencies.</p>
+<div class="hx-q"><h1>Fixed upstream.<br>Still clean in your scanner.</h1>
+<p class="hx-lede">Right now, <strong>{count}</strong> security advisories are published by their maintainers but not yet in
+the databases Dependabot, npm audit and OSV-Scanner read. <strong>{fixed_pct}%</strong> already name a fixed version.
+Until GitHub reviews them, nothing alerts you, so nothing gets upgraded. Limbowatch finds the ones in your dependencies.</p>
 <div class="hx-cta"><a class="btn light" href="#fix">Add it to your CI</a><a class="btn ghost" href="/check/">Check a package</a></div>
 <p class="hx-meta">Live count, re-checked daily, updated {E(updated)}.</p></div>
-<figure class="pair"><div class="res quiet"><p class="rt">GitHub Dependabot alerts</p><p class="rv">0</p>
-<p class="rd">open alerts on the demo app</p></div>
-<div class="res loud"><p class="rt">limbowatch scan</p><p class="rv">16</p>
-<p class="rd">advisories in limbo, in 6 packages, each with a released fix</p></div>
-<figcaption>The same <a href="https://github.com/limbowatch/demo-app">demo app</a>, with real npm, Go, pip and Bundler
-lockfiles, on 2026-11-07. OSV-Scanner reported none of the 16 either. <a href="{EVIDENCE}">Each one, rechecked</a></figcaption></figure>
+<figure class="pair"><div class="res quiet"><p class="rt">Dependabot, OSV-Scanner, npm audit, pip-audit</p><p class="rv">0</p>
+<p class="rd">of 7 high and critical advisories, each with a released fix</p></div>
+<div class="res loud"><p class="rt">limbowatch scan</p><p class="rv">7</p>
+<p class="rd">of 7, with the upgrade that clears each one</p></div>
+<figcaption>The same files in a <a href="{POC_URL}">public proof repository</a>, pinning real packages such as
+nats-server, typebox and scapy. Every scanner there reports the old control packages, so none is broken.
+<a href="{POC_RUNS}">See today’s run</a></figcaption></figure>
 </section></div>
 <main>
+{examples_section(items, now)}
 <section class="wrap s" id="gap"><div class="intro"><h2>What happens after a maintainer publishes an advisory</h2>
 <p class="sub">One advisory, day by day, at October 2026’s median wait for review: {REVIEW_MEDIAN} days. Drag the slider,
 or press play.</p></div>
@@ -1084,21 +1175,11 @@ critical or high, only 95 with a CVE.</p>
 <div><span>Dependabot alerts</span><b class="zero">0</b></div><div class="lw"><span>Confirmed in limbo</span><b>1,080</b></div></div></div>
 </section>
 
-<section class="wrap s" id="audit"><div class="intro"><h2>A clean scan is also your audit evidence</h2>
-<p class="sub">If you report to SOC 2 or PCI DSS, the scanner’s output is how you show that you find and fix
-vulnerabilities in time. For advisories in limbo, that evidence is wrong, and it’s wrong in your favor.</p></div>
-<div class="audit"><div class="prose-s">
-<p><strong>SOC 2.</strong> Criterion CC7.1 asks that you identify “susceptibilities to newly discovered vulnerabilities”,
-and its points of focus include scans and fixing what they find on a timely basis. Most teams set the deadline in a policy, counted from the
-scanner’s alert. An advisory in limbo raises no alert, so the clock doesn’t start, and the fix looks on time.</p>
-<p><strong>PCI DSS.</strong> The clock starts at the other end: critical vulnerabilities must be resolved within one month
-of the fix’s release. At the October median, your scanner speaks up on day {REVIEW_MEDIAN}, with {30 - REVIEW_MEDIAN}
-days left. For {OVER_30D}% of the advisories reviewed in October, the month was over before the review.</p>
-<p class="src">This isn’t audit advice; ask your auditor how they treat advisories before review. Sources:
-<a href="{TSC_URL}">AICPA, 2017 Trust Services Criteria</a>, CC7.1;
-<a href="{PCI_FAQ}">PCI SSC FAQ 1597</a> (May 2025); review times from the
-<a href="{REPORT_URL}">October 2026 report</a>.</p></div>
-{clocks()}</div></section>
+<section class="wrap s" id="audit"><div class="intro"><h2>Compliant, and exposed</h2>
+<p class="sub">Remediation deadlines usually start when your scanner alerts. For an advisory in limbo, that’s weeks after
+it went public, and the audit trail still says you were on time. Under PCI DSS the month starts at the fix’s release, so
+the wait uses up the deadline itself.</p>
+<p class="links"><a href="/compliance/">SOC 2, PCI DSS and CISA’s BOD 26-04, with sources</a></p></div></section>
 
 <section class="wrap s" id="fix"><div class="intro"><h2>The simple part: one step in CI</h2>
 <p class="sub">Limbowatch doesn’t shorten GitHub’s queue. It checks your lockfiles against every advisory waiting in it, on
@@ -1145,6 +1226,60 @@ match months later.</p>
         body,
         "/",
         dataset_ld(m),
+    )
+
+
+def compliance(m: dict[str, Any]) -> str:
+    """For security and compliance leads: when remediation clocks start, and what limbo does to them (F-134, F-156)."""
+    body = f"""<header class="top">{header("compliance")}</header>
+<main class="wrap">
+<div class="head"><div><p class="eyebrow">For security and compliance leads</p>
+<h1 class="page">Compliant, and exposed.</h1>
+<p class="sub lead">Remediation deadlines usually start when your scanner detects a vulnerability. For an advisory in limbo,
+that’s weeks after it went public. You fix it on time by your policy, and the code was exposed the whole while.</p></div></div>
+
+<section class="s" id="clocks"><div class="intro"><h2>Three clocks</h2>
+<p class="sub">At October 2026’s median wait for GitHub’s review ({REVIEW_MEDIAN} days), on a 60-day axis from the day the
+maintainers published the advisory and the fix.</p></div>
+{clocks()}</section>
+
+<section class="s" id="frameworks"><div class="fw">
+<div><h3>SOC 2</h3><blockquote>“susceptibilities to newly discovered vulnerabilities”</blockquote>
+<p>Criterion CC7.1 asks you to detect them, and its points of focus include scanning and fixing what scans find “on a
+timely basis”. It sets no number of days: your policy does, and it usually counts from the scanner’s alert. No alert, no
+clock, so a fix weeks after publication still looks on time.</p>
+<p class="small muted"><a href="{TSC_URL}">AICPA, 2017 Trust Services Criteria</a>, CC7.1</p></div>
+<div><h3>PCI DSS</h3><blockquote>“within one month of release”</blockquote>
+<p>Requirement 6.3.3: patches for critical vulnerabilities. The month runs from the fix’s release, not from detection, so
+the wait for review uses it up: at the October median your scanner speaks up with {30 - REVIEW_MEDIAN} days left, and for
+{OVER_30D}% of October’s reviews the month was over first.</p>
+<p class="small muted"><a href="{PCI_FAQ}">PCI SSC FAQ 1597</a> (May 2025)</p></div>
+<div><h3>US federal agencies: BOD 26-04</h3><blockquote>“whichever comes first”</blockquote>
+<p>CISA’s directive of June 2026 starts the clock when the agency identifies the vulnerability on an asset, or when it’s
+listed in the KEV catalog, then allows 3 to 60 days by exposure and impact. Identification is the scanner’s job, so here
+too the clock waits for the review.</p>
+<p class="small muted"><a href="{BOD_2604}">CISA BOD 26-04</a>, Table 1</p></div></div></section>
+
+<section class="s" id="helps"><div class="intro"><h2>What helps</h2></div><div class="fw">
+<div><h3>Alert at publication</h3><p>Run Limbowatch in CI, so detection is the day the advisory goes public, not the day
+it’s reviewed. Your policy’s clock then starts when the risk does.</p></div>
+<div><h3>Keep the evidence</h3><p>Each run writes JSON, SARIF and JUnit reports with dates, so you can show what you
+knew and when.</p></div>
+<div><h3>Track it like any finding</h3><p>Limbowatch opens one issue per advisory, updates it when a CVE is assigned or
+GitHub reviews it, and closes it once you’ve upgraded.</p></div></div>
+<p class="links"><a href="/scan/">Add it to your CI</a><a href="{POC_URL}">The public proof repository</a>
+<a href="/#examples">Real packages in limbo now</a></p>
+<p class="small muted">How the frameworks are worded, with sources; this isn’t audit advice. Ask your auditor how they
+treat advisories before review. Review times from the <a href="{REPORT_URL}">October 2026 report</a>; the frameworks are
+read in the research log, <a href="{FINDINGS_URL}#f-134">F-134</a> and <a href="{FINDINGS_URL}#f-156">F-156</a>.</p></section>
+</main>
+{footer()}"""
+    return page(
+        "Compliant, and exposed · limbo.watch",
+        "SOC 2, PCI DSS and CISA BOD 26-04 count remediation deadlines from detection or a fix's release; an advisory "
+        "waiting for GitHub's review delays the alert, and the clock with it.",
+        body,
+        "/compliance/",
     )
 
 
@@ -1424,12 +1559,19 @@ def advisory(i: Item, events: list[dict[str, Any]], now: datetime) -> str:
         f'<a class="mono" href="/feed/{E(a.ghsa_id)}.json">feed/{E(a.ghsa_id)}.json</a></p>'
     )
     who = f"If you use {E(first_name)} {E(first.vulnerable_version_range or '')}" if first else "If you’re affected"
+    fixbar = (
+        f'<div class="fixbar"><p><strong>Fixed in {E(", ".join(fix))}.</strong> {tail} '
+        '<a href="/scan/">Find it in your project</a></p></div>'
+        if fix and not gone
+        else ""
+    )
     body = f"""<header class="top">{header("tracker")}</header>
 <main class="wrap">
 <nav class="crumb" aria-label="Breadcrumb"><a href="/tracker/">Tracker</a>{f" / {E(eco_label(first.ecosystem))} / {E(first_name)}" if first else ""}</nav>
 <div class="adv-head"><div style="min-width:0"><p class="pill{" done" if gone else ""}"><i aria-hidden="true"></i>{E(pill)}</p>
 <h1 class="ghsa">{E(a.ghsa_id)}</h1><p class="sub">{sub}</p></div>
 <a class="btn solid" style="min-height:48px" href="{E(a.html_url)}">Read the advisory on GitHub ↗</a></div>
+{fixbar}
 <div class="adv-body">
 <section style="flex:3 1 560px"><h2 class="xs">Facts</h2><dl class="facts card">{facts_html}</dl>
 <div class="advice"><h2>{who.strip()}</h2><p>{advice} {tail}</p></div></section>
@@ -1612,6 +1754,12 @@ looks, and tells you which upgrade clears it.</p></div>
 <div class="contact card"><h2 class="xs">Try it</h2><pre>pipx install limbowatch-cli=={RELEASE}
 limbowatch scan .</pre><p class="small" style="margin:12px 0 0">Needs <a href="https://google.github.io/osv-scanner/installation/">OSV-Scanner</a>
 2.7.1. <a href="{WATCHER_DOC}">Guide</a></p></div></div>
+<div class="fixbar"><p><strong>See it on real packages.</strong> Our <a href="{
+        POC_URL
+    }">public proof repository</a> pins
+nats-server, typebox, go-openapi/spec, mustache, scapy and others at versions with fixed advisories in limbo. Its
+<a href="{POC_RUNS}">daily run</a> shows Limbowatch reporting every one, while OSV-Scanner, npm audit, pip-audit and
+Dependabot stay silent on them and report the old control packages.</p></div>
 
 <section class="s"><h2>In your terminal</h2><p class="sub">One table per lockfile, the upgrade that clears each package, and a
 verdict. This is the <a href="{DEMO_PR}">demo pull request</a> that adds <span class="mono">scapy==2.7.0</span>.</p>
@@ -2206,7 +2354,18 @@ def limbo_csv(items: list[Item], now: datetime) -> str:
     return buf.getvalue()
 
 
-SITEMAP_PAGES = ["/", "/tracker/", "/check/", "/scan/", "/feed/", "/methodology/", "/press/", "/why/", "/quality/"]
+SITEMAP_PAGES = [
+    "/",
+    "/compliance/",
+    "/tracker/",
+    "/check/",
+    "/scan/",
+    "/feed/",
+    "/methodology/",
+    "/press/",
+    "/why/",
+    "/quality/",
+]
 
 
 def sitemap(advisories: list[str], now: datetime) -> str:
@@ -2280,6 +2439,7 @@ def build(
         "feed/index.html": feed(metrics, sample),
         "scan/index.html": scan(metrics),
         "why/index.html": why(metrics),
+        "compliance/index.html": compliance(metrics),
         "quality/index.html": quality(items),
         "methodology/index.html": methodology(metrics),
         "press/index.html": press(items, metrics, now),
