@@ -2267,6 +2267,20 @@ Answered:
 - **Implication:** GitHub is a full host for the watcher. The reviewer found real bugs a passing test suite hid (a faked clone), so tests now run real git for empty repos. A new tracker or host gets a live e2e and an independent review before release.
 - **Sources:** the runs above; `scripts/e2e_github.py`; `tests/test_github.py`.
 
+### F-149
+- **Date:** 2026-11-12 · **Status:** confirmed (observed)
+- **Question:** Release 0.1.0a10 (Phase 7, GitHub as a host): did every artifact ship as tested?
+- **Method:** the release checklist. Audit of 2026-11-12 02:12 UTC (all 9 checks passed, [F-148](#f-148)); before tagging, the GitHub, GitLab and Gitea e2e, the container check and the action from a commit, all on b668644 (the code released).
+- **Result:**
+  - **Image:** `ghcr.io/limbowatch/limbowatch:0.1.0a10@sha256:2ec8dea9…`, built from 4bcebc8. It reports `limbowatch 0.1.0a10` and OSV-Scanner 2.7.0, and its attestation verifies. It's pinned in the action and the GitLab template (0747c51), and CI passed on both commits.
+  - **Tags:** `v0.1.0a10`, `0.1.0-alpha.10` and the action's `v0.1.0a10`, GPG-signed and verified.
+  - **Release workflow:** PyPI `limbowatch` and `limbowatch-cli` 0.1.0a10 and the GitHub pre-release; the image retag gives the pinned digest.
+  - **GitLab component:** split 36d746f, pipeline 3057341070 and tag pipeline 3057345404 passed; CI/CD Catalog release at 02:40 UTC; the mirror's digest equals ghcr.io's.
+  - **Action repo:** split acc8bf3; self-test 43142874460 passed on Linux (image) and macOS (pip). In its new dry-run step, both runners read this public repo's tracker and opened nothing ("GitHub issues in limbowatch/limbowatch-action are public"). Pre-release published; org profile updated.
+  - **Smoke test (PyPI 0.1.0a10):** a `go.mod` pinned to brotli v1.2.1 gives GHSA-c9gr-gmg4-2vqv.
+  - **Marketplace:** the listing's releases are v0.1.0a9 and v0.1.0a5, the ones published through the release form's Marketplace checkbox. v0.1.0a10 appears there once the maintainer ticks it; there's no API for this.
+- **Sources:** the runs above; PyPI's JSON API; the Marketplace page's release data.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
