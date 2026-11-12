@@ -118,6 +118,8 @@ Open:
 - ~~Q26. For limbo advisories without a package, how often does the patched version map to a tag upstream, and how many of the 1,858 repos are libraries?~~ **Answered 2026-11-11: 95 repos (1,472 records) are libraries in vcpkg, BCR or conan-center; every patched version maps to a tag for 82% of their advisories ([F-136](#f-136)).**
 - ~~Q27. How often is an upstream verdict wrong when read against the advisory itself?~~ **Answered 2026-11-11: 95% agree with OSV's version ranges, 3% possible, 1.6% disagree, each traced disagreement a conflict between the advisory and the CVE record ([F-139](#f-139)).**
 - Q28. Is identifying vendored copies (OSV's `determineversion`, which sends file hashes) worth its egress, given that 22 of 85 C/C++ projects vendor code and nothing else says which version ([F-136](#f-136))?
+- Q29. On GitHub, does issue creation create a label that doesn't exist, and do labels set with `GITHUB_TOKEN` (`issues: write`) stick, or are they "silently dropped"? The watcher finds its issues by label ([F-145](#f-145)).
+- Q30. Does the GitHub tracker work unchanged on GitHub Enterprise Server (API under `/api/v3`, `GITHUB_API_URL` in Actions)? Not on the pages read for [F-145](#f-145).
 - Q22. Does GitHub's "more than 5,000 repository advisories a week" count the same thing as the tracker (published, any ecosystem)? It sets the coverage estimate ([F-035](#f-035), [F-098](#f-098)).
 
 Answered:
@@ -2159,6 +2161,35 @@ Answered:
   - **Smoke test (PyPI 0.1.0a9):** demo app 61 findings, 3 unchecked; the test project 228 + 114 certain, 12 possible.
   - **Superseded releases:** 0.1.0a7 and 0.1.0a8 yanked on PyPI (`limbowatch` and `limbowatch-cli`), each with the reason pip shows; their GitHub pre-releases open with an upgrade note.
 - **Sources:** the runs above; PyPI's JSON API (`yanked`).
+
+### F-145
+- **Date:** 2026-11-11 · **Status:** confirmed (official docs), with gaps listed below for Phase 7 step 0
+- **Question:** What does GitHub's REST API offer for the watcher's issue lifecycle (find again, open, comment, label, close, reopen), and what permissions does it take?
+- **Method:** GitHub REST docs: Issues, Labels, "Permissions required for fine-grained personal access tokens", the `GITHUB_TOKEN` and workflow-syntax pages, the Actions variables reference.
+- **Result:**
+  - **Listing:** `GET /repos/{owner}/{repo}/issues` takes `labels`, `state=all` and `per_page` up to 100. It returns pull requests too ("every pull request an issue"); they carry a `pull_request` key.
+  - **Creating:** `POST /repos/{owner}/{repo}/issues`. Labels are set only for users with push access and are "silently dropped otherwise". Issues disabled in the repo give 410 Gone. There are no confidential issues.
+  - **Updating:** `PATCH .../issues/{n}` with `state` open/closed and `state_reason` (completed, not_planned, duplicate, reopened).
+  - **Fine-grained token permissions:** listing issues needs Issues read; create, update, comment, add labels and create labels need Issues write; reading a repo needs Metadata read.
+  - **In Actions:** `permissions: issues: write` lets `GITHUB_TOKEN` write issues. The token is "limited to the repository that contains your workflow", expires with the job, and events it triggers don't start new workflow runs. `GITHUB_API_URL` and `GITHUB_SERVER_URL` give the API and server URLs.
+- **Caveats:** the docs don't say whether a label that doesn't exist is created on issue creation, or whether `GITHUB_TOKEN` with `issues: write` counts as "push access" for labels. The watcher finds issues again by label, so a dropped label would mean a duplicate issue every run. GitHub Enterprise Server's API path isn't on these pages.
+- **Implication:** the GitHub tracker creates its labels explicitly (as the Gitea one does), checks that a new issue carries the `limbowatch` label and stops if it doesn't, skips pull requests when listing, and reports a 410 as "issues are disabled". With no confidential issues, GitHub follows the Gitea rule: no new issues in a public repo without `--issues-public`. In Actions, the job's own `GITHUB_TOKEN` is enough for issues in its repo; org-wide mode needs a PAT or an app token.
+- **Sources:** [Issues](https://docs.github.com/en/rest/issues/issues), [fine-grained token permissions](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens), [GITHUB_TOKEN](https://docs.github.com/en/actions/concepts/security/github_token), [workflow syntax: permissions](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax), [variables](https://docs.github.com/en/actions/reference/workflows-and-actions/variables)
+
+### F-146
+- **Date:** 2026-11-11 · **Status:** confirmed (official docs)
+- **Question:** Which GitHub limits apply to writing issues and to listing an org's repos?
+- **Method:** GitHub REST docs: "Rate limits for the REST API", Repositories (list org, user and authenticated-user repos).
+- **Result:**
+  - **Primary limits:** `GITHUB_TOKEN` gets 1,000 requests an hour per repository (15,000 on Enterprise Cloud); a PAT gets 5,000 an hour.
+  - **Secondary limits:** at most 100 concurrent requests and 900 points a minute (GET 1 point, most writes 5). Content-creating requests are limited to about 80 a minute and 500 an hour. A 403 or 429 with a secondary-limit message signals one. Clients honour `retry-after`, or `x-ratelimit-reset` when the remaining count is 0, or else wait at least a minute and back off. Ignoring this "may result in the banning of your integration".
+  - **Listing repos:** `GET /orgs/{org}/repos` (`type=all`) and `GET /user/repos` (`affiliation=owner`) include private repos the token can read. `GET /users/{name}/repos` lists only public ones. `per_page` goes up to 100. Each repo carries `full_name`, `private`, `visibility`, `archived`, `disabled`, `fork`, `size`, `has_issues`, `clone_url` and `html_url`. All three endpoints need Metadata read.
+- **Caveats:** `visibility` has no documented enum on these pages (Enterprise has `internal`).
+- **Implication:**
+  - A first run on a project with many findings can exceed 80 new issues a minute or 500 an hour, so GitHub writes are spaced out and a secondary limit stops the run's writes with the rest reported, never dropped.
+  - `HttpClient.request` (the code-host path) retries 429 and 5xx but not GitHub's 403 secondary limit; it needs the same handling as the advisory path.
+  - Only `visibility == "public"` counts as public: internal repos are treated like private ones, as on Gitea.
+- **Sources:** [rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api), [repositories](https://docs.github.com/en/rest/repos/repos)
 
 ## Archive
 
