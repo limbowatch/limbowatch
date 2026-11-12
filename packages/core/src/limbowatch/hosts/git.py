@@ -25,9 +25,9 @@ class CloneError(RuntimeError):
 
 
 def basic_auth(kind: HostKind, token: str) -> str:
-    """GitLab takes any token as the password with the user name `oauth2`; Gitea and Forgejo take it as the
-    password with any user name (FINDINGS F-130)."""
-    user = "oauth2" if kind is HostKind.GITLAB else "limbowatch"
+    """GitLab takes any token as the password with the user name `oauth2`; Gitea, Forgejo and GitHub take it as
+    the password with any user name (FINDINGS F-130, F-147); GitHub's own tools use `x-access-token`."""
+    user = {HostKind.GITLAB: "oauth2", HostKind.GITHUB: "x-access-token"}.get(kind, "limbowatch")
     return "Basic " + base64.b64encode(f"{user}:{token}".encode()).decode()
 
 

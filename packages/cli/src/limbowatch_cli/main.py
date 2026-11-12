@@ -23,8 +23,9 @@ import typer
 from limbowatch import hosts
 from limbowatch.ecosystems import info
 from limbowatch.hosts import gitea as gitea_host
+from limbowatch.hosts import github as github_host
 from limbowatch.hosts import gitlab as gitlab_host
-from limbowatch.http import HttpClient
+from limbowatch.http import BudgetExhausted, HttpClient
 from limbowatch.inventory import osv_scanner, sbom
 from limbowatch.inventory import upstream as upstream_inventory
 from limbowatch.models import Inventory, Unchecked
@@ -255,6 +256,13 @@ def report(
     typer.echo(str(out / f"{rep.date}.md"))
 
 
+ISSUE_TRACKERS = ("gitlab", "gitea", "github")
+IssuesPublic = Annotated[
+    bool, typer.Option(help="Allow issues anyone can read (public Gitea, Forgejo and GitHub repos).")
+]
+IssuesMaxNew = Annotated[
+    int, typer.Option(min=0, help="Open at most this many new issues a run (per project); the rest open later.")
+]
 OsvCommits = Annotated[
     bool,
     typer.Option(
@@ -379,14 +387,21 @@ def scan(
     scan_ignored: Annotated[bool, typer.Option(help="Also read lockfiles a .gitignore excludes.")] = False,
     resolve_maven: ResolveMaven = True,
     osv_commits: OsvCommits = True,
-    issues: Annotated[str | None, typer.Option(help="Open and update issues: gitlab or gitea (also Forgejo).")] = None,
-    issues_url: Annotated[str | None, typer.Option(help="Tracker base URL [default: $CI_SERVER_URL].")] = None,
+    issues: Annotated[
+        str | None, typer.Option(help="Open and update issues: gitlab, gitea (also Forgejo) or github.")
+    ] = None,
+    issues_url: Annotated[
+        str | None,
+        typer.Option(help="Tracker base URL [default: $CI_SERVER_URL; for github, $GITHUB_API_URL or github.com]."),
+    ] = None,
     issues_project: Annotated[
-        str | None, typer.Option(help="GitLab project or Gitea owner/repo [default: $CI_PROJECT_PATH].")
+        str | None,
+        typer.Option(help="GitLab project, or owner/repo [default: $CI_PROJECT_PATH or $GITHUB_REPOSITORY]."),
     ] = None,
     issues_min_severity: Annotated[str, typer.Option(help="Open issues at or above this severity.")] = "low",
-    issues_public: Annotated[bool, typer.Option(help="Allow issues anyone can read (public Gitea repos).")] = False,
+    issues_public: IssuesPublic = False,
     issues_confidential: Annotated[bool, typer.Option(help="GitLab: open confidential issues.")] = True,
+    issues_max_new: IssuesMaxNew = 50,
     issues_dry_run: Annotated[bool, typer.Option(help="Print the issue changes instead of making them.")] = False,
 ) -> None:
     """Check a project's dependencies against advisories in limbo.
@@ -399,6 +414,11 @@ def scan(
         raise typer.BadParameter("--color wants auto, always or never")
     stdout_fmt, targets = _outputs(fmt, outputs or [])
     accepted = _accepted(ignore, ignore_file)
+    tracker_token = os.environ.get("LIMBOWATCH_ISSUES_TOKEN")
+    if issues is not None and issues not in ISSUE_TRACKERS:
+        raise typer.BadParameter(f"--issues wants {', '.join(ISSUE_TRACKERS[:-1])} or {ISSUE_TRACKERS[-1]}")
+    if issues and not tracker_token and not issues_dry_run:
+        raise typer.BadParameter("set LIMBOWATCH_ISSUES_TOKEN to a token that can write issues", param_hint="--issues")
     cache = cache or _cache_dir()
     inv = load_inventory(path, sbom_file, binary, scan_ignored, resolve_maven)
     for skipped in inv.skipped:
@@ -406,11 +426,6 @@ def scan(
     old = json.loads(state_file.read_text()) if state_file and state_file.exists() else None
     now = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
-    tracker_token = os.environ.get("LIMBOWATCH_ISSUES_TOKEN")
-    if issues is not None and issues not in ("gitlab", "gitea"):
-        raise typer.BadParameter("--issues wants gitlab or gitea")
-    if issues and not tracker_token and not issues_dry_run:
-        raise typer.BadParameter("set LIMBOWATCH_ISSUES_TOKEN to a token that can write issues", param_hint="--issues")
     changes: list[watch_state.Change] | None = None
     log_lines: list[str] = []
 
@@ -435,7 +450,7 @@ def scan(
                                                     issues_dry_run))  # fmt: skip
             return res, wl_doc.get("generated_at")
 
-    issue_policy = watch_issues.Policy(issues_min_severity, issues_public)
+    issue_policy = watch_issues.Policy(issues_min_severity, issues_public, issues_max_new)
     try:
         res, feed_at = asyncio.run(run())
     except (RuntimeError, OSError) as e:
@@ -511,21 +526,30 @@ async def _sync_issues(
     dry_run: bool,
 ) -> list[str]:
     """Open, comment on and close issues for this scan's findings (watch.issues)."""
-    url = url or os.environ.get("CI_SERVER_URL") or os.environ.get("GITHUB_SERVER_URL")
-    project = project or os.environ.get("CI_PROJECT_PATH") or os.environ.get("GITHUB_REPOSITORY")
+    if kind == "github":
+        url = url or os.environ.get("GITHUB_API_URL") or "https://api.github.com"
+        project = project or os.environ.get("GITHUB_REPOSITORY")
+    else:
+        url = url or os.environ.get("CI_SERVER_URL") or os.environ.get("GITHUB_SERVER_URL")
+        project = project or os.environ.get("CI_PROJECT_PATH") or os.environ.get("GITHUB_REPOSITORY")
     if not url or not project:
         raise RuntimeError("--issues needs --issues-url and --issues-project (or CI_SERVER_URL and CI_PROJECT_PATH)")
-    tracker: trackers.GitLab | trackers.Gitea = (
-        trackers.GitLab(http, project, token, url, confidential)
-        if kind == "gitlab"
-        else trackers.Gitea(http, project, token, url)
-    )
-    await tracker.prepare()
+    tracker: trackers.GitLab | trackers.Gitea | trackers.GitHub
+    if kind == "gitlab":
+        tracker = trackers.GitLab(http, project, token, url, confidential)
+    elif kind == "github":
+        tracker = trackers.GitHub(http, project, token, github_host.api_url(url))
+    else:
+        tracker = trackers.Gitea(http, project, token, url)
+    try:
+        await tracker.prepare()
+        existing = await tracker.issues()
+    except BudgetExhausted:
+        return [f"issues: {tracker.name}'s rate limit is used up; nothing changed this run"]
     if tracker.public and not policy.allow_public:
         note = f"{tracker.name} issues in {project} are public; not opening new ones (--issues-public allows it)"
     else:
         note = ""
-    existing = await tracker.issues()
     current = watch_state.entries(res.findings, "")
     one: dict[str, dict[str, Any]] = {}
     for f in res.findings:
@@ -562,8 +586,10 @@ async def _sync_issues(
     actions = watch_issues.plan(current, one, existing, changes, gone, policy, tracker.public)
     lines = [note] if note else []
     if dry_run:
-        return [*lines, *(f"would {a.kind}: {a.title or ('#' + str(a.issue.number) if a.issue else a.key)}"
-                          for a in actions)]  # fmt: skip
+        later = sum(1 for a in actions if a.kind == "later")
+        lines += [f"would {a.kind}: {a.title or ('#' + str(a.issue.number) if a.issue else a.key)}"
+                  for a in actions if a.kind != "later"]  # fmt: skip
+        return lines + ([f"would leave {later} new issue(s) for later runs (--issues-max-new)"] if later else [])
     return [*lines, *await watch_issues.apply(tracker, actions)]
 
 
@@ -579,18 +605,48 @@ def _source_token(hosts: set[str]) -> str | None:
 
 
 async def _list_sources(
-    http: HttpClient, groups: list[tuple[str, str]], orgs: list[tuple[str, str]], git_urls: list[str],
-    token: str | None, include_archived: bool,
+    http: HttpClient, groups: list[tuple[str, str]], orgs: list[tuple[str, str]], gh_orgs: list[tuple[str, str]],
+    git_urls: list[str], token: str | None, include_archived: bool,
 ) -> list[hosts.Listing]:  # fmt: skip
     listings = list(
         await asyncio.gather(
             *(gitlab_host.list_group(http, base, path, token, include_archived) for base, path in groups),
             *(gitea_host.list_org(http, base, path, token, include_archived) for base, path in orgs),
+            *(github_host.list_org(http, base, path, token, include_archived) for base, path in gh_orgs),
         )
     )
+    for ls in listings:
+        if ls.kind is hosts.HostKind.GITHUB and not ls.error and not ls.note:
+            ls.note = _github_token_note(token)
     for url in git_urls:
         listings.append(hosts.Listing(hosts.redact(url), hosts.HostKind.GIT, [hosts.git_project(url)]))
     return listings
+
+
+_RATE_LIMITED = "rate limit"
+
+
+def _github_org(value: str, default_base: str) -> tuple[str, str]:
+    """`acme`, `https://github.com/acme` or `https://github.com/orgs/acme/repositories` → (server, "acme")."""
+    base, path = hosts.split_url(value, default_base.rstrip("/"))
+    parts = path.split("/")
+    if parts[0] == "orgs" and len(parts) > 1:
+        parts = parts[1:]
+    if parts[1:] in ([], ["repositories"]):
+        if urlsplit(base).hostname == "www.github.com":
+            base = "https://github.com"
+        return base, parts[0]
+    raise hosts.SourceError(f"--github-org wants an organization or user, like https://github.com/acme; got {value!r}")
+
+
+def _github_token_note(token: str | None) -> str | None:
+    """GitHub lists what a token can see without saying that more exists (F-147)."""
+    if not token:
+        return "no LIMBOWATCH_SOURCE_TOKEN: public repositories only"
+    if os.environ.get("GITHUB_ACTIONS") == "true" and token.startswith("ghs_"):
+        return ("the token is an app installation token, such as the job's GITHUB_TOKEN, which sees public "
+                "repositories and its own only; set LIMBOWATCH_SOURCE_TOKEN to one that reads the rest")  # fmt: skip
+    return None
 
 
 def _state_path(state_dir: Path, project: hosts.Project) -> Path:
@@ -611,9 +667,19 @@ def watch(
         list[str] | None,
         typer.Option(help="Gitea or Forgejo organization (or user) URL, e.g. https://codeberg.org/org; repeatable."),
     ] = None,
+    github_org: Annotated[
+        list[str] | None,
+        typer.Option(help="GitHub organization or user (https://github.com/name, or a name); repeatable."),
+    ] = None,
     git: Annotated[list[str] | None, typer.Option(help="A git repository's https URL; repeatable.")] = None,
     gitlab_url: Annotated[
         str | None, typer.Option(help="Base URL for --gitlab-group paths [default: $CI_SERVER_URL or gitlab.com].")
+    ] = None,
+    github_url: Annotated[
+        str | None,
+        typer.Option(
+            help="GitHub server for --github-org names (Enterprise Server) [default: $GITHUB_SERVER_URL or github.com]."
+        ),
     ] = None,
     exclude: Annotated[
         list[str] | None, typer.Option(help="Skip projects whose path matches this glob (group/legacy-*); repeatable.")
@@ -646,14 +712,17 @@ def watch(
         bool, typer.Option("--verbose", "-v", help="Show every project's unchecked dependencies.")
     ] = False,
     issues: Annotated[
-        bool, typer.Option(help="Open and update issues in each GitLab or Gitea project (LIMBOWATCH_ISSUES_TOKEN).")
+        bool,
+        typer.Option(help="Open and update issues in each GitLab, Gitea or GitHub project (LIMBOWATCH_ISSUES_TOKEN)."),
     ] = False,
     issues_min_severity: Annotated[str, typer.Option(help="Open issues at or above this severity.")] = "low",
-    issues_public: Annotated[bool, typer.Option(help="Allow issues anyone can read (public Gitea repos).")] = False,
+    issues_public: IssuesPublic = False,
     issues_confidential: Annotated[bool, typer.Option(help="GitLab: open confidential issues.")] = True,
+    issues_max_new: IssuesMaxNew = 50,
     issues_dry_run: Annotated[bool, typer.Option(help="Print the issue changes instead of making them.")] = False,
 ) -> None:
-    """Check every project of GitLab groups, Gitea or Forgejo orgs, or git URLs, in one run (org-wide mode).
+    """Check every project of GitLab groups, Gitea or Forgejo orgs, GitHub orgs, or git URLs, in one run (org-wide
+    mode).
 
     Each project is cloned shallowly and inventoried like `scan`; each source repo is polled once for all
     projects. Run it on a schedule. Exit codes: 0 passed, 1 a project's findings meet --fail-on, 2 a source
@@ -669,20 +738,23 @@ def watch(
     try:
         groups = [hosts.split_url(g, gl_base) for g in gitlab_group or []]
         orgs = [hosts.split_url(o) for o in gitea_org or []]
+        gh_orgs = [_github_org(o, github_url or os.environ.get("GITHUB_SERVER_URL") or "https://github.com")
+                   for o in github_org or []]  # fmt: skip
         git_projects = [hosts.git_project(u) for u in git or []]
     except hosts.SourceError as e:
         raise typer.BadParameter(str(e)) from e
-    if not (groups or orgs or git_projects):
-        raise typer.BadParameter("name at least one --gitlab-group, --gitea-org or --git")
-    token = _source_token({urlsplit(b).netloc for b, _ in groups + orgs} | {p.host for p in git_projects})
+    if not (groups or orgs or gh_orgs or git_projects):
+        raise typer.BadParameter("name at least one --gitlab-group, --gitea-org, --github-org or --git")
+    token = _source_token({urlsplit(b).netloc for b, _ in groups + orgs + gh_orgs} | {p.host for p in git_projects})
     issues_token = os.environ.get("LIMBOWATCH_ISSUES_TOKEN")
     if issues and not issues_token and not issues_dry_run:
         raise typer.BadParameter("set LIMBOWATCH_ISSUES_TOKEN to a token that can write issues", param_hint="--issues")
     _check_osv_scanner(binary)
     cache = cache or _cache_dir()
     now = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
-    policy = watch_issues.Policy(issues_min_severity, issues_public)
+    policy = watch_issues.Policy(issues_min_severity, issues_public, issues_max_new)
     log_lines: list[str] = []
+    rate_limited: set[str] = set()  # hosts whose issue writes hit a rate limit this run: no more tries there
 
     def take(path: Path) -> Inventory:
         inv = osv_scanner.run(path, binary, resolve_maven=resolve_maven)
@@ -690,7 +762,7 @@ def watch(
 
     async def run() -> org_output.OrgReport:
         async with HttpClient(_token()) as http:
-            listings = await _list_sources(http, groups, orgs, git or [], token, include_archived)
+            listings = await _list_sources(http, groups, orgs, gh_orgs, git or [], token, include_archived)
             feed = await watch_scan.fetch(http, watch_scan.FEED_URL, cache)
             wl_doc = json.loads(await watch_scan.fetch(http, watch_scan.WATCHLIST_URL, cache))
             w = await org_mod.run(listings, http, feed_zip=feed, watchlist=dict(wl_doc.get("repos") or {}),
@@ -728,14 +800,20 @@ def watch(
                                     c.project.name)  # fmt: skip
                 entries.append(org_output.Entry(c.project, rep, c.commit))
                 if issues and c.project.kind is not hosts.HostKind.GIT:
-                    try:
-                        lines = await _sync_issues(
-                            http, c.result, c.result.inventory, changes or [], c.project.kind.value,
-                            issues_token or "", c.project.base_url, c.project.path, policy, issues_confidential,
-                            issues_dry_run,
-                        )  # fmt: skip
-                    except (trackers.TrackerError, RuntimeError) as e:
-                        lines = [f"issues: {e}"]
+                    if c.project.host in rate_limited:
+                        lines = ["issues: not updated this run (the host's rate limit was reached for an earlier "
+                                 "project)"]  # fmt: skip
+                    else:
+                        try:
+                            lines = await _sync_issues(
+                                http, c.result, c.result.inventory, changes or [], c.project.kind.value,
+                                issues_token or "", c.project.base_url, c.project.path, policy, issues_confidential,
+                                issues_dry_run,
+                            )  # fmt: skip
+                        except (trackers.TrackerError, RuntimeError) as e:
+                            lines = [f"issues: {e}"]
+                        if any(_RATE_LIMITED in ln for ln in lines):
+                            rate_limited.add(c.project.host)
                     log_lines.extend(f"{c.project.name}: {ln}" for ln in lines)
             if issues:
                 n_git = sum(1 for e in entries if e.project.kind is hosts.HostKind.GIT)

@@ -1,6 +1,7 @@
-"""Org-wide mode (`limbowatch watch`): every project of some GitLab groups, Gitea orgs or git URLs, in one run.
+"""Org-wide mode (`limbowatch watch`): every project of some GitLab groups, Gitea orgs, GitHub orgs or git URLs,
+in one run.
 
-1. List the sources' projects (hosts.gitlab, hosts.gitea; plain git URLs as given).
+1. List the sources' projects (hosts.gitlab, hosts.gitea, hosts.github; plain git URLs as given).
 2. Clone each shallowly into a temporary directory and take its inventory, a few at a time; the clone is
    removed as soon as the inventory is read.
 3. Map and poll the upstream repos of all projects' dependencies together (`scan.prepare`), so each upstream
@@ -8,7 +9,8 @@
 4. Match each project on its own (`scan.assess`).
 
 Nothing is dropped: a project that can't be cloned or inventoried comes back with the error, and one that
-isn't checked (archived, empty, excluded) with the reason.
+isn't checked (archived, empty, excluded) with the reason. An empty repository is found when it's cloned (no
+commit checked out): GitHub has no reliable flag for it (F-147), and a plain git URL has none at all.
 """
 
 from __future__ import annotations
@@ -37,6 +39,7 @@ class Checked:
     commit: str | None = None
     result: ScanResult | None = None
     error: str | None = None  # couldn't be cloned or inventoried: nothing about it was judged
+    empty: bool = False  # cloned, but the repository has no commits: reported as not checked
 
 
 @dataclass
@@ -91,6 +94,8 @@ async def take_inventories(
                 commit = clone(p, dest, token)
             except git_host.CloneError as e:
                 return Checked(p, error=f"clone failed: {e}"), None
+            if not commit:
+                return Checked(p, empty=True), None
             try:
                 return Checked(p, commit=commit), inventory(dest)
             except Exception as e:
@@ -128,7 +133,13 @@ async def run(
             # to check"
             ls.error = f"{ls.source} lists no projects: it's empty, or private (LIMBOWATCH_SOURCE_TOKEN reads it)"
     todo, out.skipped = select(listings, exclude or [])
-    taken = await take_inventories(todo, token, inventory, jobs=jobs, clone=clone)
+    taken: list[tuple[Checked, Inventory | None]] = []
+    for checked, inv in await take_inventories(todo, token, inventory, jobs=jobs, clone=clone):
+        if checked.empty:
+            out.skipped.append((checked.project, Skip.EMPTY))
+        else:
+            taken.append((checked, inv))
+    out.skipped.sort(key=lambda s: s[0].name)
     deps: dict[tuple[str, str, str], Dependency] = {}
     for _, inv in taken:
         for d in inv.dependencies if inv else ():
@@ -143,7 +154,7 @@ async def run(
         out.checked.append(checked)
     repos = {m.repo for m in sh.mapped.values() if m.repo}
     out.stats = {
-        "projects": len(todo),
+        "projects": len(taken),  # selected and cloned; empty ones are counted as not checked
         "projects_checked": sum(1 for c in out.checked if c.result is not None),
         "projects_failed": sum(1 for c in out.checked if c.error),
         "projects_skipped": len(out.skipped),

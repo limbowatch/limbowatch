@@ -48,6 +48,11 @@ class OrgReport:
         return [ls.error for ls in self.listings if ls.error]
 
     @property
+    def notes(self) -> list[str]:
+        """Sources listed in part: what the token can't see may be missing."""
+        return [f"{ls.source}: {ls.note}" for ls in self.listings if ls.note]
+
+    @property
     def broken(self) -> list[Entry]:
         return [e for e in self.entries if e.report is None]
 
@@ -142,6 +147,9 @@ def table(r: OrgReport, verbose: bool = False, paint: Paint | None = None) -> st
     if r.errors:
         out += ["", p("1;31", f"Sources that couldn't be listed ({len(r.errors):,}):")]
         out += [f"  {err}" for err in r.errors]
+    if r.notes:
+        out += ["", p("1", f"Sources listed in part ({len(r.notes):,}):")]
+        out += [f"  {n}" for n in r.notes]
     if up := _upstream_line(r.stats):
         out += ["", p("2", up)]
     for e in r.entries:
@@ -184,6 +192,7 @@ def as_json(r: OrgReport) -> str:
                 "projects": len(ls.projects),
                 "not_checked": len(ls.skipped),
                 "error": ls.error,
+                "note": ls.note,
             }
             for ls in r.listings
         ],
@@ -226,6 +235,9 @@ def markdown(r: OrgReport) -> str:
     if r.errors:
         out += ["", f"**Sources that couldn't be listed ({len(r.errors):,}):**", ""]
         out += [f"- {md(err)}" for err in r.errors]
+    if r.notes:
+        out += ["", f"**Sources listed in part ({len(r.notes):,}):**", ""]
+        out += [f"- {md(n)}" for n in r.notes]
     if up := _upstream_line(r.stats):
         out += ["", up]
     for e in r.entries:

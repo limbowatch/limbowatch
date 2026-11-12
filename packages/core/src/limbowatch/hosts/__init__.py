@@ -1,4 +1,5 @@
-"""Where org-wide mode finds projects: GitLab groups, Gitea/Forgejo orgs, plain git URLs (PHASE0_PLAN §7).
+"""Where org-wide mode finds projects: GitLab groups, Gitea/Forgejo orgs, GitHub orgs and users, plain git URLs
+(PHASE0_PLAN §7).
 
 A source lists its projects; each project is then cloned shallowly and inventoried like a single scan.
 Nothing listed is dropped: a project that isn't checked is returned with the reason (archived, empty,
@@ -17,6 +18,7 @@ from urllib.parse import urlsplit, urlunsplit
 class HostKind(StrEnum):
     GITLAB = "gitlab"
     GITEA = "gitea"  # also Forgejo
+    GITHUB = "github"  # github.com or GitHub Enterprise Server
     GIT = "git"  # any git URL: no API, so no issues
 
 
@@ -57,6 +59,7 @@ class Listing:
     projects: list[Project] = field(default_factory=list)
     skipped: list[tuple[Project, Skip]] = field(default_factory=list)
     error: str | None = None  # the source couldn't be listed (completely)
+    note: str | None = None  # listed, but the listing may be partial (what the token can't see), and why
 
 
 class SourceError(ValueError):

@@ -8,6 +8,11 @@
 - **Found again** after closing: reopen.
 
 `plan` is pure; `apply` performs it. Issue bodies carry facts and links only, no advisory text (F-059).
+
+A run opens at most `Policy.max_new` issues (most severe first); the rest open on later runs, said in the
+log. Comments go first and new issues last: everything but a "changed" comment follows from the state, so a
+run stopped by a rate limit (BudgetExhausted) leaves the rest to the next run and prints the comments it
+couldn't make (F-146).
 """
 
 from __future__ import annotations
@@ -16,10 +21,11 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
+from limbowatch.http import BudgetExhausted
 from limbowatch.versions import affected
 from limbowatch.watch.output import ATTRIBUTION, SEVERITIES
 from limbowatch.watch.state import Change, ChangeKind
-from limbowatch.watch.trackers import LABEL, Issue, Tracker, marker
+from limbowatch.watch.trackers import LABEL, Issue, Tracker, TrackerError, marker
 
 VISIBLE_LABEL = "limbowatch:visible"
 POSSIBLE_LABEL = "limbowatch:possible"
@@ -44,12 +50,13 @@ class Gone(StrEnum):
 @dataclass
 class Policy:
     min_severity: str = "low"  # open issues for findings at or above this; unscored findings always count
-    allow_public: bool = False  # open issues where anyone can read them (public Gitea repos)
+    allow_public: bool = False  # open issues where anyone can read them (public Gitea and GitHub repos)
+    max_new: int = 50  # new issues a run opens at most; the rest open on later runs (§13.19 C)
 
 
 @dataclass
 class Action:
-    kind: str  # create, comment, close, reopen, label
+    kind: str  # create, comment, close, reopen, label; later: a new issue left for a later run (max_new)
     key: str
     title: str = ""
     body: str = ""
@@ -132,6 +139,7 @@ def plan(
     """`current`: state entries by key; `findings`: one finding (JSON) per key; `gone`: open issues whose
     finding isn't found now, with what happened to it."""
     acts: list[Action] = []
+    new: list[tuple[tuple[int, int, str], Action]] = []
     changed = {c.key: c for c in changes if c.kind is ChangeKind.CHANGED}
     for key, e in sorted(current.items()):
         e = e | {"key": key}
@@ -141,7 +149,7 @@ def plan(
             labels.append(POSSIBLE_LABEL)
         if issue is None:
             if _wanted(e, policy) and (policy.allow_public or not public):
-                acts.append(Action("create", key, title(e), body(e, findings[key]), labels))
+                new.append((_priority(e), Action("create", key, title(e), body(e, findings[key]), labels)))
         elif not issue.open:
             acts.append(Action("reopen", key, body=f"Found again in {', '.join(e['locations'])}.", issue=issue))
         elif key in changed:
@@ -168,31 +176,66 @@ def plan(
                     body=FIXED_NOTE,
                 )
             )
+    acts.sort(key=lambda a: a.kind != "comment")  # one-time comments first (stable: keys stay sorted)
+    new.sort(key=lambda pa: pa[0])
+    cap = max(0, policy.max_new)
+    acts += [a for _, a in new[:cap]]
+    acts += [Action("later", a.key, a.title) for _, a in new[cap:]]
     return acts
 
 
+def _priority(e: dict[str, Any]) -> tuple[int, int, str]:
+    """Which new issues open first under the cap: certain before possible, then by severity (unknown after
+    high: it may be either), then by key."""
+    sev = (e.get("severity") or "").lower()
+    rank = {"critical": 0, "high": 1, "medium": 3, "low": 4}.get(sev, 2)
+    return (0 if e.get("affected") is True else 1, rank, str(e.get("key", "")))
+
+
 async def apply(tracker: Tracker, actions: list[Action]) -> list[str]:
-    """Perform the plan; returns one line per action, for the log."""
-    done = []
-    for a in actions:
-        if a.kind == "create":
-            i = await tracker.create(a.title, a.body, a.labels)
-            done.append(f"opened #{i.number}: {a.title}")
-            continue
-        assert a.issue is not None
-        if a.kind == "reopen":
-            await tracker.set_open(a.issue, True)
-            await tracker.comment(a.issue, a.body)
-        elif a.kind == "comment":
-            await tracker.comment(a.issue, a.body)
-        elif a.kind == "label":
-            await tracker.comment(a.issue, a.body)
-            await tracker.add_labels(a.issue, a.labels)
-        elif a.kind == "close":
-            await tracker.comment(a.issue, a.body)
-            await tracker.set_open(a.issue, False)
-        done.append(f"{a.kind} #{a.issue.number}")
+    """Perform the plan; returns one line per action, for the log.
+
+    A rate limit (BudgetExhausted) stops it: the lines then say what's left for the next run, and list the
+    "changed" comments that won't come again. A tracker error is raised with what was done before it."""
+    done: list[str] = []
+    later = [a for a in actions if a.kind == "later"]
+    todo = [a for a in actions if a.kind != "later"]
+    for n, a in enumerate(todo):
+        try:
+            await _one(tracker, a, done)
+        except BudgetExhausted:
+            rest = todo[n:]
+            missed = [f"  #{r.issue.number}: {r.body}" for r in rest if r.kind == "comment" and r.issue]
+            done.append(f"stopped: {tracker.name}'s rate limit; {len(rest) - len(missed)} issue change(s) left for "
+                        "the next run" + (", and these comments weren't made:" if missed else ""))  # fmt: skip
+            done += missed
+            break
+        except TrackerError as e:
+            raise TrackerError(f"{e} (done before it: {'; '.join(done)})" if done else str(e)) from e
+    if later:
+        opened = sum(1 for a in actions if a.kind == "create")
+        done.append(f"{len(later)} more new issue(s) open on later runs ({opened} a run; --issues-max-new)")
     return done
+
+
+async def _one(tracker: Tracker, a: Action, done: list[str]) -> None:
+    if a.kind == "create":
+        i = await tracker.create(a.title, a.body, a.labels)
+        done.append(f"opened #{i.number}: {a.title}")
+        return
+    assert a.issue is not None
+    if a.kind == "reopen":
+        await tracker.set_open(a.issue, True)
+        await tracker.comment(a.issue, a.body)
+    elif a.kind == "comment":
+        await tracker.comment(a.issue, a.body)
+    elif a.kind == "label":
+        await tracker.comment(a.issue, a.body)
+        await tracker.add_labels(a.issue, a.labels)
+    elif a.kind == "close":
+        await tracker.comment(a.issue, a.body)
+        await tracker.set_open(a.issue, False)
+    done.append(f"{a.kind} #{a.issue.number}")
 
 
 def still_affected(meta: dict[str, Any], versions: list[str], osv_ids: list[set[str] | None]) -> bool | None:
