@@ -557,6 +557,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/charmbracelet/wish","path":"github.com/charmbracelet/wish"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/cheqd/cheqd-node","path":"github.com/cheqd/cheqd-node"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/cilium/cilium","path":"github.com/cilium/cilium"}
+{"checked_at":"2026-11-12T15:50:47Z","module":"github.com/ckotzbauer/vulnerability-operator","path":"github.com/ckotzbauer/vulnerability-operator"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/clastix/capsule","path":"github.com/clastix/capsule"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/clastix/capsule-proxy","path":"github.com/clastix/capsule-proxy"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/clastix/kamaji","path":"github.com/clastix/kamaji"}
@@ -755,6 +756,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/getarcaneapp/arcane/backend","path":"github.com/getarcaneapp/arcane/backend"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/getarcaneapp/arcane/backend/v2","path":"github.com/getarcaneapp/arcane/backend/v2"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/getaxonflow/axonflow-sdk-go/v7","path":"github.com/getaxonflow/axonflow-sdk-go/v7"}
+{"checked_at":"2026-11-12T15:50:47Z","module":"github.com/getfider/fider","path":"github.com/getfider/fider"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/getkin/kin-openapi","path":"github.com/getkin/kin-openapi"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/getkin/kin-openapi","path":"github.com/getkin/kin-openapi/openapi3filter"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/getsops/sops/v3","path":"github.com/getsops/sops/v3"}
@@ -1166,6 +1168,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/sigstore/timestamp-authority","path":"github.com/sigstore/timestamp-authority"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/sigstore/timestamp-authority/v2","path":"github.com/sigstore/timestamp-authority/v2/pkg/verification"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/sipcapture/homer","path":"github.com/sipcapture/homer"}
+{"checked_at":"2026-11-12T15:50:47Z","module":"github.com/siyuan-note/dejavu","path":"github.com/siyuan-note/dejavu"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/siyuan-note/siyuan","path":"github.com/siyuan-note/siyuan"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/siyuan-note/siyuan/kernel","path":"github.com/siyuan-note/siyuan/kernel"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/slack-go/slack","path":"github.com/slack-go/slack"}
