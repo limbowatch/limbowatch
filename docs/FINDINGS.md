@@ -2457,6 +2457,19 @@ Answered:
 - **Implication:** released as 0.1.0a13. The feed change only adds ranges to records that had none, which every released watcher already parses (checked with the oldest and newest releases before deploying, as for every feed change).
 - **Sources:** the comparison above; raw output in the session scratchpad.
 
+### F-161
+- **Date:** 2026-11-12 · **Status:** confirmed (observed)
+- **Question:** Release 0.1.0a13 (the range fix of [F-160](#f-160)): did every artifact ship as tested?
+- **Method:** the release checklist. Before tagging: tests and CI on 7a3b573 (the code released) and the version commits; the independent review and its fixes ([F-160](#f-160)); the feed rebuilt with the final code and read by 0.1.0a1 and 0.1.0a12; after the site deployed it, the audit of 2026-11-12 10:54 UTC (all 9 checks; 12,511 converted ranges checked at their boundary versions, 90 more than the day before, 0 disagree); the upstream e2e.
+- **Result:**
+  - **Image:** `ghcr.io/limbowatch/limbowatch:0.1.0a13@sha256:68739b75…`, built from 7782ecc; `limbowatch 0.1.0a13`, OSV-Scanner 2.7.1; attestation verifies; pinned in the action and the GitLab template (ca704c6).
+  - **Tags:** `v0.1.0a13`, `0.1.0-alpha.13` and the action's `v0.1.0a13`, GPG-signed and verified.
+  - **PyPI** `limbowatch` and `limbowatch-cli` 0.1.0a13 and the GitHub pre-release; the image tag and the GitLab mirror give the pinned digest.
+  - **GitLab component:** split 0ea317c; pipeline 3059010886 passed. The tag pipeline 3059020768 first failed on GitLab's arm64 runner (`runner_system_failure`, an infrastructure fault); the job passed on retry and the CI/CD Catalog release ran at 11:07 UTC.
+  - **Action repo:** split 6c4eac7; self-test passed; pre-release published; org profile updated.
+  - **Smoke test (PyPI 0.1.0a13, OSV-Scanner 2.7.1):** on the proof repository's files, all 7 advisories are reported, nats-server's GHSA-38x3-76xf-cq45 among them, which 0.1.0a12 missed.
+- **Sources:** the runs above; PyPI's JSON API.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
