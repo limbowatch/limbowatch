@@ -8,7 +8,7 @@ Last summarized: 2026-11-12 (end of Phase 7: GitHub as a host, released as 0.1.0
 
 ## Summary
 
-Current understanding at the end of Phase 7 (2026-11-12), with entries linked. Points 1–14 come from the Phase 1 research (2026-10-21 to 10-25), 15–20 and 32 from the live tracker (Phase 2, measured again 2026-11-07), 21 from Phase 3, 22–31 from the watcher (Phase 4), 33–46 from Phase 5, 47–51 from Phase 6, 52–56 from Phase 7. Numbers are dated; review backlogs drift.
+Current understanding at the end of Phase 8 (2026-11-12), with entries linked. Points 1–14 come from the Phase 1 research (2026-10-21 to 10-25), 15–20 and 32 from the live tracker (Phase 2, measured again 2026-11-07), 21 from Phase 3, 22–31 from the watcher (Phase 4), 33–46 from Phase 5, 47–51 from Phase 6, 52–56 from Phase 7, 57–60 from Phase 8. Numbers are dated; review backlogs drift.
 
 **Phase 1: the gap in a sample of real projects**
 
@@ -102,6 +102,13 @@ Current understanding at the end of Phase 7 (2026-11-12), with entries linked. P
 54. **Live end to end on a private repo, from the CLI and from the action; an independent review found 12 real bugs before release**, among them empty repos passed as checked, reports lost when issues failed, and a retried POST that could open an issue twice ([F-148](#f-148)). Released as 0.1.0a10, 0.1.0a11 and 0.1.0a12, each with the published action run live ([F-149](#f-149), [F-152](#f-152), [F-154](#f-154)).
 55. **A token whose user can't push to the repo opens no GitHub issues.** GitHub silently drops a new issue's labels then, and the repo's `permissions` show it up front for a user's token (`pull` without `push`); the job's `GITHUB_TOKEN` reads all false there but labels fine ([F-150](#f-150)). GitHub Marketplace picks the action's "latest" release by comparing tags as text, so only v0.1.0a10 to a12 are listed; text order breaks again at a20 and at 0.1.0 ([F-151](#f-151), [F-155](#f-155)).
 56. **OSV-Scanner 2.7.1 reads the same dependencies as 2.7.0** on 111 projects (236,253 against 236,254), checking npm packages without `resolved` itself and dropping a false yarn `patch:` entry. The comparison found linked local npm packages checked as registry ones in both versions, now decided by the dependency's spec ([F-153](#f-153)).
+
+**Phase 8: the website redesign and the public proof (2026-11-12)**
+
+57. **Remediation clocks mostly start at detection, so limbo delays the deadline with the alert.** SOC 2 leaves the deadline to the company's policy, usually counted from the scanner's alert; CISA's BOD 26-04 counts from identification or a KEV listing; PCI DSS counts one month from the fix's release, so the review wait uses up the deadline itself ([F-156](#f-156), [F-134](#f-134)).
+58. **Well-known packages sit in limbo for months with a fix released**, and no scanner database has them: on 2026-11-12, typebox, nats-server, go-openapi/spec, go-toml, mustache, rubyntlm and scapy, high or critical, fixed 41 to 212 days earlier. Some others in limbo (jackson-core, netty-handler, vm2, mistune) aren't silent in practice: a reviewed advisory on the same version already leads past the fix ([F-157](#f-157), [F-158](#f-158)). bundler-audit sees rubyntlm through ruby-advisory-db ([F-162](#f-162)).
+59. **The public proof holds:** on the same files Limbowatch reports all 7, OSV-Scanner, `npm audit`, pip-audit and Dependabot none, while every tool reports the 5 old control packages (Dependabot: 95 alerts, all on controls). The job's `GITHUB_TOKEN` can't read Dependabot alerts (403), so the repository keeps a dated snapshot ([F-162](#f-162)). Ranges with one upper bound per release line had hidden affected versions (431 entries), fixed in 0.1.0a13 ([F-159](#f-159) to [F-161](#f-161)).
+60. **The redesigned site meets WCAG AA contrast in both themes** after three colours were darkened, and has no horizontal scroll at 390 px. The demo moved from 67 to 63 advisories in limbo as rack's and nokogiri's were reviewed ([F-163](#f-163)).
 
 ## Open questions
 
