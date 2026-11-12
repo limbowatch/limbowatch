@@ -118,7 +118,7 @@ Open:
 - ~~Q26. For limbo advisories without a package, how often does the patched version map to a tag upstream, and how many of the 1,858 repos are libraries?~~ **Answered 2026-11-11: 95 repos (1,472 records) are libraries in vcpkg, BCR or conan-center; every patched version maps to a tag for 82% of their advisories ([F-136](#f-136)).**
 - ~~Q27. How often is an upstream verdict wrong when read against the advisory itself?~~ **Answered 2026-11-11: 95% agree with OSV's version ranges, 3% possible, 1.6% disagree, each traced disagreement a conflict between the advisory and the CVE record ([F-139](#f-139)).**
 - Q28. Is identifying vendored copies (OSV's `determineversion`, which sends file hashes) worth its egress, given that 22 of 85 C/C++ projects vendor code and nothing else says which version ([F-136](#f-136))?
-- Q29. On GitHub, does issue creation create a label that doesn't exist, and do labels set with `GITHUB_TOKEN` (`issues: write`) stick, or are they "silently dropped"? The watcher finds its issues by label ([F-145](#f-145)).
+- ~~Q29. On GitHub, does issue creation create a label that doesn't exist, and do labels set with `GITHUB_TOKEN` (`issues: write`) stick, or are they "silently dropped"? The watcher finds its issues by label ([F-145](#f-145)).~~ **Answered 2026-11-12: a missing label is created, and labels set with `GITHUB_TOKEN` stick ([F-147](#f-147)).**
 - Q30. Does the GitHub tracker work unchanged on GitHub Enterprise Server (API under `/api/v3`, `GITHUB_API_URL` in Actions)? Not on the pages read for [F-145](#f-145).
 - Q22. Does GitHub's "more than 5,000 repository advisories a week" count the same thing as the tracker (published, any ecosystem)? It sets the coverage estimate ([F-035](#f-035), [F-098](#f-098)).
 
@@ -2190,6 +2190,42 @@ Answered:
   - `HttpClient.request` (the code-host path) retries 429 and 5xx but not GitHub's 403 secondary limit; it needs the same handling as the advisory path.
   - Only `visibility == "public"` counts as public: internal repos are treated like private ones, as on Gitea.
 - **Sources:** [rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api), [repositories](https://docs.github.com/en/rest/repos/repos)
+
+### F-147
+- **Date:** 2026-11-12 · **Status:** confirmed (observed; small sample, one private repo)
+- **Question:** Phase 7 step 0 (Q29): how do GitHub issues, labels, listing and cloning behave in practice, with a PAT and with `GITHUB_TOKEN`?
+- **Method:** a new private repo `limbowatch/limbowatch-e2e` (a `go.mod` fixture). PAT probes through `gh api` (the maintainer's login, `repo` scope). A `workflow_dispatch` probe with `permissions: issues: write, contents: read`, run 43135780310. Clones with the token in an `http.<base>/.extraHeader` Basic header, `GIT_CONFIG_NOSYSTEM=1` and `GIT_CONFIG_GLOBAL=/dev/null`. 10 probe issues and 1 PR, all closed afterwards, probe labels and branch deleted, probe workflow removed.
+- **Result:**
+  - **Labels (Q29):**
+    - A label that doesn't exist is created by issue creation, both with the PAT and with `GITHUB_TOKEN` (grey `ededed`).
+    - Labels set with `GITHUB_TOKEN` stick: the issue came back with both labels, by `github-actions[bot]`.
+    - `POST /labels` with `GITHUB_TOKEN` gives 201.
+    - Comment, close with `state_reason: completed`, and reopen with `reopened` all work with `GITHUB_TOKEN`.
+  - **Listing lags:**
+    - A new issue appears in `GET /issues` 3.3 to 6.5 seconds after creation (5 issues), filtered by label or not.
+    - A label added to a PR showed up in the label filter after a few seconds.
+    - `GET /issues/{n}` returns a new issue at once.
+    - Pull requests are in the label-filtered list (`pull_request` key).
+  - **Issues disabled:** creating gives 410 "Issues has been disabled in this repository", but listing gives 200. The repo's `has_issues` says it up front.
+  - **`GITHUB_TOKEN` scope:**
+    - Reading another private repo of the same org gives 404.
+    - `GET /orgs/limbowatch/repos?type=all` gives 5 repos, against 18 with the PAT. That is the public ones plus the workflow's own, with no error.
+    - The repo's `permissions` object reads all false for this token, so it can't tell write access.
+    - `x-ratelimit-limit` was 5000, not the documented 1,000 (F-146).
+  - **Clone:** a PAT or `GITHUB_TOKEN` as the Basic password works with any user name (`limbowatch` and `x-access-token` both). Without a token, a private repo fails ("could not read Username"), but only with the system git config off: on the maintainer's Mac the system credential helper answered instead.
+  - **Empty repo:**
+    - A shallow clone of an empty repo exits 0 ("You appear to have cloned an empty repository"), and `rev-parse HEAD` fails.
+    - `size` was 0 while empty, and still 0 minutes after two small commits, so `size` can't tell an empty repo.
+- **Caveats:** one repo and one org; the lag is a handful of samples. Secondary limits weren't probed (that would risk the account; F-146 has the docs). Enterprise Server stays untested (Q30).
+- **Implication:**
+  - **Tracker:**
+    - The GitHub tracker can rely on its labels, but still checks the `limbowatch` label on each new issue.
+    - It reads `has_issues` in `prepare()`, and uses neither `permissions` nor `size`.
+  - **Listing lag:** two runs seconds apart could open the same issue twice. The integrations' docs set a `concurrency` group, and the e2e waits between runs.
+  - **Org mode with `GITHUB_TOKEN`:** a partial listing comes back without an error, so `watch --github-org` says when it runs with the job's `GITHUB_TOKEN`: it sees only public repos and its own repo, and private ones need `LIMBOWATCH_SOURCE_TOKEN`.
+  - **Empty repos:** an empty clone (no HEAD) is reported as an empty repository, not as checked. This holds for every host, because GitHub has no reliable empty flag.
+  - **Clone auth:** `hosts.git` can use any user name for GitHub. Its clone environment doesn't turn off the system git config, so a credential helper on the machine can still answer. That is harmless (the user's own credentials), but tests set `GIT_CONFIG_NOSYSTEM`.
+- **Sources:** run 43135780310 (limbowatch/limbowatch-e2e, private); probe output in the session scratchpad.
 
 ## Archive
 
