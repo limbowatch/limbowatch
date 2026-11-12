@@ -269,6 +269,7 @@ Each phase ends with a review stop and a cleanup of the findings report.
 | **5 Ecosystem expansion** | Org-wide sources (GitLab group, Gitea org, git URLs) with shared polling (moved from Phase 4, §13.7). Mapping and comparators (inventory already comes from OSV-Scanner): **Maven/Gradle first** (POM `<scm>` with parents), then Cargo, RubyGems, Composer, NuGet. Tier 2 via ecosyste.ms + pub/swift comparators. Tracker watchlist extended to the same ecosystems. OCI image bundling osv-scanner. |
 | **6 Upstream-watch** | Tier 3 detectors (submodules, vcpkg, conan, FetchContent, Bazel, vendored dirs); commit evaluation against OSV GIT ranges. |
 | **7 GitHub as a host** | The watcher's issues and org-wide mode on GitHub, as on GitLab and Gitea: a GitHub issue tracker (`--issues github`, the action's `issues: github` with the job's `GITHUB_TOKEN`) and `limbowatch watch --github-org`. GitHub-aware writes (secondary limits). Live e2e in a private test repo. §13.19. |
+| **8 Website redesign (proposed)** | The whole of limbo.watch around one story: a fixed, public advisory that scanners stay silent about, so no alert, no remediation clock and no upgrade. Live examples of popular packages in limbo, a page for security and compliance leads, a scan page generated from the current release, a lighter navigation and a refreshed design system across all pages. §13.21. |
 
 ## 11. Licensing (open source)
 
@@ -385,3 +386,40 @@ Recommended defaults are in bold.
     **After release (2026-11-12):** a recheck found that GitHub drops a new issue's labels for a token whose user can't push, so such a repo now gets no new issues and the run says why (F-150, 0.1.0a11). Dependencies were then upgraded to their latest releases, among them OSV-Scanner 2.7.1 and a Python 3.14 image; comparing the two OSV-Scanner versions on 111 projects found linked local npm packages checked as registry ones, fixed (F-153, 0.1.0a12). GitHub Marketplace lists only v0.1.0a10 to a12, because it picks "latest" by comparing tags as text (F-151, F-155).
 
 20. **Decided 2026-11-12: Phase 7 closed** after the maintainer's review. Released as 0.1.0a10, 0.1.0a11 and 0.1.0a12 (F-145 to F-155). Open: Enterprise Server and GHE.com (Q30), and labels with fine-grained and GitHub App tokens (Q31). The next phase isn't chosen.
+
+21. **Proposed 2026-11-12: Phase 8, website redesign** (awaiting approval). The maintainer asked for the whole site, built around this point: teams upgrade dependencies when an alert makes them, so a scanner that stays silent while a fixed advisory waits for review delays the fix, and the compliance clock with it.
+
+    **What we know** (F-055, F-064, F-112, F-134, F-156, F-157):
+    - Advisories wait weeks to months for review: a median of 23 days in October, 55 days so far for the 10,059 waiting on 2026-11-12, and 15,045 more likely never.
+    - Remediation clocks mostly start at detection: SOC 2 leaves the deadline to the company's policy, usually counted from the scanner's alert; CISA's BOD 26-04 counts from identification or a KEV listing. A team can meet every deadline and still run a public, fixed vulnerability for weeks. PCI DSS counts one month from the fix's release, so limbo uses up the deadline itself.
+    - Dependabot raised 0 alerts for 1,080 confirmed findings in limbo (F-112).
+    - Real examples exist: jackson-core, netty-handler, @sinclair/typebox, mistune, vm2, nats-server, go-openapi/spec, go-toml, mustache, rubyntlm and scapy have high or critical advisories, fixed for 41 to 212 days, that no scanner database has (F-157).
+
+    **The story every page follows:**
+    1. Day 0: the maintainer publishes the advisory and the fix. It's public: anyone, attackers included, can read what's broken.
+    2. Your scanner is silent for weeks. No alert, so no ticket, no deadline and no upgrade.
+    3. Limbowatch alerts on the next build, so the clock starts when the risk does.
+
+    **Order, with a review stop after steps 1 and 3:**
+    0. **Proof for the examples** (decision B): a private repository pinning the F-157 versions, with one control package per ecosystem that has a reviewed advisory, to show Dependabot alerting on the controls and not on the examples. Results go into FINDINGS.
+    1. **Content and wireframes:** a site map, the copy of each page, and wireframes for home, compliance and scan, at desktop and phone width, as images to review. No code.
+    2. **Design system:** type scale, colour tokens (dark and light), spacing, components (stat, timeline, example card, code block, table), from the current brand: hourglass mark, amber accent.
+    3. **Pages:**
+       - **Home:** the story above, the live count, live examples, the compliance clock (today's slider, corrected with BOD 26-04 and F-134), how it works in three steps, and two actions (add to CI, check a package).
+       - **Examples, generated:** `limbowatch publish` picks them from the tracker state each run with the F-157 rules (pending review, high or critical, fixed, at least 60 days, filed by the package's own repository), ranked by usage. That needs dependent counts per package, from ecosyste.ms, which the tracker already reads. Nothing is hard-coded, so examples leave the page when GitHub reviews them. Advisory text isn't shown (F-047); each example links to the advisory.
+       - **Security and compliance (new):** the clock under SOC 2, PCI DSS and BOD 26-04, quoted from the sources, with "not audit advice".
+       - **Scan:** the terminal, pull-request and merge-request views regenerated from the current release (today's show 0.1.0a5 and OSV-Scanner 2.7.0), and tabs for GitHub, GitLab, Gitea and the CLI.
+       - **Tracker and Check a package:** restyled; a "fixed upstream" filter on the tracker.
+       - **About 25,000 advisory pages:** a new template that leads with the fix: "fixed in X, released N days ago, not yet in scanner databases".
+       - **Why, Methodology, Press, Feed, Data quality:** restyled, the navigation cut from 8 items to 5 (Scan, Tracker, Check, Learn, GitHub).
+    4. **Also fixed:** the `pom.xml` line number (F-157), so annotations land on the dependency.
+    5. **Checks:** tests for every generated number and example; a link check; screenshots at desktop and phone width, dark and light; accessibility (contrast, keyboard, screen-reader labels); page weight no heavier than today. The audit (`scripts/audit.py`) gains a check that every example shown is still in limbo.
+    6. **Wrap-up:** docs, CHANGELOG, FINDINGS cleanup, deploy (the site deploys from main; no package release unless the watcher changes, which step 4 does).
+
+    Not in this phase: a new domain or name, new analytics, outreach.
+
+    **Decisions needed:**
+    - (A) **Name real packages on the home page?** Recommended: yes, generated and re-checked every run, framed as "the maintainers fixed it; the review queue is the delay", never as blame.
+    - (B) **The Dependabot proof:** create the private repository `limbowatch/limbo-examples` (dependency files only) and push to it. Recommended: yes; the permission check needs the maintainer's explicit go-ahead.
+    - (C) **Design direction:** evolve the current dark, amber look (recommended: the brand and screenshots are recent), or start a new visual identity.
+
