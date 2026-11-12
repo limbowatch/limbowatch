@@ -17,6 +17,7 @@ from urllib.parse import quote
 from limbowatch.http import HttpClient
 
 LABEL = "limbowatch"
+NO_LABELS = "token can't label issues"
 _MARKER = re.compile(r"<!-- limbowatch (\{.*?\}) -->")
 
 
@@ -63,6 +64,11 @@ class Tracker(Protocol):
     async def add_labels(self, issue: Issue, labels: list[str]) -> None: ...
 
 
+def _auth(value: str, token: str) -> tuple[str, str] | None:
+    """The Authorization header, or none without a token (a dry run reads a public tracker anonymously)."""
+    return ("Authorization", value) if token else None
+
+
 def _check(r: Any, what: str) -> Any:
     if r.status not in (200, 201, 204):
         detail = r.body.get("message") if isinstance(r.body, dict) else str(r.body)[:200]
@@ -87,7 +93,7 @@ class GitLab:
         self.api = f"{base_url.rstrip('/')}/api/v4/projects/{quote(project, safe='')}"
         # Bearer takes personal, project and group access tokens and OAuth tokens (glab's login);
         # PRIVATE-TOKEN rejects OAuth tokens with 401 (FINDINGS F-087).
-        self._auth = ("Authorization", f"Bearer {token}")
+        self._auth = _auth(f"Bearer {token}", token)
         self.public = False
 
     async def _req(self, method: str, path: str, what: str, **kw: Any) -> Any:
@@ -140,7 +146,7 @@ class Gitea:
     def __init__(self, http: HttpClient, repo: str, token: str, base_url: str) -> None:
         self.http = http
         self.api = f"{base_url.rstrip('/')}/api/v1/repos/{repo}"
-        self._auth = ("Authorization", f"token {token}")
+        self._auth = _auth(f"token {token}", token)
         self.public = True  # until prepare() says otherwise
         self._label_ids: dict[str, int] = {}
 
@@ -219,7 +225,7 @@ class GitHub:
     def __init__(self, http: HttpClient, repo: str, token: str, api_url: str = "https://api.github.com") -> None:
         self.http, self.repo = http, repo
         self.api = f"{api_url.rstrip('/')}/repos/{repo}"
-        self._auth = ("Authorization", f"Bearer {token}")
+        self._auth = _auth(f"Bearer {token}", token)
         self.public = True  # until prepare() says otherwise
 
     async def _req(self, method: str, path: str, what: str, **kw: Any) -> Any:
@@ -229,8 +235,8 @@ class GitHub:
         repo = await self._req("GET", "", "read repo")
         if repo.get("has_issues") is False:  # listing would still answer 200; creating gives 410 (F-147)
             raise TrackerError(f"issues are disabled in {self.repo}")
-        visibility = repo.get("visibility") or ("private" if repo.get("private", True) else "public")
-        self.public = visibility == "public"  # internal (Enterprise) counts as private
+        visibility = repo.get("visibility") or ("private" if repo.get("private") is True else "public")
+        self.public = visibility not in ("private", "internal")  # unknown counts as public: nothing opened
 
     async def issues(self) -> dict[str, Issue]:
         out: dict[str, Issue] = {}
@@ -253,9 +259,13 @@ class GitHub:
                                                                            "labels": labels})  # fmt: skip
         got = {lb["name"] for lb in i.get("labels") or []}
         if LABEL not in got:
+            # Unlabelled, later runs couldn't find it and would open it again. Close it (its author may) and stop.
+            closed = await self.http.request("PATCH", f"{self.api}/issues/{i['number']}", auth=self._auth, github=True,
+                                             json_body={"state": "closed", "state_reason": "not_planned"})  # fmt: skip
             raise TrackerError(
-                f"GitHub opened #{i['number']} without the {LABEL!r} label (the token can't set labels: it needs "
-                "Issues write); stopping, because later runs find issues by that label and would open it again"
+                f"GitHub opened #{i['number']} without the {LABEL!r} label: the {NO_LABELS} (it needs Issues write, "
+                f"or push access); {'closed it' if closed.status == 200 else 'close it by hand'} and stopped, because "
+                "later runs find issues by that label and would open it again"
             )
         return Issue(i["number"], True, got, read_marker(body) or {})
 

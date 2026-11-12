@@ -211,7 +211,11 @@ async def apply(tracker: Tracker, actions: list[Action]) -> list[str]:
             done += missed
             break
         except TrackerError as e:
-            raise TrackerError(f"{e} (done before it: {'; '.join(done)})" if done else str(e)) from e
+            rest = todo[n:]
+            missed = [f"#{r.issue.number}: {r.body}" for r in rest if r.kind == "comment" and r.issue]
+            detail = [f"done before it: {'; '.join(done)}"] if done else []
+            detail += [f"comments not made: {' | '.join(missed)}"] if missed else []
+            raise TrackerError(f"{e} ({'; '.join(detail)})" if detail else str(e)) from e
     if later:
         opened = sum(1 for a in actions if a.kind == "create")
         done.append(f"{len(later)} more new issue(s) open on later runs ({opened} a run; --issues-max-new)")
@@ -224,9 +228,9 @@ async def _one(tracker: Tracker, a: Action, done: list[str]) -> None:
         done.append(f"opened #{i.number}: {a.title}")
         return
     assert a.issue is not None
-    if a.kind == "reopen":
-        await tracker.set_open(a.issue, True)
+    if a.kind == "reopen":  # the comment first: if the run stops between the two, the next run does both again
         await tracker.comment(a.issue, a.body)
+        await tracker.set_open(a.issue, True)
     elif a.kind == "comment":
         await tracker.comment(a.issue, a.body)
     elif a.kind == "label":
@@ -236,6 +240,13 @@ async def _one(tracker: Tracker, a: Action, done: list[str]) -> None:
         await tracker.comment(a.issue, a.body)
         await tracker.set_open(a.issue, False)
     done.append(f"{a.kind} #{a.issue.number}")
+
+
+def unsent(changes: list[Change]) -> list[str]:
+    """The "changed" comments of a run whose issues weren't updated: printed, because the next run won't see the
+    change again."""
+    return [f"  {c.ghsa_id} ({c.package}): Changed: {'; '.join(c.details)}." for c in changes
+            if c.kind is ChangeKind.CHANGED]  # fmt: skip
 
 
 def still_affected(meta: dict[str, Any], versions: list[str], osv_ids: list[set[str] | None]) -> bool | None:

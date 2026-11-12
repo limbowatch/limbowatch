@@ -23,12 +23,18 @@ from limbowatch.http import BudgetExhausted, HttpClient
 PER_PAGE = 100
 MAX_PAGES = 1000
 PUBLIC_ONLY = "lists public repositories only: {name} is a user, and the token isn't theirs"
+NO_REPO_SCOPE = "the token has no repo scope, so private repositories aren't listed"
 
 
-def api_url(server_url: str) -> str:
+def api_url(server_url: str, known: dict[str, str] | None = None) -> str:
     """The REST API base for a GitHub server URL: api.github.com for github.com, `/api/v3` on Enterprise
-    Server. A URL that already is an API base is kept."""
+    Server. A URL that already is an API base is kept. `known` maps a server to its API as Actions gives them
+    (GITHUB_SERVER_URL → GITHUB_API_URL), which also covers GHE.com, whose API host the docs read for this don't
+    name (Q30)."""
     base = server_url.rstrip("/")
+    for server, api in (known or {}).items():
+        if server.rstrip("/") == base and api:
+            return api.rstrip("/")
     host = urlsplit(base).hostname or ""
     if host in ("github.com", "www.github.com"):
         return "https://api.github.com"
@@ -42,11 +48,16 @@ def auth(token: str | None) -> tuple[str, str] | None:
 
 
 async def list_org(
-    http: HttpClient, base_url: str, org: str, token: str | None, include_archived: bool = False
+    http: HttpClient,
+    base_url: str,
+    org: str,
+    token: str | None,
+    include_archived: bool = False,
+    api: str | None = None,
 ) -> Listing:
     out = Listing(f"{base_url}/{org}", HostKind.GITHUB)
     try:
-        return await _list(out, http, base_url, org, token, include_archived)
+        return await _list(out, http, base_url, org, token, include_archived, api or api_url(base_url))
     except SourceError as e:  # a repo path or next link that can't be trusted: this source only
         out.error = f"listing {out.source}: {e}"
         return out
@@ -56,15 +67,16 @@ async def list_org(
 
 
 async def _list(
-    out: Listing, http: HttpClient, base_url: str, org: str, token: str | None, include_archived: bool
+    out: Listing, http: HttpClient, base_url: str, org: str, token: str | None, include_archived: bool, api: str
 ) -> Listing:
-    api = api_url(base_url)
     name = quote(org, safe="")
     params: dict[str, Any] = {"type": "all", "per_page": PER_PAGE}
     r = await http.request("GET", f"{api}/orgs/{name}/repos", auth=auth(token), params=params, github=True)
     if r.status == 404:  # not an org: a user
         first, params = await _user_listing(out, http, api, org, token)
         r = await http.request("GET", first, auth=auth(token), params=params, github=True)
+    if r.scopes is not None and "repo" not in {x.strip() for x in r.scopes.split(",")} and not out.note:
+        out.note = NO_REPO_SCOPE  # a classic token says its scopes; GitHub lists what it can see, quietly (F-147)
     for _ in range(MAX_PAGES):
         if r.status != 200 or not isinstance(r.body, list):
             detail = r.body.get("message") if isinstance(r.body, dict) else ""
@@ -98,7 +110,7 @@ async def _user_listing(
 
 def _add(out: Listing, base_url: str, p: dict[str, Any], include_archived: bool) -> None:
     path = safe_path(str(p["full_name"]))
-    visibility = p.get("visibility") or ("private" if p.get("private", True) else "public")
+    visibility = p.get("visibility") or ("private" if p.get("private") is True else "public")
     proj = Project(
         HostKind.GITHUB,
         base_url,

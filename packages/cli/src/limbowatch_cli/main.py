@@ -428,6 +428,7 @@ def scan(
 
     changes: list[watch_state.Change] | None = None
     log_lines: list[str] = []
+    issues_error: list[str] = []
 
     async def run() -> tuple[watch_scan.ScanResult, str | None]:
         nonlocal changes
@@ -445,9 +446,13 @@ def scan(
                 state_file.parent.mkdir(parents=True, exist_ok=True)
                 state_file.write_text(json.dumps(new_state, indent=1, sort_keys=True) + "\n")
             if issues:
-                log_lines.extend(await _sync_issues(http, res, inv, changes or [], issues, tracker_token or "",
-                                                    issues_url, issues_project, issue_policy, issues_confidential,
-                                                    issues_dry_run))  # fmt: skip
+                try:
+                    log_lines.extend(await _sync_issues(http, res, inv, changes or [], issues, tracker_token or "",
+                                                        issues_url, issues_project, issue_policy,
+                                                        issues_confidential, issues_dry_run))  # fmt: skip
+                except (trackers.TrackerError, RuntimeError) as e:  # the scan's reports are still written
+                    issues_error.append(str(e))
+                    log_lines.extend(_unsent_lines(changes or []))
             return res, wl_doc.get("generated_at")
 
     issue_policy = watch_issues.Policy(issues_min_severity, issues_public, issues_max_new)
@@ -473,6 +478,8 @@ def scan(
     if stdout_fmt != "table" or quiet:  # the verdict still reaches the CI log
         failed, why = output.verdict(rep)
         typer.echo(f"limbowatch: {'FAILED' if failed else 'PASSED'}: {why}", err=True)
+    if issues_error:  # the reports are written, but the run didn't do all it was asked to
+        raise typer.Exit(_fail(f"issues couldn't be updated: {issues_error[0]}"))
     if rep.failed:
         raise typer.Exit(1)
 
@@ -533,19 +540,20 @@ async def _sync_issues(
         url = url or os.environ.get("CI_SERVER_URL") or os.environ.get("GITHUB_SERVER_URL")
         project = project or os.environ.get("CI_PROJECT_PATH") or os.environ.get("GITHUB_REPOSITORY")
     if not url or not project:
-        raise RuntimeError("--issues needs --issues-url and --issues-project (or CI_SERVER_URL and CI_PROJECT_PATH)")
+        where = "GITHUB_REPOSITORY" if kind == "github" else "CI_SERVER_URL and CI_PROJECT_PATH"
+        raise RuntimeError(f"--issues needs --issues-url and --issues-project (or {where})")
     tracker: trackers.GitLab | trackers.Gitea | trackers.GitHub
     if kind == "gitlab":
         tracker = trackers.GitLab(http, project, token, url, confidential)
     elif kind == "github":
-        tracker = trackers.GitHub(http, project, token, github_host.api_url(url))
+        tracker = trackers.GitHub(http, project, token, github_host.api_url(url, _actions_api()))
     else:
         tracker = trackers.Gitea(http, project, token, url)
     try:
         await tracker.prepare()
         existing = await tracker.issues()
     except BudgetExhausted:
-        return [f"issues: {tracker.name}'s rate limit is used up; nothing changed this run"]
+        return [f"issues: {tracker.name}'s rate limit is used up; nothing changed this run", *_unsent_lines(changes)]
     if tracker.public and not policy.allow_public:
         note = f"{tracker.name} issues in {project} are public; not opening new ones (--issues-public allows it)"
     else:
@@ -612,7 +620,12 @@ async def _list_sources(
         await asyncio.gather(
             *(gitlab_host.list_group(http, base, path, token, include_archived) for base, path in groups),
             *(gitea_host.list_org(http, base, path, token, include_archived) for base, path in orgs),
-            *(github_host.list_org(http, base, path, token, include_archived) for base, path in gh_orgs),
+            *(
+                github_host.list_org(
+                    http, base, path, token, include_archived, github_host.api_url(base, _actions_api())
+                )
+                for base, path in gh_orgs
+            ),
         )
     )
     for ls in listings:
@@ -623,7 +636,12 @@ async def _list_sources(
     return listings
 
 
-_RATE_LIMITED = "rate limit"
+_STOP_HOST = ("rate limit", trackers.NO_LABELS)  # no more issue writes to that host this run
+
+
+def _unsent_lines(changes: list[watch_state.Change]) -> list[str]:
+    lines = watch_issues.unsent(changes)
+    return ["issues: these changes weren't commented on, and won't be again:", *lines] if lines else []
 
 
 def _github_org(value: str, default_base: str) -> tuple[str, str]:
@@ -639,10 +657,18 @@ def _github_org(value: str, default_base: str) -> tuple[str, str]:
     raise hosts.SourceError(f"--github-org wants an organization or user, like https://github.com/acme; got {value!r}")
 
 
+def _actions_api() -> dict[str, str]:
+    """The job's own GitHub server and its API, from Actions (GITHUB_SERVER_URL, GITHUB_API_URL)."""
+    server, api = os.environ.get("GITHUB_SERVER_URL"), os.environ.get("GITHUB_API_URL")
+    return {server: api} if server and api else {}
+
+
 def _github_token_note(token: str | None) -> str | None:
     """GitHub lists what a token can see without saying that more exists (F-147)."""
     if not token:
         return "no LIMBOWATCH_SOURCE_TOKEN: public repositories only"
+    if token.startswith("github_pat_"):
+        return "a fine-grained token lists only the repositories it was given access to"
     if os.environ.get("GITHUB_ACTIONS") == "true" and token.startswith("ghs_"):
         return ("the token is an app installation token, such as the job's GITHUB_TOKEN, which sees public "
                 "repositories and its own only; set LIMBOWATCH_SOURCE_TOKEN to one that reads the rest")  # fmt: skip
@@ -801,8 +827,8 @@ def watch(
                 entries.append(org_output.Entry(c.project, rep, c.commit))
                 if issues and c.project.kind is not hosts.HostKind.GIT:
                     if c.project.host in rate_limited:
-                        lines = ["issues: not updated this run (the host's rate limit was reached for an earlier "
-                                 "project)"]  # fmt: skip
+                        lines = ["issues: not updated this run (an earlier project hit the host's rate limit, or "
+                                 "its token can't label issues)", *_unsent_lines(changes or [])]  # fmt: skip
                     else:
                         try:
                             lines = await _sync_issues(
@@ -811,8 +837,8 @@ def watch(
                                 issues_dry_run,
                             )  # fmt: skip
                         except (trackers.TrackerError, RuntimeError) as e:
-                            lines = [f"issues: {e}"]
-                        if any(_RATE_LIMITED in ln for ln in lines):
+                            lines = [f"issues: {e}", *_unsent_lines(changes or [])]
+                        if any(stop in ln for ln in lines for stop in _STOP_HOST):
                             rate_limited.add(c.project.host)
                     log_lines.extend(f"{c.project.name}: {ln}" for ln in lines)
             if issues:

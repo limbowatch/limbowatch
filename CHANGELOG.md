@@ -8,8 +8,11 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 - **Org-wide mode for GitHub.** `limbowatch watch --github-org acme` checks every repo of a GitHub organization, or a user's (`--github-url` for Enterprise Server, untested). The report says when a listing may be partial: GitHub lists only what the token can see, and the job's `GITHUB_TOKEN` sees public repos and its own.
 - **At most 50 new issues a run** per project, certain and most severe first (`--issues-max-new`); the rest open on later runs. On every tracker.
 - **GitHub's rate limits are waited out** when writing issues, and writes are spaced a second apart. A limit that outlasts the wait stops the run's writes; what's left is done next run, and a "changed" comment that couldn't be made is printed.
-- **An empty repository is reported as empty** in org-wide mode on every host, instead of being checked as a project with no dependencies.
-- `--issues` with an unknown tracker is refused before the scan runs; the action fails on an unknown `issues` value instead of ignoring it.
+- **When issues can't be updated, `scan` still writes its reports**, then exits 2 with the error; "changed" comments that couldn't be made are printed, on every path. A token that can't label issues no longer leaves an issue later runs can't find: it's closed and the run stops.
+- **A request that creates an issue or a comment isn't retried** once the server may have received it (a timeout, a 5xx), so it can't be made twice. On every tracker.
+- **The action writes issues only on a push to the default branch, a schedule or a manual run**, not on `pull_request_target`, `issue_comment` or `workflow_run`, which run on the default branch but may scan a fork's files. Also for `issues: gitea`.
+- **Fixed: org-wide mode took an empty repository for a checked one** (git prints `HEAD` for an empty repo's commit). It's reported as empty.
+- A dry run without a token reads a public tracker anonymously instead of failing; `--issues` with an unknown tracker is refused before the scan runs, and the action fails on an unknown `issues` value instead of ignoring it.
 
 ## 0.1.0a9 (2026-11-11)
 

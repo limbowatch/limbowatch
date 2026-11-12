@@ -153,7 +153,7 @@ steps:
     with: { sarif_file: limbowatch.sarif, category: limbowatch }
 ```
 
-**Issues on GitHub.** `issues: github` keeps one issue per finding up to date in the repo, from the default branch or a schedule, with the job's own token: add `issues: write` to `permissions`, no secret needed. It never opens issues in a public repo (GitHub has no confidential issues) unless `extra-args` has `--issues-public`; public repos have the annotations and code scanning instead. Give the workflow a `concurrency` group, because GitHub lists a new issue a few seconds late and two overlapping runs could open it twice (F-147):
+**Issues on GitHub.** `issues: github` keeps one issue per finding up to date in the repo, on a push to the default branch, a schedule or a manual run (never from a pull request, including `pull_request_target`), with the job's own token: add `issues: write` to `permissions`, no secret needed. It never opens issues in a public repo (GitHub has no confidential issues) unless `extra-args` has `--issues-public`; public repos have the annotations and code scanning instead. Give the workflow a `concurrency` group, because GitHub lists a new issue a few seconds late and two overlapping runs could open it twice (F-147):
 
 ```yaml
 on: { push: { branches: [main] }, schedule: [{ cron: "17 6 * * *" }] }
@@ -220,7 +220,8 @@ A project that can't be cloned or inventoried is listed under **couldn't be chec
 
 **Tokens.**
 - `LIMBOWATCH_SOURCE_TOKEN` lists private groups and clones their projects. On GitLab, a group access token with `read_api` and `read_repository` (Reporter role); on Gitea and Forgejo, a token that can read the organization and its repositories; on GitHub, a fine-grained token with Metadata and Contents read on the org's repos (a classic one with `repo`), or a GitHub App's token. It defaults to `LIMBOWATCH_ISSUES_TOKEN`.
-- GitHub lists only what the token can see and doesn't say more exists (F-147). The report notes a listing that may be partial: without a token (public repos only), or with an app installation token in Actions, such as the job's `GITHUB_TOKEN`, which sees public repos and its own repo only.
+- GitHub lists only what the token can see and doesn't say more exists (F-147). The report notes a listing that may be partial: without a token (public repos only), with a classic token without `repo` scope, with a fine-grained token (it sees the repos it was given), or with an app installation token in Actions, such as the job's `GITHUB_TOKEN`, which sees public repos and its own repo only.
+- In Actions, the job's own server uses the job's `GITHUB_API_URL`, so Enterprise Server and GHE.com work from their own Actions; elsewhere `--github-url` takes github.com or an Enterprise Server address (`/api/v3`).
 - A token is sent only to its own host (for GitHub, github.com and its API host api.github.com). When the sources span several hosts, run `limbowatch watch` once per host; with a token set, a run that names two hosts is refused.
 - Clones get the token from git's environment, never from the command line or the URL.
 - Gitea and Forgejo show a private organization as empty to a request without access (F-129). So a source that lists no projects at all is an error, not a pass.
@@ -253,7 +254,8 @@ LIMBOWATCH_ISSUES_TOKEN=… limbowatch scan . --state state.json --issues gitlab
 - **Now visible to scanners:** a comment and the `limbowatch:visible` label. The issue stays open while the installed version is still affected; OSV is asked.
 - **No longer affected:** a comment, then the issue is closed. Found again later: the same issue is reopened.
 - **`--issues-dry-run`** prints the plan without making changes. **`--issues-min-severity`** sets which findings get issues.
-- **Rate limits.** On GitHub, writes are a second apart and GitHub's rate limits are waited out. When a limit outlasts the wait, the run stops writing: issues still to open, close, reopen or label are done by the next run, and a "changed" comment that wasn't made is printed, so nothing is lost silently.
+- **Rate limits.** On GitHub, writes are a second apart and GitHub's rate limits are waited out. When a limit outlasts the wait, the run stops writing: issues still to open, close, reopen or label are done by the next run, and a "changed" comment that wasn't made is printed, so nothing is lost silently. A request that creates something (an issue, a comment) isn't retried once the server may have received it, so a timeout can't open an issue twice.
+- **When issues can't be updated** (a read-only token, issues disabled, a missing project), `scan` still writes every report and then exits 2, naming the error and the comments it couldn't make. If GitHub opens an issue without the `limbowatch` label (a token that can't set labels), Limbowatch closes that issue and stops, because later runs couldn't find it; in `watch`, that host gets no more issue writes in the run.
 
 **Trackers and tokens** (`LIMBOWATCH_ISSUES_TOKEN`):
 
@@ -267,7 +269,7 @@ LIMBOWATCH_ISSUES_TOKEN=… limbowatch scan . --state state.json --issues gitlab
 LIMBOWATCH_ISSUES_TOKEN=… limbowatch scan . --state state.json --issues github --issues-project acme/app
 ```
 
-In CI, `--issues-url` and `--issues-project` default to `CI_SERVER_URL` / `GITHUB_SERVER_URL` and `CI_PROJECT_PATH` / `GITHUB_REPOSITORY`; for `github`, the URL defaults to `GITHUB_API_URL`, else api.github.com (github.com and an Enterprise Server's address are also taken). The integrations only open issues from the default branch or a schedule, never from merge or pull requests. They were tested end to end against a local Gitea (F-083), in a container (F-084), on gitlab.com (F-087) and on GitHub in a private repo, from the command line and from the action with the job's token (F-148).
+In CI, `--issues-url` and `--issues-project` default to `CI_SERVER_URL` / `GITHUB_SERVER_URL` and `CI_PROJECT_PATH` / `GITHUB_REPOSITORY`; for `github`, the URL defaults to `GITHUB_API_URL`, else api.github.com (github.com and an Enterprise Server's address are also taken). The integrations only write issues on a push to the default branch, a schedule or a manual run, never from merge or pull requests. They were tested end to end against a local Gitea (F-083), in a container (F-084), on gitlab.com (F-087) and on GitHub in a private repo, from the command line and from the action with the job's token (F-148).
 
 ## Limits
 

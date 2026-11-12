@@ -58,6 +58,7 @@ class Response:
     body: Any
     etag: str | None = None
     link: str | None = None
+    scopes: str | None = None  # GitHub's x-oauth-scopes: a classic token's scopes (absent for other tokens)
 
     @property
     def ok(self) -> bool:
@@ -189,10 +190,16 @@ class HttpClient:
         host = urlsplit(url).hostname or ""
         is_gh = github or host == GITHUB_API
         writes = is_gh and method.upper() not in ("GET", "HEAD", "OPTIONS")
+        # A POST creates (an issue, a comment): once the server may have taken it, a retry could make two. Only a
+        # connection that never opened, a 429 or a rate limit (refused, so not taken) is retried.
+        once = method.upper() == "POST"
         r: httpx.Response | None = None
         headers = {auth[0]: auth[1]} if auth else {}
+        last = 4
         async with self._sems.get(host, self._default_sem):
-            for attempt in range(5):
+            for attempt in range(last + 1):
+                if attempt:
+                    self._check_deadline()
                 if writes:
                     await self._space_write(host)
                 try:
@@ -200,15 +207,20 @@ class HttpClient:
                                                    params=params)  # fmt: skip
                 except httpx.HTTPError as e:
                     log.warning("http error", extra={"host": host, "error": type(e).__name__, "attempt": attempt})
-                    await self._sleep(min(30, 2**attempt))
+                    if once and not isinstance(e, (httpx.ConnectError, httpx.ConnectTimeout)):
+                        r = None
+                        break  # it may have been taken: reported as failed; the next run sees what's there
+                    if attempt < last:
+                        await self._sleep(min(30, 2**attempt))
                     continue
                 if is_gh and r.status_code in (403, 429) and (wait := _github_wait(r, attempt)) is not None:
-                    if wait > self._max_wait:
-                        raise BudgetExhausted
+                    if wait > self._max_wait or attempt == last:
+                        raise BudgetExhausted  # callers stop and say what's left, rather than fail (F-146)
                     log.info("github rate limit; waiting", extra={"seconds": round(wait)})
                     await self._sleep(wait)
                     continue
-                if r.status_code in (429, 502, 503, 504):
+                retry = r.status_code == 429 or (r.status_code in (502, 503, 504) and not once)
+                if retry and attempt < last:
                     await self._sleep(min(60, int(r.headers.get("retry-after", 2 ** (attempt + 1)))))
                     continue
                 break
@@ -220,7 +232,8 @@ class HttpClient:
             body: Any = r.json()
         except ValueError:
             body = r.text
-        return Response(r.status_code, body, etag=r.headers.get("etag"), link=r.headers.get("link"))
+        return Response(r.status_code, body, etag=r.headers.get("etag"), link=r.headers.get("link"),
+                        scopes=r.headers.get("x-oauth-scopes"))  # fmt: skip
 
     async def _send(self, url: str, headers: dict[str, str], json_body: Any, is_gh: bool) -> httpx.Response | None:
         for attempt in range(6):

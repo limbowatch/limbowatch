@@ -52,7 +52,7 @@ def command(project: Project, dest: Path) -> list[str]:
 
 
 def clone(project: Project, dest: Path, token: str | None, timeout: int = TIMEOUT) -> str:
-    """Clone into `dest` (which must not exist yet); returns the commit checked out."""
+    """Clone into `dest` (which must not exist yet); returns the commit checked out, "" for an empty repository."""
     try:
         proc = subprocess.run(command(project, dest), capture_output=True, text=True, timeout=timeout, check=False,
                               env=environment(project, token))  # fmt: skip
@@ -62,8 +62,10 @@ def clone(project: Project, dest: Path, token: str | None, timeout: int = TIMEOU
         raise CloneError(f"couldn't run git: {e}") from e
     if proc.returncode:
         raise CloneError(_last(proc.stderr) or f"git clone exited with {proc.returncode}")
-    head = subprocess.run(["git", "-C", str(dest), "rev-parse", "HEAD"], capture_output=True, text=True, check=False)
-    return head.stdout.strip()
+    head = subprocess.run(["git", "-C", str(dest), "rev-parse", "--verify", "--quiet", "HEAD"], capture_output=True,
+                          text=True, check=False)  # fmt: skip
+    # An empty repository clones fine but has no HEAD commit: "" (plain rev-parse would print "HEAD" and fail)
+    return head.stdout.strip() if head.returncode == 0 else ""
 
 
 def _last(stderr: str) -> str:

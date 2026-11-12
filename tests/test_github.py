@@ -94,14 +94,16 @@ async def test_github_tracker_refuses_what_would_duplicate_or_fail(no_sleep: Any
             with pytest.raises(trackers.TrackerError, match="issues are disabled in acme/app"):
                 await t.prepare()  # listing would answer 200 even so (F-147)
             for doc, public in (({"visibility": "public"}, True), ({"visibility": "internal"}, False),
-                                ({"private": False}, True), ({}, False)):  # fmt: skip
+                                ({"private": False}, True), ({}, True)):  # unknown: public  # fmt: skip
                 repo.mock(return_value=httpx.Response(200, json=doc))
                 await t.prepare()
                 assert t.public is public, doc
             # GitHub drops labels for a token without push access (F-145): stop, or every run opens it again
             r.post(f"{REPO}/issues").mock(return_value=httpx.Response(201, json=_issue(5, "", labels=())))
-            with pytest.raises(trackers.TrackerError, match="without the 'limbowatch' label"):
+            shut = r.patch(f"{REPO}/issues/5").mock(return_value=httpx.Response(200, json={}))
+            with pytest.raises(trackers.TrackerError, match=r"without the 'limbowatch' label.*closed it and stopped"):
                 await t.create("t", "b", ["limbowatch"])
+            assert json.loads(shut.calls[0].request.content) == {"state": "closed", "state_reason": "not_planned"}
             r.post(f"{REPO}/issues/5/comments").mock(return_value=httpx.Response(
                 404, json={"message": "Not Found"}))  # fmt: skip
             with pytest.raises(trackers.TrackerError, match="comment: HTTP 404 Not Found"):
@@ -218,10 +220,13 @@ async def test_apply_stops_at_a_rate_limit_and_says_what_is_left() -> None:
     assert lines[2] == "  #2: Changed: severity."  # a one-time comment: printed, never lost silently
     assert lines[3] == "1 more new issue(s) open on later runs (1 a run; --issues-max-new)"
     t2 = FakeTracker(fail_at=1, error=trackers.TrackerError("create issue: HTTP 410 gone"))
-    with pytest.raises(trackers.TrackerError, match=r"HTTP 410 gone \(done before it: comment #1\)"):
+    with pytest.raises(
+        trackers.TrackerError,
+        match=r"HTTP 410 gone \(done before it: comment #1; comments not made: #2: Changed: severity\.\)",
+    ):
         await issues.apply(t2, acts[:3])  # type: ignore[arg-type]
     t3 = FakeTracker(fail_at=0, error=trackers.TrackerError("boom"))
-    with pytest.raises(trackers.TrackerError, match=r"^boom$"):
+    with pytest.raises(trackers.TrackerError, match=r"^boom \(comments not made: #1: Changed: CVE\.\)$"):
         await issues.apply(t3, acts[:1])  # type: ignore[arg-type]
 
 
@@ -481,4 +486,121 @@ async def test_apply_every_kind_in_order() -> None:
             issues.Action("close", "a", body="fixed", issue=i)]  # fmt: skip
     t = FakeTracker()
     assert await issues.apply(t, acts) == ["reopen #5", "label #5", "close #5"]  # type: ignore[arg-type]
-    assert t.calls == ["open=True #5", "comment #5", "comment #5", "label #5", "comment #5", "open=False #5"]
+    assert t.calls == ["comment #5", "open=True #5", "comment #5", "label #5", "comment #5", "open=False #5"]
+
+
+def test_a_real_clone_of_an_empty_repo_has_no_commit(tmp_path: Path) -> None:
+    """Not faked: git prints "HEAD" for `rev-parse HEAD` in an empty repo, which once passed for a commit."""
+    import shutil
+    import subprocess
+
+    if shutil.which("git") is None:
+        pytest.skip("git not installed")
+    bare = tmp_path / "empty.git"
+    subprocess.run(["git", "init", "-q", "--bare", str(bare)], check=True)
+    p = Project(HostKind.GIT, "file://", "empty", f"file://{bare}", "")
+    assert git_host.clone(p, tmp_path / "out", None) == ""
+
+
+# --- after the independent review (FINDINGS F-148) -----------------------------------------------------------
+
+
+async def test_a_create_that_may_have_landed_is_not_retried(no_sleep: Any) -> None:
+    with respx.mock() as r:
+        gw = r.post(f"{REPO}/issues").mock(return_value=httpx.Response(502))
+        timeout = r.post(f"{REPO}/issues/1/comments").mock(side_effect=httpx.ReadTimeout("slow"))
+        refused = r.post(f"{REPO}/issues/2/comments").mock(side_effect=[httpx.ConnectError("refused"),
+                                                                         httpx.Response(201, json={})])  # fmt: skip
+        put = r.put("https://x.example/p").mock(side_effect=[httpx.Response(502), httpx.Response(200, json={})])
+        async with HttpClient(sleep=no_sleep) as http:
+            assert (await http.request("POST", f"{REPO}/issues", auth=None)).status == 502
+            assert (await http.request("POST", f"{REPO}/issues/1/comments", auth=None)).status == -1
+            assert (await http.request("POST", f"{REPO}/issues/2/comments", auth=None)).status == 201
+            assert (await http.request("PUT", "https://x.example/p", auth=None)).status == 200  # idempotent
+    assert gw.call_count == 1 and timeout.call_count == 1 and refused.call_count == 2 and put.call_count == 2
+
+
+async def test_a_rate_limit_that_never_lifts_stops_cleanly(no_sleep: Any) -> None:
+    with respx.mock() as r:
+        limited = r.post(f"{REPO}/issues").mock(return_value=httpx.Response(403, headers={"retry-after": "60"}))
+        async with HttpClient(sleep=no_sleep, max_rate_limit_wait=600) as http:
+            with pytest.raises(BudgetExhausted):  # not a 403 for the caller to read as a failure
+                await http.request("POST", f"{REPO}/issues", auth=None)
+    assert limited.call_count == 5
+
+
+async def test_trackers_send_no_header_without_a_token(no_sleep: Any) -> None:
+    with respx.mock() as r:
+        repo = r.get(REPO).mock(return_value=httpx.Response(200, json={"visibility": "public"}))
+        async with HttpClient(sleep=no_sleep) as http:
+            await trackers.GitHub(http, "acme/app", "").prepare()
+    assert "authorization" not in repo.calls[0].request.headers
+
+
+async def test_listing_notes_a_token_without_repo_scope(no_sleep: Any) -> None:
+    with respx.mock() as r:
+        r.get(f"{API}/orgs/acme/repos").mock(return_value=httpx.Response(
+            200, headers={"x-oauth-scopes": "read:org, gist"}, json=[_repo("site", visibility="public")]))  # fmt: skip
+        async with HttpClient(sleep=no_sleep) as http:
+            ls = await gh.list_org(http, "https://github.com", "acme", "ghp_x")
+            assert ls.note == gh.NO_REPO_SCOPE
+            r.get(f"{API}/orgs/acme/repos").mock(return_value=httpx.Response(
+                200, headers={"x-oauth-scopes": "repo, read:org"}, json=[]))  # fmt: skip
+            assert (await gh.list_org(http, "https://github.com", "acme", "ghp_x")).note is None
+    assert cli._github_token_note("github_pat_x") == "a fine-grained token lists only the repositories it was " \
+                                                     "given access to"  # fmt: skip
+    assert gh.api_url("https://acme.ghe.com", {"https://acme.ghe.com": "https://api.acme.ghe.com"}) == \
+        "https://api.acme.ghe.com"  # fmt: skip
+
+
+def test_unsent_changes_are_printed() -> None:
+    ch = [state.Change("k", state.ChangeKind.CHANGED, "GHSA-x", "npm:a", ["CVE: CVE-2026-1"]),
+          state.Change("n", state.ChangeKind.NEW, "GHSA-y", "npm:b")]  # fmt: skip
+    assert issues.unsent(ch) == ["  GHSA-x (npm:a): Changed: CVE: CVE-2026-1."]
+    assert cli._unsent_lines([]) == [] and len(cli._unsent_lines(ch)) == 2
+
+
+def test_scan_keeps_its_reports_when_issues_fail(world: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: F811
+    _gh_env(monkeypatch)
+    p = project(world["tmp"], world["tags"]["v1.1.0"])
+    out = world["tmp"] / "report.json"
+    with respx.mock(assert_all_called=False) as router:
+        mocked(router)
+        router.get(REPO).mock(return_value=httpx.Response(200, json={"visibility": "private", "has_issues": True}))
+        router.get(f"{REPO}/issues").mock(return_value=httpx.Response(200, json=[]))
+        router.post(f"{REPO}/issues").mock(return_value=httpx.Response(
+            403, json={"message": "Resource not accessible by integration"}))  # a read-only GITHUB_TOKEN  # fmt: skip
+        r = run(["scan", str(p), "--cache", str(world["cache"]), "--fail-on", "none", "--issues", "github",
+                 "-o", f"json={out}"])  # fmt: skip
+    assert r.exit_code == 2
+    assert "issues couldn't be updated: create issue: HTTP 403 Resource not accessible by integration" in r.output
+    assert json.loads(out.read_text())["findings"][0]["ghsa_id"] == "GHSA-c000-0000-0001"  # written all the same
+
+
+def test_watch_stops_issues_on_a_host_after_a_dropped_label(
+    world: dict[str, Any],  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from limbowatch.hosts import git as git_host
+
+    _gh_env(monkeypatch)
+    monkeypatch.setenv("LIMBOWATCH_SOURCE_TOKEN", "ghp_source")
+    p = project(world["tmp"], world["tags"]["v1.1.0"])
+    monkeypatch.setattr(git_host, "command", lambda project, dest: [
+        "git", "clone", "--depth", "1", "--no-recurse-submodules", "--quiet", f"file://{p}", str(dest)])  # fmt: skip
+    with respx.mock(assert_all_called=False) as router:
+        mocked(router)
+        router.get(f"{API}/orgs/acme/repos").mock(return_value=httpx.Response(200, json=[_repo("a"), _repo("b")]))
+        for name in ("a", "b"):
+            base = f"{API}/repos/acme/{name}"
+            router.get(base).mock(return_value=httpx.Response(200, json={"visibility": "private"}))
+            router.get(f"{base}/issues").mock(return_value=httpx.Response(200, json=[]))
+        made = router.post(f"{API}/repos/acme/a/issues").mock(return_value=httpx.Response(201, json=_issue(
+            1, "", labels=())))  # fmt: skip
+        router.patch(f"{API}/repos/acme/a/issues/1").mock(return_value=httpx.Response(200, json={}))
+        other = router.post(f"{API}/repos/acme/b/issues")
+        r = run(["watch", "--github-org", "acme", "--cache", str(world["cache"]), "--fail-on", "none", "--issues",
+                 "--format", "json"])  # fmt: skip
+        assert made.call_count == 1 and not other.called
+    assert "github.com/acme/a: issues: GitHub opened #1 without the 'limbowatch' label" in r.stderr
+    assert "github.com/acme/b: issues: not updated this run" in r.stderr
