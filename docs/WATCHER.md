@@ -6,7 +6,7 @@ It runs on any host, in any CI that has Python 3.12:
 - a GitLab CI/CD component ([integrations/gitlab](../integrations/gitlab/));
 - an Actions composite action for Gitea, Forgejo and GitHub ([integrations/action](../integrations/action/)).
 
-It can keep one issue per finding up to date in GitLab or Gitea/Forgejo.
+It can keep one issue per finding up to date in GitLab, Gitea/Forgejo or GitHub.
 
 ## How it works
 
@@ -153,6 +153,21 @@ steps:
     with: { sarif_file: limbowatch.sarif, category: limbowatch }
 ```
 
+**Issues on GitHub.** `issues: github` keeps one issue per finding up to date in the repo, from the default branch or a schedule, with the job's own token: add `issues: write` to `permissions`, no secret needed. It never opens issues in a public repo (GitHub has no confidential issues) unless `extra-args` has `--issues-public`; public repos have the annotations and code scanning instead. Give the workflow a `concurrency` group, because GitHub lists a new issue a few seconds late and two overlapping runs could open it twice (F-147):
+
+```yaml
+on: { push: { branches: [main] }, schedule: [{ cron: "17 6 * * *" }] }
+permissions: { contents: read, issues: write }
+concurrency: limbowatch
+jobs:
+  limbowatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: limbowatch/limbowatch-action@v0.1.0a9
+        with: { fail-on: none, issues: github }
+```
+
 The action annotates each finding on its lockfile line in the pull request (`annotations: true`, no code scanning needed), adds the Markdown report to the job summary, and writes every report into `limbowatch-report/` (`reports:` input). `allow-failure: true` passes the step with a warning when findings meet `fail-on`; a scan that couldn't run still fails. Its outputs `findings`, `failing`, `failed` and `report` let later steps act on the result:
 
 ```yaml
@@ -166,7 +181,7 @@ The action annotates each finding on its lockfile line in the pull request (`ann
 
 ## Org-wide mode
 
-`limbowatch watch` checks every project of some GitLab groups (subgroups included), Gitea or Forgejo organizations, or git URLs, in one run. Run it on a schedule from one place, for example a scheduled pipeline in a dedicated project, instead of adding a job to each project.
+`limbowatch watch` checks every project of some GitLab groups (subgroups included), Gitea or Forgejo organizations, GitHub organizations or users, or git URLs, in one run. Run it on a schedule from one place, for example a scheduled pipeline in a dedicated project, instead of adding a job to each project.
 
 ```sh
 LIMBOWATCH_SOURCE_TOKEN=… limbowatch watch \
@@ -175,7 +190,7 @@ LIMBOWATCH_SOURCE_TOKEN=… limbowatch watch \
 limbowatch watch --gitea-org https://codeberg.org/some-org --git https://git.example.org/team/tool.git
 ```
 
-1. **List.** GitLab: the group's own projects and its subgroups' (projects shared into the group from elsewhere aren't included). Gitea and Forgejo: the organization's repos, or a user's. Archived and empty projects, projects marked for deletion and `--exclude` matches are listed as **not checked**, with the reason; `--include-archived` checks archived ones. A project in two groups is checked once.
+1. **List.** GitLab: the group's own projects and its subgroups' (projects shared into the group from elsewhere aren't included). Gitea and Forgejo: the organization's repos, or a user's. GitHub: the organization's repos (forks included), or a user's: all of them when the token is that user's, else their public ones. Archived, disabled and empty projects, projects marked for deletion and `--exclude` matches are listed as **not checked**, with the reason; `--include-archived` checks archived ones. A project in two groups is checked once. An empty repo is found when it's cloned (GitHub has no reliable flag for one, F-147).
 2. **Clone and inventory.** Each project's default branch is cloned with `--depth 1` into a temporary directory, inventoried exactly as `scan` does, and deleted. `--jobs` (default 4) sets how many at a time. No submodules, no LFS files, no tags; symlinks come out as plain files, so a lockfile can't point OSV-Scanner outside the clone.
 3. **Check.** Source repos are mapped and polled **once for all projects**: on 49 projects of one GitLab group, 465 repos were polled instead of 784 (F-130).
 4. **Report.** One line per project, then each affected project's findings in the same layout as `scan`.
@@ -184,12 +199,13 @@ limbowatch watch --gitea-org https://codeberg.org/some-org --git https://git.exa
 |---|---|
 | `--gitlab-group URL` | `https://host/group/subgroup`, or a path with `--gitlab-url` (default `$CI_SERVER_URL`, else gitlab.com). Repeatable |
 | `--gitea-org URL` | `https://host/org` (or a user). Repeatable |
+| `--github-org NAME` | A GitHub organization or user: `acme`, or `https://github.com/acme`. Repeatable. `--github-url` names an Enterprise Server (default `$GITHUB_SERVER_URL`, else github.com; Enterprise Server is untested) |
 | `--git URL` | Any https git URL. Repeatable. No issues for these: there's no tracker to open them in |
 | `--exclude GLOB` | Skip projects whose path (`acme/legacy-*`) or host/path matches. Repeatable |
 | `--include-archived` | Also check archived projects |
 | `--state DIR` | One state file per project, `DIR/<host>/<path>.json`, to report what changed since the last run |
 | `-o`, `-f` | `table`, `json` or `markdown` for the whole run. The JSON nests each project's `scan` JSON unchanged |
-| `--issues` | Open and update issues in each GitLab or Gitea project, as `scan --issues` does (`LIMBOWATCH_ISSUES_TOKEN`) |
+| `--issues` | Open and update issues in each GitLab, Gitea or GitHub project, as `scan --issues` does (`LIMBOWATCH_ISSUES_TOKEN`) |
 | `--jobs N` | Projects cloned and inventoried at a time (default 4) |
 
 `--fail-on`, `--fail-on-unknown`, `--ignore`, `--ignore-file`, `--no-upstream`, `--osv-scanner` and `-v` work as for `scan`.
@@ -203,8 +219,9 @@ limbowatch watch --gitea-org https://codeberg.org/some-org --git https://git.exa
 A project that can't be cloned or inventoried is listed under **couldn't be checked** with the error; the other projects are still checked.
 
 **Tokens.**
-- `LIMBOWATCH_SOURCE_TOKEN` lists private groups and clones their projects. On GitLab, a group access token with `read_api` and `read_repository` (Reporter role); on Gitea and Forgejo, a token that can read the organization and its repositories. It defaults to `LIMBOWATCH_ISSUES_TOKEN`.
-- A token is sent only to its own host. When the sources span several hosts, run `limbowatch watch` once per host; with a token set, a run that names two hosts is refused.
+- `LIMBOWATCH_SOURCE_TOKEN` lists private groups and clones their projects. On GitLab, a group access token with `read_api` and `read_repository` (Reporter role); on Gitea and Forgejo, a token that can read the organization and its repositories; on GitHub, a fine-grained token with Metadata and Contents read on the org's repos (a classic one with `repo`), or a GitHub App's token. It defaults to `LIMBOWATCH_ISSUES_TOKEN`.
+- GitHub lists only what the token can see and doesn't say more exists (F-147). The report notes a listing that may be partial: without a token (public repos only), or with an app installation token in Actions, such as the job's `GITHUB_TOKEN`, which sees public repos and its own repo only.
+- A token is sent only to its own host (for GitHub, github.com and its API host api.github.com). When the sources span several hosts, run `limbowatch watch` once per host; with a token set, a run that names two hosts is refused.
 - Clones get the token from git's environment, never from the command line or the URL.
 - Gitea and Forgejo show a private organization as empty to a request without access (F-129). So a source that lists no projects at all is an error, not a pass.
 
@@ -230,13 +247,27 @@ LIMBOWATCH_ISSUES_TOKEN=… limbowatch scan . --state state.json --issues gitlab
 ```
 
 - **One issue per finding.** Issues are found again by the `limbowatch` label and a hidden marker in the body. The body carries facts and links only, never advisory text.
-- **New finding:** open an issue. On GitLab it's confidential by default. Gitea has no confidential issues, so no new issue is opened in a public Gitea or Forgejo repo unless you pass `--issues-public`.
+- **New finding:** open an issue. On GitLab it's confidential by default. Gitea and GitHub have no confidential issues, so no new issue is opened in a public Gitea, Forgejo or GitHub repo unless you pass `--issues-public` (GitHub internal repos count as private).
+- **At most 50 new issues a run** per project (`--issues-max-new`), certain findings before possible ones and the most severe first; the rest open on the next runs. A first run on a large project doesn't file hundreds at once, and stays inside GitHub's limit of about 500 new issues and comments an hour (F-146).
 - **Changed:** a comment, e.g. a CVE was assigned.
 - **Now visible to scanners:** a comment and the `limbowatch:visible` label. The issue stays open while the installed version is still affected; OSV is asked.
 - **No longer affected:** a comment, then the issue is closed. Found again later: the same issue is reopened.
 - **`--issues-dry-run`** prints the plan without making changes. **`--issues-min-severity`** sets which findings get issues.
+- **Rate limits.** On GitHub, writes are a second apart and GitHub's rate limits are waited out. When a limit outlasts the wait, the run stops writing: issues still to open, close, reopen or label are done by the next run, and a "changed" comment that wasn't made is printed, so nothing is lost silently.
 
-In CI, `--issues-url` and `--issues-project` default to `CI_SERVER_URL` / `GITHUB_SERVER_URL` and `CI_PROJECT_PATH` / `GITHUB_REPOSITORY`. The integrations only open issues from the default branch or a schedule, never from merge requests. They were tested end to end against a local Gitea (F-083) and in a container (F-084).
+**Trackers and tokens** (`LIMBOWATCH_ISSUES_TOKEN`):
+
+| `--issues` | Token |
+|---|---|
+| `gitlab` | `api` scope (a project, group or personal token) |
+| `gitea` | Gitea or Forgejo, a token that can write the repo's issues |
+| `github` | Issues write: the job's `GITHUB_TOKEN` with `permissions: issues: write`, a fine-grained token, or a classic one with `repo` |
+
+```sh
+LIMBOWATCH_ISSUES_TOKEN=… limbowatch scan . --state state.json --issues github --issues-project acme/app
+```
+
+In CI, `--issues-url` and `--issues-project` default to `CI_SERVER_URL` / `GITHUB_SERVER_URL` and `CI_PROJECT_PATH` / `GITHUB_REPOSITORY`; for `github`, the URL defaults to `GITHUB_API_URL`, else api.github.com (github.com and an Enterprise Server's address are also taken). The integrations only open issues from the default branch or a schedule, never from merge or pull requests. They were tested end to end against a local Gitea (F-083), in a container (F-084), on gitlab.com (F-087) and on GitHub in a private repo, from the command line and from the action with the job's token (F-148).
 
 ## Limits
 

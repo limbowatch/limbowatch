@@ -1107,7 +1107,7 @@ every build, so you hear about an advisory the day it’s published.</p></div>
 <ul class="gets">
 <li><strong>Where your team already looks.</strong> Inline on the pull request line through code scanning, Code Quality and
 the test summary in GitLab merge requests, and a job summary with the upgrade that clears each finding.</li>
-<li><strong>Issues that keep up.</strong> One issue per advisory and package in GitLab, Gitea or Forgejo, updated when a CVE
+<li><strong>Issues that keep up.</strong> One issue per advisory and package in GitLab, GitHub, Gitea or Forgejo, updated when a CVE
 is assigned or GitHub reviews it, and closed once you’ve upgraded.</li>
 <li><strong>Private.</strong> Your lockfiles are read inside the job, and the limbo feed is downloaded whole, so limbo.watch
 learns nothing about your project.</li>

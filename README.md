@@ -26,7 +26,7 @@ When a maintainer publishes a security advisory in their GitHub repository, Depe
 
 ## Scan your project
 
-`limbowatch scan` checks your lockfiles against every advisory in limbo and shows what it finds where your team already looks: GitLab merge requests (Code Quality), GitHub pull requests (code scanning), and issues in GitLab, Gitea or Forgejo.
+`limbowatch scan` checks your lockfiles against every advisory in limbo and shows what it finds where your team already looks: GitLab merge requests (Code Quality), GitHub pull requests (code scanning), and issues in GitLab, GitHub, Gitea or Forgejo.
 
 ```yaml
 # GitLab CI
@@ -79,7 +79,7 @@ The methods, open dataset (CC BY 4.0) and scripts to reproduce it are in the [re
 - **[limbo.watch](https://limbo.watch):** the live tracker. It lists every advisory in limbo across more than 60,000 watched repositories, including the source repos of the 10,000 most-used packages in each ecosystem. Updated daily.
 - **[Check a package](https://limbo.watch/check/):** type a package from npm, PyPI, crates.io or Maven, and your browser checks it and its whole dependency tree (resolved by [deps.dev](https://deps.dev)) against the advisories in limbo.
 - **[The limbo feed](https://limbo.watch/feed/):** the same advisories as OSV-schema records. The released OSV-Scanner can already scan against it.
-- **The watcher**, `limbowatch scan`: checks your project's dependencies against advisories in limbo, in CI or locally. One scan writes any of ten formats (table, JSON, Markdown, HTML, SARIF, GitLab Code Quality, JUnit, CSV, CycloneDX, GitHub annotations), and it keeps one issue per finding up to date in GitLab or Gitea/Forgejo. `pip install limbowatch-cli`. See the [guide](docs/WATCHER.md), the [GitLab CI/CD component](https://gitlab.com/explore/catalog/limbowatch/limbowatch-component) and the [GitHub Action](https://github.com/marketplace/actions/limbowatch).
+- **The watcher**, `limbowatch scan`: checks your project's dependencies against advisories in limbo, in CI or locally. One scan writes any of ten formats (table, JSON, Markdown, HTML, SARIF, GitLab Code Quality, JUnit, CSV, CycloneDX, GitHub annotations), and it keeps one issue per finding up to date in GitLab, GitHub or Gitea/Forgejo. `pip install limbowatch-cli`. See the [guide](docs/WATCHER.md), the [GitLab CI/CD component](https://gitlab.com/explore/catalog/limbowatch/limbowatch-component) and the [GitHub Action](https://github.com/marketplace/actions/limbowatch).
 
 ## Terms
 
@@ -100,7 +100,8 @@ The methods, open dataset (CC BY 4.0) and scripts to reproduce it are in the [re
 | 3. Contributions to existing tools ([blindspot](https://github.com/munimtechnologies/advisory-import-census), OSV-Scanner) | prepared, not sent ([drafts](docs/outreach/)) |
 | 4. Limbowatch watcher for GitLab, GitHub, Gitea and Forgejo: CI component and action, issues that update as advisories move through review | **released** as 0.1.0a1, an alpha; current 0.1.0a9 ([PyPI](https://pypi.org/project/limbowatch-cli/), [GitLab CI/CD Catalog](https://gitlab.com/explore/catalog/limbowatch/limbowatch-component), [GitHub Marketplace](https://github.com/marketplace/actions/limbowatch)) |
 | 5. Org-wide watch, more ecosystems (Maven/Gradle first) | built: tracker coverage, source repos for more ecosystems, the image, org-wide mode (`limbowatch watch`) and Maven transitive resolution; **released** in 0.1.0a6 |
-| 6. C/C++ and vendored code: git submodules, CMake, vcpkg, Bazel, Conan; a feed that covers advisories without a package | built; **released** in 0.1.0a9, awaiting review |
+| 6. C/C++ and vendored code: git submodules, CMake, vcpkg, Bazel, Conan; a feed that covers advisories without a package | **released** in 0.1.0a9 |
+| 7. GitHub as a full host: issues (with the job's own token) and org-wide mode for GitHub organizations | built; release 0.1.0a10 |
 
 Limbowatch builds only what existing tools don't do. See [the plan](docs/PHASE0_PLAN.md) and [research findings](docs/FINDINGS.md).
 
