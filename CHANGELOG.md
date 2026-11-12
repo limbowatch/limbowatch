@@ -4,6 +4,8 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+- **limbo.watch, redesigned around the story** (Phase 8): "Fixed upstream. Still clean in your scanner." The home page leads with how many advisories waiting for review already name a fix, shows real packages in limbo right now (each pinned in the public proof repository, [limbowatch/limbo-poc](https://github.com/limbowatch/limbo-poc), whose daily run shows Limbowatch reporting them while OSV-Scanner, npm audit, pip-audit and Dependabot stay silent), and moves the compliance section to a new page, `/compliance/` (SOC 2, PCI DSS and CISA BOD 26-04, with sources). Advisory pages lead with the fixed version. The navigation is down to five items, with a Learn menu.
+
 ## 0.1.0a13 (2026-11-12)
 
 Still an **alpha**. On PyPI it's `0.1.0a13`; the GitHub tag and the action's ref are `v0.1.0a13`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a13`; the GitLab CI/CD component is `0.1.0-alpha.13`. A fix to how advisory ranges are read; upgrade from 0.1.0a12 and earlier.
