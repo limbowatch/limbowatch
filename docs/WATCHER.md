@@ -49,7 +49,7 @@ It can keep one issue per finding up to date in GitLab, Gitea/Forgejo or GitHub.
 
 ```sh
 pipx install limbowatch-cli==0.1.0a11   # the current alpha; or: uv tool install limbowatch-cli==0.1.0a11
-# needs OSV-Scanner 2.7.0 on PATH: https://google.github.io/osv-scanner/installation/
+# needs OSV-Scanner 2.7.1 on PATH: https://google.github.io/osv-scanner/installation/
 
 limbowatch inventory .                       # what would be checked, and what can't be
 limbowatch scan .                            # table on stdout; exit 1 if a finding meets --fail-on

@@ -10,6 +10,7 @@ import json
 import re
 import tomllib
 from dataclasses import dataclass
+from typing import Any
 
 PINNED, RANGE, VCS, PATH = "pinned", "range", "vcs", "path"
 
@@ -108,22 +109,52 @@ def npm_registry_without_resolved(text: str) -> set[tuple[str, str]]:
     """(name, version) of package-lock entries that are registry packages despite having no `resolved`.
 
     npm leaves `resolved` out under `omit-lockfile-registry-resolved`; OSV-Scanner 2.7.0 then treats
-    the package as local and doesn't check it (osv-scanner#3177, FINDINGS F-078). A real local
-    package is a link, or resolves to a path.
+    the package as local and doesn't check it (osv-scanner#3177, FINDINGS F-078). 2.7.1 checks it as a
+    registry package itself (F-153); this stays for older binaries. A real local package is a link, a
+    link's target (even one under another directory's `node_modules`), or resolves to a path.
     """
-    try:
-        data = json.loads(text)
-    except ValueError:
-        return set()
+    packages = _npm_packages(text)
+    targets = {str(e["resolved"]) for e in packages.values() if e.get("link") and isinstance(e.get("resolved"), str)}
     out = set()
-    for key, entry in (data.get("packages") or {}).items():
-        if not key.startswith("node_modules/") and "/node_modules/" not in key:
+    for key, entry in packages.items():
+        if (not key.startswith("node_modules/") and "/node_modules/" not in key) or key in targets:
             continue
-        if not isinstance(entry, dict) or entry.get("link") or "resolved" in entry or "version" not in entry:
+        if entry.get("link") or "resolved" in entry or "version" not in entry:
             continue
         name = entry.get("name") or key.rsplit("node_modules/", 1)[-1]
         out.add((str(name), str(entry["version"])))
     return out
+
+
+def npm_linked(text: str) -> set[tuple[str, str]]:
+    """(name, version) of the local packages a package-lock links to: `file:` dependencies and workspaces.
+
+    A `link` entry (`node_modules/o`, `"resolved": "../m/node_modules/n/o"`) names the package; its target
+    holds the version. OSV-Scanner 2.7.1 reports a target under another directory's `node_modules` as a
+    registry package (F-153), which would check local code against an unrelated npm package of that name.
+    """
+    packages = _npm_packages(text)
+    out = set()
+    for key, entry in packages.items():
+        if not entry.get("link") or not isinstance(entry.get("resolved"), str):
+            continue
+        target = packages.get(entry["resolved"]) or {}
+        version = str(target.get("version", ""))
+        for name in {key.rsplit("node_modules/", 1)[-1], target.get("name")}:
+            if name:
+                out.add((str(name), version))
+    return out
+
+
+def _npm_packages(text: str) -> dict[str, dict[str, Any]]:
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return {}
+    packages = data.get("packages") if isinstance(data, dict) else None
+    if not isinstance(packages, dict):
+        return {}
+    return {str(k): v for k, v in packages.items() if isinstance(v, dict)}
 
 
 def locate(text: str, filename: str, name: str, version: str = "") -> int:

@@ -68,7 +68,7 @@ uv run python scripts/e2e_upstream.py                    # upstream sources agai
 uv run --with jsonschema python scripts/audit.py           # audit tracker, site, feed, GIT ranges and old releases against GitHub/OSV/CVE Services; run before every release (network)
 ```
 
-The watcher needs OSV-Scanner 2.7.0 on PATH (the research pipeline builds one at `research/2026-10-state-of-the-gap/.cache/bin/`). The `scripts/` need Docker or a GitLab token, and the network, so they aren't part of the test suite.
+The watcher needs OSV-Scanner 2.7.1 on PATH (the research pipeline builds one at `research/2026-10-state-of-the-gap/.cache/bin/`). The `scripts/` need Docker or a GitLab token, and the network, so they aren't part of the test suite.
 
 See [tracker/README.md](tracker/README.md) for how the live tracker works. Only `limbowatch.http` builds requests, and `limbowatch.normalize` drops advisory text and personal data before anything is stored.
 

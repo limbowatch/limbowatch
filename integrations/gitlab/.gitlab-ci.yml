@@ -53,7 +53,7 @@ mirror-image:
 
 check-reports:
   stage: verify
-  image: python:3.12-slim
+  image: python:3.14-slim
   needs: [limbowatch, limbowatch-ultimate, limbowatch-arm64]
   script:
     - |
@@ -86,7 +86,7 @@ check-reports:
 
 create-release:
   stage: release
-  image: registry.gitlab.com/gitlab-org/cli:v1.124.0
+  image: registry.gitlab.com/gitlab-org/cli:v1.130.0
   rules:
     - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/
   script:

@@ -1488,7 +1488,7 @@ unzip -q limbo-db.zip -d limbo-db
 osv-scanner scan source --offline-vulnerabilities \\
   --local-db-path limbo-db -r .</pre>
 <p class="ink2" style="margin:10px 0 0;font-size:15px">This checks your dependencies against the limbo feed only, so run it
-next to your usual scan: everything it finds is something OSV doesn’t have yet. Tested with OSV-Scanner 2.7.0, which skips npm
+next to your usual scan: everything it finds is something OSV doesn’t have yet. Tested with OSV-Scanner 2.7.1; 2.7.0 skips npm
 lockfile entries that have no <span class="mono">resolved</span> field
 (<a href="https://github.com/google/osv-scanner/issues/3177">#3177</a>).
 We’re proposing upstream that OSV-Scanner add the feed to a normal scan, rather than building another scanner.</p></div></li></ol></section>
@@ -1611,7 +1611,7 @@ limbo, the ones Dependabot, npm audit and OSV-Scanner don’t report yet. It sho
 looks, and tells you which upgrade clears it.</p></div>
 <div class="contact card"><h2 class="xs">Try it</h2><pre>pipx install limbowatch-cli=={RELEASE}
 limbowatch scan .</pre><p class="small" style="margin:12px 0 0">Needs <a href="https://google.github.io/osv-scanner/installation/">OSV-Scanner</a>
-2.7.0. <a href="{WATCHER_DOC}">Guide</a></p></div></div>
+2.7.1. <a href="{WATCHER_DOC}">Guide</a></p></div></div>
 
 <section class="s"><h2>In your terminal</h2><p class="sub">One table per lockfile, the upgrade that clears each package, and a
 verdict. This is the <a href="{DEMO_PR}">demo pull request</a> that adds <span class="mono">scapy==2.7.0</span>.</p>
@@ -1686,7 +1686,7 @@ steps:
     uses: github/codeql-action/upload-sarif@v4
     with: {{ sarif_file: limbowatch.sarif, category: limbowatch }}</pre></div></li>
 <li><span class="num">3</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">On your machine</p>
-<pre>pipx install limbowatch-cli=={RELEASE}   # needs OSV-Scanner 2.7.0
+<pre>pipx install limbowatch-cli=={RELEASE}   # needs OSV-Scanner 2.7.1
 limbowatch scan .</pre>
 <p class="ink2" style="margin:10px 0 0;font-size:15px">This is an alpha: options and formats may change before 0.1.0.
 <a href="{WATCHER_DOC}">Full guide</a> · <a href="{

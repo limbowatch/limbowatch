@@ -49,7 +49,7 @@ PROJECT_SETS = {
                (ln.split("\t")[0] for ln in (TOP100.read_text().splitlines() if TOP100.exists() else []) if ln and not ln.startswith("#"))},
 }
 PROJECTS = PROJECT_SETS[os.environ.get("PROJECT_SET", "github")]
-OSV_SCANNER_VERSION = "v2.7.0"
+OSV_SCANNER_VERSION = "v2.7.1"
 LOCKFILES = [
     "package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml", "yarn.lock", "bun.lock",
     "uv.lock", "poetry.lock", "Pipfile.lock", "pdm.lock", "pylock.toml", "requirements*.txt",

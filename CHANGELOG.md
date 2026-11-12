@@ -4,6 +4,10 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+- **OSV-Scanner 2.7.1** reads the lockfiles (the image, the action's `install: python`, and the version `scan` expects). It checks npm packages whose lockfile entry has no `resolved` field itself, which Limbowatch had worked around; across 111 real projects, every dependency and every unresolved entry is the same as with 2.7.0 (FINDINGS F-153).
+- **The image runs Python 3.14** (was 3.12), on a refreshed Go build image. Python 3.12 or later is still supported everywhere else.
+- Dependencies updated to their latest releases, among them typer 0.29, pydantic 2.14.3 and anyio 4.16.
+
 ## 0.1.0a11 (2026-11-12)
 
 Still an **alpha**. On PyPI it's `0.1.0a11`; the GitHub tag and the action's ref are `v0.1.0a11`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a11`; the GitLab CI/CD component is `0.1.0-alpha.11`. A fix to GitHub issues; nothing else changes.

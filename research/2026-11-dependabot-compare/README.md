@@ -75,7 +75,7 @@ Severity of the 1,080 confirmed findings: 21 critical, 241 high, 618 medium, 200
    - **Go paths below the matched module:** the Go module proxy (`GET https://proxy.golang.org/<path>/@v/list`) says whether each path is a package inside that module or a module of its own.
 
 ```sh
-export PATH="$PWD/research/2026-10-state-of-the-gap/.cache/bin:$PATH"   # OSV-Scanner 2.7.0
+export PATH="$PWD/research/2026-10-state-of-the-gap/.cache/bin:$PATH"   # OSV-Scanner 2.7.1
 python3 research/2026-11-dependabot-compare/compare.py prepare
 python3 research/2026-11-dependabot-compare/compare.py push      # creates private repos in the limbowatch org
 python3 research/2026-11-dependabot-compare/compare.py collect   # after Dependabot's alert counts settle

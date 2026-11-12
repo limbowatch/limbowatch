@@ -255,3 +255,30 @@ def test_uv_lock_sources() -> None:
         '[[package]]\nname = "tool"\nversion = "1.0"\nsource = { git = "https://github.com/o/tool?rev=abc" }\n'
     )
     assert checks.uv_sources(text) == {"app": "path", "httpx": "registry", "tool": "vcs"}
+
+
+LINKED_LOCK = json.dumps({"name": "root", "version": "1.0.0", "lockfileVersion": 2, "packages": {
+    "": {"version": "1.0.0", "dependencies": {"o": "file:../m/node_modules/n/o", "x": "1.0.0"}},
+    "../a/node_modules/b": {"version": "1.0.0"},
+    "../a/node_modules/c": {"version": "1.0.0"},
+    "../m/node_modules/n/o": {"version": "1.0.0"},
+    "node_modules/o": {"resolved": "../m/node_modules/n/o", "link": True},
+    "node_modules/x": {"version": "1.0.0"},
+    "node_modules/x/node_modules/b": {"resolved": "../a/node_modules/b", "link": True},
+}})  # fmt: skip
+
+
+@pytest.mark.parametrize("source", ["LOCAL", "PUBLIC_REGISTRY"])  # OSV-Scanner 2.7.0, 2.7.1 (F-153)
+def test_linked_npm_packages_are_local_whatever_osv_scanner_says(source: str) -> None:
+    """A `file:` dependency's target can sit under another directory's `node_modules` (bun's npm-arborist
+    fixture `external-link--root`): it's local code, never checked as the npm package of that name."""
+    pkgs = [{"package": {"name": n, "version": "1.0.0", "ecosystem": "npm",
+                         "purl": f"pkg:npm/{n}@1.0.0?source={source}"}} for n in ("b", "c", "o", "x")]  # fmt: skip
+    data = {"results": [{"source": {"path": "/ROOT/package-lock.json", "type": "lockfile"}, "packages": pkgs}]}
+    inv = osv_scanner.parse(data, "", 0, ROOT, lambda p: LINKED_LOCK)
+    assert {d.name for d in inv.dependencies} == {"c", "x"}  # type: ignore[attr-defined]
+    assert {(u.reason, u.name) for u in inv.unresolved} == {  # type: ignore[attr-defined]
+        (Unchecked.LOCAL, "b"), (Unchecked.LOCAL, "o")}  # fmt: skip
+    assert checks.npm_linked(LINKED_LOCK) == {("o", "1.0.0"), ("b", "1.0.0")}
+    assert checks.npm_registry_without_resolved(LINKED_LOCK) == {("c", "1.0.0"), ("x", "1.0.0")}
+    assert checks.npm_linked("not json") == set() and checks.npm_linked("[]") == set()

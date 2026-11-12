@@ -17,7 +17,7 @@ For each project of the October report (research/2026-10-state-of-the-gap), at i
 
 Writes data/<date>/{scans,alerts,sboms,compare}.json (gitignored: they hold dependency inventories and alert
 metadata) and data/<date>/summary.json (counts only, committed; like the October report's summaries, no per-project advisory list). No advisory text is stored.
-Needs git, gh (logged in, allowed to create repos in the limbowatch org), uv, OSV-Scanner 2.7.0 on PATH, network.
+Needs git, gh (logged in, allowed to create repos in the limbowatch org), uv, OSV-Scanner 2.7.1 on PATH, network.
 
     uv run --no-project python research/2026-11-dependabot-compare/compare.py prepare|push|collect
 """

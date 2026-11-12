@@ -11,7 +11,7 @@
 - html-report.png / html-report-light.png: report.html from the demo pull request's CI artifact
   (`gh run download <run> -R limbowatch/demo-app -n limbowatch-report -D <dir>`), in each color scheme.
 
-Needs Google Chrome (CHROME=<path> to override) and OSV-Scanner 2.7.0 on PATH. The GitHub and GitLab screenshots are
+Needs Google Chrome (CHROME=<path> to override) and OSV-Scanner 2.7.1 on PATH. The GitHub and GitLab screenshots are
 captured from a signed-in browser; docs/SCREENSHOTS.md has the steps.
 """
 

@@ -28,7 +28,7 @@ from limbowatch.ecosystems import OFFLINE_ECOSYSTEMS, by_osv
 from limbowatch.inventory import checks
 from limbowatch.models import Dependency, Inventory, Unchecked, UnresolvedDependency
 
-TESTED_VERSION = "2.7.0"  # behaviour verified in F-074 and F-078
+TESTED_VERSION = "2.7.1"  # behaviour verified in F-074 and F-078; 2.7.1 against 2.7.0 in F-153
 
 # Exit codes (F-078): 0 no findings, 1 findings, 127 an error (e.g. an unreadable lockfile), 128 no lockfiles.
 # One unreadable file of a kind: "Error during extraction: (extracting as java/pomxml) PATH: ERROR". Several of
@@ -318,6 +318,7 @@ class _Lockfile:
     cargo: dict[tuple[str, str], str]
     uv: dict[str, str]
     npm_registry: set[tuple[str, str]]
+    npm_linked: set[tuple[str, str]]
 
 
 def _from_source(
@@ -325,6 +326,7 @@ def _from_source(
 ) -> tuple[list[Dependency], list[UnresolvedDependency]]:
     base = rel.rsplit("/", 1)[-1]
     is_req = base.endswith(".txt")
+    npm = base in ("package-lock.json", "npm-shrinkwrap.json")
     reqs = checks.requirements(text) if is_req else []
     lock = _Lockfile(
         rel,
@@ -332,7 +334,8 @@ def _from_source(
         {r.name: r for r in reqs if r.name},
         checks.cargo_sources(text) if base == "Cargo.lock" else {},
         checks.uv_sources(text) if base == "uv.lock" else {},
-        checks.npm_registry_without_resolved(text) if base in ("package-lock.json", "npm-shrinkwrap.json") else set(),
+        checks.npm_registry_without_resolved(text) if npm else set(),
+        checks.npm_linked(text) if npm else set(),
     )
     deps: list[Dependency] = []
     out: list[UnresolvedDependency] = []
@@ -369,6 +372,8 @@ def _one(p: dict[str, Any], lock: _Lockfile) -> Dependency | UnresolvedDependenc
     if name.startswith((".", "/")):
         return unchecked(Unchecked.PATH)
     note = None
+    if (name, ver) in lock.npm_linked:  # a linked local package, whatever OSV-Scanner calls it (F-153)
+        return unchecked(Unchecked.LOCAL)
     if purl and "source=LOCAL" in purl:
         if (name, ver) not in lock.npm_registry:
             return unchecked(Unchecked.LOCAL)
