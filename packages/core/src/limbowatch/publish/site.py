@@ -430,7 +430,9 @@ table.fmts th{font-size:var(--fs-s);width:130px;color:var(--ink)}table.fmts td{c
 .gap.live .gap-ev li[aria-current]{border-left-color:var(--ink)}.gap.live .gap-ev li[aria-current] .when{color:var(--ink)}
 /* home: the live gap */
 .now{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:32px 64px;align-items:end}
-.huge{margin:0;font-size:clamp(88px,15vw,196px);line-height:.82;font-weight:680;letter-spacing:-.055em;color:var(--mark)}
+.now-n{min-width:0;container-type:inline-size}
+/* sized from its column: 24cqi fits "100,000" (about 3.7em wide) with room for wider phone fonts */
+.huge{margin:0;font-size:clamp(64px,15vw,196px);font-size:min(196px,24cqi);line-height:.82;font-weight:680;letter-spacing:-.055em;color:var(--mark)}
 .huge-l{margin:16px 0 0;font-size:var(--fs-xl);font-weight:550}
 .flow{margin:0 0 24px;font-size:var(--fs-l);line-height:1.45;color:var(--ink2)}.flow strong{color:var(--ink)}
 .stats3{margin:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 32px}

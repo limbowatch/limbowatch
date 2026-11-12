@@ -49,6 +49,8 @@ page titles, big numbers) stay with their component.
 | `fs-2xl` | 22px | stat values |
 
 Headings: h2 32px (26px on phones), page titles 44px (34px), the hero `clamp(40px, 5.6vw, 78px)`.
+The home page's count (`.huge`) is `min(196px, 24cqi)`: sized from its own column (a size container), so up to
+seven characters ("100,000") fit at any width. It ran past its column once the count reached "10,239" (fixed 2026-11-12).
 `test_css_uses_the_scale` fails if a size up to 22px is written outside the tokens.
 
 ## Shape and space

@@ -111,3 +111,9 @@ def test_css_uses_the_scale() -> None:
     """Font sizes up to 22px and radii come from the tokens, so the scale stays one scale."""
     assert not re.search(r"font-size:(1\d|2[0-2])(\.\d)?px", site.CSS)
     assert not re.search(r"border-radius:(6|8|1[0-8])px", site.CSS)
+
+
+def test_home_count_is_sized_from_its_column() -> None:
+    """The big count scales with its column, so "10,239" (later "100,000") never runs past it on any screen."""
+    assert ".now-n{min-width:0;container-type:inline-size}" in site.CSS
+    assert re.search(r"\.huge\{[^}]*font-size:min\(196px,24cqi\)", site.CSS)
