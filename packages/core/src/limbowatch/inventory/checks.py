@@ -110,14 +110,14 @@ def npm_registry_without_resolved(text: str) -> set[tuple[str, str]]:
 
     npm leaves `resolved` out under `omit-lockfile-registry-resolved`; OSV-Scanner 2.7.0 then treats
     the package as local and doesn't check it (osv-scanner#3177, FINDINGS F-078). 2.7.1 checks it as a
-    registry package itself (F-153); this stays for older binaries. A real local package is a link, a
-    link's target (even one under another directory's `node_modules`), or resolves to a path.
+    registry package itself (F-153); this stays for older binaries. A real local package is a link, the
+    target of a local link (`_local_links`), or resolves to a path.
     """
     packages = _npm_packages(text)
-    targets = {str(e["resolved"]) for e in packages.values() if e.get("link") and isinstance(e.get("resolved"), str)}
+    local = _local_links(packages)
     out = set()
     for key, entry in packages.items():
-        if (not key.startswith("node_modules/") and "/node_modules/" not in key) or key in targets:
+        if (not key.startswith("node_modules/") and "/node_modules/" not in key) or key in local:
             continue
         if entry.get("link") or "resolved" in entry or "version" not in entry:
             continue
@@ -130,19 +130,45 @@ def npm_linked(text: str) -> set[tuple[str, str]]:
     """(name, version) of the local packages a package-lock links to: `file:` dependencies and workspaces.
 
     A `link` entry (`node_modules/o`, `"resolved": "../m/node_modules/n/o"`) names the package; its target
-    holds the version. OSV-Scanner 2.7.1 reports a target under another directory's `node_modules` as a
-    registry package (F-153), which would check local code against an unrelated npm package of that name.
+    holds the version. OSV-Scanner 2.7.1 reports a `file:` target under another directory's `node_modules`
+    as a registry package (F-153), which would check local code against an unrelated npm package of that
+    name. A link into pnpm's store or a hoisted `node_modules` is a registry package, and isn't listed.
     """
     packages = _npm_packages(text)
     out = set()
-    for key, entry in packages.items():
-        if not entry.get("link") or not isinstance(entry.get("resolved"), str):
-            continue
-        target = packages.get(entry["resolved"]) or {}
-        version = str(target.get("version", ""))
-        for name in {key.rsplit("node_modules/", 1)[-1], target.get("name")}:
+    for target_key, names in _local_links(packages).items():
+        target = packages.get(target_key) or {}
+        for name in names | {str(target.get("name") or "")}:
             if name:
-                out.add((str(name), version))
+                out.add((name, str(target.get("version", ""))))
+    return out
+
+
+_NPM_DEP_FIELDS = ("dependencies", "devDependencies", "optionalDependencies", "peerDependencies")
+
+
+def _local_links(packages: dict[str, dict[str, Any]]) -> dict[str, set[str]]:
+    """Target key -> names, for the `link` entries that point at local code (F-153).
+
+    The parent's spec decides: `file:`, `link:`, `workspace:` and a bare path (`../dir`) are local, anything
+    else (a version, a range, `npm:`) a registry package. Without a spec, a target outside every
+    `node_modules` (a workspace, `../dir`) is local, and one inside a `node_modules` (pnpm's store,
+    hoisting) came from a registry.
+    """
+    out: dict[str, set[str]] = {}
+    for key, entry in packages.items():
+        if not entry.get("link") or not isinstance(entry.get("resolved"), str) or "node_modules/" not in key:
+            continue
+        cut = key.rfind("node_modules/")
+        name, parent = key[cut + len("node_modules/") :], packages.get(key[:cut].rstrip("/")) or {}
+        specs = [d[name] for f in _NPM_DEP_FIELDS if isinstance(d := parent.get(f), dict) and name in d]
+        target = str(entry["resolved"])
+        if specs:
+            local = isinstance(specs[0], str) and specs[0].startswith(("file:", "link:", "workspace:", ".", "/", "~"))
+        else:
+            local = "node_modules/" not in target
+        if local:
+            out.setdefault(target, set()).add(name)
     return out
 
 

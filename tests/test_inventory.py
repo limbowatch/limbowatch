@@ -257,28 +257,38 @@ def test_uv_lock_sources() -> None:
     assert checks.uv_sources(text) == {"app": "path", "httpx": "registry", "tool": "vcs"}
 
 
+# bun's npm-arborist fixture `external-link--root` (o and b are `file:` targets under another directory's
+# node_modules), plus a pnpm-installed package linked from pnpm's store, as in caveman's packages/device-auth
 LINKED_LOCK = json.dumps({"name": "root", "version": "1.0.0", "lockfileVersion": 2, "packages": {
-    "": {"version": "1.0.0", "dependencies": {"o": "file:../m/node_modules/n/o", "x": "1.0.0"}},
+    "": {"version": "1.0.0", "dependencies": {"o": "file:../m/node_modules/n/o", "x": "1.0.0", "v": "../v"},
+         "devDependencies": {"ts": "5.9.3"}},
+    "../v": {"name": "v", "version": "2.0.0"},
+    "node_modules/v": {"resolved": "../v", "link": True},  # a bare path spec: local too
     "../a/node_modules/b": {"version": "1.0.0"},
     "../a/node_modules/c": {"version": "1.0.0"},
     "../m/node_modules/n/o": {"version": "1.0.0"},
+    "../node_modules/.pnpm/ts@5.9.3/node_modules/ts": {"version": "5.9.3", "dev": True},
     "node_modules/o": {"resolved": "../m/node_modules/n/o", "link": True},
-    "node_modules/x": {"version": "1.0.0"},
+    "node_modules/ts": {"resolved": "../node_modules/.pnpm/ts@5.9.3/node_modules/ts", "link": True},
+    "node_modules/x": {"version": "1.0.0", "dependencies": {"b": "file:../../../a/node_modules/b"}},
     "node_modules/x/node_modules/b": {"resolved": "../a/node_modules/b", "link": True},
+    "node_modules/w": {"resolved": "packages/w", "link": True},
+    "packages/w": {"name": "w", "version": "0.1.0"},
 }})  # fmt: skip
 
 
 @pytest.mark.parametrize("source", ["LOCAL", "PUBLIC_REGISTRY"])  # OSV-Scanner 2.7.0, 2.7.1 (F-153)
 def test_linked_npm_packages_are_local_whatever_osv_scanner_says(source: str) -> None:
-    """A `file:` dependency's target can sit under another directory's `node_modules` (bun's npm-arborist
-    fixture `external-link--root`): it's local code, never checked as the npm package of that name."""
-    pkgs = [{"package": {"name": n, "version": "1.0.0", "ecosystem": "npm",
-                         "purl": f"pkg:npm/{n}@1.0.0?source={source}"}} for n in ("b", "c", "o", "x")]  # fmt: skip
+    """A `file:` dependency's target can sit under another directory's `node_modules`: it's local code, never
+    checked as the npm package of that name. A link into pnpm's store is a registry package, and is checked."""
+    versions = {"b": "1.0.0", "c": "1.0.0", "o": "1.0.0", "x": "1.0.0", "ts": "5.9.3"}
+    pkgs = [{"package": {"name": n, "version": v, "ecosystem": "npm",
+                         "purl": f"pkg:npm/{n}@{v}?source={source}"}} for n, v in versions.items()]  # fmt: skip
     data = {"results": [{"source": {"path": "/ROOT/package-lock.json", "type": "lockfile"}, "packages": pkgs}]}
     inv = osv_scanner.parse(data, "", 0, ROOT, lambda p: LINKED_LOCK)
-    assert {d.name for d in inv.dependencies} == {"c", "x"}  # type: ignore[attr-defined]
+    assert {d.name for d in inv.dependencies} == {"c", "x", "ts"}  # type: ignore[attr-defined]
     assert {(u.reason, u.name) for u in inv.unresolved} == {  # type: ignore[attr-defined]
         (Unchecked.LOCAL, "b"), (Unchecked.LOCAL, "o")}  # fmt: skip
-    assert checks.npm_linked(LINKED_LOCK) == {("o", "1.0.0"), ("b", "1.0.0")}
-    assert checks.npm_registry_without_resolved(LINKED_LOCK) == {("c", "1.0.0"), ("x", "1.0.0")}
+    assert checks.npm_linked(LINKED_LOCK) == {("o", "1.0.0"), ("b", "1.0.0"), ("w", "0.1.0"), ("v", "2.0.0")}
+    assert checks.npm_registry_without_resolved(LINKED_LOCK) == {("c", "1.0.0"), ("x", "1.0.0"), ("ts", "5.9.3")}
     assert checks.npm_linked("not json") == set() and checks.npm_linked("[]") == set()

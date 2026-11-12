@@ -101,6 +101,7 @@ Current understanding at the end of Phase 6 (2026-11-11), with entries linked. P
 53. **GitHub lists only what a token can see, without saying so.** The job's `GITHUB_TOKEN` saw 5 of the org's 18 repos with no error. Org-wide mode notes every case it can tell (no token, no `repo` scope, a fine-grained token, an app token in Actions), and `size` can't tell an empty repo, so emptiness is found at clone time ([F-146](#f-146), [F-147](#f-147)).
 54. **Live end to end on a private repo, from the CLI and from the action; an independent review found 12 real bugs before release**, among them empty repos passed as checked, reports lost when issues failed, and a retried POST that could open an issue twice ([F-148](#f-148)).
 55. **A token whose user can't push to the repo opens no GitHub issues.** GitHub silently drops a new issue's labels then, and the repo's `permissions` show it up front for a user's token (`pull` without `push`); the job's `GITHUB_TOKEN` reads all false there but labels fine ([F-150](#f-150)). Marketplace orders the action's releases as text, so it still calls v0.1.0a9 latest ([F-151](#f-151)).
+56. **OSV-Scanner 2.7.1 reads the same dependencies as 2.7.0** on 111 projects (236,253 against 236,254), checking npm packages without `resolved` itself and dropping a false yarn `patch:` entry. The comparison found linked local npm packages checked as registry ones in both versions, now decided by the dependency's spec ([F-153](#f-153)).
 
 ## Open questions
 
@@ -2319,6 +2320,21 @@ Answered:
   - **The published action, live:** `limbowatch/limbowatch-action@v0.1.0a11` in the private e2e repo pulled the pinned image and, with the job's token, reopened the test issue as `github-actions[bot]` (run 43155763903).
   - **Smoke test (PyPI 0.1.0a11):** a `go.mod` pinned to brotli v1.2.1 gives GHSA-c9gr-gmg4-2vqv.
 - **Sources:** the runs above; PyPI's JSON API.
+
+### F-153
+- **Date:** 2026-11-12 · **Status:** confirmed (direct observation)
+- **Question:** Does OSV-Scanner 2.7.1 change what the watcher's inventory reads, compared with 2.7.0 ([F-074](#f-074), [F-078](#f-078))?
+- **Method:** built both from source (`go install …@v2.7.0`, `@v2.7.1`); ran Limbowatch's own inventory (`osv_scanner.run`, offline, no Maven resolution, ignored files included) with each binary on the 111 projects cloned for the Phase 1 report (lockfiles only, 266 npm lockfiles among them) and on the test fixtures; compared every dependency (name, version, source, line, purl, note) and every unresolved entry. Release notes: osv-scanner v2.7.1.
+- **Result:**
+  - **2.7.1 checks npm packages that have no `resolved`** (osv-scanner#3216, the fix for #3177): 3,246 entries in 12 projects come back as registry packages instead of local ones. Limbowatch already checked them, through its own workaround; name, version, file and line are unchanged.
+  - **yarn `patch:` entries are no longer listed twice** (osv-scalibr#2498): one entry fewer in storybook. 2.7.0 listed `react-element-to-jsx-string@15.0.1`, the upstream package, which isn't installed; the project installs the fork `@7rulnik/react-element-to-jsx-string`, and both versions list that.
+  - **10 unresolved entries change reason, none disappear:** npm entries without a version (optional platform builds that weren't installed, fixtures) go from "local package" to "no resolved version".
+  - **A bug, found by the comparison:** a `file:` dependency whose target sits under another directory's `node_modules` (bun's npm-arborist fixture `external-link--root`: `node_modules/o` linked to `../m/node_modules/n/o`) was checked as the npm package of that name. 2.7.1 does this for `o` and `o2`; with 2.7.0, Limbowatch's own `resolved` workaround did it for `b`. Now the parent's spec decides: a link declared `file:`, `link:`, `workspace:` or as a bare path is local, whatever OSV-Scanner says.
+  - **My first fix was wrong, and the comparison caught it:** treating every link target as local made caveman's pnpm-installed `@types/node` and `typescript` (links into pnpm's store, `../../node_modules/.pnpm/…`) "local package", unchecked. A link with a version spec, or into a `node_modules` without one, is a registry package.
+  - **Totals:** 0.1.0a11's code with 2.7.0 reads 236,255 dependencies and 3,193 unresolved; the new code 236,254 and 3,194 with 2.7.0 (bun's `b` now local), 236,253 and 3,194 with 2.7.1 (the storybook entry). Of the 266 npm lockfiles, 4 link targets are local and under a `node_modules`, all in bun's test fixtures.
+- **Caveats:** lockfiles from the default branches cloned in October; Maven resolution (deps.dev) was off in both runs. The fixtures recorded from 2.7.0 stay, so the tests keep covering older binaries.
+- **Implication:** the watcher moves to 2.7.1 (`TESTED_VERSION`, the image, the action's `install: python`, the research pipeline). The `resolved` workaround stays for 2.7.0 users.
+- **Sources:** [osv-scanner v2.7.1 release notes](https://github.com/google/osv-scanner/releases/tag/v2.7.1); the comparison above (raw output in the session scratchpad).
 
 ## Archive
 
