@@ -2411,7 +2411,7 @@ Answered:
 - **Sources:** the API responses above (GitHub, OSV, deps.dev, RubyGems, ecosyste.ms); raw output in the session scratchpad.
 
 ### F-158
-- **Date:** 2026-11-12 · **Status:** confirmed (direct observation)
+- **Date:** 2026-11-12 · **Status:** confirmed (direct observation); netty-handler corrected in [F-159](#f-159)
 - **Question:** Does Dependabot alert on the F-157 examples, and does it lead to their fix some other way?
 - **Method:** a new private repository, `limbowatch/limbo-examples`, with Dependabot alerts turned on (`PUT /repos/{r}/vulnerability-alerts`) before the first push. It holds only dependency files pinning the last affected version of each F-157 example (`pom.xml`, `package-lock.json`, `requirements.txt`, `go.mod`, `Gemfile.lock`), plus one control per ecosystem with reviewed advisories at that version (jackson-databind 2.9.10, lodash 4.17.20, requests 2.31.0, golang.org/x/net v0.17.0, rack 2.2.0; 97 reviewed advisories between them by `GET /advisories?type=reviewed&affects=`). Read `GET /repos/{r}/dependency-graph/sbom` and all of `GET /repos/{r}/dependabot/alerts`.
 - **Result:**
@@ -2423,6 +2423,23 @@ Answered:
   - **For the other 8, Dependabot raised nothing:** @sinclair/typebox 0.34.51, netty-handler 4.1.136.Final, nats-server v2.12.6, go-openapi/spec v0.22.4, go-toml/v2 v2.4.2, mustache 1.1.2, rubyntlm 0.6.5, scapy 2.7.0.
 - **Caveats:** one repository, alerts only (not security updates); the delayed start may be a one-off, but [F-090](#f-090) saw a similar need for a manifest-changing commit.
 - **Implication:** the site's examples must be versions Dependabot says nothing about. The generated examples will skip a version when a reviewed advisory already asks for an upgrade to the limbo fix or past it (`GET /advisories?type=reviewed&affects=<package>@<version>`, compare patched versions with the ecosystem's rules). For F-157's list that keeps typebox, netty-handler, nats-server, go-openapi/spec, go-toml, mustache, rubyntlm and scapy. For scripts that create a test repository: push a manifest change after the first push, and wait for the control alerts before reading the rest.
+- **Sources:** the API responses above; raw output in the session scratchpad.
+
+### F-159
+- **Date:** 2026-11-12 · **Status:** confirmed (the range miss and the netty records); tentative (Dependabot's `.Final` miss: one observation)
+- **Question:** Building a public proof from the F-157/F-158 examples: does each tool behave as the examples claim?
+- **Method:** Limbowatch 0.1.0a12, OSV-Scanner 2.7.1, `npm audit`, pip-audit 2.10.1 and bundler-audit 0.9.3 on the example files plus controls; `POST api.osv.dev/v1/query` for each package and version; `GET /advisories?type=reviewed&affects=<pkg>@<version>`; the feed of 2026-11-12 07:32 UTC (`feed/all.zip`) for range shapes; `limbowatch.versions.affected` called directly.
+- **Result:**
+  - **A Limbowatch miss: ranges with several upper bounds.** nats-server's GHSA-38x3-76xf-cq45 gives `<= 2.12.6, <= 2.11.15`, fixed in 2.14.0, 2.12.7 and 2.11.16. GitHub's syntax reads a comma as AND, so the range means `<= 2.11.15`, and `affected("go", "2.12.6", ...)` is False: the watcher says nothing about 2.12.6, though the maintainers' fix list shows it's affected. The maintainers meant one bound per release line. Read as AND, such a range only works for versions on the lowest line listed (nats' `<= 2.14.2, <= 2.12.11` does flag 2.12.6).
+  - **In the feed, 506 package entries have only upper bounds, two or more, comma-separated** (36 critical, 178 high), e.g. FreeRDP `<= 3.4.0, <= 2.11.5`, Umbraco `<=17.7.1, <=18.2.1`, Nix with five. All 506 are published with no usable range (`range_converted: false`), so a scanner reading the feed can't match them, and the watcher reads them as AND.
+  - **netty-handler isn't a clean example.** At 4.1.136.Final, GitHub's reviewed database and OSV hold GHSA-c4c3-7fpv-j4q5 (critical) and GHSA-fccg-mwvh-qqg4, both fixed in 4.1.137.Final, the limbo fix's version: a scanner user would upgrade past it anyway. [F-158](#f-158)'s "Dependabot raised nothing" for netty-handler is therefore not evidence about limbo: Dependabot didn't alert on those reviewed advisories either, and its dependency graph recorded the version as `4.1.136`, without `.Final`, which looks like why (one observation).
+  - **The 7 clean examples:** @sinclair/typebox 0.34.51, nats-server v2.12.6 (GHSA-qrcv-3558-gj4f, high, fix v2.12.9 released 2026-05-20, used instead of GHSA-38x3 until the miss above is fixed), go-openapi/spec v0.22.4, go-toml/v2 v2.4.2, mustache 1.1.2, rubyntlm 0.6.5, scapy 2.7.0. For each, the reviewed database and OSV's package query return nothing at that version, and Limbowatch reports the advisory.
+  - **OSV holds related records that don't name the package:** CVE-2026-58213 (nats) has no affected package and BIT-nats-2026-58213 is Bitnami's container; OSV's package query for the Go module returns nothing.
+  - **The tools on the controls:** OSV-Scanner reports lodash 4.17.20 (8 IDs), x/net v0.17.0 (56), jackson-databind 2.9.10 (101), rack 2.2.0 (72), requests 2.31.0 (9); `npm audit` lodash (4); pip-audit requests (9).
+- **Caveats:** bundler-audit ran locally only under Ruby 2.6, which failed; CI will run it. The `.Final` reading of Dependabot's miss is an inference from the graph.
+- **Implication:**
+  - **Fix the watcher:** when a range is two or more upper bounds only, read it as one bound per release line, using the fixed versions to place each line; report a version as affected when it's below the fix for its own line, and "possibly affected" when its line isn't listed. Convert such ranges in the feed per line where every bound has a fix on the same line. A release follows.
+  - The examples drop netty-handler. The examples rule (plan §13.21) checks both GitHub's reviewed database and OSV's package query at the version.
 - **Sources:** the API responses above; raw output in the session scratchpad.
 
 ## Archive

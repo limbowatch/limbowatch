@@ -43,13 +43,13 @@ Cards, one per package: name, ecosystem, severity, "fix released N days ago", "a
 | Package | Severity | Fix released | Advisory waiting | Dependabot on that version |
 |---|---|---|---|---|
 | @sinclair/typebox (npm) | high | 124 days ago | 83 days | no alerts |
-| nats-server (Go) | high | 212 days ago | 136 days | no alerts |
+| nats-server (Go) | high | 176 days ago | 136 days | no alerts |
 | go-openapi/spec (Go) | critical | 115 days ago | 114 days | no alerts |
-| netty-handler (Maven) | high | 98 days ago | 97 days | no alerts |
+| rubyntlm (RubyGems) | critical | 64 days ago | 64 days | no alerts |
 | go-toml/v2 (Go) | high | 130 days ago | 128 days | no alerts |
 | mustache (RubyGems) | critical | 84 days ago | 84 days | no alerts |
 
-Not used, though in limbo: jackson-core, vm2 and mistune. Dependabot alerts on those versions for other, reviewed advisories whose fix is as new or newer, so its users get the limbo fix by coincidence (F-158). The generated list skips such versions.
+Not used, though in limbo: jackson-core, vm2, mistune and netty-handler. Reviewed advisories on those versions (in GitHub's database or OSV) already ask for an upgrade to the limbo fix or past it, so scanner users get it by coincidence (F-158, F-159). The generated list skips such versions.
 
 Caption: The maintainers published each advisory and shipped the fix. None is in GitHub's reviewed database or OSV yet, so the scanners above don't report it. Re-checked daily; a package leaves this list when GitHub reviews it.
 
