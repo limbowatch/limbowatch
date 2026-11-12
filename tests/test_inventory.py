@@ -292,3 +292,43 @@ def test_linked_npm_packages_are_local_whatever_osv_scanner_says(source: str) ->
     assert checks.npm_linked(LINKED_LOCK) == {("o", "1.0.0"), ("b", "1.0.0"), ("w", "0.1.0"), ("v", "2.0.0")}
     assert checks.npm_registry_without_resolved(LINKED_LOCK) == {("c", "1.0.0"), ("x", "1.0.0"), ("ts", "5.9.3")}
     assert checks.npm_linked("not json") == set() and checks.npm_linked("[]") == set()
+
+
+def test_a_maven_dependency_is_located_in_pom_xml() -> None:
+    """Code-scanning annotations need the dependency's line, not line 1 (F-157)."""
+    pom = """<project>
+  <dependencies>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-handler</artifactId>
+      <version>4.1.136.Final</version>
+    </dependency>
+    <dependency>
+      <groupId>other.group</groupId>
+      <artifactId>jackson-core</artifactId>
+    </dependency>
+    <dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-core</artifactId></dependency>
+  </dependencies>
+</project>"""
+    assert checks.locate(pom, "java/pom.xml", "io.netty:netty-handler", "4.1.136.Final") == 5
+    assert checks.locate(pom, "java/pom.xml", "com.fasterxml.jackson.core:jackson-core") == 12  # the right group
+    assert checks.locate(pom, "java/pom.xml", "org.absent:absent") == 1
+    assert checks.locate(pom, "java/pom.xml", "third.group:jackson-core") == 1  # not another group's line
+    excl = """<project><dependencies>
+    <dependency>
+      <groupId>org.example</groupId>
+      <artifactId>client</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-handler</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-handler</artifactId>
+      <version>${netty.version}</version>
+    </dependency>
+  </dependencies></project>"""
+    assert checks.locate(excl, "pom.xml", "io.netty:netty-handler", "4.1.100.Final") == 14  # not the exclusion

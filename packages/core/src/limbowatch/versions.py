@@ -9,6 +9,7 @@ never guessed. Versions are compared with ecosystem comparators, never as string
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from typing import Any
 
 from univers.versions import (
@@ -425,6 +426,86 @@ def _covers_everything(cls: Any, alts: list[Alternative]) -> bool:
     return False
 
 
+def _line(ver: str) -> tuple[int, int] | None:
+    """(major, minor) of a version, or None when they aren't plain numbers."""
+    m = re.match(r"v?(\d+)\.(\d+)", ver.strip())
+    return (int(m.group(1)), int(m.group(2))) if m else None
+
+
+@dataclass(frozen=True)
+class LineBound:
+    """One upper bound of a range read one per release line (F-159)."""
+
+    op: str  # "<" or "<="
+    bound: str
+    floor: str | None  # where its line's interval starts; None for the lowest bound, which covers everything below
+    kept: bool  # False: the interval holds no release (iTop's "< 3.2.0" as a line of its own)
+    names_line: bool  # False for "< x.y.0", which ends the line below rather than describing its own
+
+
+def _line_bounds(cls: Any, cons: Alternative) -> list[LineBound] | None:
+    """Two or more upper bounds and nothing else ("<= 2.12.6, <= 2.11.15"), read as one bound per release line.
+
+    Joined by AND, every bound but the lowest would be pointless, so the maintainer means one per line: the
+    lowest bound covers every older version, and each higher one starts at its own line, x.y.0 on the same major
+    as the bound below it, x.0.0 on a new major (FINDINGS F-159). None when the bounds don't fall on distinct,
+    ordered lines, or no higher line holds a release, so the plain reading stays.
+    """
+    if len(cons) < 2 or any(op not in ("<", "<=") for op, _ in cons):
+        return None
+    try:
+        bounds = sorted(cons, key=lambda c: _mk(cls, c[1]))
+        lines = [_line(b) for _, b in bounds]
+        if any(ln is None for ln in lines) or len(set(lines)) != len(lines):
+            return None
+        out: list[LineBound] = []
+        for i, ((op, b), ln) in enumerate(zip(bounds, lines, strict=True)):
+            assert ln is not None
+            start = ("v" if b.startswith("v") else "") + f"{ln[0]}.{ln[1]}.0"
+            names = not (op == "<" and _mk(cls, b) == _mk(cls, start))
+            if i == 0:
+                out.append(LineBound(op, b, None, True, names))
+                continue
+            prev = lines[i - 1]
+            assert prev is not None
+            floor = start if ln[0] == prev[0] else ("v" if b.startswith("v") else "") + f"{ln[0]}.0.0"
+            kept = _mk(cls, floor) < _mk(cls, b) or (op == "<=" and _mk(cls, floor) == _mk(cls, b))
+            out.append(LineBound(op, b, floor, kept, names))
+        return out if any(lb.kept for lb in out[1:]) else None
+    except Exception:
+        return None
+
+
+def _per_line(cls: Any, cons: Alternative) -> list[Alternative] | None:
+    lbs = _line_bounds(cls, cons)
+    if lbs is None:
+        return None
+    return [[(lb.op, lb.bound)] if lb.floor is None else [(">=", lb.floor), (lb.op, lb.bound)] for lb in lbs if lb.kept]
+
+
+def per_line_bounds(ghsa_ecosystem: str, rng: str | None) -> list[LineBound] | None:
+    """The bounds of a range read one per release line (see _line_bounds), lowest first, or None."""
+    cls = VERSION_CLASS.get(ghsa_ecosystem)
+    alts = parse_range(rng) if rng and "," in rng else None
+    if cls is None or not alts or len(alts) != 1:
+        return None
+    return _line_bounds(cls, alts[0])
+
+
+def line_gap(ghsa_ecosystem: str, version: str, bounds: list[LineBound]) -> bool | None:
+    """For a version none of the per-line intervals holds: None if it lies between the lowest and highest bound
+    and isn't past the bound of a line the range names (a line not listed, or a pre-release below a line's start);
+    False otherwise. The browser checker does the same (check.js lineGap)."""
+    cls = VERSION_CLASS.get(ghsa_ecosystem)
+    if cls is None:
+        return None
+    v = _mk(cls, version)
+    if not _mk(cls, bounds[0].bound) < v < _mk(cls, bounds[-1].bound):
+        return False
+    own = [lb for lb in bounds if lb.names_line and _line(lb.bound) == _line(version)]
+    return False if own and v > _mk(cls, own[0].bound) else None
+
+
 def alternatives(ghsa_ecosystem: str, rng: str | None) -> list[Alternative] | None:
     """Parsed alternatives, re-reading commas as OR when the AND reading is contradictory, or when it
     joins an exact version to a bound (FINDINGS F-085)."""
@@ -434,6 +515,8 @@ def alternatives(ghsa_ecosystem: str, rng: str | None) -> list[Alternative] | No
     alts = parse_range(rng)
     if cls is None:
         return alts
+    if alts and len(alts) == 1 and "," in rng and (lines := _per_line(cls, alts[0])):
+        return lines  # "<= 2.12.6, <= 2.11.15": one upper bound per release line (F-159)
     try:
         mixed = alts is not None and any(len(c) > 1 and any(op == "=" for op, _ in c) for c in alts)
         # "<= 3.0.10, 4.0.0": an exact version listed beside a bound is another alternative, not an AND
@@ -463,7 +546,11 @@ def alternatives(ghsa_ecosystem: str, rng: str | None) -> list[Alternative] | No
 
 
 def affected(ghsa_ecosystem: str, version: str, rng: str | None) -> bool | None:
-    """True/False if `version` is (not) in `rng`; None when it can't be evaluated."""
+    """True/False if `version` is (not) in `rng`; None when it can't be evaluated.
+
+    For a range read one bound per release line (F-159), a version between the listed lines on a line the
+    range doesn't name is None: the maintainers didn't say whether that line is affected.
+    """
     cls = VERSION_CLASS.get(ghsa_ecosystem)
     alts = alternatives(ghsa_ecosystem, rng)
     if cls is None or alts is None or not version:
@@ -479,6 +566,8 @@ def affected(ghsa_ecosystem: str, version: str, rng: str | None) -> bool | None:
                     break
             if ok:
                 return True
+        if bounds := per_line_bounds(ghsa_ecosystem, rng):
+            return line_gap(ghsa_ecosystem, version, bounds)
         return False
     except Exception:
         return None
@@ -622,6 +711,28 @@ def _fix_for(ghsa_ecosystem: str, low: str | None, patched: str | None) -> str |
     return fixes[0]
 
 
+def _fixes_per_line(ghsa_ecosystem: str, rng: str, bounds: list[LineBound], patched: str | None) -> bool:
+    """The fixed versions confirm a range read one bound per release line (F-159): every bound has a fix above it
+    and below the next line's start, and no fix falls inside an interval the feed would publish. nats'
+    "<= 2.12.6, <= 2.11.15" with "2.14.0, 2.12.7, 2.11.16" does; "<= 2.11.5, <= 3.4.0" with "3.2.0, 3.4.1" doesn't."""
+    cls = VERSION_CLASS.get(ghsa_ecosystem)
+    fixes = fixed_versions(patched)
+    alts = alternatives(ghsa_ecosystem, rng)
+    if cls is None or not fixes or not alts:
+        return False
+    try:
+        fx = [_mk(cls, f) for f in fixes]
+        for i, lb in enumerate(bounds):
+            b = _mk(cls, lb.bound)
+            nxt = bounds[i + 1].floor if i + 1 < len(bounds) else None
+            top = _mk(cls, nxt) if nxt else None
+            if not any((f > b if lb.op == "<=" else f >= b) and (top is None or f < top) for f in fx):
+                return False
+        return not any(affected(ghsa_ecosystem, f, rng) for f in fixes)
+    except Exception:
+        return False
+
+
 def osv_ranges(
     ghsa_ecosystem: str, rng: str | None, patched: str | None = None
 ) -> tuple[list[dict[str, Any]], list[str]] | None:
@@ -638,6 +749,9 @@ def osv_ranges(
     alts = alternatives(ghsa_ecosystem, rng)
     if not alts:
         return None
+    if (bounds := per_line_bounds(ghsa_ecosystem, rng)) and not _fixes_per_line(ghsa_ecosystem, rng or "", bounds,
+                                                                                  patched):  # fmt: skip
+        return None  # read one bound per line, but the fixed versions don't confirm it: publish the text (F-159)
     semver = ghsa_ecosystem in SEMVER_ECOSYSTEMS
     ranges: list[dict[str, Any]] = []
     versions: list[str] = []

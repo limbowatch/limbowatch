@@ -245,12 +245,26 @@
       return null;
     }
   }
+  function lineGap(eco, version, bounds) { // limbowatch.versions.line_gap: [[bound, namesLine], ...], lowest first
+    const o = ORDER[eco];
+    const line = s => { const m = /^v?(\d+)\.(\d+)/.exec(s.trim()); return m ? `${Number(m[1])}.${Number(m[2])}` : null; };
+    try {
+      const v = o.parse(version);
+      const p = b => o.parse(b.replace(/^v+/, ''));
+      if (!(o.cmp(v, p(bounds[0][0])) > 0 && o.cmp(v, p(bounds[bounds.length - 1][0])) < 0)) return false;
+      const own = bounds.filter(([b, names]) => names && line(b) === line(version));
+      return own.length && o.cmp(v, p(own[0][0])) > 0 ? false : null;
+    } catch (err) {
+      return null;
+    }
+  }
   function verdict(eco, version, e) { // [true | false | null (possibly), evidence]
     let hit = affected(eco, version, e.a);
     if (hit === null && e.r && e.d) {
       const vs = e.d.map(a => affected(eco, version, a));
       if (vs.every(x => x !== null && x === vs[0])) hit = vs[0];
     }
+    if (hit === false && e.b && ORDER[eco]) hit = lineGap(eco, version, e.b);
     if (hit === false) return [false, ''];
     if (hit === null) return [null, `the advisory’s range “${e.r || ''}” can’t be evaluated exactly`];
     if (alreadyFixed(eco, version, e.x)) {
@@ -273,7 +287,7 @@
     return [...out.values()].sort((a, b) => (a.e.g < b.e.g ? -1 : 1));
   }
 
-  const api = { semver, semverCmp, semverEq, pep440, pep440Cmp, maven, mvCmp, ORDER, affected, alreadyFixed, verdict,
+  const api = { semver, semverCmp, semverEq, pep440, pep440Cmp, maven, mvCmp, ORDER, affected, alreadyFixed, lineGap, verdict,
     normName, findings, isPrerelease, Invalid };
   if (typeof module === 'object' && module.exports) { module.exports = api; return; }
 

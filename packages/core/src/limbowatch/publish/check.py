@@ -19,7 +19,7 @@ from typing import Any
 from limbowatch.ecosystems import package_name
 from limbowatch.models import Status
 from limbowatch.publish import ATTRIBUTION, Item
-from limbowatch.versions import alternatives, dotdot_readings, fixed_versions, norm_name
+from limbowatch.versions import alternatives, dotdot_readings, fixed_versions, norm_name, per_line_bounds
 
 # GHSA ecosystem key → deps.dev system, for the ecosystems deps.dev resolves dependency trees for
 SYSTEMS = {"npm": "npm", "pip": "pypi", "rust": "cargo", "maven": "maven"}
@@ -37,6 +37,8 @@ def entry(eco: str, p_range: str | None, patched: str | None) -> dict[str, Any]:
     e: dict[str, Any] = {"a": _alts(eco, p_range), "r": p_range, "f": patched, "x": fixed_versions(patched)}
     if p_range and (readings := dotdot_readings(p_range)):
         e["d"] = [_alts(eco, r) for r in readings]
+    if bounds := per_line_bounds(eco, p_range):  # one bound per release line: the gap rule (versions.line_gap)
+        e["b"] = [[lb.bound, lb.names_line] for lb in bounds]
     return e
 
 

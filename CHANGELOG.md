@@ -4,6 +4,10 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+- **Fixed: ranges with several upper bounds hid affected versions.** Maintainers often write one bound per release line, such as `<= 2.12.6, <= 2.11.15`. Read as GitHub's syntax says (a comma is AND), that meant `<= 2.11.15`, so 2.12.6 was reported clean although the advisory's own fix list says it's affected. Such a range is now read one bound per line; a version on a line the range doesn't name is "possibly affected". On the 2026-11-12 feed this affects 431 package entries, and nats-server 2.12.6 goes from 9 to 11 advisories in limbo (FINDINGS F-159, F-160).
+- **The limbo feed converts those ranges** when the fixed versions confirm a fix per line, so OSV-Scanner reading the feed can match 413 more entries.
+- **Fixed: findings in a `pom.xml` pointed at line 1.** They're now on the dependency's `<artifactId>` line, so annotations land where the dependency is.
+
 ## 0.1.0a12 (2026-11-12)
 
 Still an **alpha**. On PyPI it's `0.1.0a12`; the GitHub tag and the action's ref are `v0.1.0a12`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a12`; the GitLab CI/CD component is `0.1.0-alpha.12`. Dependency upgrades, and a fix found while testing them.

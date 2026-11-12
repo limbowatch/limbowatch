@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from limbowatch.ecosystems import info, package_name
 from limbowatch.models import Status
 from limbowatch.publish import Item
-from limbowatch.versions import alternatives, fixed_versions, no_fix, osv_ranges
+from limbowatch.versions import alternatives, fixed_versions, no_fix, osv_ranges, per_line_bounds
 
 _VER = r"v?\d[\w+-]*(?:\.[\w+-]+)*"  # a version with single dots, so "1.0..2.0" splits at ".."
 
@@ -92,6 +92,12 @@ def range_problem(ghsa_ecosystem: str, rng: str | None, patched: str | None) -> 
             "Use constraints such as `>= 1.0.0, < 1.2.3`, one range per release line. "
             "If every version is affected and there's no fix yet, `>= 0`."
         )
+    if per_line_bounds(ghsa_ecosystem, rng):  # read one per line, but the fixed versions don't confirm it (F-159)
+        lines = " and ".join("`" + ", ".join(f"{op} {v}" for op, v in cons) + "`" for cons in alts)
+        return "Several upper bounds in one range", (
+            f"Add the package once per release line, each with its own range: {lines}, if those are your release "
+            "lines, with each line's first fixed version in the fixed field."
+        )
     for cons in alts:
         ops = [op for op, _ in cons]
         if ops == ["="]:
@@ -107,12 +113,7 @@ def range_problem(ghsa_ecosystem: str, rng: str | None, patched: str | None) -> 
         if len(lows) > 1 or len(highs) > 1:
             side = "upper" if len(highs) > 1 else "lower"
             return f"Several {side} bounds in one range", (
-                "Add the package once per release line, each with its own range"
-                + (
-                    f": {lines}, if those are your release lines."
-                    if not lows and (lines := _per_line(highs))
-                    else ", e.g. `>= 2.0.0, < 2.0.3`."
-                )
+                "Add the package once per release line, each with its own range, e.g. `>= 2.0.0, < 2.0.3`."
             )
         if not highs and not no_fix(patched):
             if len(fixes) > 1:
@@ -128,26 +129,3 @@ def range_problem(ghsa_ecosystem: str, rng: str | None, patched: str | None) -> 
                 "Put the first fixed version in the fixed field, or end the range with `< fix`."
             )
     return "Can't be converted exactly", "Use constraints such as `>= 1.0.0, < 1.2.3`, one range per release line."
-
-
-def _per_line(highs: list[str]) -> str | None:
-    """`< 2.11.7, < 2.12.1` -> "`< 2.11.7` and `>= 2.12.0, < 2.12.1`", if each bound is a release line's fix.
-
-    The start of each line is a guess, which is why the feed doesn't convert these. As advice to a
-    maintainer, who knows their release lines, it's a concrete starting point.
-    """
-    parts = [re.fullmatch(r"(v?)(\d+)\.(\d+)\.\d+", h) for h in highs]
-    if not all(parts):
-        return None
-    ordered = sorted(zip(highs, parts, strict=True), key=lambda hp: tuple(int(x) for x in hp[0].lstrip("v").split(".")))
-    out = [f"`< {ordered[0][0]}`"]
-    prev = None
-    for h, m in ordered:
-        assert m is not None
-        line = (m.group(2), m.group(3))
-        if prev is not None:
-            if line == prev:
-                return None  # two fixes on one line: not per-line bounds
-            out.append(f"`>= {m.group(1)}{line[0]}.{line[1]}.0, < {h}`")
-        prev = line
-    return " and ".join(out)

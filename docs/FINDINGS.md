@@ -2442,6 +2442,21 @@ Answered:
   - The examples drop netty-handler. The examples rule (plan §13.21) checks both GitHub's reviewed database and OSV's package query at the version.
 - **Sources:** the API responses above; raw output in the session scratchpad.
 
+### F-160
+- **Date:** 2026-11-12 · **Status:** confirmed (direct observation)
+- **Question:** With ranges of several upper bounds read one per release line ([F-159](#f-159)), what changes in the watcher and the feed, and does anything else move?
+- **Method:** `limbowatch.versions` before (HEAD) and after, side by side over every package entry in the feed of 2026-11-12 07:32 UTC: `alternatives()` and `osv_ranges()` for 13,672 entries with a package and 19,268 package-less (upstream) entries; the range parser self-check (`research/.../common.py`); `limbowatch scan` on the F-157 example files.
+- **Result:**
+  - **The reading:** the lowest bound covers every older version; each higher bound starts at x.y.0 (same major as the bound below) or x.0.0 (new major). `<= 2.12.6, <= 2.11.15` becomes `<= 2.11.15` or `>= 2.12.0, <= 2.12.6`. Bounds on one line, or not plain numbers, keep the AND reading. A bound that holds no release as a line of its own (iTop's `< 3.2.0` after `< 3.1.1`) adds nothing. A version between the listed lines, on a line none of them names (nats 2.13.x), is "possibly affected", not "not affected".
+  - **Only that shape moved:** 90 package entries and 341 package-less ones read differently (3 of them the same shape written with "≤", "and below" or "and"); no other reading changed, and no conversion was lost or altered.
+  - **The feed converts it only when the fixed versions confirm a fix per line:** 90 more package entries (13,154 → 13,244) and 323 more package-less ones (16,680 → 17,003) get OSV ranges. The rest stay as text and on the data-quality page, with the per-line suggestion.
+  - **The watcher on the example files:** nats-server 2.12.6 now gets 11 advisories in limbo, not 9: GHSA-38x3-76xf-cq45 and GHSA-3g5q-cfh2-cq67 were silent passes. The AND reading also missed whole lines above the lowest bound, e.g. nats 2.14.0–2.14.2 for `<= 2.14.2, <= 2.12.11`.
+  - **The `pom.xml` line (F-157):** a Maven dependency is now located on its `<artifactId>` line inside the `<dependency>` whose `<groupId>` matches (lines 8 and 9 in the example, not 1).
+  - **An independent review** (a fresh agent given the diff, which ran code to confirm each point) found 7 issues, all fixed with tests: the browser checker on limbo.watch/check didn't apply the "possibly affected" rule; a `< x.y.0` bound counted as naming its own line, and a pre-release below a line's start (2.12.0rc1, 4.2.0.CR1, 7.0.0.rc1) came back "not affected", both now "possibly affected"; the feed accepted a fix lying inside a published interval (`<= 2.11.5, <= 3.4.0` fixed in 3.2.0) and detected `<=` by searching the text (missing `=<`), both now rejected from the parsed bounds; the data-quality advice turned `<=` into `<` and could suggest empty intervals, now built from the per-line reading; and the `pom.xml` lookup could land on an `<exclusion>` or another group's artifact. The totals above are unchanged after the fixes; the old and newest releases read a feed rebuilt with the final code (25,104 records each).
+- **Caveats:** the start of each higher line is a reading, not something the maintainer wrote. It's narrower than the maintainer's own bound read alone, so it can miss versions in a gap but can't flag anything the bound itself excludes. The 2026-11-12 feed is one snapshot.
+- **Implication:** released as 0.1.0a13. The feed change only adds ranges to records that had none, which every released watcher already parses (checked with the oldest and newest releases before deploying, as for every feed change).
+- **Sources:** the comparison above; raw output in the session scratchpad.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

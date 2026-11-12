@@ -256,3 +256,51 @@ def test_hyphen_spans_without_spaces() -> None:
     assert affected("composer", "3.6.6.1", "<=3.5.8.1, 3.6.0-3.6.6.1") is True
     assert affected("npm", "1.0.0-0.3.7", "= 1.0.0-0.3.7") is True  # a numeric pre-release stays one version
     assert affected("maven", "3.0-20251107.114627", "< 3.0-20251107.114628") is True  # a timestamped version
+
+
+def test_several_upper_bounds_are_one_per_release_line() -> None:
+    """ "<= 2.12.6, <= 2.11.15" means a bound per release line, not their AND, which would hide 2.12.6 (F-159)."""
+    from limbowatch.versions import affected, alternatives, osv_ranges, per_line_bounds
+
+    nats = "<= 2.12.6, <= 2.11.15"  # nats-server GHSA-38x3-76xf-cq45, fixed in 2.14.0, 2.12.7, 2.11.16
+    assert alternatives("go", nats) == [[("<=", "2.11.15")], [(">=", "2.12.0"), ("<=", "2.12.6")]]
+    got = {v: affected("go", v, nats) for v in ("2.10.0", "2.11.15", "2.11.16", "2.12.0", "2.12.6", "2.12.7")}
+    assert got == {"2.10.0": True, "2.11.15": True, "2.11.16": False, "2.12.0": True, "2.12.6": True, "2.12.7": False}
+    assert affected("go", "v2.12.6", nats) is True
+    # a version between the listed lines, on a line the range doesn't name: the maintainers didn't say
+    assert affected("go", "2.13.1", "<= 2.14.2, <= 2.12.11") is None
+    assert affected("go", "2.14.1", "<= 2.14.2, <= 2.12.11") is True  # the AND reading missed the 2.14 line too
+    # a new major starts at x.0.0 (FreeRDP); a bound that holds no release on its own line adds nothing (iTop)
+    assert (
+        affected("npm", "3.0.0", "<= 3.4.0, <= 2.11.5") is True
+        and affected("npm", "2.11.6", "<= 3.4.0, <= 2.11.5") is False
+    )
+    itop = "< 2.7.10, < 3.0.4, < 3.1.1, <3.2.0"
+    assert alternatives("composer", itop) == [
+        [("<", "2.7.10")],
+        [(">=", "3.0.0"), ("<", "3.0.4")],
+        [(">=", "3.1.0"), ("<", "3.1.1")],
+    ]
+    assert affected("composer", "3.0.3", itop) is True and affected("composer", "3.1.5", itop) is False
+    # bounds on one line, or not plain versions, keep the plain reading
+    assert alternatives("npm", "<= 1.2.3, <= 1.2.9") == [[("<=", "1.2.3"), ("<=", "1.2.9")]]
+    assert per_line_bounds("npm", "<= 1.2.3, <= 1.2.9") is None and per_line_bounds("npm", "<= 1.2.3") is None
+    # the feed converts them only when the fixed versions confirm a fix per line
+    assert osv_ranges("go", nats, "2.14.0, 2.12.7, 2.11.16") == ([
+        {"type": "SEMVER", "events": [{"introduced": "0"}, {"last_affected": "2.11.15"}]},
+        {"type": "SEMVER", "events": [{"introduced": "2.12.0"}, {"last_affected": "2.12.6"}]},
+    ], [])  # fmt: skip
+    assert osv_ranges("go", nats, None) is None
+    assert osv_ranges("go", nats, "2.12.7") is None  # no fix for the 2.11 line
+    assert osv_ranges("npm", "<2.11.7,<2.12.1", "2.11.7, 2.12.1") is not None
+    # not "not affected": a "<" at a line's start ends the line below; a pre-release sorts below its line's start
+    assert affected("go", "2.12.3", "< 2.12.0, <= 2.14.3") is None
+    assert affected("npm", "2.0.5", "< 2.0.0, < 3.5.1") is None
+    assert affected("pip", "2.12.0rc1", nats) is None and affected("npm", "2.12.0-rc.1", nats) is None
+    assert affected("maven", "4.2.0.CR1", "<= 4.1.136.Final, <= 4.2.9.Final") is None
+    assert affected("rubygems", "7.0.0.rc1", "< 6.1.7.3, < 7.0.4.3") is None
+    # the feed: a fix inside a published interval, or "=<" whose fix equals the bound, keeps the text
+    assert osv_ranges("npm", "<= 2.11.5, <= 3.4.0", "3.2.0, 3.4.1") is None
+    assert osv_ranges("go", "<= 2.11.15, <= 2.12.6", "2.12.0, 2.12.7") is None
+    assert osv_ranges("npm", "=< 2.11.15, =< 2.12.6", "2.11.15, 2.12.6") is None
+    assert osv_ranges("npm", "<= 3.4.0, <= 2.11.5", "3.5.0, 2.11.6") is not None  # FreeRDP: a new major's fix
