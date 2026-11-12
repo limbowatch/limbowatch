@@ -2296,7 +2296,7 @@ Answered:
 - **Sources:** [Create an issue](https://docs.github.com/en/rest/issues/issues?apiVersion=2022-11-28#create-an-issue); the probes above.
 
 ### F-151
-- **Date:** 2026-11-12 · **Status:** tentative (inferred from one listing)
+- **Date:** 2026-11-12 · **Status:** confirmed by [F-155](#f-155) (first inferred from one listing)
 - **Question:** The maintainer published the action's v0.1.0a10 to GitHub Marketplace. Why does the listing still show v0.1.0a9 as latest?
 - **Method:** fetched `github.com/marketplace/actions/limbowatch` without a cache and read the page's embedded release data; compared it with `GET /repos/limbowatch/limbowatch-action/releases`.
 - **Result:**
@@ -2349,6 +2349,18 @@ Answered:
   - **The published action, live:** `limbowatch/limbowatch-action@v0.1.0a12` in the private e2e repo pulled the pinned image and reopened the test issue as `github-actions[bot]` (run 43177708982).
   - **Smoke test (PyPI 0.1.0a12, OSV-Scanner 2.7.1):** a `go.mod` pinned to brotli v1.2.1 gives GHSA-c9gr-gmg4-2vqv, with no version warning.
 - **Sources:** the runs above; PyPI's JSON API.
+
+### F-155
+- **Date:** 2026-11-12 · **Status:** confirmed (observed)
+- **Question:** Does Marketplace call the highest tag "latest" once only v0.1.0a10 to a12 are listed ([F-151](#f-151))?
+- **Method:** the maintainer unticked "Publish this Action to the GitHub Marketplace" on v0.1.0a5 to a9 and ticked it on a10 to a12; the listing's embedded `releaseData` was read before and after, next to `GET /repos/limbowatch/limbowatch-action/releases`.
+- **Result:**
+  - In between, with a5 to a12 listed, the order was a9, a8, a7, a6, a5, a12, a11, a10, latest a9: text order again.
+  - After: a12, a11, a10, latest **v0.1.0a12**. The yanked a7 and a8 are no longer offered.
+  - Ticking or unticking the box doesn't change a release's `updated_at` in the API (a5 and a9 kept theirs from 2026-11-10 and 11-11), so the API can't tell which releases are listed; only the listing page can.
+- **Caveats:** the sort rule is still undocumented; with a10 to a19 text order and version order agree, so the next proof point is a tag past a19 or 0.1.0 (under text order, "v0.1.0" sorts below "v0.1.0a10").
+- **Implication:** [F-151](#f-151) is confirmed. Before 0.1.0a20 or 0.1.0, check the listing after release; unlist older releases if the new one doesn't come out latest.
+- **Sources:** the listing's `releaseData`; the releases API.
 
 ## Archive
 
