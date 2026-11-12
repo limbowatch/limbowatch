@@ -4,6 +4,10 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+## 0.1.0a10 (2026-11-12)
+
+Still an **alpha**. On PyPI it's `0.1.0a10`; the GitHub tag and the action's ref are `v0.1.0a10`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a10`; the GitLab CI/CD component is `0.1.0-alpha.10`. **GitHub becomes a full host:** issues and org-wide mode work on GitHub as on GitLab and Gitea.
+
 - **Issues on GitHub.** `scan --issues github` keeps one issue per finding up to date in a GitHub repo, as on GitLab and Gitea: opened, commented on when a CVE is assigned or the advisory reaches scanners, closed when you upgrade, reopened if it comes back. In the action, `issues: github` uses the job's own token (`permissions: issues: write`). GitHub has no confidential issues, so nothing is opened in a public repo unless `--issues-public` is given. Tested live in a private repo, from the command line and from the action.
 - **Org-wide mode for GitHub.** `limbowatch watch --github-org acme` checks every repo of a GitHub organization, or a user's (`--github-url` for Enterprise Server, untested). The report says when a listing may be partial: GitHub lists only what the token can see, and the job's `GITHUB_TOKEN` sees public repos and its own.
 - **At most 50 new issues a run** per project, certain and most severe first (`--issues-max-new`); the rest open on later runs. On every tracker.

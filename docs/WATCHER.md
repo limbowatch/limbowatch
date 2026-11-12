@@ -48,7 +48,7 @@ It can keep one issue per finding up to date in GitLab, Gitea/Forgejo or GitHub.
 ## Use it
 
 ```sh
-pipx install limbowatch-cli==0.1.0a9   # the current alpha; or: uv tool install limbowatch-cli==0.1.0a9
+pipx install limbowatch-cli==0.1.0a10   # the current alpha; or: uv tool install limbowatch-cli==0.1.0a10
 # needs OSV-Scanner 2.7.0 on PATH: https://google.github.io/osv-scanner/installation/
 
 limbowatch inventory .                       # what would be checked, and what can't be
@@ -118,7 +118,7 @@ GitLab, with the [CI/CD component](https://gitlab.com/limbowatch/limbowatch-comp
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.9
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.10
     inputs:
       fail_on: high
 ```
@@ -132,7 +132,7 @@ On a GitLab instance other than gitlab.com, mirror the component project first (
 Any other CI, or locally, with the image (linux/amd64 and linux/arm64; verify it with `gh attestation verify oci://ghcr.io/limbowatch/limbowatch:<tag> --owner limbowatch`):
 
 ```sh
-docker run --rm -v "$PWD:/src" ghcr.io/limbowatch/limbowatch:0.1.0a9 limbowatch scan . -o sarif=limbowatch.sarif   # a release tag: there's no `latest` while releases are alphas
+docker run --rm -v "$PWD:/src" ghcr.io/limbowatch/limbowatch:0.1.0a10 limbowatch scan . -o sarif=limbowatch.sarif   # a release tag: there's no `latest` while releases are alphas
 ```
 
 GitHub, Gitea or Forgejo Actions, with the composite action [limbowatch/limbowatch-action](https://github.com/limbowatch/limbowatch-action), listed in [GitHub Marketplace](https://github.com/marketplace/actions/limbowatch) (its source is [`integrations/action/`](../integrations/action/action.yml), copied there at each release; `limbowatch/limbowatch/integrations/action@<tag>` still works). On a Linux runner with Docker it runs the same pinned, attested image as the GitLab component. On macOS or Windows, or when the job itself runs in a container (common on Gitea and Forgejo runners), it installs Limbowatch with pip instead, which needs Python 3.12 or later. The `install` input (`auto`, `image`, `python`) picks one explicitly.
@@ -144,7 +144,7 @@ permissions:
   actions: read            # the upload action needs it in private repos
 steps:
   - uses: actions/checkout@v4
-  - uses: limbowatch/limbowatch-action@v0.1.0a9   # Gitea/Forgejo: https://github.com/limbowatch/limbowatch-action@v0.1.0a9
+  - uses: limbowatch/limbowatch-action@v0.1.0a10   # Gitea/Forgejo: https://github.com/limbowatch/limbowatch-action@v0.1.0a10
     with:
       fail-on: high
       sarif: limbowatch.sarif
@@ -164,14 +164,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: limbowatch/limbowatch-action@v0.1.0a9
+      - uses: limbowatch/limbowatch-action@v0.1.0a10
         with: { fail-on: none, issues: github }
 ```
 
 The action annotates each finding on its lockfile line in the pull request (`annotations: true`, no code scanning needed), adds the Markdown report to the job summary, and writes every report into `limbowatch-report/` (`reports:` input). `allow-failure: true` passes the step with a warning when findings meet `fail-on`; a scan that couldn't run still fails. Its outputs `findings`, `failing`, `failed` and `report` let later steps act on the result:
 
 ```yaml
-  - uses: limbowatch/limbowatch-action@v0.1.0a9
+  - uses: limbowatch/limbowatch-action@v0.1.0a10
     id: limbo
     with: { fail-on: none }
   - if: steps.limbo.outputs.findings != '0'

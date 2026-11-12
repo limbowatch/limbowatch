@@ -1,6 +1,6 @@
 [project]
 name = "limbowatch"
-version = "0.1.0a9"
+version = "0.1.0a10"
 description = "Track published security advisories stuck in limbo (not yet reviewed into the databases scanners read)"
 license = "Apache-2.0"
 requires-python = ">=3.12"
