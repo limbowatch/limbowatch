@@ -2306,6 +2306,20 @@ Answered:
 - **Implication:** while v0.1.0a9 is listed, Marketplace will call it latest over a10 to a19. Unpublishing v0.1.0a9 and v0.1.0a5 from Marketplace (the release form's checkbox) makes v0.1.0a10 latest, and a11 to a19 then sort above it. Under text order, v0.1.0b1 and v0.1.1 would sort above everything listed, but v0.1.0 would not ("v0.1.0" < "v0.1.0a9").
 - **Sources:** the listing's embedded `releaseData`; the releases API.
 
+### F-152
+- **Date:** 2026-11-12 · **Status:** confirmed (observed)
+- **Question:** Release 0.1.0a11 (the push-access fix, [F-150](#f-150)): did every artifact ship as tested?
+- **Method:** the release checklist. Before tagging, on b97bf4b (the code released): the GitHub (14 checks), GitLab and Gitea e2e, the container check, the upstream e2e, and the action from that commit with the job's token. Audits at 04:09 and 04:22 UTC: all 9 checks passed both times, including 0.1.0a1 and 0.1.0a10 reading the live feed.
+- **Result:**
+  - **Image:** `ghcr.io/limbowatch/limbowatch:0.1.0a11@sha256:4337484a…`, built from 9b61436. It reports `limbowatch 0.1.0a11`, and its attestation verifies. It's pinned in the action and the GitLab template (07df5e4); CI passed.
+  - **Tags:** `v0.1.0a11`, `0.1.0-alpha.11` and the action's `v0.1.0a11`, GPG-signed and verified.
+  - **Release workflow:** PyPI `limbowatch` and `limbowatch-cli` 0.1.0a11 and the GitHub pre-release; the image tag gives the pinned digest, and so does the GitLab mirror.
+  - **GitLab component:** split 904976f; pipeline 3057607349 and the tag pipeline passed; CI/CD Catalog release at 04:33 UTC.
+  - **Action repo:** split 1dbfd31; self-test passed; pre-release published; org profile updated.
+  - **The published action, live:** `limbowatch/limbowatch-action@v0.1.0a11` in the private e2e repo pulled the pinned image and, with the job's token, reopened the test issue as `github-actions[bot]` (run 43155763903).
+  - **Smoke test (PyPI 0.1.0a11):** a `go.mod` pinned to brotli v1.2.1 gives GHSA-c9gr-gmg4-2vqv.
+- **Sources:** the runs above; PyPI's JSON API.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
