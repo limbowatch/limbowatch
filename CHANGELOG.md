@@ -4,6 +4,10 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+## 0.1.0a11 (2026-11-12)
+
+Still an **alpha**. On PyPI it's `0.1.0a11`; the GitHub tag and the action's ref are `v0.1.0a11`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a11`; the GitLab CI/CD component is `0.1.0-alpha.11`. A fix to GitHub issues; nothing else changes.
+
 - **A token whose user can't push to the repo opens no GitHub issues**, and says so before anything is created. GitHub silently drops a new issue's labels without push access, and later runs find issues by that label. A dry run prints a warning; a real run makes its other changes, then exits 2 naming the token to use. In `watch`, other repos of the org still get their issues.
 
 ## 0.1.0a10 (2026-11-12)
