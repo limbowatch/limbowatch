@@ -2378,6 +2378,38 @@ Answered:
 - **Correction (same day):** the "Not verified" item above overlooked [F-134](#f-134) (2026-11-10), which read SOC 2's CC7.1 and CC7.2 and PCI SSC FAQ 1597: SOC 2 sets no deadline (the entity's policy does), and PCI DSS 6.3.3 wants critical patches "resolved within one month of release", counted from the **fix's release**, not from detection. Under PCI DSS, limbo eats into the deadline itself: at October's median review wait the scanner speaks up on day 23 with 7 days left. FedRAMP's timeframes remain unread.
 - **Sources:** [BOD 26-04](https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk) and its Table 1 image; [BOD 19-02](https://www.cisa.gov/news-events/directives/bod-19-02-vulnerability-remediation-requirements-internet-accessible-systems); [BOD 22-01](https://www.cisa.gov/news-events/directives/bod-22-01-reducing-significant-risk-known-exploited-vulnerabilities).
 
+### F-157
+- **Date:** 2026-11-12 · **Status:** confirmed (live checks; Dependabot not yet tested on these packages)
+- **Question:** For the website: which well-known packages have a high or critical advisory, published by their own maintainers and fixed, that scanners still don't report?
+- **Method:**
+  - **Candidates:** the live `press/limbo.csv` of 2026-11-12 07:32 UTC: pending review (not likely permanent), high or critical, a fixed version entered, an ecosystem GitHub reviews, waiting at least 60 days. 2,195 advisories, 921 packages.
+  - **Ranking:** dependent repositories and downloads from ecosyste.ms (a secondary source, used only to rank). Dropped advisories filed by another project (phpunit's came from prestashopcorp/ps_checkout, golang.org/x/crypto's from dragonfly) and one that affects only pre-releases (smallvec 2.0 alphas).
+  - **Live checks for each example:** `GET /repos/{repo}/security-advisories/{ghsa}` (published, its ranges and fixes), `GET /advisories/{ghsa}` (404 means not in GitHub's reviewed database), `GET api.osv.dev/v1/vulns/{ghsa}` (and the CVE where one exists); release dates from deps.dev and the RubyGems API.
+  - **Limbowatch 0.1.0a12** (OSV-Scanner 2.7.1) on a directory pinning the last affected version of each (`pom.xml`, `package-lock.json`, `requirements.txt`, `go.mod`, `Gemfile.lock`).
+- **Result** (days counted to 2026-11-12; "dependent repos" from ecosyste.ms):
+
+  | Package | Ecosystem | Severity | Advisory published (in limbo) | Fix released | Dependent repos |
+  |---|---|---|---|---|---|
+  | jackson-core | Maven | high | 2026-09-12 (61 days) | 2.18.10, 2026-08-16 (88 days) | 116,784 |
+  | netty-handler | Maven | high | 2026-08-07 (97 days) | 4.1.137.Final, 2026-08-06 (98 days) | 7,905 |
+  | @sinclair/typebox | npm | high | 2026-08-21 (83 days) | 0.34.52, 2026-07-11 (124 days) | 707,802 |
+  | mistune | PyPI | high | 2026-06-21 (144 days) | 3.3.0, 2026-06-21 (144 days) | 64,256 |
+  | vm2 | npm | critical | 2026-09-03 (70 days) | 3.12.1, 2026-09-03 (70 days) | 52,172 |
+  | nats-server/v2 | Go | high | 2026-06-29 (136 days) | v2.12.7, 2026-04-14 (212 days) | 24,884 |
+  | go-openapi/spec | Go | critical | 2026-07-21 (114 days) | v0.22.9, 2026-07-20 (115 days) | 43,720 |
+  | go-toml/v2 | Go | high | 2026-07-07 (128 days) | v2.4.3, 2026-07-05 (130 days) | 28,005 |
+  | mustache | RubyGems | critical | 2026-08-20 (84 days) | 1.1.3, 2026-08-20 (84 days) | 9,411 |
+  | rubyntlm | RubyGems | critical | 2026-09-09 (64 days) | 0.6.6, 2026-09-09 (64 days) | 8,404 |
+  | scapy | PyPI | high | 2026-09-08 (65 days) | 2.8.0, 2026-10-02 (41 days) | n/a |
+
+  - Every advisory is published in the maintainers' own repository, absent from GitHub's reviewed database (404) and absent from OSV (404). Advisories: GHSA-649p-m576-vr99, GHSA-p85m-gvr3-788c, GHSA-976x-prgx-qv35, GHSA-jxhr-4j38-fpxg, GHSA-j89j-5m6r-cr2q, GHSA-38x3-76xf-cq45, GHSA-gqhc-vf4h-h7hg, GHSA-frc4-6h9q-39fq, GHSA-5hrj-7fc3-cmx9, GHSA-cx24-f932-rr55, GHSA-c547-xwrv-q9jm.
+  - **jackson-core's CVE (CVE-2026-68498) is published and in OSV, with no package:** OSV's record has only GIT ranges, so package-based scanners can't match it, while the same record links fixes already shipped by SUSE and AlmaLinux. nats-server's CVE is published too; typebox's is still reserved.
+  - **Limbowatch 0.1.0a12 flags all 11 packages** (85 advisories in limbo, with the upgrade that clears each).
+  - **A Limbowatch bug:** the two `pom.xml` findings point at line 1 instead of the dependency's line, so a code-scanning annotation would land on the wrong line.
+- **Caveats:** dependent-repo counts are ecosyste.ms's and include indirect use; they rank, they don't prove exposure. The ranges are as the maintainers entered them, unreviewed. Not yet shown on these packages: that Dependabot stays silent. GitHub's documentation says Dependabot alerts come from reviewed advisories, all 11 are absent from the reviewed database, and [F-112](#f-112) found 0 alerts for 1,080 confirmed findings in limbo; a private repository pinning these versions, with a control package per ecosystem, would show it directly (waiting for the maintainer's go-ahead).
+- **Implication:** the website can name real, popular packages with high or critical advisories, fixed upstream for weeks to months, that scanners still call clean. Re-check before publishing: these leave limbo when GitHub reviews them.
+- **Sources:** the API responses above (GitHub, OSV, deps.dev, RubyGems, ecosyste.ms); raw output in the session scratchpad.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
