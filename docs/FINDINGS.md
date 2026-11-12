@@ -2364,7 +2364,7 @@ Answered:
 - **Sources:** the listing's `releaseData`; the releases API.
 
 ### F-156
-- **Date:** 2026-11-12 · **Status:** tentative (BOD 26-04 confirmed from CISA; SOC 2, PCI DSS and FedRAMP not read, their documents are gated)
+- **Date:** 2026-11-12 · **Status:** confirmed for BOD 26-04 (CISA); SOC 2 and PCI DSS were already confirmed in [F-134](#f-134) (see the correction below); FedRAMP not read
 - **Question:** Do compliance regimes set deadlines for fixing high and critical vulnerabilities, and when does the clock start? (For the website's framing: an advisory in limbo delays the alert, so it delays the fix.)
 - **Method:** read the CISA directive pages (cisa.gov/directives; BOD 19-02, 22-01, 26-04) and BOD 26-04's Table 1 (an image, read directly). Tried the AICPA Trust Services Criteria PDF, PCI DSS v4.0.1 and FedRAMP's continuous-monitoring guides: each download returned an HTML page (sign-in, license acceptance or a moved document), so none was read.
 - **Result:**
@@ -2375,6 +2375,7 @@ Answered:
   - **Not verified:** that SOC 2's criteria (CC7.1) require detecting and monitoring vulnerabilities without setting a number of days (the deadline comes from each company's own policy, which the auditor tests); that PCI DSS v4 requirement 6.3.3 asks for critical and high patches within one month of release; FedRAMP's 30/90/180-day timeframes. These are common understanding, not read here.
 - **Caveats:** BOD 26-04 binds federal agencies only; companies copy such tables into their own policies, but that wasn't measured. That teams upgrade dependencies mainly when an alert forces them is plausible (Phase 1 found affected versions shipped in 13 of 14 projects, [F-055](#f-055)), not measured.
 - **Implication:** where the clock starts at detection, an advisory in limbo for weeks ([F-055](#f-055): median 23 days to review; [F-064](#f-064): 7,988 pending on 2026-10-31, median wait so far 57 days) doesn't count against the deadline: a team can meet every deadline and still run a publicly known vulnerability for weeks. That's the website's point, stated from this entry. Before quoting SOC 2, PCI DSS or FedRAMP on the site, read their texts.
+- **Correction (same day):** the "Not verified" item above overlooked [F-134](#f-134) (2026-11-10), which read SOC 2's CC7.1 and CC7.2 and PCI SSC FAQ 1597: SOC 2 sets no deadline (the entity's policy does), and PCI DSS 6.3.3 wants critical patches "resolved within one month of release", counted from the **fix's release**, not from detection. Under PCI DSS, limbo eats into the deadline itself: at October's median review wait the scanner speaks up on day 23 with 7 days left. FedRAMP's timeframes remain unread.
 - **Sources:** [BOD 26-04](https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk) and its Table 1 image; [BOD 19-02](https://www.cisa.gov/news-events/directives/bod-19-02-vulnerability-remediation-requirements-internet-accessible-systems); [BOD 22-01](https://www.cisa.gov/news-events/directives/bod-22-01-reducing-significant-risk-known-exploited-vulnerabilities).
 
 ## Archive
