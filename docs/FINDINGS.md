@@ -2243,7 +2243,7 @@ Answered:
   - An independent review: a fresh agent given the diff and F-145 to F-147, not my conclusions.
 - **Result:**
   - **CLI e2e:** every step passed on each run. Issue #12 opened with the `limbowatch`, `security` and `severity:low` labels; a second run changed nothing; upgrading closed it as `completed`; downgrading reopened the same issue.
-  - **Org-wide mode:** the PAT listed all 18 org repos, 13 of them private, with no partial-listing note, and checked the test repo's own `go.mod` (GHSA-c9gr-gmg4-2vqv). The dry run planned nothing new, because the issue was open.
+  - **Org-wide mode:** the PAT listed all 18 org repos, 14 of them private, with no partial-listing note, and checked the test repo's own `go.mod` (GHSA-c9gr-gmg4-2vqv). The dry run planned nothing new, because the issue was open.
   - **The action:** with the job's `GITHUB_TOKEN` it reopened #12 as `github-actions[bot]` ("Found again in go.mod:5") and passed with 1 finding.
   - **GitLab and Gitea:** the e2e scripts pass after one fix to the scripts themselves. They expected a new issue on every run, while a later run correctly reopens the finding's earlier issue (the key is stable), so they had failed on any second run since F-087.
   - **The review** reported 13 findings. One was wrong: the Gitea tracker treats internal repos as private, not public. The other 12 were fixed with tests, the most serious first:
