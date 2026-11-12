@@ -87,3 +87,27 @@ def test_pages_turn_off_cloudflare_email_obfuscation() -> None:
     html = site.page("t", "d", f"<pre>uses: limbowatch/limbowatch-action@v{site.RELEASE}</pre>")
     body = html.split("<body>", 1)[1]
     assert body.index(site.EMAIL_OFF) < body.index("limbowatch-action@") < body.index(site.EMAIL_ON)
+
+
+def _luminance(hex_: str) -> float:
+    c = [int(hex_[i : i + 2], 16) / 255 for i in (1, 3, 5)]
+    c = [x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+
+def test_text_colours_meet_wcag_aa_in_both_themes() -> None:
+    for theme in (site.LIGHT, site.DARK):
+        assert set(theme) == set(site.LIGHT)  # the same tokens in both
+        for fg in site.TEXT_TOKENS:
+            for bg in ("bg", "surface", "sunk"):
+                a, b = sorted((_luminance(theme[fg]), _luminance(theme[bg])))
+                assert (b + 0.05) / (a + 0.05) >= 4.5, (fg, bg, theme[fg], theme[bg])
+        for fg, bg in (("pill-ink", "pill-bg"), ("btn-ink", "btn-bg"), ("code-ink", "code-bg")):
+            a, b = sorted((_luminance(theme[fg]), _luminance(theme[bg])))
+            assert (b + 0.05) / (a + 0.05) >= 4.5, (fg, bg)
+
+
+def test_css_uses_the_scale() -> None:
+    """Font sizes up to 22px and radii come from the tokens, so the scale stays one scale."""
+    assert not re.search(r"font-size:(1\d|2[0-2])(\.\d)?px", site.CSS)
+    assert not re.search(r"border-radius:(6|8|1[0-8])px", site.CSS)

@@ -36,7 +36,7 @@ Home is `/`. The 25,000 advisory pages (`/advisory/<GHSA>/`) get a new template.
 - Actions: **Add to your CI** · Check a package
 - Meta: Live count, re-checked daily, updated 2026-11-12 07:32 UTC.
 
-**Real packages, right now** (generated each run; F-157 rules)
+**Real packages, right now** (as built: a curated list, `publish/examples.json`, shown only while each advisory is in limbo; see the deviation in PHASE0_PLAN §13.21)
 
 Cards, one per package: name, ecosystem, severity, "fix released N days ago", "advisory published N days ago", "scanner databases: not yet", and a link to the advisory. Today's would be:
 
@@ -45,11 +45,11 @@ Cards, one per package: name, ecosystem, severity, "fix released N days ago", "a
 | @sinclair/typebox (npm) | high | 124 days ago | 83 days | no alerts |
 | nats-server (Go) | high | 176 days ago | 136 days | no alerts |
 | go-openapi/spec (Go) | critical | 115 days ago | 114 days | no alerts |
-| rubyntlm (RubyGems) | critical | 64 days ago | 64 days | no alerts |
 | go-toml/v2 (Go) | high | 130 days ago | 128 days | no alerts |
 | mustache (RubyGems) | critical | 84 days ago | 84 days | no alerts |
+| scapy (PyPI) | high | 41 days ago | 64 days | no alerts |
 
-Not used, though in limbo: jackson-core, vm2, mistune and netty-handler. Reviewed advisories on those versions (in GitHub's database or OSV) already ask for an upgrade to the limbo fix or past it, so scanner users get it by coincidence (F-158, F-159). The generated list skips such versions.
+Not used, though in limbo: jackson-core, vm2, mistune and netty-handler, and rubyntlm, which bundler-audit reports because ruby-advisory-db has it (F-162). Reviewed advisories on those versions (in GitHub's database or OSV) already ask for an upgrade to the limbo fix or past it, so scanner users get it by coincidence (F-158, F-159). The generated list skips such versions.
 
 Caption: The maintainers published each advisory and shipped the fix. None is in GitHub's reviewed database or OSV yet, so the scanners above don't report it. Re-checked daily; a package leaves this list when GitHub reviews it.
 
@@ -92,7 +92,7 @@ Proof line: "We pinned these versions in a test repository. Dependabot raised 95
 
 - Headline: **Find what your scanner can't see yet.**
 - Tabs: **GitHub** (Action, PR annotations, job summary, issues with the job's token) · **GitLab** (component, MR widget, Code Quality, confidential issues) · **Gitea/Forgejo** · **CLI**.
-- Each tab: a two-line setup snippet, then a screenshot or terminal output generated from the current release, never older output.
+- Each tab: a two-line setup snippet, then a screenshot or terminal output generated from the current release, never older output. As built: the tabs hold the setup for each host; the screenshots above them were refreshed on 0.1.0a13 (2026-11-12) by the procedure in docs/SCREENSHOTS.md.
 - "What it reports": the table per lockfile, the upgrade that clears each package, and "can't be checked" entries, never silently dropped.
 
 ## Advisory page template (`/advisory/<GHSA>/`)

@@ -2484,6 +2484,21 @@ Answered:
 - **Implication:** the website links to the repository and its latest run as public proof. The examples rule also checks ruby-advisory-db for RubyGems (or leaves Ruby examples out).
 - **Sources:** https://github.com/limbowatch/limbo-poc and its workflow runs.
 
+### F-163
+- **Date:** 2026-11-12 · **Status:** confirmed (direct observation and computation)
+- **Question:** What does the demo show on 0.1.0a13, and do the site's colours meet WCAG AA?
+- **Method:**
+  - Demo: `limbowatch/demo-app` bumped to the action v0.1.0a13 (GitHub) and component 0.1.0-alpha.13 (GitLab), `main` merged into `add-scapy`; pull request run 43258602783 (`report.json` from its artifact), GitLab merge request pipeline 3060569992 (the merge request page). Terminal output from `uvx --from limbowatch-cli==0.1.0a13` with OSV-Scanner 2.7.1 on the `add-scapy` checkout.
+  - Contrast: WCAG 2.x relative luminance for every text token against `bg`, `surface` and `sunk`, in both themes (`tests/test_site.py`).
+  - Layout: Chrome device emulation at 390 and 1440 CSS px, light and dark, on home, tracker, scan, compliance, an advisory page and methodology; `document.documentElement.scrollWidth` against the viewport.
+- **Result:**
+  - **Demo: 63 advisories in limbo in 5 packages, 8 at or above high** (was 67 in 7 packages, 9 at or above high, on 2026-11-10, [F-128](#f-128)). The advisories for rack 2.2.24 and nokogiri 1.19.4 left limbo in between: OSV's package query returns all six (GHSA-5v64-555j-wjxm, GHSA-p8x9-v4hv-2w4g, GHSA-wvg4-6p58-3gh3; GHSA-3w22-6jfg-527w, GHSA-4p39-36wj-23h4, GHSA-v995-44v6-5fqm), each published there 2026-11-10, and the `git push` reported "6 vulnerabilities" from Dependabot on the default branch. scapy 2.7.0 has 52 (was 51). GitLab: "Code Quality scans found 52 new findings", "Test summary: 8 failed, 63 total tests". The pull request diff now also shows the `github`-format annotation on the dnspython line.
+  - **Contrast: three text colours were below 4.5:1:** light `muted` and `faint` #6B6F78 on `sunk` 4.30; dark `faint` #7C818C on `surface` 4.46 and on `sunk` 4.18; light `mark` #B87400 as the brand name's text 3.51. Changed to #646871 (4.77 on `sunk`), #848994 (4.66 on `sunk`), and `amber-text` for the brand (5.35).
+  - **No horizontal scroll** on any of the six pages at 390 px; the only clipped element was the PCI clock's "7 left" label on phones, now "7".
+- **Caveats:** the demo's numbers move as GitHub reviews its advisories; the screenshots are a dated snapshot (docs/SCREENSHOTS.md).
+- **Implication:** the scan page's screenshots, alt text and captions use these numbers; the design tokens are tested so contrast can't regress.
+- **Sources:** https://github.com/limbowatch/demo-app/actions/runs/43258602783, https://gitlab.com/limbowatch/demo-app/-/merge_requests/1 (private), docs/redesign/DESIGN.md.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

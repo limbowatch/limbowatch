@@ -209,6 +209,9 @@ async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any, monkeypatch: py
     )
     left = json.loads(pages["tracker/data.json"])["left"]
     assert [r["id"] for r in left] == ["GHSA-wq9v-j77v-qr26"] and left[0]["to"] == "Reviewed by GitHub"
+    pend = json.loads(pages["tracker/data.json"])["pending"]  # the "fix released" filter's flag
+    assert [(r["id"], r["fx"]) for r in pend] == [("GHSA-f9j4-qggq-h239", 1)]
+    assert '<select id="fix">' in pages["tracker/index.html"] and 'href="/tracker/?fix=yes"' in home
     assert all("REDACTED" not in text for text in pages.values())
     checker = json.loads(pages["check/index.json"])  # the package checker's data: facts only, no advisory text
     assert checker["advisories"] >= 1 and "/assets/check.js?v=" in pages["check/index.html"]

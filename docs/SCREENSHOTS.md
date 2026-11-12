@@ -47,6 +47,8 @@ output. Refresh all ten from one run, so the numbers agree with each other and w
    the captions in `scan()` against the run's `report.json` (findings, failing findings, advisories per package).
    `uv run pytest tests/test_site.py` catches a size mismatch or a missing variant.
 
-The last refresh: 2026-11-10, on 0.1.0a5, with the action from GitHub Marketplace (`limbowatch/limbowatch-action`) and
-the component from the GitLab CI/CD Catalog (GitHub run 42800465479, GitLab pipeline 3049133249). The demo's 67
-advisories were all still in limbo, checked live against GitHub's database and OSV.
+The last refresh: 2026-11-12, on 0.1.0a13, with the action from GitHub Marketplace and the component from the GitLab
+CI/CD Catalog (GitHub run 43258602783, GitLab pipeline 3060569992): 63 advisories in limbo in 5 packages, 8 failing the
+build, 52 for scapy. rack's and nokogiri's advisories had been reviewed since 2026-11-10, so they left the demo's
+findings, and the pull request's diff now also shows the annotation on dnspython's line. The browser shots were
+captured with the browser extension's region zoom, about 1.5×.

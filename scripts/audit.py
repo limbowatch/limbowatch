@@ -20,6 +20,9 @@ Checks:
    from the repo's tags as `git ls-remote` lists them now, equal the feed's, and none is missing a range (F-138, F-142);
 8. GIT packages: every entry has a package; GIT ones name their record's repo and keep the versions as entered;
 9. old watchers: the oldest release and the newest on PyPI read the live feed (F-140).
+10. examples: every example on the home page is still in limbo, live: the repository advisory published, not in
+    GitHub's reviewed database, not in OSV, and at the pinned version no other advisory in OSV (or, for RubyGems, in
+    ruby-advisory-db) that a scanner would report (F-157 to F-162). The curated examples not shown are listed.
 
 Exit 1 if a check fails. The report is Markdown (stdout, or --out).
 """
@@ -506,6 +509,50 @@ def check_old_watchers(rep: Report, z: zipfile.ZipFile) -> None:
               "; ".join(f"{v} reads {got}" for v, _, got in out) + f" of {n:,} records")  # fmt: skip
 
 
+def check_examples(rep: Report, st: State) -> None:
+    from limbowatch.publish.site import EXAMPLES
+
+    home = http.get(f"{SITE}/", params=NOCACHE).text
+    shown = set(re.findall(r'<a class="exc" href="/advisory/(GHSA-[\w-]+)/"', home))
+    repos = {g: a["repo"] for g, a in st.adv.items()}
+
+    def one(e: dict[str, Any]) -> list[str]:
+        g, problems = e["ghsa"], []
+        s1, ra = gh(f"/repos/{repos.get(g, '')}/security-advisories/{g}")
+        if s1 != 200 or ra.get("state") != "published":
+            problems.append(f"repository advisory {s1 if s1 != 200 else ra.get('state')}")
+        s2, ga = gh(f"/advisories/{g}")
+        if s2 == 200 and ga.get("type") == "reviewed":
+            problems.append(f"reviewed at {ga.get('github_reviewed_at')}")
+        if http.get(f"https://api.osv.dev/v1/vulns/{g}").status_code == 200:
+            problems.append("in OSV")
+        version = e["version"].removeprefix("v") if e["ecosystem"] == "Go" else e["version"]
+        q = {"package": {"name": e["package"], "ecosystem": e["ecosystem"]}, "version": version}
+        other = [v["id"] for v in http.post("https://api.osv.dev/v1/query", json=q).json().get("vulns") or []]
+        if other:
+            problems.append(f"OSV has {', '.join(other[:5])} for {e['package']} {e['version']}")
+        if e["ecosystem"] == "RubyGems":
+            s3, files = gh(f"/repos/rubysec/ruby-advisory-db/contents/gems/{e['package']}")
+            if s3 == 200 and files:
+                problems.append(f"ruby-advisory-db has {len(files)} advisories for {e['package']}")
+        return problems
+
+    shown_ex = [e for e in EXAMPLES if e["ghsa"] in shown]
+    with ThreadPoolExecutor(4) as ex:
+        res = list(ex.map(one, shown_ex))
+    bad = [(e["ghsa"], p) for e, p in zip(shown_ex, res, strict=True) if p]
+    unknown = shown - {e["ghsa"] for e in EXAMPLES}
+    hidden = [e["ghsa"] for e in EXAMPLES if e["ghsa"] not in shown]
+    rep.check("examples", not bad and not unknown and bool(shown), f"{len(shown)} examples on the home page, "
+              f"{len(bad)} no longer in limbo or seen by a scanner; {len(hidden)} curated ones not shown")  # fmt: skip
+    for g, p in bad:
+        rep.note(f"{g}: {'; '.join(p)}")
+    if unknown:
+        rep.note(f"shown but not in examples.json: {', '.join(sorted(unknown))}")
+    if hidden:
+        rep.note(f"not shown (left limbo by the tracker's state): {', '.join(hidden)}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--sample", type=int, default=300, help="advisories in limbo to verify live (others scale)")
@@ -532,6 +579,7 @@ def main() -> None:
         check_git_ranges(rep, recs, max(50, a.sample // 2), a.seed)
         check_git_packages(rep, recs)
         check_old_watchers(rep, z)
+        check_examples(rep, st)
     rep.lines.append(f"\n{'All checks passed.' if not rep.failed else 'Failed: ' + ', '.join(rep.failed)}")
     text = "\n".join(rep.lines) + "\n"
     if a.out:
