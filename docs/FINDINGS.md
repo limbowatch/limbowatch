@@ -2336,6 +2336,20 @@ Answered:
 - **Implication:** the watcher moves to 2.7.1 (`TESTED_VERSION`, the image, the action's `install: python`, the research pipeline). The `resolved` workaround stays for 2.7.0 users.
 - **Sources:** [osv-scanner v2.7.1 release notes](https://github.com/google/osv-scanner/releases/tag/v2.7.1); the comparison above (raw output in the session scratchpad).
 
+### F-154
+- **Date:** 2026-11-12 · **Status:** confirmed (observed)
+- **Question:** Release 0.1.0a12 (OSV-Scanner 2.7.1, the Python 3.14 image, dependency updates, the npm link fix of [F-153](#f-153)): did every artifact ship as tested?
+- **Method:** the release checklist. Before tagging: the 111-project comparison ([F-153](#f-153)); the GitHub, GitLab and Gitea e2e, the container check and the upstream e2e with OSV-Scanner 2.7.1 (on 835eb28; c542a74 then changed only the npm link rule, covered by tests and the comparison); CI on Python 3.12 to 3.14 and macOS; audit 2026-11-12 07:31 UTC, all 9 checks passed (0.1.0a1 and 0.1.0a11 read the live feed).
+- **Result:**
+  - **Image:** `ghcr.io/limbowatch/limbowatch:0.1.0a12@sha256:c89c62a4…`, built from 71f144d. It reports `limbowatch 0.1.0a12`, OSV-Scanner 2.7.1 and Python 3.14.10, and its attestation verifies. It's pinned in the action and the GitLab template (887d8ca); CI passed.
+  - **Tags:** `v0.1.0a12`, `0.1.0-alpha.12` and the action's `v0.1.0a12`, GPG-signed and verified.
+  - **Release workflow:** PyPI `limbowatch` and `limbowatch-cli` 0.1.0a12 and the GitHub pre-release; the image tag and the GitLab mirror give the pinned digest.
+  - **GitLab component:** split d8d0f5e; pipeline 3058138321 and the tag pipeline passed (the Ultimate gate warns, as designed, on the sample's finding in limbo); CI/CD Catalog release at 07:45 UTC.
+  - **Action repo:** split 2c0269f; self-test passed; pre-release published; org profile updated.
+  - **The published action, live:** `limbowatch/limbowatch-action@v0.1.0a12` in the private e2e repo pulled the pinned image and reopened the test issue as `github-actions[bot]` (run 43177708982).
+  - **Smoke test (PyPI 0.1.0a12, OSV-Scanner 2.7.1):** a `go.mod` pinned to brotli v1.2.1 gives GHSA-c9gr-gmg4-2vqv, with no version warning.
+- **Sources:** the runs above; PyPI's JSON API.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
