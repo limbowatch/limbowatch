@@ -2470,6 +2470,20 @@ Answered:
   - **Smoke test (PyPI 0.1.0a13, OSV-Scanner 2.7.1):** on the proof repository's files, all 7 advisories are reported, nats-server's GHSA-38x3-76xf-cq45 among them, which 0.1.0a12 missed.
 - **Sources:** the runs above; PyPI's JSON API.
 
+### F-162
+- **Date:** 2026-11-12 · **Status:** confirmed (direct observation)
+- **Question:** Does a public proof repository show the gap in a way anyone can check?
+- **Method:** public repository `limbowatch/limbo-poc`: dependency files pinning the 7 clean examples ([F-159](#f-159), with nats-server's GHSA-38x3-76xf-cq45 now that 0.1.0a13 reports it) and 5 controls with reviewed advisories; a workflow (`proof.yml`, on push and daily) running the published action v0.1.0a13, OSV-Scanner 2.7.1, `npm audit`, pip-audit 2.10.1 and bundler-audit 0.9.3, then asking GitHub about each advisory; Dependabot alerts on before the first push, read with a maintainer token. First complete run: 43207387208.
+- **Result:**
+  - **Limbowatch reports all 7; OSV-Scanner none of them;** `npm audit` and pip-audit say nothing for typebox and scapy; GitHub's reviewed database has none of the 7 (each `github.com/advisories/<GHSA>` page is a 404); each maintainer advisory is published.
+  - **Every scanner reports the controls:** OSV-Scanner lodash 8, x/net 56, jackson-databind 101, rack 72, requests 9; `npm audit` lodash 4; pip-audit requests 9; bundler-audit rack 69.
+  - **bundler-audit reports rubyntlm 0.6.5** (GHSA-cx24-f932-rr55): the community ruby-advisory-db has it, though GitHub's database and OSV don't. So rubyntlm isn't silent for every Ruby user; the website's examples leave it out.
+  - **Dependabot: 95 alerts, all on the controls** (jackson-databind 50, rack 34, lodash 4, x/net 4, requests 3), none for the 7. The workflow's `GITHUB_TOKEN` can't read Dependabot alerts (HTTP 403, with `security-events: read`), so the repository keeps a dated snapshot. The `git push` output itself reported "95 vulnerabilities" on the default branch.
+  - A workflow-level `env` can't use `${{ runner.temp }}`: the first run failed with no jobs; the value is set in a step.
+- **Caveats:** a snapshot of one day; as GitHub reviews these advisories, the daily run shows them leaving limbo.
+- **Implication:** the website links to the repository and its latest run as public proof. The examples rule also checks ruby-advisory-db for RubyGems (or leaves Ruby examples out).
+- **Sources:** https://github.com/limbowatch/limbo-poc and its workflow runs.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
