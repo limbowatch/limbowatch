@@ -100,6 +100,7 @@ Current understanding at the end of Phase 6 (2026-11-11), with entries linked. P
 52. **GitHub issues work with the job's own token.** `GITHUB_TOKEN` with `issues: write` creates, labels, comments, closes and reopens; a missing label is created with the issue. The issue list lags a new issue by 3–7 seconds, so overlapping runs could duplicate one; the docs set a `concurrency` group ([F-145](#f-145), [F-147](#f-147)).
 53. **GitHub lists only what a token can see, without saying so.** The job's `GITHUB_TOKEN` saw 5 of the org's 18 repos with no error. Org-wide mode notes every case it can tell (no token, no `repo` scope, a fine-grained token, an app token in Actions), and `size` can't tell an empty repo, so emptiness is found at clone time ([F-146](#f-146), [F-147](#f-147)).
 54. **Live end to end on a private repo, from the CLI and from the action; an independent review found 12 real bugs before release**, among them empty repos passed as checked, reports lost when issues failed, and a retried POST that could open an issue twice ([F-148](#f-148)).
+55. **A token whose user can't push to the repo opens no GitHub issues.** GitHub silently drops a new issue's labels then, and the repo's `permissions` show it up front for a user's token (`pull` without `push`); the job's `GITHUB_TOKEN` reads all false there but labels fine ([F-150](#f-150)). Marketplace orders the action's releases as text, so it still calls v0.1.0a9 latest ([F-151](#f-151)).
 
 ## Open questions
 
@@ -122,7 +123,7 @@ Open:
 - Q18. Should the tracker's seeds include the upstreams of popular GitLab-hosted projects' Ruby dependencies, so the watcher doesn't need to poll them? ([F-085](#f-085); Phase 5.) *Partly answered 2026-11-10: the repos of the top 10,000 gems are now watched ([F-121](#f-121)); how much of GitLab's 356 polls that removes wasn't measured.*
 - Q25. Which Maven builds does the resolver get wrong beyond JDK-activated profiles and unreleased siblings: `<repositories>`, private registries, plugin-managed dependencies? Four projects were checked ([F-132](#f-132)).
 - Q28. Is identifying vendored copies (OSV's `determineversion`, which sends file hashes) worth its egress, given that 22 of 85 C/C++ projects vendor code and nothing else says which version ([F-136](#f-136))?
-- Q30. Does the GitHub integration work unchanged on GitHub Enterprise Server (API under `/api/v3`) and on GHE.com (data residency)? Neither is tested. The GitHub docs read for [F-145](#f-145) and [F-148](#f-148) don't name GHE.com's API host; in Actions the job's `GITHUB_API_URL` is used, so both should work from their own Actions.
+- Q30. Does the GitHub integration work unchanged on GitHub Enterprise Server (API under `/api/v3`) and on GHE.com (data residency)? Neither is tested, and the maintainer has neither (2026-11-12): it waits for a user report. The GitHub docs read for [F-145](#f-145) and [F-148](#f-148) don't name GHE.com's API host; in Actions the job's `GITHUB_API_URL` is used, so both should work from their own Actions.
 - Q22. Does GitHub's "more than 5,000 repository advisories a week" count the same thing as the tracker (published, any ecosystem)? It sets the coverage estimate ([F-035](#f-035), [F-098](#f-098)).
 
 Answered:
@@ -2280,6 +2281,30 @@ Answered:
   - **Smoke test (PyPI 0.1.0a10):** a `go.mod` pinned to brotli v1.2.1 gives GHSA-c9gr-gmg4-2vqv.
   - **Marketplace:** the listing's releases are v0.1.0a9 and v0.1.0a5, the ones published through the release form's Marketplace checkbox. v0.1.0a10 appears there once the maintainer ticks it; there's no API for this.
 - **Sources:** the runs above; PyPI's JSON API; the Marketplace page's release data.
+
+### F-150
+- **Date:** 2026-11-12 · **Status:** confirmed (docs and direct observation)
+- **Question:** Can the watcher tell, before opening a GitHub issue, that GitHub will drop its labels (the case F-148 handles only after the fact, by closing the stray issue)?
+- **Method:** the "Create an issue" REST docs; `GET /repos/{owner}/{repo}` with the maintainer's classic token (`repo` scope) on a public repo it doesn't belong to (google/brotli, torvalds/linux) and on two org repos it administers; a live `scan --issues github --issues-dry-run` against google/brotli (read-only: the repo and its `limbowatch`-labelled issues); `scripts/e2e_github.py`, which now repeats that dry run.
+- **Result:**
+  - The docs: "Only users with push access can set labels for new issues. Labels are silently dropped otherwise." The same holds for assignees and milestones.
+  - **The repo's `permissions` object gives the token user's role:** `pull: true, push: false` on google/brotli and torvalds/linux, all true on the org's repos. The job's `GITHUB_TOKEN` reads all false, yet its labels stick ([F-147](#f-147)), so only `pull` without `push` is taken as "labels would be dropped".
+  - Built on that: such a repo gets no new issues. A dry run prints a warning and "wouldn't create" lines; a real run makes its comments and closes, then exits 2 naming the token to use. In `watch`, other repos of the org still get theirs (roles differ per repo). Live against google/brotli, the warning showed and nothing was created.
+- **Caveats:** classic token only. A fine-grained token or a GitHub App token wasn't probed: if its `permissions` show the user's role but the token lacks a permission, the check after creating (F-148) still catches a dropped label. A triage-only user is refused too: the docs require push to label at creation.
+- **Implication:** the case F-148 left ("each run opens one issue, closes it and fails") now opens nothing for user tokens. It remains only for tokens whose `permissions` can't tell.
+- **Sources:** [Create an issue](https://docs.github.com/en/rest/issues/issues?apiVersion=2022-11-28#create-an-issue); the probes above.
+
+### F-151
+- **Date:** 2026-11-12 · **Status:** tentative (inferred from one listing)
+- **Question:** The maintainer published the action's v0.1.0a10 to GitHub Marketplace. Why does the listing still show v0.1.0a9 as latest?
+- **Method:** fetched `github.com/marketplace/actions/limbowatch` without a cache and read the page's embedded release data; compared it with `GET /repos/limbowatch/limbowatch-action/releases`.
+- **Result:**
+  - The listing holds v0.1.0a9, v0.1.0a5 and v0.1.0a10, **in that order**, with `latestRelease` v0.1.0a9. v0.1.0a10 was published last (02:40 UTC, edited 03:06), so the order isn't by date.
+  - **The order is what comparing the tags as text gives** ("v0.1.0a9" > "v0.1.0a5" > "v0.1.0a10"). Semver's rule for pre-release identifiers gives the same, but these tags aren't valid semver anyway. GitHub's own "latest release" API returns 404, because every release is a pre-release.
+  - The Marketplace page shows the default branch's README, so its usage examples already say `@v0.1.0a10`.
+- **Caveats:** inferred from one ordering; GitHub doesn't document how Marketplace picks its latest release.
+- **Implication:** while v0.1.0a9 is listed, Marketplace will call it latest over a10 to a19. Unpublishing v0.1.0a9 and v0.1.0a5 from Marketplace (the release form's checkbox) makes v0.1.0a10 latest, and a11 to a19 then sort above it. Under text order, v0.1.0b1 and v0.1.1 would sort above everything listed, but v0.1.0 would not ("v0.1.0" < "v0.1.0a9").
+- **Sources:** the listing's embedded `releaseData`; the releases API.
 
 ## Archive
 

@@ -56,6 +56,7 @@ def check(cond: bool, what: str, detail: str = "") -> None:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", default="limbowatch/limbowatch-e2e")
+    ap.add_argument("--pushless", default="google/brotli", help="a public repo the token's user can't push to")
     a = ap.parse_args()
     token = os.environ.get("LIMBOWATCH_ISSUES_TOKEN") or subprocess.run(
         ["gh", "auth", "token"], capture_output=True, text=True, check=True).stdout.strip()  # fmt: skip
@@ -134,7 +135,18 @@ def main() -> None:
         )
         (pr,) = rep["projects"]
         check([f["ghsa_id"] for f in pr["report"]["findings"]] == [GHSA], "the repo's own go.mod is found affected")
-        check("would open" not in r.stderr, "the dry run sees the open issue: nothing new", r.stderr)
+        check("would create" not in r.stderr and "would reopen" not in r.stderr,
+              "the dry run sees the open issue: nothing new", r.stderr)  # fmt: skip
+
+        # a token whose user can't push to the repo: GitHub would drop the labels, so nothing is opened (F-150).
+        # A dry run only reads; the public repo is one the token's user can read but not push to.
+        perms = gh("GET", f"/repos/{a.pushless}")["permissions"]
+        check(perms["pull"] and not perms["push"], f"the token's user can read {a.pushless} but not push to it")
+        r = limbowatch("scan", str(proj), "--issues", "github", "--issues-project", a.pushless, "--issues-public",
+                       "--issues-dry-run", "--fail-on", "none", env=env)  # fmt: skip
+        check(r.returncode == 0 and f"warning: no new issues opened in {a.pushless}" in r.stderr
+              and "wouldn't create (see the warning)" in r.stderr and "would create" not in r.stderr,
+              "a token without push access opens nothing, and says why", r.stderr)  # fmt: skip
 
         gh("PATCH", f"/repos/{a.repo}/issues/{issue['number']}", {"state": "closed", "state_reason": "completed"})
     print(f"e2e passed ({a.repo}#{issue['number']}, closed)")

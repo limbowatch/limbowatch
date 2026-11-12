@@ -215,9 +215,10 @@ class GitHub:
     token needs Issues write (the job's `GITHUB_TOKEN` with `permissions: issues: write` will do, F-147).
 
     The issue list includes pull requests (skipped) and lags a new issue by a few seconds (F-147); a label
-    that doesn't exist yet is created with the issue. A label GitHub drops (a token without push access,
-    F-145) would make every later run open the issue again, so a new issue without the `limbowatch` label
-    stops the run.
+    that doesn't exist yet is created with the issue. GitHub drops the labels of a new issue when the token's
+    user has no push access (F-145), and an unlabelled issue would be opened again by every later run. A user
+    token's repo `permissions` say so up front (`pull` without `push`, F-150), so nothing is opened then; the
+    job's `GITHUB_TOKEN` reads all false there yet labels fine (F-147), so the check after creating stays.
     """
 
     name = "GitHub"
@@ -227,6 +228,7 @@ class GitHub:
         self.api = f"{api_url.rstrip('/')}/repos/{repo}"
         self._auth = _auth(f"Bearer {token}", token)
         self.public = True  # until prepare() says otherwise
+        self.warning: str | None = None  # set by prepare() when new issues can't be opened with this token
 
     async def _req(self, method: str, path: str, what: str, **kw: Any) -> Any:
         return _check(await self.http.request(method, self.api + path, auth=self._auth, github=True, **kw), what)
@@ -237,6 +239,13 @@ class GitHub:
             raise TrackerError(f"issues are disabled in {self.repo}")
         visibility = repo.get("visibility") or ("private" if repo.get("private") is True else "public")
         self.public = visibility not in ("private", "internal")  # unknown counts as public: nothing opened
+        perms = repo.get("permissions") or {}
+        if perms.get("pull") is True and perms.get("push") is False:  # a user's role; GITHUB_TOKEN's reads all false
+            self.warning = (  # per repo (roles differ), so it doesn't name NO_LABELS, which stops a whole host
+                f"no new issues opened in {self.repo}: the token's user has no push access there, and GitHub drops "
+                "a new issue's labels without it, so later runs couldn't find the issue. Use the job's GITHUB_TOKEN "
+                "(permissions: issues: write) or a token of a user with write access"
+            )
 
     async def issues(self) -> dict[str, Issue]:
         out: dict[str, Issue] = {}
@@ -255,6 +264,8 @@ class GitHub:
             page += 1
 
     async def create(self, title: str, body: str, labels: list[str]) -> Issue:
+        if self.warning:
+            raise TrackerError(self.warning)
         i = await self._req("POST", "/issues", "create issue", json_body={"title": title, "body": body,
                                                                            "labels": labels})  # fmt: skip
         got = {lb["name"] for lb in i.get("labels") or []}

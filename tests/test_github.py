@@ -604,3 +604,68 @@ def test_watch_stops_issues_on_a_host_after_a_dropped_label(
         assert made.call_count == 1 and not other.called
     assert "github.com/acme/a: issues: GitHub opened #1 without the 'limbowatch' label" in r.stderr
     assert "github.com/acme/b: issues: not updated this run" in r.stderr
+
+
+def test_a_token_without_push_access_opens_nothing(world: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: F811
+    """GitHub would drop the new issue's labels (F-145); a user token's `permissions` say so up front (F-150)."""
+    _gh_env(monkeypatch)
+    p = project(world["tmp"], world["tags"]["v1.1.0"])
+    perms = {"admin": False, "maintain": False, "push": False, "triage": False, "pull": True}
+    reader = {"visibility": "private", "has_issues": True, "permissions": perms}
+    for dry in (True, False):
+        with respx.mock(assert_all_called=False) as router:
+            mocked(router)
+            router.get(REPO).mock(return_value=httpx.Response(200, json=reader))
+            router.get(f"{REPO}/issues").mock(return_value=httpx.Response(200, json=[]))
+            create = router.post(f"{REPO}/issues")
+            r = run(["scan", str(p), "--cache", str(world["cache"]), "--fail-on", "none", "--issues", "github",
+                     *(["--issues-dry-run"] if dry else [])])  # fmt: skip
+        assert not create.called
+        if dry:
+            assert r.exit_code == 0, r.output
+            assert "warning: no new issues opened in acme/app: the token's user has no push access there" in r.output
+            assert "wouldn't create (see the warning): [limbo] GHSA-c000-0000-0001" in r.output
+        else:
+            assert r.exit_code == 2
+            assert "issues couldn't be updated: no new issues opened in acme/app" in r.output
+            assert "GITHUB_TOKEN (permissions: issues: write)" in r.output
+
+
+async def test_the_jobs_token_reads_no_permissions_yet_labels(no_sleep: Any) -> None:
+    """GITHUB_TOKEN's repo `permissions` read all false (F-147), and a repo read without a token has none."""
+    with respx.mock(assert_all_mocked=True) as r:
+        repo = r.get(REPO)
+        async with HttpClient(sleep=no_sleep) as http:
+            for perms in ({"admin": False, "maintain": False, "push": False, "triage": False, "pull": False}, None,
+                          {"pull": True, "push": True}):  # fmt: skip
+                repo.mock(return_value=httpx.Response(200, json={"visibility": "private", "permissions": perms}))
+                t = trackers.GitHub(http, "acme/app", "tok")
+                await t.prepare()
+                assert t.warning is None, perms
+
+
+def test_watch_goes_on_after_a_repo_without_push_access(
+    world: dict[str, Any],  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from limbowatch.hosts import git as git_host
+
+    _gh_env(monkeypatch)
+    monkeypatch.setenv("LIMBOWATCH_SOURCE_TOKEN", "ghp_source")
+    p = project(world["tmp"], world["tags"]["v1.1.0"])
+    monkeypatch.setattr(git_host, "command", lambda project, dest: [
+        "git", "clone", "--depth", "1", "--no-recurse-submodules", "--quiet", f"file://{p}", str(dest)])  # fmt: skip
+    with respx.mock(assert_all_called=False) as router:
+        mocked(router)
+        router.get(f"{API}/orgs/acme/repos").mock(return_value=httpx.Response(200, json=[_repo("a"), _repo("b")]))
+        for name, push in (("a", False), ("b", True)):
+            base = f"{API}/repos/acme/{name}"
+            router.get(base).mock(return_value=httpx.Response(200, json={
+                "visibility": "private", "permissions": {"pull": True, "push": push}}))  # fmt: skip
+            router.get(f"{base}/issues").mock(return_value=httpx.Response(200, json=[]))
+        none = router.post(f"{API}/repos/acme/a/issues")
+        made = router.post(f"{API}/repos/acme/b/issues").mock(return_value=httpx.Response(201, json=_issue(3, "")))
+        r = run(["watch", "--github-org", "acme", "--cache", str(world["cache"]), "--fail-on", "none", "--issues",
+                 "--format", "json"])  # fmt: skip
+        assert not none.called and made.call_count == 1
+    assert "github.com/acme/a: issues: no new issues opened in acme/a" in r.stderr

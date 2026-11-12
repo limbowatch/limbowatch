@@ -593,9 +593,14 @@ async def _sync_issues(
             gone[key] = watch_issues.Gone.VISIBLE
     actions = watch_issues.plan(current, one, existing, changes, gone, policy, tracker.public)
     lines = [note] if note else []
+    warning = getattr(tracker, "warning", None)
+    if dry_run and warning and any(a.kind in ("create", "later") for a in actions):
+        lines.append(f"warning: {warning}")  # a real run makes the other changes, then stops with this error
     if dry_run:
         later = sum(1 for a in actions if a.kind == "later")
-        lines += [f"would {a.kind}: {a.title or ('#' + str(a.issue.number) if a.issue else a.key)}"
+        verb = {"create": "wouldn't create (see the warning)"} if warning else {}
+        lines += [f"{verb.get(a.kind, 'would ' + a.kind)}: "
+                  f"{a.title or ('#' + str(a.issue.number) if a.issue else a.key)}"
                   for a in actions if a.kind != "later"]  # fmt: skip
         return lines + ([f"would leave {later} new issue(s) for later runs (--issues-max-new)"] if later else [])
     return [*lines, *await watch_issues.apply(tracker, actions)]
