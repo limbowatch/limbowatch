@@ -95,6 +95,12 @@ Current understanding at the end of Phase 6 (2026-11-11), with entries linked. P
 50. **A commits-only clone answers "does this commit contain the fix?"** exactly, on any host, with no API quota (0.4–22 MB, under 3 s). A FreeRDP submodule at 3.10.0 is affected by 228 advisories in limbo, at 3.33.1 by none. Against OSV's own version ranges, 95% of verdicts agree and 1.6% disagree, each traced disagreement a conflict between the advisory and the CVE record; OSV's commit lookup lags its ranges, so it only ever raises a verdict ([F-136](#f-136), [F-138](#f-138), [F-139](#f-139)).
 51. **Two silent failures found on the way:** a `conan.lock` failed the whole offline inventory since 0.1.0a1 (OSV-Scanner needs a ConanCenter database, which isn't in OSV's list), and package names in ecosystems Limbowatch doesn't know were all treated as valid, which hid package-less advisories from repository matching. Both fixed ([F-137](#f-137), [F-138](#f-138)). Releasing it, the feed briefly broke every older watcher: entries without a `package` made 0.1.0a1-0.1.0a6 fail for 53 minutes, until they got a `GIT` package; a test and the audit now guard it ([F-140](#f-140)). An independent review then found four silent passes in the verdicts (a fix of an older line clearing a newer one, misread tag versions, trailing letters read as pre-releases, mixed advisories skipped), a crash on malformed manifests and a git config command run; all fixed in 0.1.0a8 with the measurements unchanged ([F-141](#f-141)).
 
+**Phase 7: GitHub as a host (2026-11-11 to 11-12)**
+
+52. **GitHub issues work with the job's own token.** `GITHUB_TOKEN` with `issues: write` creates, labels, comments, closes and reopens; a missing label is created with the issue. The issue list lags a new issue by 3–7 seconds, so overlapping runs could duplicate one; the docs set a `concurrency` group ([F-145](#f-145), [F-147](#f-147)).
+53. **GitHub lists only what a token can see, without saying so.** The job's `GITHUB_TOKEN` saw 5 of the org's 18 repos with no error. Org-wide mode notes every case it can tell (no token, no `repo` scope, a fine-grained token, an app token in Actions), and `size` can't tell an empty repo, so emptiness is found at clone time ([F-146](#f-146), [F-147](#f-147)).
+54. **Live end to end on a private repo, from the CLI and from the action; an independent review found 12 real bugs before release**, among them empty repos passed as checked, reports lost when issues failed, and a retried POST that could open an issue twice ([F-148](#f-148)).
+
 ## Open questions
 
 Open:
@@ -115,15 +121,15 @@ Open:
 - Q17. How many Go modules on vanity paths (k8s.io, golang.org/x, go.opentelemetry.io) can be mapped to a GitHub repo without deps.dev? 320 Kubernetes dependencies stay checked by name only ([F-085](#f-085)). blindspot keeps a verified list (`docs/go-vanity-coverage.md`, [F-072](#f-072)).
 - Q18. Should the tracker's seeds include the upstreams of popular GitLab-hosted projects' Ruby dependencies, so the watcher doesn't need to poll them? ([F-085](#f-085); Phase 5.) *Partly answered 2026-11-10: the repos of the top 10,000 gems are now watched ([F-121](#f-121)); how much of GitLab's 356 polls that removes wasn't measured.*
 - Q25. Which Maven builds does the resolver get wrong beyond JDK-activated profiles and unreleased siblings: `<repositories>`, private registries, plugin-managed dependencies? Four projects were checked ([F-132](#f-132)).
-- ~~Q26. For limbo advisories without a package, how often does the patched version map to a tag upstream, and how many of the 1,858 repos are libraries?~~ **Answered 2026-11-11: 95 repos (1,472 records) are libraries in vcpkg, BCR or conan-center; every patched version maps to a tag for 82% of their advisories ([F-136](#f-136)).**
-- ~~Q27. How often is an upstream verdict wrong when read against the advisory itself?~~ **Answered 2026-11-11: 95% agree with OSV's version ranges, 3% possible, 1.6% disagree, each traced disagreement a conflict between the advisory and the CVE record ([F-139](#f-139)).**
 - Q28. Is identifying vendored copies (OSV's `determineversion`, which sends file hashes) worth its egress, given that 22 of 85 C/C++ projects vendor code and nothing else says which version ([F-136](#f-136))?
-- ~~Q29. On GitHub, does issue creation create a label that doesn't exist, and do labels set with `GITHUB_TOKEN` (`issues: write`) stick, or are they "silently dropped"? The watcher finds its issues by label ([F-145](#f-145)).~~ **Answered 2026-11-12: a missing label is created, and labels set with `GITHUB_TOKEN` stick ([F-147](#f-147)).**
-- Q30. Does the GitHub tracker work unchanged on GitHub Enterprise Server (API under `/api/v3`, `GITHUB_API_URL` in Actions)? Not on the pages read for [F-145](#f-145).
+- Q30. Does the GitHub integration work unchanged on GitHub Enterprise Server (API under `/api/v3`) and on GHE.com (data residency)? Neither is tested. The GitHub docs read for [F-145](#f-145) and [F-148](#f-148) don't name GHE.com's API host; in Actions the job's `GITHUB_API_URL` is used, so both should work from their own Actions.
 - Q22. Does GitHub's "more than 5,000 repository advisories a week" count the same thing as the tracker (published, any ecosystem)? It sets the coverage estimate ([F-035](#f-035), [F-098](#f-098)).
 
 Answered:
 
+- ~~Q29. On GitHub, does issue creation create a label that doesn't exist, and do labels set with `GITHUB_TOKEN` (`issues: write`) stick, or are they "silently dropped"? The watcher finds its issues by label ([F-145](#f-145)).~~ **Answered 2026-11-12: a missing label is created, and labels set with `GITHUB_TOKEN` stick ([F-147](#f-147)).**
+- ~~Q27. How often is an upstream verdict wrong when read against the advisory itself?~~ **Answered 2026-11-11: 95% agree with OSV's version ranges, 3% possible, 1.6% disagree, each traced disagreement a conflict between the advisory and the CVE record ([F-139](#f-139)).**
+- ~~Q26. For limbo advisories without a package, how often does the patched version map to a tag upstream, and how many of the 1,858 repos are libraries?~~ **Answered 2026-11-11: 95 repos (1,472 records) are libraries in vcpkg, BCR or conan-center; every patched version maps to a tag for 82% of their advisories ([F-136](#f-136)).**
 - ~~Q24. Is ecosyste.ms's Maven lag temporary, and is there a primary-source feed of Maven Central releases?~~ **Not temporary: weeks behind per package. No current bulk feed exists; each package's `maven-metadata.xml` is current and supports ETags, and the tracker polls the watched ones daily ([F-108](#f-108)).**
 - ~~Q21. Are advisories published close to a release of their package?~~ **Yes: 71% within a day, 79% within 3 days; the fix release usually comes first ([F-100](#f-100)).**
 - ~~Q20. How many source repos do the top packages of each ecosystem map to, and how many are already watched?~~ **About 45,000 unwatched repos in the top 10,000 of eight ecosystems; NuGet, Packagist, Maven and RubyGems are barely covered; a sample holds 30 advisories in limbo ([F-099](#f-099)).**
@@ -2226,6 +2232,40 @@ Answered:
   - **Empty repos:** an empty clone (no HEAD) is reported as an empty repository, not as checked. This holds for every host, because GitHub has no reliable empty flag.
   - **Clone auth:** `hosts.git` can use any user name for GitHub. Its clone environment doesn't turn off the system git config, so a credential helper on the machine can still answer. That is harmless (the user's own credentials), but tests set `GIT_CONFIG_NOSYSTEM`.
 - **Sources:** run 43135780310 (limbowatch/limbowatch-e2e, private); probe output in the session scratchpad.
+
+### F-148
+- **Date:** 2026-11-12 · **Status:** confirmed (observed)
+- **Question:** Phase 7: does the watcher work on GitHub end to end (issues from the CLI and from the action with the job's token, org-wide mode), and what did an independent review of the change find?
+- **Method:**
+  - `scripts/e2e_github.py` against the private `limbowatch/limbowatch-e2e`, run 3 times: open or reopen, a second run, upgrade, downgrade; then `watch --github-org limbowatch` with every repo but the test repo excluded.
+  - The action from a commit, in a `workflow_dispatch` workflow in that repo with `permissions: issues: write` and no secret: runs 43139440923 (4a994a6) and 43141533855 (b668644).
+  - `scripts/e2e_gitlab.py`, `scripts/e2e_gitea.py` and `scripts/check_integrations.py` again, because the issue planner and the HTTP client changed for every tracker.
+  - An independent review: a fresh agent given the diff and F-145 to F-147, not my conclusions.
+- **Result:**
+  - **CLI e2e:** every step passed on each run. Issue #12 opened with the `limbowatch`, `security` and `severity:low` labels; a second run changed nothing; upgrading closed it as `completed`; downgrading reopened the same issue.
+  - **Org-wide mode:** the PAT listed all 18 org repos, 13 of them private, with no partial-listing note, and checked the test repo's own `go.mod` (GHSA-c9gr-gmg4-2vqv). The dry run planned nothing new, because the issue was open.
+  - **The action:** with the job's `GITHUB_TOKEN` it reopened #12 as `github-actions[bot]` ("Found again in go.mod:5") and passed with 1 finding.
+  - **GitLab and Gitea:** the e2e scripts pass after one fix to the scripts themselves. They expected a new issue on every run, while a later run correctly reopens the finding's earlier issue (the key is stable), so they had failed on any second run since F-087.
+  - **The review** reported 13 findings. One was wrong: the Gitea tracker treats internal repos as private, not public. The other 12 were fixed with tests, the most serious first:
+    1. org-wide mode took an empty repo for a checked one, because `git rev-parse HEAD` prints `HEAD` (exit 128) in an empty repo (the earlier test faked the clone);
+    2. one-time "changed" comments were dropped without a word when issue writes were skipped (a rate limit in `prepare`, an earlier project's limit in `watch`, a tracker error);
+    3. a secondary limit that never lifts ended in a 403 error instead of the clean stop;
+    4. a tracker error in `scan` (such as a read-only `GITHUB_TOKEN`) ended the run before any report was written;
+    5. a dropped label left an issue open that later runs couldn't find;
+    6. a POST was retried after a timeout or 5xx, so an issue could be opened twice;
+    7. the action wrote issues on `pull_request_target`, `issue_comment` and `workflow_run`, which run on the default branch but may scan a fork's files;
+    8. a dry run without a token sent an empty `Bearer` header and failed;
+    9. a repo answer without visibility fields counted as private;
+    10. partial listings went unnoted for classic tokens without `repo` scope and for fine-grained tokens;
+    11. GHE.com's API host was guessed wrong;
+    12. a reopen's comment could be lost.
+  - **Checks:** CI and coverage 93.4% (353 tests); the audit of 2026-11-12 02:12 UTC passed all 9 checks.
+- **Caveats:**
+  - One private repo and one org.
+  - Enterprise Server and GHE.com are untested (Q30): GitHub's docs read don't name GHE.com's API host, so in Actions the job's `GITHUB_API_URL` is used, and nothing is guessed.
+  - Secondary limits were exercised only with recorded responses.
+- **Implication:** GitHub is a full host for the watcher. The reviewer found real bugs a passing test suite hid (a faked clone), so tests now run real git for empty repos. A new tracker or host gets a live e2e and an independent review before release.
+- **Sources:** the runs above; `scripts/e2e_github.py`; `tests/test_github.py`.
 
 ## Archive
 
