@@ -2363,6 +2363,20 @@ Answered:
 - **Implication:** [F-151](#f-151) is confirmed. Before 0.1.0a20 or 0.1.0, check the listing after release; unlist older releases if the new one doesn't come out latest.
 - **Sources:** the listing's `releaseData`; the releases API.
 
+### F-156
+- **Date:** 2026-11-12 · **Status:** tentative (BOD 26-04 confirmed from CISA; SOC 2, PCI DSS and FedRAMP not read, their documents are gated)
+- **Question:** Do compliance regimes set deadlines for fixing high and critical vulnerabilities, and when does the clock start? (For the website's framing: an advisory in limbo delays the alert, so it delays the fix.)
+- **Method:** read the CISA directive pages (cisa.gov/directives; BOD 19-02, 22-01, 26-04) and BOD 26-04's Table 1 (an image, read directly). Tried the AICPA Trust Services Criteria PDF, PCI DSS v4.0.1 and FedRAMP's continuous-monitoring guides: each download returned an HTML page (sign-in, license acceptance or a moved document), so none was read.
+- **Result:**
+  - **BOD 26-04, "Prioritizing Security Updates Based on Risk" (issued 2026-06-10)** revokes and supersedes BOD 19-02 and BOD 22-01. It applies to federal civilian executive branch agencies (contractors only when a contract says so).
+  - **Its clock starts at detection:** "whichever comes first" of CISA adding the CVE to the KEV catalog, or the agency identifying the vulnerability on an asset. Publication and a vendor's fix release are not triggers. BOD 19-02 said the same: "from the time of initial detection, not the time when notification is made."
+  - **Table 1 deadlines** (calendar days), by exposure, KEV status, automatability and technical impact: 3 days (with forensic triage for total control) for publicly exposed and KEV-listed or automatable; 14 days for most other exposed or KEV cases; 60 days for exposed, not KEV, not automatable, partial control, and for unexposed automatable; "fix on system upgrade" for unexposed, not KEV, not automatable.
+  - **The directive tracks vulnerabilities by CVE.** It says nothing about open source dependencies.
+  - **Not verified:** that SOC 2's criteria (CC7.1) require detecting and monitoring vulnerabilities without setting a number of days (the deadline comes from each company's own policy, which the auditor tests); that PCI DSS v4 requirement 6.3.3 asks for critical and high patches within one month of release; FedRAMP's 30/90/180-day timeframes. These are common understanding, not read here.
+- **Caveats:** BOD 26-04 binds federal agencies only; companies copy such tables into their own policies, but that wasn't measured. That teams upgrade dependencies mainly when an alert forces them is plausible (Phase 1 found affected versions shipped in 13 of 14 projects, [F-055](#f-055)), not measured.
+- **Implication:** where the clock starts at detection, an advisory in limbo for weeks ([F-055](#f-055): median 23 days to review; [F-064](#f-064): 7,988 pending on 2026-10-31, median wait so far 57 days) doesn't count against the deadline: a team can meet every deadline and still run a publicly known vulnerability for weeks. That's the website's point, stated from this entry. Before quoting SOC 2, PCI DSS or FedRAMP on the site, read their texts.
+- **Sources:** [BOD 26-04](https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk) and its Table 1 image; [BOD 19-02](https://www.cisa.gov/news-events/directives/bod-19-02-vulnerability-remediation-requirements-internet-accessible-systems); [BOD 22-01](https://www.cisa.gov/news-events/directives/bod-22-01-reducing-significant-risk-known-exploited-vulnerabilities).
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
