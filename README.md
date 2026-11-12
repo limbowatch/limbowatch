@@ -101,7 +101,7 @@ The methods, open dataset (CC BY 4.0) and scripts to reproduce it are in the [re
 | 4. Limbowatch watcher for GitLab, GitHub, Gitea and Forgejo: CI component and action, issues that update as advisories move through review | **released** as 0.1.0a1, an alpha; current 0.1.0a12 ([PyPI](https://pypi.org/project/limbowatch-cli/), [GitLab CI/CD Catalog](https://gitlab.com/explore/catalog/limbowatch/limbowatch-component), [GitHub Marketplace](https://github.com/marketplace/actions/limbowatch)) |
 | 5. Org-wide watch, more ecosystems (Maven/Gradle first) | built: tracker coverage, source repos for more ecosystems, the image, org-wide mode (`limbowatch watch`) and Maven transitive resolution; **released** in 0.1.0a6 |
 | 6. C/C++ and vendored code: git submodules, CMake, vcpkg, Bazel, Conan; a feed that covers advisories without a package | **released** in 0.1.0a9 |
-| 7. GitHub as a full host: issues (with the job's own token) and org-wide mode for GitHub organizations | built; **released** in 0.1.0a10 and 0.1.0a11, awaiting review |
+| 7. GitHub as a full host: issues (with the job's own token) and org-wide mode for GitHub organizations | **released** in 0.1.0a10 to 0.1.0a12 |
 
 Limbowatch builds only what existing tools don't do. See [the plan](docs/PHASE0_PLAN.md) and [research findings](docs/FINDINGS.md).
 

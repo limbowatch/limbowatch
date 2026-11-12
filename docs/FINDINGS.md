@@ -4,11 +4,11 @@
 
 What we've verified or measured while building Limbowatch. Maintenance rules are in [CLAUDE.md](../CLAUDE.md#findings-report-docsfindingsmd).
 
-Last summarized: 2026-11-11 (end of Phase 6: C/C++ and other upstream sources, a feed that covers advisories without a package; released as 0.1.0a8, F-140 to F-142; a second review, tests and coverage in F-143, released as 0.1.0a9 in F-144; awaiting review). Before that: 2026-11-10 (end of Phase 5), 2026-11-07 (end of Phase 4).
+Last summarized: 2026-11-12 (end of Phase 7: GitHub as a host, released as 0.1.0a10 to 0.1.0a12, F-145 to F-155; reviewed and closed). Before that: 2026-11-11 (end of Phase 6: C/C++ and other upstream sources, a feed that covers advisories without a package; released as 0.1.0a8, F-140 to F-142; a second review, tests and coverage in F-143, released as 0.1.0a9 in F-144), 2026-11-10 (end of Phase 5), 2026-11-07 (end of Phase 4).
 
 ## Summary
 
-Current understanding at the end of Phase 6 (2026-11-11), with entries linked. Points 1–14 come from the Phase 1 research (2026-10-21 to 10-25), 15–20 and 32 from the live tracker (Phase 2, measured again 2026-11-07), 21 from Phase 3, 22–31 from the watcher (Phase 4), 33–46 from Phase 5, 47–51 from Phase 6. Numbers are dated; review backlogs drift.
+Current understanding at the end of Phase 7 (2026-11-12), with entries linked. Points 1–14 come from the Phase 1 research (2026-10-21 to 10-25), 15–20 and 32 from the live tracker (Phase 2, measured again 2026-11-07), 21 from Phase 3, 22–31 from the watcher (Phase 4), 33–46 from Phase 5, 47–51 from Phase 6, 52–56 from Phase 7. Numbers are dated; review backlogs drift.
 
 **Phase 1: the gap in a sample of real projects**
 
@@ -99,8 +99,8 @@ Current understanding at the end of Phase 6 (2026-11-11), with entries linked. P
 
 52. **GitHub issues work with the job's own token.** `GITHUB_TOKEN` with `issues: write` creates, labels, comments, closes and reopens; a missing label is created with the issue. The issue list lags a new issue by 3–7 seconds, so overlapping runs could duplicate one; the docs set a `concurrency` group ([F-145](#f-145), [F-147](#f-147)).
 53. **GitHub lists only what a token can see, without saying so.** The job's `GITHUB_TOKEN` saw 5 of the org's 18 repos with no error. Org-wide mode notes every case it can tell (no token, no `repo` scope, a fine-grained token, an app token in Actions), and `size` can't tell an empty repo, so emptiness is found at clone time ([F-146](#f-146), [F-147](#f-147)).
-54. **Live end to end on a private repo, from the CLI and from the action; an independent review found 12 real bugs before release**, among them empty repos passed as checked, reports lost when issues failed, and a retried POST that could open an issue twice ([F-148](#f-148)).
-55. **A token whose user can't push to the repo opens no GitHub issues.** GitHub silently drops a new issue's labels then, and the repo's `permissions` show it up front for a user's token (`pull` without `push`); the job's `GITHUB_TOKEN` reads all false there but labels fine ([F-150](#f-150)). Marketplace orders the action's releases as text, so it still calls v0.1.0a9 latest ([F-151](#f-151)).
+54. **Live end to end on a private repo, from the CLI and from the action; an independent review found 12 real bugs before release**, among them empty repos passed as checked, reports lost when issues failed, and a retried POST that could open an issue twice ([F-148](#f-148)). Released as 0.1.0a10, 0.1.0a11 and 0.1.0a12, each with the published action run live ([F-149](#f-149), [F-152](#f-152), [F-154](#f-154)).
+55. **A token whose user can't push to the repo opens no GitHub issues.** GitHub silently drops a new issue's labels then, and the repo's `permissions` show it up front for a user's token (`pull` without `push`); the job's `GITHUB_TOKEN` reads all false there but labels fine ([F-150](#f-150)). GitHub Marketplace picks the action's "latest" release by comparing tags as text, so only v0.1.0a10 to a12 are listed; text order breaks again at a20 and at 0.1.0 ([F-151](#f-151), [F-155](#f-155)).
 56. **OSV-Scanner 2.7.1 reads the same dependencies as 2.7.0** on 111 projects (236,253 against 236,254), checking npm packages without `resolved` itself and dropping a false yarn `patch:` entry. The comparison found linked local npm packages checked as registry ones in both versions, now decided by the dependency's spec ([F-153](#f-153)).
 
 ## Open questions
@@ -125,6 +125,7 @@ Open:
 - Q25. Which Maven builds does the resolver get wrong beyond JDK-activated profiles and unreleased siblings: `<repositories>`, private registries, plugin-managed dependencies? Four projects were checked ([F-132](#f-132)).
 - Q28. Is identifying vendored copies (OSV's `determineversion`, which sends file hashes) worth its egress, given that 22 of 85 C/C++ projects vendor code and nothing else says which version ([F-136](#f-136))?
 - Q30. Does the GitHub integration work unchanged on GitHub Enterprise Server (API under `/api/v3`) and on GHE.com (data residency)? Neither is tested, and the maintainer has neither (2026-11-12): it waits for a user report. The GitHub docs read for [F-145](#f-145) and [F-148](#f-148) don't name GHE.com's API host; in Actions the job's `GITHUB_API_URL` is used, so both should work from their own Actions.
+- Q31. Do labels set at issue creation stick with a fine-grained token or a GitHub App installation token, and what do those tokens' repo `permissions` show? Only a classic token and the job's `GITHUB_TOKEN` were probed; the check after creating still catches a dropped label ([F-150](#f-150)).
 - Q22. Does GitHub's "more than 5,000 repository advisories a week" count the same thing as the tracker (published, any ecosystem)? It sets the coverage estimate ([F-035](#f-035), [F-098](#f-098)).
 
 Answered:
