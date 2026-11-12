@@ -40,18 +40,20 @@ Home is `/`. The 25,000 advisory pages (`/advisory/<GHSA>/`) get a new template.
 
 Cards, one per package: name, ecosystem, severity, "fix released N days ago", "advisory published N days ago", "scanner databases: not yet", and a link to the advisory. Today's would be:
 
-| Package | Severity | Fix released | Advisory waiting |
-|---|---|---|---|
-| jackson-core (Maven) | high | 88 days ago | 61 days |
-| @sinclair/typebox (npm) | high | 124 days ago | 83 days |
-| nats-server (Go) | high | 212 days ago | 136 days |
-| go-openapi/spec (Go) | critical | 115 days ago | 114 days |
-| mistune (PyPI) | high | 144 days ago | 144 days |
-| vm2 (npm) | critical | 70 days ago | 70 days |
+| Package | Severity | Fix released | Advisory waiting | Dependabot on that version |
+|---|---|---|---|---|
+| @sinclair/typebox (npm) | high | 124 days ago | 83 days | no alerts |
+| nats-server (Go) | high | 212 days ago | 136 days | no alerts |
+| go-openapi/spec (Go) | critical | 115 days ago | 114 days | no alerts |
+| netty-handler (Maven) | high | 98 days ago | 97 days | no alerts |
+| go-toml/v2 (Go) | high | 130 days ago | 128 days | no alerts |
+| mustache (RubyGems) | critical | 84 days ago | 84 days | no alerts |
+
+Not used, though in limbo: jackson-core, vm2 and mistune. Dependabot alerts on those versions for other, reviewed advisories whose fix is as new or newer, so its users get the limbo fix by coincidence (F-158). The generated list skips such versions.
 
 Caption: The maintainers published each advisory and shipped the fix. None is in GitHub's reviewed database or OSV yet, so the scanners above don't report it. Re-checked daily; a package leaves this list when GitHub reviews it.
 
-Proof line, once step 0 is in: "We pinned these versions in a test repository. Dependabot alerted on the control packages and not on these." (F-157 follow-up.)
+Proof line: "We pinned these versions in a test repository. Dependabot raised 95 alerts on the control packages and none on these." (F-158)
 
 **The clock starts late** (today's slider, simplified)
 

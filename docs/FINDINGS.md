@@ -2379,7 +2379,7 @@ Answered:
 - **Sources:** [BOD 26-04](https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk) and its Table 1 image; [BOD 19-02](https://www.cisa.gov/news-events/directives/bod-19-02-vulnerability-remediation-requirements-internet-accessible-systems); [BOD 22-01](https://www.cisa.gov/news-events/directives/bod-22-01-reducing-significant-risk-known-exploited-vulnerabilities).
 
 ### F-157
-- **Date:** 2026-11-12 · **Status:** confirmed (live checks; Dependabot not yet tested on these packages)
+- **Date:** 2026-11-12 · **Status:** confirmed (live checks; Dependabot tested in [F-158](#f-158))
 - **Question:** For the website: which well-known packages have a high or critical advisory, published by their own maintainers and fixed, that scanners still don't report?
 - **Method:**
   - **Candidates:** the live `press/limbo.csv` of 2026-11-12 07:32 UTC: pending review (not likely permanent), high or critical, a fixed version entered, an ecosystem GitHub reviews, waiting at least 60 days. 2,195 advisories, 921 packages.
@@ -2409,6 +2409,21 @@ Answered:
 - **Caveats:** dependent-repo counts are ecosyste.ms's and include indirect use; they rank, they don't prove exposure. The ranges are as the maintainers entered them, unreviewed. Not yet shown on these packages: that Dependabot stays silent. GitHub's documentation says Dependabot alerts come from reviewed advisories, all 11 are absent from the reviewed database, and [F-112](#f-112) found 0 alerts for 1,080 confirmed findings in limbo; a private repository pinning these versions, with a control package per ecosystem, would show it directly (waiting for the maintainer's go-ahead).
 - **Implication:** the website can name real, popular packages with high or critical advisories, fixed upstream for weeks to months, that scanners still call clean. Re-check before publishing: these leave limbo when GitHub reviews them.
 - **Sources:** the API responses above (GitHub, OSV, deps.dev, RubyGems, ecosyste.ms); raw output in the session scratchpad.
+
+### F-158
+- **Date:** 2026-11-12 · **Status:** confirmed (direct observation)
+- **Question:** Does Dependabot alert on the F-157 examples, and does it lead to their fix some other way?
+- **Method:** a new private repository, `limbowatch/limbo-examples`, with Dependabot alerts turned on (`PUT /repos/{r}/vulnerability-alerts`) before the first push. It holds only dependency files pinning the last affected version of each F-157 example (`pom.xml`, `package-lock.json`, `requirements.txt`, `go.mod`, `Gemfile.lock`), plus one control per ecosystem with reviewed advisories at that version (jackson-databind 2.9.10, lodash 4.17.20, requests 2.31.0, golang.org/x/net v0.17.0, rack 2.2.0; 97 reviewed advisories between them by `GET /advisories?type=reviewed&affects=`). Read `GET /repos/{r}/dependency-graph/sbom` and all of `GET /repos/{r}/dependabot/alerts`.
+- **Result:**
+  - **The dependency graph** listed all 16 packages at the pinned versions within a minute of the push (netty-handler as `4.1.136`, without `.Final`).
+  - **No alerts for 23 minutes after the first push, controls included.** A second push that changed a manifest (one comment line) produced alerts 2.5 minutes later. The first push alone didn't start Dependabot's scan, although alerts were on before it.
+  - **111 alerts in all:** 95 on the controls (jackson-databind 50, rack 34, lodash 4, golang.org/x/net 4, requests 3), so Dependabot was working.
+  - **None for any of the 11 advisories in limbo.**
+  - **For 3 examples, Dependabot alerts on other, reviewed advisories whose fix is as new or newer:** jackson-core 2.18.9 (2 high, fixed in 2.18.11; the limbo fix is 2.18.10), vm2 3.12.0 (4, fixed in 3.12.1 and 3.12.2; the limbo fix is 3.12.1), mistune 3.2.1 (10, fixed in 3.3.0; the limbo fix GHSA-jxhr-4j38-fpxg is 3.3.0, though other limbo advisories need 3.3.4). A Dependabot user upgrading as told would get those limbo fixes by coincidence.
+  - **For the other 8, Dependabot raised nothing:** @sinclair/typebox 0.34.51, netty-handler 4.1.136.Final, nats-server v2.12.6, go-openapi/spec v0.22.4, go-toml/v2 v2.4.2, mustache 1.1.2, rubyntlm 0.6.5, scapy 2.7.0.
+- **Caveats:** one repository, alerts only (not security updates); the delayed start may be a one-off, but [F-090](#f-090) saw a similar need for a manifest-changing commit.
+- **Implication:** the site's examples must be versions Dependabot says nothing about. The generated examples will skip a version when a reviewed advisory already asks for an upgrade to the limbo fix or past it (`GET /advisories?type=reviewed&affects=<package>@<version>`, compare patched versions with the ecosystem's rules). For F-157's list that keeps typebox, netty-handler, nats-server, go-openapi/spec, go-toml, mustache, rubyntlm and scapy. For scripts that create a test repository: push a manifest change after the first push, and wait for the control alerts before reading the rest.
+- **Sources:** the API responses above; raw output in the session scratchpad.
 
 ## Archive
 
