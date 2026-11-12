@@ -74,7 +74,9 @@ def main() -> None:
 
     for old in ours("open"):  # leftovers from an interrupted run
         gh("PATCH", f"/repos/{a.repo}/issues/{old['number']}", {"state": "closed", "state_reason": "completed"})
-    before = {i["number"] for i in ours()}
+
+    def mine() -> list[dict[str, Any]]:  # the finding's issue: opened by the first run, reopened by later ones
+        return [i for i in ours() if GHSA in i["title"]]
 
     with tempfile.TemporaryDirectory() as tmp:
         proj, st = Path(tmp) / "proj", Path(tmp) / "state.json"
@@ -88,8 +90,9 @@ def main() -> None:
             return r
 
         r = scan()
-        new = [i for i in ours() if i["number"] not in before]
-        check(len(new) == 1 and GHSA in new[0]["title"] and new[0]["state"] == "open", "opens one issue", r.stderr)
+        new = mine()
+        check(len(new) == 1 and new[0]["state"] == "open", "opens one issue (or reopens it from an earlier run)",
+              r.stderr)  # fmt: skip
         issue = new[0]
         labels = {lb["name"] for lb in issue["labels"]}
         check({"limbowatch", "security"} <= labels, "the issue has the limbowatch and security labels", str(labels))
@@ -97,7 +100,7 @@ def main() -> None:
         notes = issue["comments"]
 
         r = scan()
-        again = [i for i in ours() if i["number"] not in before]
+        again = mine()
         now = gh("GET", f"/repos/{a.repo}/issues/{issue['number']}")
         check(len(again) == 1 and now["comments"] == notes, "a second run changes nothing", r.stderr)
 
@@ -109,7 +112,7 @@ def main() -> None:
 
         (proj / "go.mod").write_text(GO_MOD.format(v="v1.2.1"))
         r = scan()
-        reopened = [i for i in ours() if i["number"] not in before]
+        reopened = mine()
         check(len(reopened) == 1 and reopened[0]["state"] == "open" and reopened[0]["number"] == issue["number"],
               "finding it again reopens the same issue", r.stderr)  # fmt: skip
 
@@ -124,8 +127,11 @@ def main() -> None:
         check(src["error"] is None and src["note"] is None, "the org is listed in full", json.dumps(src))
         checked = [p["project"] for p in rep["projects"]]
         listed = len(checked) + len(rep["not_checked"])
-        check(checked == [f"github.com/{a.repo}"] and listed == len(names),
-              f"every repo listed ({listed}, private ones too), the test repo checked", json.dumps(rep["not_checked"]))
+        check(
+            checked == [f"github.com/{a.repo}"] and listed == len(names),
+            f"every repo listed ({listed}, private ones too), the test repo checked",
+            json.dumps(rep["not_checked"]),
+        )
         (pr,) = rep["projects"]
         check([f["ghsa_id"] for f in pr["report"]["findings"]] == [GHSA], "the repo's own go.mod is found affected")
         check("would open" not in r.stderr, "the dry run sees the open issue: nothing new", r.stderr)

@@ -79,7 +79,9 @@ def main() -> None:
 
     for old in ours("opened"):  # leftovers from an interrupted run
         gl("PUT", f"/projects/{p['id']}/issues/{old['iid']}", {"state_event": "close"})
-    before = {i["iid"] for i in ours()}
+
+    def mine() -> list[dict[str, Any]]:  # the finding's issue: opened by the first run, reopened by later ones
+        return [i for i in ours() if GHSA in i["title"]]
 
     with tempfile.TemporaryDirectory() as tmp:
         proj, st = Path(tmp) / "proj", Path(tmp) / "state.json"
@@ -88,8 +90,9 @@ def main() -> None:
 
         r = scan(proj, a.url, a.project, st)
         print(r.stderr.strip())
-        new = [i for i in ours() if i["iid"] not in before]
-        check(len(new) == 1 and GHSA in new[0]["title"] and new[0]["state"] == "opened", "opens one issue", r.stderr)
+        new = mine()
+        check(len(new) == 1 and new[0]["state"] == "opened", "opens one issue (or reopens it from an earlier run)",
+              r.stderr)  # fmt: skip
         issue = new[0]
         check(issue["confidential"] is True, "the issue is confidential")
         check("<!-- limbowatch {" in issue["description"], "the issue carries the finding marker")
@@ -97,7 +100,7 @@ def main() -> None:
         notes = len(gl("GET", f"/projects/{p['id']}/issues/{issue['iid']}/notes?per_page=100"))
 
         scan(proj, a.url, a.project, st)
-        again = [i for i in ours() if i["iid"] not in before]
+        again = mine()
         notes2 = len(gl("GET", f"/projects/{p['id']}/issues/{issue['iid']}/notes?per_page=100"))
         check(len(again) == 1 and notes2 == notes, "a second run changes nothing")
 
@@ -109,7 +112,7 @@ def main() -> None:
 
         (proj / "go.mod").write_text(GO_MOD.format(v="v1.2.1"))
         r = scan(proj, a.url, a.project, st)
-        reopened = [i for i in ours() if i["iid"] not in before]
+        reopened = mine()
         check(len(reopened) == 1 and reopened[0]["state"] == "opened" and reopened[0]["iid"] == issue["iid"],
               "finding it again reopens the same issue", r.stderr)  # fmt: skip
 
