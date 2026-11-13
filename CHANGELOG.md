@@ -2,7 +2,9 @@
 
 Versions follow [semantic versioning](https://semver.org). The PyPI packages `limbowatch` and `limbowatch-cli`, the GitLab CI/CD component and the Actions action share one version number.
 
-## Unreleased
+## 0.1.0a14 (2026-11-13)
+
+Still an **alpha**. On PyPI it's `0.1.0a14`; the GitHub tag and the action's ref are `v0.1.0a14`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a14`; the GitLab CI/CD component is `0.1.0-alpha.14`. Safer text in issues and reports, a hash-pinned `install: python`, and documentation of what the scan reads and sends; the website and tracker changes below are already live on limbo.watch. Upgrade from 0.1.0a13 and earlier.
 
 - **limbo.watch, redesigned around the story** (Phase 8): "Fixed upstream. Still clean in your scanner." The home page leads with how many advisories waiting for review already name a fix, shows real packages in limbo right now (each pinned in the public proof repository, [limbowatch/limbo-poc](https://github.com/limbowatch/limbo-poc), whose daily run shows Limbowatch reporting them while OSV-Scanner, npm audit, pip-audit and Dependabot stay silent), and moves the compliance section to a new page, `/compliance/` (SOC 2, PCI DSS and CISA BOD 26-04, with sources). Advisory pages lead with the fixed version. The navigation is down to five items, with a Learn menu.
 - **The rest of the redesign:** one design system across the site ([docs/redesign/DESIGN.md](docs/redesign/DESIGN.md)): colour tokens for light and dark, all text at WCAG AA contrast (three colours were below it and are fixed), and one type scale, radii and spacing. The tracker has a **Fix** filter ("Fix released" or "No fixed version"; `/tracker/?fix=yes` links to it from the home page). The scan page has tabs for GitHub, GitLab, Gitea and Forgejo, and the command line, and its screenshots come from 0.1.0a13. The release audit (`scripts/audit.py`) checks that every example on the home page is still in limbo and that no scanner database has another advisory for its version.

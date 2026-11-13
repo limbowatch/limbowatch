@@ -31,7 +31,7 @@ When a maintainer publishes a security advisory in their GitHub repository, Depe
 ```yaml
 # GitLab CI
 include:
-  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.13
+  - component: $CI_SERVER_FQDN/limbowatch/limbowatch-component/limbowatch@0.1.0-alpha.14
     inputs:
       fail_on: high
 ```
@@ -39,7 +39,7 @@ include:
 ```yaml
 # GitHub, Gitea or Forgejo Actions
 - uses: actions/checkout@v4
-- uses: limbowatch/limbowatch-action@v0.1.0a13
+- uses: limbowatch/limbowatch-action@v0.1.0a14
   with:
     fail-on: high
     sarif: limbowatch.sarif
@@ -58,7 +58,7 @@ In a GitHub pull request (code scanning alerts inline) and a GitLab merge reques
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/github-pr-inline.png"><img src="docs/screenshots/github-pr-inline-light.png" width="720" alt="A GitHub pull request diff with a code scanning alert on the added scapy line"></picture>
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/gitlab-mr-widgets.png"><img src="docs/screenshots/gitlab-mr-widgets-light.png" width="560" alt="A GitLab merge request: Code Quality scans found 52 new findings; Test summary: 8 failed, 63 total tests; a Limbowatch report link"></picture>
 
-Guide: [docs/WATCHER.md](docs/WATCHER.md) · [limbo.watch/scan](https://limbo.watch/scan/). The GitHub Action is [limbowatch/limbowatch-action](https://github.com/limbowatch/limbowatch-action), listed in [GitHub Marketplace](https://github.com/marketplace/actions/limbowatch); the GitLab component is in the [GitLab CI/CD Catalog](https://gitlab.com/explore/catalog/limbowatch/limbowatch-component). The current release is an alpha, 0.1.0a13: `pipx install limbowatch-cli==0.1.0a13`. Options and formats may still change before 0.1.0.
+Guide: [docs/WATCHER.md](docs/WATCHER.md) · [limbo.watch/scan](https://limbo.watch/scan/). The GitHub Action is [limbowatch/limbowatch-action](https://github.com/limbowatch/limbowatch-action), listed in [GitHub Marketplace](https://github.com/marketplace/actions/limbowatch); the GitLab component is in the [GitLab CI/CD Catalog](https://gitlab.com/explore/catalog/limbowatch/limbowatch-component). The current release is an alpha, 0.1.0a14: `pipx install limbowatch-cli==0.1.0a14`. Options and formats may still change before 0.1.0.
 
 **Your code stays on your runner.** The scan reads lockfiles (and, for C/C++, the build files that declare upstream sources) and never uploads files or source code. What it sends is package names and versions, to public services such as deps.dev, OSV and GitHub, to find out whether a dependency is affected; limbo.watch itself learns nothing, because the feed is downloaded whole. `--no-upstream --no-resolve-maven` contacts limbo.watch and nothing else. It needs no secrets and only `contents: read`, the image is pinned by digest and attested, and every host can be checked with a proxy or blocked with an egress allowlist. [Security and data](docs/WATCHER.md#security-and-data) lists each host, what it receives and the option that turns it off.
 
@@ -101,7 +101,7 @@ The methods, open dataset (CC BY 4.0) and scripts to reproduce it are in the [re
 | 1. "State of the Gap" report | published 2026-11-10 |
 | 2. Live Limbo Tracker and an open **limbo feed** (OSV schema) | **live** at [limbo.watch](https://limbo.watch) |
 | 3. Contributions to existing tools ([blindspot](https://github.com/munimtechnologies/advisory-import-census), OSV-Scanner) | prepared, not sent ([drafts](docs/outreach/)) |
-| 4. Limbowatch watcher for GitLab, GitHub, Gitea and Forgejo: CI component and action, issues that update as advisories move through review | **released** as 0.1.0a1, an alpha; current 0.1.0a13 ([PyPI](https://pypi.org/project/limbowatch-cli/), [GitLab CI/CD Catalog](https://gitlab.com/explore/catalog/limbowatch/limbowatch-component), [GitHub Marketplace](https://github.com/marketplace/actions/limbowatch)) |
+| 4. Limbowatch watcher for GitLab, GitHub, Gitea and Forgejo: CI component and action, issues that update as advisories move through review | **released** as 0.1.0a1, an alpha; current 0.1.0a14 ([PyPI](https://pypi.org/project/limbowatch-cli/), [GitLab CI/CD Catalog](https://gitlab.com/explore/catalog/limbowatch/limbowatch-component), [GitHub Marketplace](https://github.com/marketplace/actions/limbowatch)) |
 | 5. Org-wide watch, more ecosystems (Maven/Gradle first) | built: tracker coverage, source repos for more ecosystems, the image, org-wide mode (`limbowatch watch`) and Maven transitive resolution; **released** in 0.1.0a6 |
 | 6. C/C++ and vendored code: git submodules, CMake, vcpkg, Bazel, Conan; a feed that covers advisories without a package | **released** in 0.1.0a9 |
 | 7. GitHub as a full host: issues (with the job's own token) and org-wide mode for GitHub organizations | **released** in 0.1.0a10 to 0.1.0a12 |
