@@ -1,6 +1,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"antrea.io/antrea","path":"antrea.io/antrea"}
 {"checked_at":"2026-11-09T16:52:05Z","module":null,"path":"api.go"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"atomys.codes/stud42","path":"atomys.codes/stud42"}
+{"checked_at":"2026-11-13T15:18:46Z","module":"cel.dev/cel-go","path":"cel.dev/cel-go"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"chainguard.dev/apko","path":"chainguard.dev/apko"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"chainguard.dev/melange","path":"chainguard.dev/melange"}
 {"checked_at":"2026-11-09T16:52:05Z","module":null,"path":"changedetection.io"}
@@ -795,6 +796,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/go-vela/worker","path":"github.com/go-vela/worker"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/go-vikunja/vikunja","path":"github.com/go-vikunja/vikunja"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/go-viper/mapstructure/v2","path":"github.com/go-viper/mapstructure/v2"}
+{"checked_at":"2026-11-13T15:18:46Z","module":"github.com/gobwas/ws","path":"github.com/gobwas/ws"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/goccy/go-json","path":"github.com/goccy/go-json"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/gofiber/fiber","path":"github.com/gofiber/fiber"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/gofiber/fiber/v2","path":"github.com/gofiber/fiber/v2"}
@@ -1269,6 +1271,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.opentelemetry.io/collector/config/configgrpc","path":"go.opentelemetry.io/collector/config/configgrpc"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.opentelemetry.io/collector/config/confighttp","path":"go.opentelemetry.io/collector/config/confighttp"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.opentelemetry.io/collector/config/configtls","path":"go.opentelemetry.io/collector/config/configtls"}
+{"checked_at":"2026-11-13T15:18:46Z","module":"go.opentelemetry.io/collector/exporter/exporterhelper","path":"go.opentelemetry.io/collector/exporter/exporterhelper"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.opentelemetry.io/contrib/instrumentation/github.com/astaxie/beego/otelbeego","path":"go.opentelemetry.io/contrib/instrumentation/github.com/astaxie/beego/otelbeego"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc","path":"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp","path":"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"}
