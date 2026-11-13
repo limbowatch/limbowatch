@@ -2506,6 +2506,30 @@ Answered:
 - **Implication:** the scan page's screenshots, alt text and captions use these numbers; the design tokens are tested so contrast can't regress.
 - **Sources:** https://github.com/limbowatch/demo-app/actions/runs/43258602783, https://gitlab.com/limbowatch/demo-app/-/merge_requests/1 (private), docs/redesign/DESIGN.md.
 
+### F-164
+- **Date:** 2026-11-12 · **Status:** confirmed (direct observation)
+- **Question:** How free-form are the maintainer-entered advisory fields Limbowatch puts into issues, reports and the site, and does each output survive them?
+- **Method:**
+  - Every package entry of the tracker state's `advisories.jsonl` on 2026-11-12: 42,955 repository advisories, 234,455 string fields (`vulnerable_version_range`, `patched_versions`, `name`, `ecosystem`), searched for backticks, line breaks, control and ANSI escape characters, `<` followed by a letter, `[`, `|`, `@` before a word, `::`, URLs and length.
+  - The issue body (`limbowatch.watch.issues.body`) for two ranges, rendered by GitHub's Markdown API (`POST /markdown`, `mode: gfm`): a real shape, `>=4.1.0, <=4.1.13 || >=5.0.0, <5.1.1`, and a hostile one with a backtick, a link and an `@` mention.
+  - The built site (25,740 HTML pages) searched for an unescaped `<` before a digit, `v` or `=`.
+- **Result:**
+  - **Free text is common:** 164 ranges contain `|` (`||`), 35 contain backticks (e.g. `` `<= 6.8.4 ``), 41 use `[`, 341 start like a tag (`<v0.18.6`), 16 are URLs, 2 contain `@`, 2 contain `::`; 70 fixed-version fields contain `|`, 35 are URLs; 12 package names contain backticks and 178 are URLs. **None** contains a line break, a control character or an ANSI escape.
+  - **Issue bodies break on them.** GitHub splits a table cell at `|` even inside a code span, so the first range's "Affected versions" cell shows only `>=4.1.0, <=4.1.13`: the issue states a narrower range than the advisory. A backtick ends the code span, so the hostile range renders a working link and an `@octocat` mention. A `-->` in a field ends the hidden marker early; later runs still read it, but the rest shows as text.
+  - **The site escapes all of them:** no unescaped `<` before a digit, `v` or `=` in 25,740 pages (the one hit is the site's own script). The scan's HTML, JUnit, CSV and workflow-annotation outputs escape them too (`watch/output.py`); SARIF and JSON carry them as JSON strings. The Markdown report (job summary, merge request) escapes `|` and HTML but not backticks or `[text](url)`, so a fixed-version field written as a link renders as one.
+- **Caveats:** "none contains a line break" is what this state shows, not a GitHub guarantee.
+- **Implication:** issue bodies and the Markdown report must escape `|`, backticks, `[`/`]` and `<`/`>` in advisory fields, and the marker JSON must not contain `-->`.
+- **Sources:** tracker-data `state/advisories.jsonl` (2026-11-12), https://docs.github.com/rest/markdown/markdown, https://github.github.com/gfm/#tables-extension-
+
+### F-165
+- **Date:** 2026-11-12 · **Status:** confirmed (direct observation)
+- **Question:** Does the home page's advisory count fit its column now that it has five digits?
+- **Method:** Chrome device emulation at 320, 360, 375, 390, 414, 700, 901, 1000, 1200, 1440 and 1920 CSS px on https://limbo.watch/; the `.huge` text's right edge (a Range over its contents) against its column `.now-n`.
+- **Result:** "10,239" at `clamp(88px,15vw,196px)` fitted phones with 12 px to spare at 320 px, but **ran past its column at every width from 901 px**, by 45 to 95 px; at 1440 px it reached x=757 while the text column beside it starts at 726. After the fix (`min(196px, 24cqi)` of a size container) it fits at every width, and so does "100,000" in the site font and in Arial.
+- **Caveats:** [F-163](#f-163)'s layout check compared `scrollWidth` with the viewport, which can't see one element overlapping another inside the page; it stands for what it measured.
+- **Implication:** layout checks should compare elements with their containers, not only the page with the viewport.
+- **Sources:** commit 1d6ae00, docs/redesign/DESIGN.md.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
