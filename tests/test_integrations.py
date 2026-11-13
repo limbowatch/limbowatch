@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import tomllib
 from pathlib import Path
 
 import yaml
@@ -121,3 +122,40 @@ def test_docs_pull_the_image_by_release_tag() -> None:
     for doc in ("README.md", "docs/WATCHER.md", "integrations/gitlab/README.md", "integrations/action/README.md"):
         text = (ROOT / doc).read_text()
         assert not re.search(r"ghcr\.io/limbowatch/limbowatch\s+limbowatch", text), doc
+
+
+def _requirements(text: str) -> dict[str, tuple[str, set[str]]]:
+    """name -> (version, hashes) of a pip requirements file written with --generate-hashes."""
+    out: dict[str, tuple[str, set[str]]] = {}
+    for block in re.split(r"\n(?=[A-Za-z0-9])", re.sub(r"(?m)^#.*\n", "", text).strip()):
+        m = re.match(r"([A-Za-z0-9_.-]+)==([^\s;\\]+)", block)
+        assert m, block
+        out[m.group(1).lower().replace("_", "-")] = (m.group(2), set(re.findall(r"sha256:([0-9a-f]{64})", block)))
+    return out
+
+
+def test_action_python_install_is_pinned_with_uv_lock_hashes() -> None:
+    """install: python installs exactly uv.lock's runtime dependencies, each checked against uv.lock's own hashes,
+    plus the build backend; regenerate with scripts/action_requirements.py when uv.lock changes."""
+    reqs = _requirements((ACTION.parent / "requirements.txt").read_text())
+    lock = tomllib.loads((ROOT / "uv.lock").read_text())["package"]
+    locked = {p["name"]: p for p in lock}
+    runtime = {"limbowatch", "limbowatch-cli"}
+    todo = ["limbowatch-cli"]
+    while todo:  # the CLI's runtime dependency closure in uv.lock (markers ignored: the file covers every platform)
+        for d in locked[todo.pop()].get("dependencies", []):
+            if d["name"] not in runtime:
+                runtime.add(d["name"])
+                todo.append(d["name"])
+    runtime -= {"limbowatch", "limbowatch-cli"}
+    assert runtime <= set(reqs), f"missing from requirements.txt: {sorted(runtime - set(reqs))}"
+    for name in runtime:
+        version, hashes = reqs[name]
+        p = locked[name]
+        lock_hashes = {f["hash"].removeprefix("sha256:") for f in [*p.get("wheels", []), p.get("sdist") or {}] if f}
+        assert version == p["version"], f"{name}: requirements.txt has {version}, uv.lock {p['version']}"
+        assert hashes and hashes <= lock_hashes, f"{name}: hashes differ from uv.lock"
+    assert {"hatchling", "packaging", "pluggy", "pathspec", "trove-classifiers"} <= set(reqs)  # the build backend
+    assert all(h for _, h in reqs.values()), "every requirement has hashes"
+    install = (ACTION.parent / "install.sh").read_text()
+    assert '--require-hashes -r "$(dirname "$0")/requirements.txt"' in install and "--no-build-isolation" in install

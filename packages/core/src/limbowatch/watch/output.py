@@ -23,6 +23,7 @@ from urllib.parse import quote
 from limbowatch import __version__
 from limbowatch.csvsafe import cell
 from limbowatch.ecosystems import info
+from limbowatch.mdsafe import advisory_link, code
 from limbowatch.models import Finding, MatchKind, Unchecked, UnresolvedDependency
 from limbowatch.versions import applicable_fix, fixed_versions, highest
 from limbowatch.watch.state import Change
@@ -403,7 +404,8 @@ def as_json(r: Report) -> str:
 
 
 def _md(s: str) -> str:
-    """Safe inside a Markdown table cell: pipes escaped, no line breaks, no stray HTML."""
+    """Limbowatch's own text in a Markdown table cell: pipes escaped, no line breaks, no stray HTML. Fields from an
+    advisory or a lockfile go through `mdsafe.code` instead, which also stops links and mentions (F-164)."""
     return html.escape(s.replace("\n", " "), quote=False).replace("|", "\\|")
 
 
@@ -423,7 +425,8 @@ def markdown(r: Report) -> str:
             "",
         ]
         out += [
-            f"- `{_md(u.name)}` {_md(u.installed)} → **{_md(u.to or '?')}**: {_upgrade_note(u)} (`{_md(u.where)}`)"
+            f"- {code(u.name, table=False)} {code(u.installed, table=False)} → **{code(u.to or '?', table=False)}**: "
+            f"{_upgrade_note(u)} ({code(u.where, table=False)})"
             for u in upgrades(r)
         ]
 
@@ -434,9 +437,9 @@ def markdown(r: Report) -> str:
             ]
             return head + [
                 f"| {_sev(f)}{'' if certain(f) else ' (possibly)'} | "
-                f"[{f.ghsa_id}]({f.url}) | `{_md(f.dependency.ecosystem)}:{_md(f.dependency.name)}` | "
-                f"{_md(f.dependency.version)} | {_md(_fix(f))} | {_md(', '.join(f.cves) or '–')} | "
-                f"`{_md(r.path(f))}:{f.dependency.line}` |"
+                f"{advisory_link(f.ghsa_id, f.url)} | {code(f'{f.dependency.ecosystem}:{f.dependency.name}', table=True)} | "
+                f"{code(f.dependency.version, table=True)} | {code(_fix(f), table=True)} | "
+                f"{code(', '.join(f.cves), table=True) or '–'} | {code(f'{r.path(f)}:{f.dependency.line}', table=True)} |"
                 for f in sorted(fs, key=_rank)
             ]
 
@@ -449,7 +452,7 @@ def markdown(r: Report) -> str:
             out += ["", f"<details><summary>All {len(act):,} findings</summary>", "", *rows(act), "", "</details>"]
     if r.changes:
         out += ["", "**Since the last scan:** " + "; ".join(
-            f"{c.kind.value}: {c.ghsa_id} (`{_md(c.package)}`)" for c in r.changes)]  # fmt: skip
+            f"{c.kind.value}: {code(c.ghsa_id, table=False)} ({code(c.package, table=False)})" for c in r.changes)]  # fmt: skip
     accepted = sorted({f.ghsa_id for f in r.findings if r.is_ignored(f)})
     if accepted:
         out += ["", f"Accepted (ignored): {', '.join(accepted)}"]
@@ -457,8 +460,8 @@ def markdown(r: Report) -> str:
     part = len(r.unresolved) - len(full)
     if full or part:
         out += ["", f"<details><summary>{_unchecked_line(len(full), part)}</summary>", ""]
-        out += [f"- `{_md(u.source)}:{u.line}` {_md(f'{u.name} {u.version}'.strip() or '(whole file)')}: {_md(u.reason.value)}"
-                for u in full]  # fmt: skip
+        out += [f"- {code(f'{u.source}:{u.line}', table=False)} {code(f'{u.name} {u.version}'.strip() or '(whole file)', table=False)}: "
+                f"{_md(u.reason.value)}" for u in full]  # fmt: skip
         out += ["", "</details>"]
     out += ["", f"_{ATTRIBUTION}_", ""]
     return "\n".join(out)

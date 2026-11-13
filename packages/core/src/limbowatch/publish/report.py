@@ -15,6 +15,7 @@ from typing import Any
 from sqlalchemy import select
 
 from limbowatch.ecosystems import package_name
+from limbowatch.mdsafe import advisory_link, code
 from limbowatch.models import Status
 from limbowatch.publish import ATTRIBUTION, Item, days_since, fixes_text, items, metrics
 from limbowatch.store import Event, Repo, Store
@@ -44,10 +45,15 @@ def _fix(it: Item) -> str:
     return fixes_text(it)[:40] or "–"
 
 
+def _sev(s: str | None) -> str:
+    """GitHub's severity as is; anything else as code (the table is posted to a public issue, F-164)."""
+    return s if s in SEVERITY_ORDER else code(s, table=True) if s else "–"
+
+
 def _cve(it: Item) -> str:
     f = it.facts
     cves = [c for c in [f.cited_cve, *f.uncited_cves] if c]
-    return f"{it.assessment.cve_label.value}{' (' + ', '.join(cves) + ')' if cves else ''}"
+    return f"{it.assessment.cve_label.value}{' (' + code(', '.join(cves), table=True) + ')' if cves else ''}"
 
 
 def _table(rows: list[Item], now: datetime) -> list[str]:
@@ -55,8 +61,9 @@ def _table(rows: list[Item], now: datetime) -> list[str]:
     for it in rows[:TABLE_ROWS]:
         age = days_since(it.adv.published_at, now)
         out.append(
-            f"| [{it.adv.ghsa_id}]({it.adv.html_url}) | `{_pkgs(it)}` | {it.adv.severity or '–'} | {_cve(it)} "
-            f"| {'' if age is None else int(age)} | {_fix(it)} |"
+            f"| {advisory_link(it.adv.ghsa_id, it.adv.html_url)} | {code(_pkgs(it), table=True)} | "
+            f"{_sev(it.adv.severity)} | {_cve(it)} | {'' if age is None else int(age)} | "
+            f"{code(_fix(it), table=True)} |"
         )
     if len(rows) > TABLE_ROWS:
         out.append(f"\n…and {len(rows) - TABLE_ROWS:,} more (see the feed).")

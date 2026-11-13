@@ -2519,6 +2519,7 @@ Answered:
   - **The site escapes all of them:** no unescaped `<` before a digit, `v` or `=` in 25,740 pages (the one hit is the site's own script). The scan's HTML, JUnit, CSV and workflow-annotation outputs escape them too (`watch/output.py`); SARIF and JSON carry them as JSON strings. The Markdown report (job summary, merge request) escapes `|` and HTML but not backticks or `[text](url)`, so a fixed-version field written as a link renders as one.
 - **Caveats:** "none contains a line break" is what this state shows, not a GitHub guarantee.
 - **Implication:** issue bodies and the Markdown report must escape `|`, backticks, `[`/`]` and `<`/`>` in advisory fields, and the marker JSON must not contain `-->`.
+- **Fix (unreleased, 2026-11-12):** every advisory or lockfile field is a code span (`limbowatch.mdsafe`) in issues, comments, the Markdown report and the daily report; rendered by GitHub's and GitLab's Markdown APIs, both ranges show in full and the hostile one adds no link, mention or image. The marker JSON-escapes `<`, `>`, `&`; the Gitea e2e reads it back.
 - **Sources:** tracker-data `state/advisories.jsonl` (2026-11-12), https://docs.github.com/rest/markdown/markdown, https://github.github.com/gfm/#tables-extension-
 
 ### F-165

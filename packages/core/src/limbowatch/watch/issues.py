@@ -22,6 +22,7 @@ from enum import StrEnum
 from typing import Any
 
 from limbowatch.http import BudgetExhausted
+from limbowatch.mdsafe import advisory_link, code
 from limbowatch.versions import affected
 from limbowatch.watch.output import ATTRIBUTION, SEVERITIES
 from limbowatch.watch.state import Change, ChangeKind
@@ -70,22 +71,25 @@ def title(e: dict[str, Any]) -> str:
 
 
 def body(e: dict[str, Any], f: dict[str, Any]) -> str:
-    """`e`: the state entry; `f`: one of its findings (as JSON), for range, fix and evidence."""
+    """`e`: the state entry; `f`: one of its findings (as JSON), for range, fix and evidence. Every field that comes
+    from an advisory or a lockfile is a code span, so it shows as typed and can't add links or mentions (F-164)."""
     cves = ", ".join(e.get("cves") or [])
     fix = f.get("fixed") or "not stated"
+    sev = str(e.get("severity") or "unknown").lower()
     rows = [
-        ("Severity", e.get("severity") or "unknown"),
-        ("CVE", e["cve"] + (f" ({cves})" if cves else "")),
-        ("Affected versions", f"`{f.get('vulnerable_range') or 'not stated'}`"),
-        ("Fixed in", f"`{fix}`"),
-        ("Found in", ", ".join(f"`{loc}`" for loc in e["locations"])),
-        ("Match", f.get("match", "")),
+        ("Severity", sev if sev in SEVERITIES else code(sev, table=True)),
+        ("CVE", e["cve"] + (f" ({code(cves, table=True)})" if cves else "")),  # e["cve"]: Limbowatch's own label
+        ("Affected versions", code(f.get("vulnerable_range") or "not stated", table=True)),
+        ("Fixed in", code(fix, table=True)),
+        ("Found in", ", ".join(code(loc, table=True) for loc in e["locations"])),
+        ("Match", f.get("match", "")),  # Limbowatch's own value
     ]
     certain = e.get("affected") is True
     lines = [
-        f"**{e['ecosystem']} `{e['package']}` {', '.join(e['versions'])}** is "
-        f"{'affected' if certain else 'possibly affected'} by [{e['ghsa_id']}]({e['url']}), a security advisory its "
-        "maintainers published on GitHub that isn't in GitHub's reviewed Advisory Database or OSV yet. "
+        f"**{code(e['ecosystem'], table=False)} {code(e['package'], table=False)} "
+        f"{code(', '.join(e['versions']), table=False)}** is "
+        f"{'affected' if certain else 'possibly affected'} by {advisory_link(e['ghsa_id'], e.get('url'))}, a security "
+        "advisory its maintainers published on GitHub that isn't in GitHub's reviewed Advisory Database or OSV yet. "
         "Scanners that read those databases don't report it.",
         "",
         "| | |",
@@ -94,9 +98,9 @@ def body(e: dict[str, Any], f: dict[str, Any]) -> str:
         "",
     ]
     if not certain and f.get("evidence"):
-        lines += [f"Why only possibly: {f['evidence']}.", ""]
+        lines += [f"Why only possibly: {code(f['evidence'], table=False)}", ""]
     todo = (
-        f"**What to do:** read the advisory, then upgrade to a fixed version ({fix})."
+        f"**What to do:** read the advisory, then upgrade to a fixed version ({code(fix, table=False)})."
         if f.get("fixed")
         else "**What to do:** read the advisory; it names no fixed version yet."
     )
@@ -151,9 +155,11 @@ def plan(
             if _wanted(e, policy) and (policy.allow_public or not public):
                 new.append((_priority(e), Action("create", key, title(e), body(e, findings[key]), labels)))
         elif not issue.open:
-            acts.append(Action("reopen", key, body=f"Found again in {', '.join(e['locations'])}.", issue=issue))
+            found = ", ".join(code(loc, table=False) for loc in e["locations"])
+            acts.append(Action("reopen", key, body=f"Found again in {found}.", issue=issue))
         elif key in changed:
-            acts.append(Action("comment", key, body="Changed: " + "; ".join(changed[key].details) + ".", issue=issue))
+            what = "; ".join(code(d, table=False) for d in changed[key].details)
+            acts.append(Action("comment", key, body=f"Changed: {what}.", issue=issue))
     for key, what in sorted(gone.items()):
         issue = existing[key]
         if what is Gone.VISIBLE:

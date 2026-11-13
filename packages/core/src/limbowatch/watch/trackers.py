@@ -34,7 +34,11 @@ class Issue:
 
 
 def marker(meta: dict[str, Any]) -> str:
-    return f"<!-- limbowatch {json.dumps(meta, sort_keys=True, separators=(',', ':'))} -->"
+    """A hidden HTML comment with the finding's key. `<`, `>` and `&` are JSON-escaped, so no advisory field can end
+    the comment early (`-->`) and show the rest (F-164); `read_marker` reads both forms."""
+    data = json.dumps(meta, sort_keys=True, separators=(",", ":"))
+    data = data.replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
+    return f"<!-- limbowatch {data} -->"
 
 
 def read_marker(body: str | None) -> dict[str, Any] | None:
