@@ -1782,7 +1782,7 @@ SCREENS = {
     "terminal": (
         2035,
         1770,
-        "Terminal output of limbowatch scan 0.1.0a13: a table of findings per lockfile with severity, package, "
+        "Terminal output of limbowatch scan 0.1.0a14: a table of findings per lockfile with severity, package, "
         "installed and fixed version and advisory; a To fix list of five upgrades; and the verdict FAILED, "
         "8 findings at or above high.",
     ),
@@ -1794,8 +1794,8 @@ SCREENS = {
         "GHSA-f6x2-gmgm-25p8, published advisory not yet in GitHub's database or OSV.",
     ),
     "github-job-summary": (
-        1380,
-        845,
+        1316,
+        812,
         "The GitHub Actions job summary: Failed, 8 findings at or above high; 63 advisories in "
         "limbo; a To fix list of five upgrades; and the heading of the table of findings that fail the build.",
     ),

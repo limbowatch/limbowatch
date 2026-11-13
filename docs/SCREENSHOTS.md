@@ -47,8 +47,9 @@ output. Refresh all ten from one run, so the numbers agree with each other and w
    the captions in `scan()` against the run's `report.json` (findings, failing findings, advisories per package).
    `uv run pytest tests/test_site.py` catches a size mismatch or a missing variant.
 
-The last refresh: 2026-11-12, on 0.1.0a13, with the action from GitHub Marketplace and the component from the GitLab
-CI/CD Catalog (GitHub run 43258602783, GitLab pipeline 3060569992): 63 advisories in limbo in 5 packages, 8 failing the
-build, 52 for scapy. rack's and nokogiri's advisories had been reviewed since 2026-11-10, so they left the demo's
-findings, and the pull request's diff now also shows the annotation on dnspython's line. The browser shots were
-captured with the browser extension's region zoom, about 1.5×.
+The last refresh: 2026-11-13, on 0.1.0a14, with the action from GitHub Marketplace and the component from the GitLab
+CI/CD Catalog (GitHub run 43420754611, GitLab pipeline 3064386955): 63 advisories in limbo in 5 packages, 8 failing the
+build, 52 for scapy, as on 0.1.0a13. Only the terminal, the HTML report and the job summary were captured again: the job
+summary now shows versions as code (FINDINGS F-164), while the pull request's annotations and the merge request's
+widgets come from SARIF, annotations, Code Quality and JUnit, which 0.1.0a14 didn't change, so the 2026-11-12 shots of
+them still match. The job summary was captured with the browser extension's region zoom, about 1.65×.
