@@ -23,9 +23,10 @@ from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
 from importlib.resources import files
 from typing import Any
+from urllib.parse import quote
 
 from limbowatch.csvsafe import cell
-from limbowatch.ecosystems import PackageName, package_name, reviewable
+from limbowatch.ecosystems import PackageName, info, package_name, reviewable
 from limbowatch.models import AdvisoryPackage, CveLabel, Status
 from limbowatch.publish import ATTRIBUTION, Item, check, days_since, eco_label, fixes_text
 from limbowatch.publish.quality import NAME, Problem, problems
@@ -342,6 +343,7 @@ ul.keys i{position:absolute;left:0;top:15px;width:14px;height:14px;border-radius
 .paths>div{border-top:2px solid var(--ink);padding-top:20px}
 /* scan page: what the scan sends where; cards on phones */
 .hostw{margin-top:24px;border:1px solid var(--line);border-radius:var(--r-l);background:var(--surface)}
+.rel{margin:16px 0 0;padding:0;list-style:none;border-top:1px solid var(--line)}.rel li{display:flex;flex-wrap:wrap;gap:4px 16px;padding:12px 0;border-bottom:1px solid var(--line2)}.rel li span{color:var(--ink2);overflow-wrap:anywhere}.rel li span:last-child{margin-left:auto}
 table.hosts{min-width:0}table.hosts td:first-child{width:36%;overflow-wrap:anywhere}table.hosts td:last-child{white-space:nowrap}
 .paths .mono{overflow-wrap:anywhere}.contact{min-width:0}.contact pre{white-space:pre-wrap;overflow-wrap:anywhere}
 @media (max-width:640px){table.hosts thead{display:none}table.hosts,table.hosts tbody,table.hosts tr,table.hosts td{display:block}
@@ -915,6 +917,10 @@ def find_form() -> str:
     )
 
 
+# The site's name in search results (schema.org WebSite; F-168)
+WEBSITE_LD = {"@type": "WebSite", "name": "limbo.watch", "alternateName": "Limbowatch", "url": SITE + "/"}
+
+
 def dataset_ld(m: dict[str, Any]) -> dict[str, Any]:
     return {
         "@context": "https://schema.org",
@@ -1263,10 +1269,13 @@ match months later.</p>
     return page(
         "limbo.watch: security advisories your scanner can’t see yet",
         f"{li['count']:,} published security advisories are waiting for GitHub review, invisible to Dependabot, npm audit "
-        "and OSV-Scanner. Live tracker, open feed and a one-step CI scan for GitHub and GitLab.",
+        "and OSV-Scanner. Track them, or catch them in CI.",
         body,
         "/",
-        dataset_ld(m),
+        {
+            "@context": "https://schema.org",
+            "@graph": [{k: v for k, v in dataset_ld(m).items() if k != "@context"}, WEBSITE_LD],
+        },
     )
 
 
@@ -1398,7 +1407,7 @@ reviewed database or OSV.</p></div>
 <script type="application/json" id="cve-text">{json.dumps(CVE_TEXT)}</script>
 <script src="/assets/tracker.js?v={_v(TRACKER_JS)}" defer></script>"""
     return page(
-        "Tracker · limbo.watch",
+        "Security advisories waiting for GitHub review · limbo.watch",
         f"{li['count']:,} security advisories published on GitHub and waiting for review: filter by package, ecosystem, severity and CVE state.",
         body,
         "/tracker/",
@@ -1438,7 +1447,7 @@ package’s source repository; this page can’t do that.</li>
 {footer()}
 <script src="/assets/check.js?v={_v(check.SCRIPT)}" defer></script>"""
     return page(
-        "Check a package · limbo.watch",
+        "Check a package for unreviewed security advisories · limbo.watch",
         "Check a package and its whole dependency tree against security advisories your scanner can’t see yet: "
         "npm, PyPI, crates.io and Maven.",
         body,
@@ -1449,7 +1458,7 @@ package’s source repository; this page can’t do that.</li>
 # --- advisory pages ---------------------------------------------------------------------------------
 
 
-def advisory(i: Item, events: list[dict[str, Any]], now: datetime) -> str:
+def advisory(i: Item, events: list[dict[str, Any]], now: datetime, related: list[Item] | None = None) -> str:
     a, f, s = i.adv, i.facts, i.assessment
     age = days_since(a.published_at, now)
     perm = s.likely_permanent
@@ -1619,16 +1628,73 @@ def advisory(i: Item, events: list[dict[str, Any]], now: datetime) -> str:
 <div class="advice"><h2>{who.strip()}</h2><p>{advice} {tail}</p></div></section>
 <section style="flex:2 1 340px"><h2 class="xs">Timeline</h2><ol class="steps">{"".join(lis)}</ol>{record}</section>
 </div></main>
-{footer("We show facts only; the advisory’s title, description and credits are on GitHub. ")}"""
-    name = first_name or a.repo
-    return page(
-        f"{a.ghsa_id} ({name}) · limbo.watch",
-        f"{a.ghsa_id} for {name}: {pill.lower()}."
-        if gone
-        else f"{a.ghsa_id} for {name}: published on GitHub {fmt_days(age)} ago and not yet visible to scanners that read GitHub’s Advisory Database.",
-        body,
-        f"/advisory/{a.ghsa_id}/",
+{related_html(a.repo, related or [])}{footer("We show facts only; the advisory’s title, description and credits are on GitHub. ")}"""
+    title, description = advisory_meta(i, first_name, first.ecosystem if first else None, pill, gone, age, now)
+    crumbs = {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "limbo.watch", "item": SITE + "/"},
+            {"@type": "ListItem", "position": 2, "name": "Tracker", "item": SITE + "/tracker/"},
+            {"@type": "ListItem", "position": 3, "name": a.ghsa_id},
+        ],
+    }
+    return page(title, description, body, f"/advisory/{a.ghsa_id}/", crumbs)
+
+
+RELATED_ROWS = 8
+
+
+def related_html(repo: str, related: list[Item]) -> str:
+    """Other advisories in limbo from the same repository: what a reader of one usually needs next, and links that
+    let search engines reach advisory pages from each other, not only from the sitemap (F-168)."""
+    if not related:
+        return ""
+    rows = sorted(related, key=lambda r: (SEVERITY_ORDER.get(r.adv.severity or "", 9), r.adv.ghsa_id))
+    lis = "".join(
+        f'<li><a href="/advisory/{E(r.adv.ghsa_id)}/" class="mono">{E(r.adv.ghsa_id)}</a>'
+        f"<span>{E(pkg_names(r) or r.adv.repo)}</span><span>{E((r.adv.severity or 'unknown').capitalize())}</span></li>"
+        for r in rows[:RELATED_ROWS]
     )
+    more = (
+        f'<p class="links"><a href="/tracker/?q={quote(repo)}">All {len(related) + 1:,} from {E(repo)} in the '
+        "tracker</a></p>"
+        if len(related) > RELATED_ROWS
+        else ""
+    )
+    return (
+        f'<section class="wrap s related"><h2 class="sm">More advisories in limbo from {E(repo)}</h2>'
+        f'<ul class="rel">{lis}</ul>{more}</section>\n'
+    )
+
+
+def advisory_meta(
+    i: Item, name: str, ecosystem: str | None, pill: str, gone: bool, age: float | None, now: datetime
+) -> tuple[str, str]:
+    """An advisory page's title and description, from facts only (never the advisory's own text, F-047): the
+    package, its ecosystem, severity, CVE and GHSA IDs, the fix, and how long scanners have missed it. People
+    search for a package's vulnerability or for one of its IDs, so those lead (F-168)."""
+    a, f = i.adv, i.facts
+    name = name or a.repo
+    # only an ecosystem OSV knows: for the rest GitHub takes any text, often a sentence (F-168)
+    eco = (info(ecosystem).osv or "") if ecosystem else ""
+    cve = f.cited_cve or (f.uncited_cves[0] if f.uncited_cves else None)
+    sev = (a.severity or "").lower()
+    sev = sev if sev in SEVERITY_ORDER else ""
+    ids = f"{cve}, {a.ghsa_id}" if cve else a.ghsa_id
+    title = f"{name}{f' ({eco})' if eco else ''}: {f'{sev} ' if sev else ''}vulnerability {ids} · limbo.watch"
+    fix = fixes(i)[:40]
+    what = (
+        f"{a.ghsa_id}{f' ({cve})' if cve else ''}: {f'{sev} ' if sev else ''}vulnerability in "
+        f"{name}{f' ({eco})' if eco else ''}{f', fixed in {fix}' if fix else ''}."
+    )
+    if gone:
+        return title, f"{what} {pill}."
+    if i.assessment.likely_permanent:
+        why = "GitHub doesn’t review this ecosystem: most scanners may never report it."
+    else:
+        why = f"Unreviewed for {fmt_days(age)}: Dependabot, npm audit and OSV-Scanner don’t report it yet."
+    return title, f"{what} {why}"
 
 
 # --- feed -------------------------------------------------------------------------------------------
@@ -1698,8 +1764,9 @@ vcpkg and Conan dependencies.</li>
 </ul></div></section></div></main>
 {footer()}"""
     return page(
-        "The limbo feed · limbo.watch",
-        "Every security advisory in limbo as OSV-schema records, rebuilt daily.",
+        "The limbo feed: unreviewed security advisories as OSV · limbo.watch",
+        "Every security advisory in limbo as OSV-schema records, rebuilt daily: published by maintainers on GitHub, "
+        "not yet reviewed, and readable by OSV-Scanner and any OSV tool.",
         body,
         "/feed/",
     )
@@ -1953,7 +2020,7 @@ possible, never silently passed.</li>
 </ul></div></section></main>
 {footer()}{CI_TABS_JS}"""
     return page(
-        "Scan your project · limbo.watch",
+        "Scan your dependencies for unreviewed advisories in CI · limbo.watch",
         "See what Limbowatch shows in your terminal, GitHub pull requests and GitLab merge requests: security advisories "
         "your scanner can’t see yet, and the upgrade that clears them.",
         body,
@@ -2469,14 +2536,43 @@ SITEMAP_PAGES = [
 ]
 
 
-def sitemap(advisories: list[str], now: datetime) -> str:
-    day = now.strftime("%Y-%m-%d")
-    urls = [*SITEMAP_PAGES, *(f"/advisory/{g}/" for g in sorted(advisories))]
+SITEMAP_CHUNK = 10_000  # URLs per sitemap file; search engines take at most 50,000
+
+
+def _urlset(urls: list[tuple[str, str]]) -> str:
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-        + "".join(f"<url><loc>{SITE}{E(u)}</loc><lastmod>{day}</lastmod></url>\n" for u in urls)
+        + "".join(f"<url><loc>{SITE}{E(u)}</loc><lastmod>{d}</lastmod></url>\n" for u, d in urls)
         + "</urlset>\n"
     )
+
+
+def sitemaps(advisories: dict[str, str], now: datetime) -> dict[str, str]:
+    """`sitemap.xml`, an index, and the files it lists: the site's pages, then advisory pages in files of
+    SITEMAP_CHUNK. `advisories` maps each GHSA ID with a page to the day its facts last changed, so a page's lastmod
+    says when it changed, not when the site was last built (FINDINGS F-168)."""
+    day = now.strftime("%Y-%m-%d")
+    ids = sorted(advisories)
+    files = {"sitemap-pages.xml": [(u, day) for u in SITEMAP_PAGES]}
+    for n, start in enumerate(range(0, len(ids), SITEMAP_CHUNK), 1):
+        chunk = ids[start : start + SITEMAP_CHUNK]
+        files[f"sitemap-advisories-{n}.xml"] = [(f"/advisory/{g}/", advisories[g]) for g in chunk]
+    out = {name: _urlset(urls) for name, urls in files.items()}
+    out["sitemap.xml"] = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "".join(
+            f"<sitemap><loc>{SITE}/{name}</loc><lastmod>{max(d for _, d in urls)}</lastmod></sitemap>\n"
+            for name, urls in files.items()
+        )
+        + "</sitemapindex>\n"
+    )
+    return out
+
+
+def _changed(i: Item, events: list[dict[str, Any]], now: datetime) -> str:
+    """The day an advisory page's facts last changed: its newest event, else when it was first seen."""
+    stamps = [e["at"] for e in events if e.get("at")] or ([i.first_seen] if i.first_seen else [])
+    return max(stamps)[:10] if stamps else now.strftime("%Y-%m-%d")
 
 
 ROBOTS = f"User-agent: *\nAllow: /\nSitemap: {SITE}/sitemap.xml\n"
@@ -2560,13 +2656,18 @@ def build(
             "New critical and high advisories in limbo · limbo.watch",
             "Critical and high security advisories published on GitHub that scanners can’t see yet.",
         ),
-        "sitemap.xml": sitemap([i.adv.ghsa_id for i in with_page], now),
+        **sitemaps({i.adv.ghsa_id: _changed(i, by_ghsa.get(i.adv.ghsa_id, []), now) for i in with_page}, now),
         "robots.txt": ROBOTS,
         "assets/site.css": CSS,
         "assets/tracker.js": TRACKER_JS,
     }
+    by_repo: dict[str, list[Item]] = defaultdict(list)
     for i in with_page:
-        out[f"advisory/{i.adv.ghsa_id}/index.html"] = advisory(i, by_ghsa.get(i.adv.ghsa_id, []), now)
+        if i.assessment.status is Status.LIMBO:
+            by_repo[i.adv.repo].append(i)
+    for i in with_page:
+        related = [r for r in by_repo.get(i.adv.repo, []) if r is not i]
+        out[f"advisory/{i.adv.ghsa_id}/index.html"] = advisory(i, by_ghsa.get(i.adv.ghsa_id, []), now, related)
     if analytics_id:
         tag = (
             f'<script src="/assets/analytics.js?v={_v(ANALYTICS_JS)}" data-id="{analytics_id}" defer></script>\n</head>'

@@ -117,3 +117,26 @@ def test_home_count_is_sized_from_its_column() -> None:
     """The big count scales with its column, so "10,239" (later "100,000") never runs past it on any screen."""
     assert ".now-n{min-width:0;container-type:inline-size}" in site.CSS
     assert re.search(r"\.huge\{[^}]*font-size:min\(196px,24cqi\)", site.CSS)
+
+
+def test_sitemaps_split_and_date_each_page() -> None:
+    """Search engines read at most 50,000 URLs per sitemap; the index lists files of SITEMAP_CHUNK (F-168)."""
+    from datetime import UTC, datetime
+    from xml.etree import ElementTree
+
+    ns = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
+    ids = {f"GHSA-{n:04d}-aaaa-bbbb": f"2026-10-{1 + n % 28:02d}" for n in range(site.SITEMAP_CHUNK + 5)}
+    out = site.sitemaps(ids, datetime(2026, 11, 13, tzinfo=UTC))
+    assert sorted(out) == ["sitemap-advisories-1.xml", "sitemap-advisories-2.xml", "sitemap-pages.xml", "sitemap.xml"]
+    index = ElementTree.fromstring(out["sitemap.xml"])
+    assert [e.text for e in index.iter(ns + "lastmod")] == ["2026-11-13", "2026-10-28", "2026-10-28"]
+    first = ElementTree.fromstring(out["sitemap-advisories-1.xml"])
+    assert (
+        len(list(first)) == site.SITEMAP_CHUNK
+        and len(list(ElementTree.fromstring(out["sitemap-advisories-2.xml"]))) == 5
+    )
+    assert all(len(list(ElementTree.fromstring(v))) <= 50_000 for k, v in out.items() if k != "sitemap.xml")
+    assert (
+        "<loc>https://limbo.watch/advisory/GHSA-0001-aaaa-bbbb/</loc><lastmod>2026-10-02</lastmod>"
+        in out["sitemap-advisories-1.xml"]
+    )

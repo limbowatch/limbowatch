@@ -2560,6 +2560,21 @@ Answered:
 - **Fixed (2026-11-13):** the report counts GitHub's reviews in the period (by review date, plus any seen leaving limbo by review, so the two lines agree when GitHub lists a review late), keeps the IDs it counted so the next report names moves between the two counts (the cursor grows from 1.4 KB to about 0.6 MB, about 2 KB a day once packed), links the rest of the newly published table to the tracker, orders and escapes the CVE changes, cuts a too-long comment at a line with a link, and `reviewed_synced` counts every entry. The schedule is unchanged.
 - **Sources:** issue #1 comments; tracker-data `reports/`, `state/`; GitHub REST API; workflow run list.
 
+### F-168
+- **Date:** 2026-11-13 · **Status:** confirmed (direct observation)
+- **Question:** What keeps limbo.watch from being found in search, and what can the site itself fix?
+- **Method:** `curl` of https://limbo.watch/sitemap.xml, `robots.txt`, a missing page, `http://limbo.watch/` and `https://www.limbo.watch/`; title, description, `h1` and JSON-LD of the ten main pages and a sample of advisory pages; then a full local build from the 2026-11-12 tracker state (25,730 advisory pages) after the changes.
+- **Result:**
+  - **Sitemap:** one file of 25,740 URLs (2.6 MB), every `lastmod` the build day (2026-11-13), so it said nothing about what changed. At about 300 new advisories a day it would pass the 50,000-URL limit per sitemap in about 80 days.
+  - **Advisory pages** (25,730, nearly all the site's pages): titles were `GHSA-… (name) · limbo.watch` (no package ecosystem, severity or CVE, though people search for those), no structured data, and links to them only from the sitemap, the home page's examples and the script-rendered tracker.
+  - **The ecosystem field is free text for "other"**: 13,795 package entries say `other`, and many more name an ecosystem GitHub doesn't know (`bottlerocket`, `c/c++`, `frappe`, a sentence); only an ecosystem OSV knows reads well in a title.
+  - **Hosts:** `http://limbo.watch/` answers 200 (Cloudflare, no redirect to https), so every page exists twice; the canonical tags point at https, which limits the damage. `https://www.limbo.watch/` answers **526** (Cloudflare can't validate the origin's certificate, which covers only limbo.watch).
+  - Fine already: canonical URLs, Open Graph and Twitter tags, `robots.txt` with the sitemap, a real 404, one `h1` per page, alt text, HSTS, gzip.
+  - After the changes: an index plus `sitemap-pages.xml` and three files of at most 10,000 advisories, each advisory dated by its last fact change (10,927 on 2026-10-31, 8,913 on 2026-10-28, …); advisory titles median 81 characters, unique; descriptions median 168.
+- **Caveats:** no Search Console data (the user's account); what search engines make of it shows over weeks.
+- **Implication:** fixed in the site generator: sitemap index with real dates; advisory titles and descriptions from facts (package, known ecosystem, severity, CVE, GHSA, fix), BreadcrumbList JSON-LD, and links to up to 8 other advisories in limbo from the same repository; WebSite JSON-LD on the home page; clearer titles for the tracker, feed, check and scan pages. Left to the user, in Cloudflare: "Always Use HTTPS", and a redirect (or certificate) for www.
+- **Sources:** live responses on 2026-11-13; packages/core/src/limbowatch/publish/site.py.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

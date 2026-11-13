@@ -194,7 +194,10 @@ async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any, monkeypatch: py
     assert '<details class="learn"><summary>Learn</summary>' in home and 'href="/compliance/"' in home
     comp = pages["compliance/index.html"]
     assert "Compliant, and exposed." in comp and site.BOD_2604 in comp and site.PCI_FAQ in comp
-    assert '<details class="learn on">' in comp and "<loc>https://limbo.watch/compliance/</loc>" in pages["sitemap.xml"]
+    assert (
+        '<details class="learn on">' in comp
+        and "<loc>https://limbo.watch/compliance/</loc>" in pages["sitemap-pages.xml"]
+    )
     assert site.POC_URL in pages["scan/index.html"]
     scan_page = pages["scan/index.html"]  # what the scan sends where, and the switch that turns each off
     assert 'id="data"' in scan_page and "--no-resolve-maven" in scan_page and "#security-and-data" in scan_page
@@ -207,7 +210,7 @@ async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any, monkeypatch: py
     assert '<div class="fixbar"><p><strong>Fixed in' in adv and 'class="fixbar"' not in left_page  # the fix, up top
     assert (
         "can report it" in left_page
-        and "<loc>https://limbo.watch/advisory/GHSA-wq9v-j77v-qr26/</loc>" in pages["sitemap.xml"]
+        and "<loc>https://limbo.watch/advisory/GHSA-wq9v-j77v-qr26/</loc>" in pages["sitemap-advisories-1.xml"]
     )
     left = json.loads(pages["tracker/data.json"])["left"]
     assert [r["id"] for r in left] == ["GHSA-wq9v-j77v-qr26"] and left[0]["to"] == "Reviewed by GitHub"
@@ -217,9 +220,24 @@ async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any, monkeypatch: py
     assert all("REDACTED" not in text for text in pages.values())
     checker = json.loads(pages["check/index.json"])  # the package checker's data: facts only, no advisory text
     assert checker["advisories"] >= 1 and "/assets/check.js?v=" in pages["check/index.html"]
-    for path in ("feed/limbo.atom", "feed/critical.atom", "sitemap.xml", "press/queue.svg"):
+    for path in ("feed/limbo.atom", "feed/critical.atom", "sitemap.xml", "sitemap-pages.xml", "press/queue.svg"):
         ElementTree.fromstring(pages[path])  # well-formed XML
-    assert "<loc>https://limbo.watch/advisory/GHSA-f9j4-qggq-h239/</loc>" in pages["sitemap.xml"]
+    # sitemap.xml is an index of the files below (F-168); an advisory's lastmod is when its facts last changed
+    index = ElementTree.fromstring(pages["sitemap.xml"])
+    listed = [e.text for e in index.iter("{http://www.sitemaps.org/schemas/sitemap/0.9}loc")]
+    assert listed == ["https://limbo.watch/sitemap-pages.xml", "https://limbo.watch/sitemap-advisories-1.xml"]
+    advs = pages["sitemap-advisories-1.xml"]
+    ElementTree.fromstring(advs)
+    assert "<loc>https://limbo.watch/advisory/GHSA-f9j4-qggq-h239/</loc>" in advs
+    newest = max(e["at"] for e in all_events(store) if e["ghsa_id"] == "GHSA-f9j4-qggq-h239")[:10]
+    assert f"<loc>https://limbo.watch/advisory/GHSA-f9j4-qggq-h239/</loc><lastmod>{newest}</lastmod>" in advs
+    # advisory pages: facts in the title and description, breadcrumbs (F-168)
+    assert (
+        "<title>gitpython (PyPI): critical vulnerability CVE-2026-110858, GHSA-f9j4-qggq-h239 · limbo.watch</title>"
+        in adv
+    )
+    assert '"@type":"BreadcrumbList"' in adv and "Dependabot, npm audit and OSV-Scanner don’t report it yet" in adv
+    assert '"@type":"WebSite"' in home and '"@type":"Dataset"' in home
     assert "https://limbo.watch/advisory/GHSA-f9j4-qggq-h239/" in pages["feed/limbo.atom"]
     table = pages["press/limbo.csv"]
     assert table.startswith("\ufeff")  # BOM, so Excel reads UTF-8
