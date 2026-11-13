@@ -4,11 +4,11 @@
 
 What we've verified or measured while building Limbowatch. Maintenance rules are in [CLAUDE.md](../CLAUDE.md#findings-report-docsfindingsmd).
 
-Last summarized: 2026-11-12 (end of Phase 7: GitHub as a host, released as 0.1.0a10 to 0.1.0a12, F-145 to F-155; reviewed and closed). Before that: 2026-11-11 (end of Phase 6: C/C++ and other upstream sources, a feed that covers advisories without a package; released as 0.1.0a8, F-140 to F-142; a second review, tests and coverage in F-143, released as 0.1.0a9 in F-144), 2026-11-10 (end of Phase 5), 2026-11-07 (end of Phase 4).
+Last summarized: 2026-11-13 (end of Phase 8: the website redesign and the public proof, F-157 to F-168; reviewed and closed). Before that: 2026-11-12 (end of Phase 7: GitHub as a host, released as 0.1.0a10 to 0.1.0a12, F-145 to F-155), 2026-11-11 (end of Phase 6: C/C++ and other upstream sources, a feed that covers advisories without a package; released as 0.1.0a8, F-140 to F-142; a second review, tests and coverage in F-143, released as 0.1.0a9 in F-144), 2026-11-10 (end of Phase 5), 2026-11-07 (end of Phase 4).
 
 ## Summary
 
-Current understanding at the end of Phase 8 (2026-11-12), with entries linked. Points 1–14 come from the Phase 1 research (2026-10-21 to 10-25), 15–20 and 32 from the live tracker (Phase 2, measured again 2026-11-07), 21 from Phase 3, 22–31 from the watcher (Phase 4), 33–46 from Phase 5, 47–51 from Phase 6, 52–56 from Phase 7, 57–60 from Phase 8. Numbers are dated; review backlogs drift.
+Current understanding at the end of Phase 8 (2026-11-13), with entries linked. Points 1–14 come from the Phase 1 research (2026-10-21 to 10-25), 15–20 and 32 from the live tracker (Phase 2, measured again 2026-11-07), 21 from Phase 3, 22–31 from the watcher (Phase 4), 33–46 from Phase 5, 47–51 from Phase 6, 52–56 from Phase 7, 57–65 from Phase 8. Numbers are dated; review backlogs drift.
 
 **Phase 1: the gap in a sample of real projects**
 
@@ -103,12 +103,17 @@ Current understanding at the end of Phase 8 (2026-11-12), with entries linked. P
 55. **A token whose user can't push to the repo opens no GitHub issues.** GitHub silently drops a new issue's labels then, and the repo's `permissions` show it up front for a user's token (`pull` without `push`); the job's `GITHUB_TOKEN` reads all false there but labels fine ([F-150](#f-150)). GitHub Marketplace picks the action's "latest" release by comparing tags as text, so only v0.1.0a10 to a12 are listed; text order breaks again at a20 and at 0.1.0 ([F-151](#f-151), [F-155](#f-155)).
 56. **OSV-Scanner 2.7.1 reads the same dependencies as 2.7.0** on 111 projects (236,253 against 236,254), checking npm packages without `resolved` itself and dropping a false yarn `patch:` entry. The comparison found linked local npm packages checked as registry ones in both versions, now decided by the dependency's spec ([F-153](#f-153)).
 
-**Phase 8: the website redesign and the public proof (2026-11-12)**
+**Phase 8: the website redesign and the public proof (2026-11-12 to 11-13)**
 
 57. **Remediation clocks mostly start at detection, so limbo delays the deadline with the alert.** SOC 2 leaves the deadline to the company's policy, usually counted from the scanner's alert; CISA's BOD 26-04 counts from identification or a KEV listing; PCI DSS counts one month from the fix's release, so the review wait uses up the deadline itself ([F-156](#f-156), [F-134](#f-134)).
 58. **Well-known packages sit in limbo for months with a fix released**, and no scanner database has them: on 2026-11-12, typebox, nats-server, go-openapi/spec, go-toml, mustache, rubyntlm and scapy, high or critical, fixed 41 to 212 days earlier. Some others in limbo (jackson-core, netty-handler, vm2, mistune) aren't silent in practice: a reviewed advisory on the same version already leads past the fix ([F-157](#f-157), [F-158](#f-158)). bundler-audit sees rubyntlm through ruby-advisory-db ([F-162](#f-162)).
 59. **The public proof holds:** on the same files Limbowatch reports all 7, OSV-Scanner, `npm audit`, pip-audit and Dependabot none, while every tool reports the 5 old control packages (Dependabot: 95 alerts, all on controls). The job's `GITHUB_TOKEN` can't read Dependabot alerts (403), so the repository keeps a dated snapshot ([F-162](#f-162)). Ranges with one upper bound per release line had hidden affected versions (431 entries), fixed in 0.1.0a13 ([F-159](#f-159) to [F-161](#f-161)).
 60. **The redesigned site meets WCAG AA contrast in both themes** after three colours were darkened, and has no horizontal scroll at 390 px. The demo moved from 67 to 63 advisories in limbo as rack's and nokogiri's were reviewed ([F-163](#f-163)).
+61. **Maintainer-typed fields could inject Markdown into issues and reports.** 164 ranges in the tracker contain `||`, some contain backticks or link syntax; in a table a `|` cut `>=4.1.0, <=4.1.13 || >=5.0.0, <5.1.1` to its first half, and a backtick could render a link or an @mention in an issue the user's own bot opened. Only a code span stops a mention on GitHub; every such field is now one, checked in GitHub's and GitLab's own renderers ([F-164](#f-164)). The action's `install: python` now installs `uv.lock`'s exact versions with `--require-hashes`.
+62. **Layout checks must compare an element with its container,** not only the page with the viewport: the home page's count ran 45–95 px past its column on desktop while the page had no horizontal scroll ([F-165](#f-165)).
+63. **The scan sends package names and versions, never files or source code.** With `--no-upstream --no-resolve-maven` it contacts limbo.watch and nothing else, measured through a logging proxy; every host and the option that turns it off are documented and kept in step with the code by a test ([F-166](#f-166)).
+64. **GitHub's review queue stalls for days:** no advisory at all was reviewed from 2026-11-07 13:24 to 11-09 16:52 UTC, nor from 11-11 00:47 to 11-12 23:30. The daily report's numbers were right; it now says how many GitHub reviewed overall and names moves between the two counts. The scheduled tracker run starts 6.5–10 hours after its 06:17 UTC slot ([F-167](#f-167)).
+65. **Advisory pages are nearly all of the site** (25,730) and were titled with the GHSA ID alone; the sitemap dated every URL with the build day and would have passed 50,000 URLs in about 80 days. Titles now lead with the package, its ecosystem, severity and IDs; the sitemap is an index of dated files. `http://` and `www.` need Cloudflare settings ([F-168](#f-168)).
 
 ## Open questions
 
