@@ -154,7 +154,10 @@ class Report:
         self.lines.append(f"  - {text}")
 
 
-def check_verdicts(rep: Report, items: list[dict[str, Any]], n: int, seed: int) -> None:
+def check_verdicts(rep: Report, items: list[dict[str, Any]], n: int, seed: int, run: datetime | None) -> None:
+    """Sample the state's verdicts and check each against GitHub, OSV and CVE Services live. A difference is a
+    change since the run only when the source dates it after the run started (`run`): a review, an OSV record, an
+    edit of the repository advisory, a CVE record's update. Anything dated before is a tracker error (F-169)."""
     rnd = random.Random(seed)
 
     def pick(cond: Any, k: int) -> list[dict[str, Any]]:
@@ -166,6 +169,10 @@ def check_verdicts(rep: Report, items: list[dict[str, Any]], n: int, seed: int) 
               + [("duplicate", i) for i in pick(lambda i: i["st"] == "duplicate", n // 5)]
               + [("reviewed", i) for i in pick(lambda i: i["st"] == "reviewed", n // 5)])  # fmt: skip
 
+    def after(stamp: str | None) -> bool:
+        t = at(stamp)
+        return bool(run and t and t > run)
+
     def cve(c: str) -> dict[str, Any]:
         r = http.get(f"https://cveawg.mitre.org/api/cve/{c}")
         if r.status_code == 200:
@@ -173,53 +180,60 @@ def check_verdicts(rep: Report, items: list[dict[str, Any]], n: int, seed: int) 
         r = http.get(f"https://cveawg.mitre.org/api/cve-id/{c}")
         return {"_state": r.json().get("state") if r.status_code == 200 else f"http {r.status_code}"}
 
-    def one(item: tuple[str, dict[str, Any]]) -> tuple[str, str, list[str]]:
+    def one(item: tuple[str, dict[str, Any]]) -> tuple[str, str, list[tuple[str, bool]]]:
+        """Each problem with whether its source dates it after the run (a change since, not an error)."""
         kind, i = item
         g, f, problems = i["g"], i["f"], []
         s1, ra = gh(f"/repos/{i['repo']}/security-advisories/{g}")
         s2, ga = gh(f"/advisories/{g}")
-        s3 = http.get(f"https://api.osv.dev/v1/vulns/{g}").status_code
+        r3 = http.get(f"https://api.osv.dev/v1/vulns/{g}")
+        s3 = r3.status_code
         reviewed = s2 == 200 and ga.get("type") == "reviewed"
         if kind == "reviewed":
             if not reviewed and s3 != 200:
-                problems.append(f"not reviewed (global {s2}, OSV {s3})")
+                problems.append((f"not reviewed (global {s2}, OSV {s3})", False))
             return kind, g, problems
+        edited = s1 == 200 and after(ra.get("updated_at"))
         if s1 != 200 or ra.get("state") != "published":
-            problems.append(f"repository advisory now {s1 if s1 != 200 else ra.get('state')}")
+            # a deleted advisory has no date; withdrawn ones carry withdrawn_at
+            gone_after = s1 != 200 or after(ra.get("withdrawn_at")) or edited
+            problems.append((f"repository advisory now {s1 if s1 != 200 else ra.get('state')}", gone_after))
         if reviewed:
-            problems.append(f"reviewed at {ga.get('github_reviewed_at')}")
+            problems.append((f"reviewed at {ga.get('github_reviewed_at')}", after(ga.get("github_reviewed_at"))))
         if s3 == 200:
-            problems.append("in OSV")
+            problems.append(("in OSV", after(r3.json().get("published"))))
         if s1 == 200 and (ra.get("cve_id") or None) != f["cited_cve"]:
-            problems.append(f"cites {ra.get('cve_id')} now, state says {f['cited_cve']}")
+            problems.append((f"cites {ra.get('cve_id')} now, state says {f['cited_cve']}", edited))
         if f["cited_cve"]:
             d = cve(f["cited_cve"])
-            state = (d.get("cveMetadata") or {}).get("state") or d.get("_state")
+            meta = d.get("cveMetadata") or {}
+            state = meta.get("state") or d.get("_state")
             if state != f["cited_cve_state"]:
-                problems.append(f"{f['cited_cve']} is {state}, state says {f['cited_cve_state']}")
+                problems.append((f"{f['cited_cve']} is {state}, state says {f['cited_cve_state']}",
+                                 after(meta.get("datePublished") or meta.get("dateUpdated"))))  # fmt: skip
         for c in f["uncited_cves"]:
             cna = ((cve(c).get("containers") or {}).get("cna")) or {}
             refs = [[x.get("url"), x.get("name")] for x in cna.get("references") or []]
             if g.upper() not in json.dumps([refs, cna.get("source")]).upper():
-                problems.append(f"uncited {c} doesn't reference {g}")
+                problems.append((f"uncited {c} doesn't reference {g}", False))
         for dg in f["duplicate_of"]:
             s4, da = gh(f"/advisories/{dg}")
             shared = s4 == 200 and da.get("cve_id") in [f["cited_cve"], *f["uncited_cves"]]
             if not (shared and da.get("type") == "reviewed"):
-                problems.append(f"duplicate_of {dg} isn't a reviewed advisory with a shared CVE")
+                problems.append((f"duplicate_of {dg} isn't a reviewed advisory with a shared CVE", False))
         return kind, g, problems
 
     with ThreadPoolExecutor(8) as ex:
         res = list(ex.map(one, sample))
     by = Counter(k for k, _, _ in res)
     bad = [(k, g, p) for k, g, p in res if p]
-    # A change since the run (reviewed or withdrawn after it) isn't a tracker error; anything else is.
-    stale = [b for b in bad if all(x.startswith(("reviewed at", "in OSV", "repository advisory now")) for x in b[2])]
+    # A change its source dates after the run isn't a tracker error; anything else is (F-169).
+    stale = [b for b in bad if all(since for _, since in b[2])]
     wrong = [b for b in bad if b not in stale]
     rep.check("verdicts", not wrong, f"{len(res)} sampled live ({dict(by)}); {len(wrong)} wrong, "
               f"{len(stale)} changed since the run")  # fmt: skip
-    for k, g, p in bad[:20]:
-        rep.note(f"{k} {g}: {'; '.join(p)}")
+    for k, g, p in (wrong + stale)[:20]:
+        rep.note(f"{k} {g}: {'; '.join(t + (' (after the run)' if since else '') for t, since in p)}")
 
 
 def check_reviewed_sync(rep: Report, st: State, end: datetime) -> None:
@@ -570,7 +584,7 @@ def main() -> None:
         feed_path = Path(tmp) / "all.zip"
         feed_path.write_bytes(http.get(f"{SITE}/feed/all.zip", params=NOCACHE).content)
         z = zipfile.ZipFile(feed_path)
-        check_verdicts(rep, items, a.sample, a.seed)
+        check_verdicts(rep, items, a.sample, a.seed, at(m["last_run"]["started_at"]))
         check_reviewed_sync(rep, st, at(m["flow_7d"]["ends_at"]))  # type: ignore[arg-type]
         check_metrics(rep, st, items, m)
         recs = check_feed(rep, st, items, z)

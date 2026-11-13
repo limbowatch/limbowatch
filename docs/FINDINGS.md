@@ -2580,6 +2580,18 @@ Answered:
 - **Implication:** fixed in the site generator: sitemap index with real dates; advisory titles and descriptions from facts (package, known ecosystem, severity, CVE, GHSA, fix), BreadcrumbList JSON-LD, and links to up to 8 other advisories in limbo from the same repository; WebSite JSON-LD on the home page; clearer titles for the tracker, feed, check and scan pages. Left to the user, in Cloudflare: "Always Use HTTPS", and a redirect (or certificate) for www.
 - **Sources:** live responses on 2026-11-13; packages/core/src/limbowatch/publish/site.py.
 
+### F-169
+- **Date:** 2026-11-13 · **Status:** confirmed (direct observation)
+- **Question:** Release 0.1.0a14 (F-164's escaping, the hash-pinned `install: python`, F-166's docs): do the pre-release checks pass?
+- **Method:** the release checklist on e88e232: `scripts/e2e_github.py` (CLI issues and org-wide mode on the private limbowatch/limbowatch-e2e), the action from that commit with `install: python` and `limbowatch-ref` set to it (limbowatch-e2e run 43416252646), `scripts/check_integrations.py`, and `scripts/audit.py` (sample seed 20261113, 520 verdicts) against the site built from `tracker-data` ee0f280 (run 2026-11-12 15:24 UTC).
+- **Result:**
+  - GitHub e2e passed (open, label, second run unchanged, close on upgrade, reopen; org listing; a token without push access opens nothing). The action reopened #12 with the ranges as code spans, and pip's hash-checked install reported "No broken requirements found". Integrations passed.
+  - The audit first **failed verdicts**: 4 "wrong" of 520. All 4 changed after the run: three reviewed by GitHub between 2026-11-12 21:54 and 11-13 00:45 UTC, one newly citing a CVE, and one CVE published (counted as changed). The audit treated any review, OSV record or withdrawal as a change since the run, whatever its date, but a new citation or a CVE state change always as an error. It now asks each source for its date (review time, OSV `published`, the repository advisory's `updated_at` or `withdrawn_at`, the CVE record's `datePublished`/`dateUpdated`) and counts a difference as a change since the run only when dated after the run started; anything dated before is an error. Rerun: **all 10 checks pass**, 0 wrong, 5 changed since the run.
+  - `scripts/e2e_gitlab.py` couldn't run: the token in glab's config file is stale (401) and reading the keyring token was not permitted.
+- **Caveats:** the tracker's state was 20 hours old (today's scheduled run hadn't started, F-167); the stricter date rule hasn't yet met a review listed late by GitHub's API.
+- **Implication:** the audit is now stricter about misses and fairer about staleness.
+- **Sources:** scratchpad `audit.md`, `audit2.md`; scripts/audit.py.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
