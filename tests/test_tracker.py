@@ -196,6 +196,8 @@ async def test_tracker_end_to_end(tmp_path: Path, no_sleep: Any, monkeypatch: py
     assert "Compliant, and exposed." in comp and site.BOD_2604 in comp and site.PCI_FAQ in comp
     assert '<details class="learn on">' in comp and "<loc>https://limbo.watch/compliance/</loc>" in pages["sitemap.xml"]
     assert site.POC_URL in pages["scan/index.html"]
+    scan_page = pages["scan/index.html"]  # what the scan sends where, and the switch that turns each off
+    assert 'id="data"' in scan_page and "--no-resolve-maven" in scan_page and "#security-and-data" in scan_page
     monkeypatch.setattr(site, "EXAMPLES", [])
     assert 'id="examples"' not in site.build(items(store), m, datetime.now(UTC))["index.html"]  # none left: no section
     adv = pages["advisory/GHSA-f9j4-qggq-h239/index.html"]

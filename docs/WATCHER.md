@@ -43,7 +43,7 @@ It can keep one issue per finding up to date in GitLab, Gitea/Forgejo or GitHub.
    - **now visible to scanners** (the advisory reached OSV);
    - **no longer affected**.
 
-**What leaves the machine.** The feed and the tracker's watchlist are downloaded whole, so limbo.watch learns nothing about the project. Package names and versions go to deps.dev, rubygems.org, Packagist, ecosyste.ms and Maven Central, to find source repos; a `pom.xml`'s dependencies go to deps.dev and Maven Central to resolve its transitive ones (`--no-resolve-maven` keeps them local). Bazel module, vcpkg port and Conan package names (with the vcpkg baseline commit) go to bcr.bazel.build, raw.githubusercontent.com and center2.conan.io, to find their upstream repos. Upstream repos with advisories in limbo are cloned from GitHub (commits and tags only), and the commits the project pins go to OSV (`--no-osv-commits` keeps them local). Source repo names go to GitHub, to poll their advisories, and advisory IDs go to OSV. With `--issues`, findings go to your own tracker.
+**What leaves the machine:** package names and versions, never files or source code. See [Security and data](#security-and-data) for every host and how to turn each off.
 
 ## Use it
 
@@ -98,7 +98,9 @@ Every format carries the CC BY 4.0 attribution for the advisory data. SARIF 2.1.
 | `--fail-on-unknown` / `--no-fail-on-unknown` | Fail on findings with no severity (default: fail) |
 | `--ignore ID`, `--ignore-file` | Accept an advisory by GHSA or CVE ID; it's listed, but doesn't fail the build |
 | `--state FILE` | Report what changed since the last run |
-| `--no-upstream` | Only check against the feed by name; no deps.dev or GitHub calls |
+| `--no-upstream` | Only check against the feed by name: no package lookups, GitHub, CVE or OSV calls ([Security and data](#security-and-data)) |
+| `--no-resolve-maven` | Don't send a `pom.xml`'s dependencies to deps.dev and Maven Central to resolve its transitive ones |
+| `--no-osv-commits` | Don't ask OSV about the commits the project pins for its upstream sources |
 | `--scan-ignored` | Also read lockfiles a `.gitignore` excludes, including an enclosing repo's (F-085) |
 | `-v` | Show the evidence for every finding, and every dependency checked by name only |
 
@@ -270,6 +272,44 @@ LIMBOWATCH_ISSUES_TOKEN=… limbowatch scan . --state state.json --issues github
 ```
 
 In CI, `--issues-url` and `--issues-project` default to `CI_SERVER_URL` / `GITHUB_SERVER_URL` and `CI_PROJECT_PATH` / `GITHUB_REPOSITORY`; for `github`, the URL defaults to `GITHUB_API_URL`, else api.github.com (github.com and an Enterprise Server's address are also taken). The integrations only write issues on a push to the default branch, a schedule or a manual run, never from merge or pull requests. They were tested end to end against a local Gitea (F-083), in a container (F-084), on gitlab.com (F-087) and on GitHub in a private repo, from the command line and from the action with the job's token (F-148).
+
+## Security and data
+
+The scan runs where your code already is, in your CI job or on your machine. It doesn't upload files or source code, and nothing here asks you to take that on trust: every point below is something you can check or enforce yourself.
+
+**What it reads.** Lockfiles and SBOMs, through OSV-Scanner run offline. For C/C++ and other source taken in by git or archive, also the build files that declare it: `.gitmodules`, `CMakeLists.txt` and `*.cmake`, `MODULE.bazel`, `WORKSPACE` and `.bzl` files, `vcpkg.json`, Conan and meson files. It lists directories to find these, and to spot vendored copies by their license files; it doesn't read your source code.
+
+**What it sends, and where.** Only package names, versions, repository names, commit hashes and advisory IDs, to public services, to find out whether a dependency is affected. Every lookup can be turned off:
+
+| Host | What it receives | Turn it off |
+|---|---|---|
+| limbo.watch | Nothing about the project: the feed and the watchlist are downloaded whole | Can't: it's the advisory data |
+| api.deps.dev, rubygems.org, repo.packagist.org, packages.ecosyste.ms, repo1.maven.org | Package names and versions, to find each package's source repository | `--no-upstream` |
+| api.deps.dev, repo.maven.apache.org, repo1.maven.org (from OSV-Scanner) | A `pom.xml`'s dependencies, to resolve the transitive ones | `--no-resolve-maven` |
+| bcr.bazel.build, raw.githubusercontent.com, center2.conan.io | Bazel module, vcpkg port and Conan package names (and the vcpkg baseline commit) | `--no-upstream` |
+| api.github.com | Names of source repositories the tracker hasn't checked in 10 days, to read their published advisories | `--no-upstream` |
+| github.com | Clones, commits and tags only, of upstream repositories that have advisories in limbo | `--no-upstream` |
+| cveawg.mitre.org | CVE IDs those repositories' advisories cite, to read their state | `--no-upstream` |
+| api.osv.dev | Advisory IDs; the commits the project pins for its upstream sources; with `--state`, IDs of findings that went away since the last run | `--no-upstream`, `--no-osv-commits`; no `--state` |
+| Your own GitLab, GitHub, Gitea or Forgejo | Findings, as issues | Leave out `--issues` |
+
+A GitHub token, when there is one, goes only to api.github.com; a tracker token only to your tracker. Every request carries the user agent `limbowatch/<version> (+https://limbo.watch)`.
+
+**Feed only.** `--no-upstream --no-resolve-maven` (without `--state` or `--issues`) contacts limbo.watch and nothing else: measured through a logging proxy on a project with npm, Go, Cargo, Python, Maven, Gradle and CMake dependencies (FINDINGS F-166). The price: a `pom.xml` gives only its direct dependencies, upstream sources and repositories the tracker doesn't watch aren't checked, and each is reported as such. Install time is separate: the image comes from ghcr.io (registry.gitlab.com for the GitLab component); `install: python` uses pypi.org and files.pythonhosted.org for the pinned dependencies, and github.com for OSV-Scanner and Limbowatch's own source.
+
+**What it can change.** Nothing, unless you turn on issues. It needs no token and no secrets; in GitHub Actions, `permissions: contents: read` is enough, and the action passes the scan a token only with `issues:` set (or one you set yourself). It writes reports where you point it, and its cache (the feed and upstream clones) under `~/.cache/limbowatch` or `--cache`.
+
+**How to verify it.**
+- **Read it.** The code is open source (Apache-2.0). Limbowatch's own requests all go through one module, `limbowatch.http`, the only one that imports an HTTP client; OSV-Scanner and git run as separate programs, with the options above.
+- **Pin what you read.** Pin the action to a commit SHA rather than a tag. Its default image is pinned by digest and attested by this repository: `gh attestation verify oci://ghcr.io/limbowatch/limbowatch:<tag> --owner limbowatch`. The PyPI packages are published with trusted publishing and carry build attestations: `gh attestation verify <file> -R limbowatch/limbowatch`.
+- **Watch it.** Run it once behind a logging proxy (`HTTPS_PROXY`; Limbowatch, OSV-Scanner and git all honour it) and compare the hosts with the table above.
+
+**How to lock it down.**
+- **Don't give it your code.** It needs only the dependency files: check out just those with a sparse checkout, or build an SBOM yourself and pass `--sbom`.
+- **Allow only the hosts you chose.** On a self-hosted runner with a firewall, or with an egress filter on hosted runners, allow the hosts above for the mode you run (only limbo.watch for feed only). Anything else is blocked and shows up.
+- **Give it nothing to write with.** No secrets, `contents: read`, no `issues:`, and run it in a job of its own.
+
+Report a security problem in Limbowatch itself as [SECURITY.md](../SECURITY.md) says.
 
 ## Limits
 

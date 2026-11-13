@@ -83,6 +83,10 @@ limbowatch:
 | `LIMBOWATCH_GITHUB_TOKEN` | Masked. Any GitHub token that can read public repositories. The job polls the source repos the live tracker doesn't watch, and GitHub allows 60 requests an hour without a token. Repos it can't poll are reported as checked by name only, never skipped. |
 | `LIMBOWATCH_ISSUES_TOKEN` | Masked and protected, for `issues: true`. A project access token with `api` scope and at least the Reporter role. Project access tokens need Premium or Ultimate on gitlab.com; on Free, use a personal access token of a bot account added to the project. Merge request pipelines never open issues. |
 
+## Security and data
+
+The job runs in your pipeline; it doesn't upload files or source code. It reads your lockfiles and SBOMs (OSV-Scanner, offline) and, for C/C++, the build files that declare upstream sources. It sends package names and versions to public services (deps.dev, Maven Central, GitHub, CVE Services, OSV) to find out whether a dependency is affected; limbo.watch learns nothing, because the feed is downloaded whole. With `extra_args: "--no-upstream --no-resolve-maven"` it contacts limbo.watch and nothing else, at the cost of the checks those lookups make. It needs no secrets: `LIMBOWATCH_GITHUB_TOKEN` is an optional read-only token for large projects, and `LIMBOWATCH_ISSUES_TOKEN` is needed only for issues. Every host, what it receives and the option that turns it off: [Security and data](https://github.com/limbowatch/limbowatch/blob/main/docs/WATCHER.md#security-and-data).
+
 ## The image
 
 The job runs `registry.gitlab.com/limbowatch/limbowatch-component`, pinned by digest in each release. It's a copy of `ghcr.io/limbowatch/limbowatch` with the same digest, built from the Limbowatch source with Limbowatch and OSV-Scanner installed and nothing installed at run time. GitHub Actions builds it for amd64 and arm64, with an SBOM and build provenance. To check where an image came from:

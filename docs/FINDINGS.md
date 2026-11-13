@@ -2531,6 +2531,19 @@ Answered:
 - **Implication:** layout checks should compare elements with their containers, not only the page with the viewport.
 - **Sources:** commit 1d6ae00, docs/redesign/DESIGN.md.
 
+### F-166
+- **Date:** 2026-11-13 · **Status:** confirmed (direct observation; small sample, one project)
+- **Question:** Which hosts does `limbowatch scan` contact, and does `--no-upstream --no-resolve-maven` contact only limbo.watch?
+- **Method:** A logging HTTP CONNECT proxy (`HTTPS_PROXY`/`HTTP_PROXY`, honoured by httpx, OSV-Scanner and git), no GitHub token, an empty cache per run. Project: the test fixtures for npm, Go, Cargo, Python (`requirements.txt`), Maven (3 `pom.xml`), Gradle, plus a `CMakeLists.txt` that fetches madler/zlib v1.3.1. Three runs: default, `--no-upstream`, `--no-upstream --no-resolve-maven`. Then a code read of every URL constant reachable from `scan` (`watch.scan`, `watch.mapping`, `watch.registries`, `watch.upstream`, `watch.upstream_check`, `sources.github`, `sources.cve`, `sources.osv`).
+- **Result:**
+  - Default: api.deps.dev (14 tunnels), repo1.maven.org (4), repo.maven.apache.org (1, from OSV-Scanner's Maven resolver), limbo.watch (1). 22 findings. No GitHub, CVE or OSV calls in this run: every source repo was on the tracker's watchlist and fresh, and zlib has no advisory in limbo.
+  - `--no-upstream`: api.deps.dev (1, Maven resolution), repo.maven.apache.org (1), limbo.watch (1). 22 findings.
+  - `--no-upstream --no-resolve-maven`: **limbo.watch only.** 20 findings: the 2 lost come from Maven transitive dependencies, now reported as not fully resolved.
+  - Code read: beyond the hosts above, the scan can contact rubygems.org, repo.packagist.org, packages.ecosyste.ms, bcr.bazel.build, raw.githubusercontent.com, center2.conan.io, api.github.com, github.com (history-only clones), **cveawg.mitre.org** (CVE IDs cited by polled advisories; missing from WATCHER.md's "What leaves the machine" until now) and api.osv.dev; all but limbo.watch sit behind `--no-upstream`, except OSV calls for findings that went away (`--state`) and Maven resolution (`--no-resolve-maven`). A GitHub token goes only to api.github.com (`http.py`).
+- **Caveats:** a proxy sees only clients that honour proxy settings; the code read covers the rest (Limbowatch's own requests all go through `limbowatch.http`; OSV-Scanner runs with `--offline` apart from the Maven resolver run). One project, one day; upstream polling and clones weren't exercised live here.
+- **Implication:** the claim "your code never leaves; feed-only mode contacts only limbo.watch" holds and is now documented (WATCHER.md "Security and data", READMEs, limbo.watch/scan). `test_security_and_data_names_every_host_and_option` keeps the documented hosts and options in step with the code.
+- **Sources:** proxy logs in the session scratchpad; packages/core/src/limbowatch/watch/*.py, sources/*.py, http.py.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

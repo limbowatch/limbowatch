@@ -339,7 +339,16 @@ td.ebar{width:45%}td.ebar span{display:block;height:10px;border-radius:2px;backg
 ul.keys{margin:20px 0 0;padding:0;list-style:none}ul.keys li{position:relative;padding:10px 0 10px 28px;border-bottom:1px solid var(--line2)}
 ul.keys i{position:absolute;left:0;top:15px;width:14px;height:14px;border-radius:3px}ul.keys span{display:block;font-size:var(--fs-s);color:var(--ink2)}
 .paths{margin-top:32px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:32px 48px}
-.paths>div{border-top:2px solid var(--ink);padding-top:20px}.paths h3{margin:0;font-size:var(--fs-l);font-weight:600}
+.paths>div{border-top:2px solid var(--ink);padding-top:20px}
+/* scan page: what the scan sends where; cards on phones */
+.hostw{margin-top:24px;border:1px solid var(--line);border-radius:var(--r-l);background:var(--surface)}
+table.hosts{min-width:0}table.hosts td:first-child{width:36%;overflow-wrap:anywhere}table.hosts td:last-child{white-space:nowrap}
+.paths .mono{overflow-wrap:anywhere}.contact{min-width:0}.contact pre{white-space:pre-wrap;overflow-wrap:anywhere}
+@media (max-width:640px){table.hosts thead{display:none}table.hosts,table.hosts tbody,table.hosts tr,table.hosts td{display:block}
+table.hosts tr{padding:14px 16px;border-bottom:1px solid var(--line2)}table.hosts tr:last-child{border-bottom:0}
+table.hosts td{width:auto;padding:0;border:0}table.hosts td+td{margin-top:4px;color:var(--ink2)}
+table.hosts td:first-child{width:auto;font-weight:500}table.hosts td:last-child{white-space:normal;font-size:var(--fs-s)}
+table.hosts td:last-child::before{content:"Turn it off: ";font-family:var(--sans)}}.paths h3{margin:0;font-size:var(--fs-l);font-weight:600}
 .paths p{margin:10px 0 0;color:var(--ink2)}.paths .links{flex-direction:column;gap:0;margin-top:8px}
 /* footer */
 .fcols{display:grid;grid-template-columns:2fr repeat(3,1fr);gap:32px;padding:48px 0;border-top:1px solid var(--line)}
@@ -1797,6 +1806,22 @@ def use_tabs() -> list[tuple[str, str, str, str, str, str]]:
     ]  # fmt: skip
 
 
+# What `limbowatch scan` sends where (docs/WATCHER.md#security-and-data; FINDINGS F-166)
+SCAN_HOSTS = [
+    ("limbo.watch", "Nothing about your project: the feed is downloaded whole", "can’t: it’s the data"),
+    ("deps.dev, Maven Central, rubygems.org, Packagist, ecosyste.ms", "Package names and versions, to find source repos",
+     "--no-upstream"),
+    ("deps.dev, Maven Central", "A pom.xml’s dependencies, to resolve the transitive ones", "--no-resolve-maven"),
+    ("bcr.bazel.build, raw.githubusercontent.com, center2.conan.io", "Bazel, vcpkg and Conan package names",
+     "--no-upstream"),
+    ("api.github.com, github.com", "Source repo names, to read their advisories; history-only clones of affected ones",
+     "--no-upstream"),
+    ("cveawg.mitre.org, api.osv.dev", "Advisory and CVE IDs; commits pinned for upstream sources",
+     "--no-upstream"),
+    ("Your GitLab, GitHub, Gitea or Forgejo", "Findings, as issues", "leave out --issues"),
+]  # fmt: skip
+
+
 def scan(m: dict[str, Any]) -> str:
     li = m["in_limbo"]
     formats = "".join(
@@ -1814,6 +1839,9 @@ def scan(m: dict[str, Any]) -> str:
             ("github", "Annotations on the pull request, one per package, no code scanning needed"),
         ]
     )  # fmt: skip
+    hosts = "".join(
+        f'<tr><td class="mono">{E(h)}</td><td>{E(w)}</td><td class="mono">{E(o)}</td></tr>' for h, w, o in SCAN_HOSTS
+    )
     body = f"""<header class="top">{header("scan")}</header>
 <main class="wrap">
 <div class="head"><div><p class="eyebrow">Open source. GitLab, GitHub, Gitea and Forgejo. Release {
@@ -1896,8 +1924,26 @@ release {RELEASE}, an alpha: options and formats may change before 0.1.0. <a hre
 <a href="{REPO_URL}/blob/main/CHANGELOG.md">Changelog</a></p>
 <div class="use">{ci_tabs(use_tabs(), "Where you run it")}</div></section>
 
+<section class="s" id="data"><h2>Your code stays on your runner</h2><p class="sub">The scan runs in your CI job or on your
+machine. It reads lockfiles and, for C/C++, the build files that declare upstream sources. It never uploads files or
+source code. What leaves is package names and versions, to public services, to find out whether a dependency is affected,
+and each lookup can be turned off.</p>
+<div class="hostw"><table class="hosts"><thead><tr><th scope="col">Host</th><th scope="col">What it receives</th>
+<th scope="col">Turn it off</th></tr></thead><tbody>{hosts}</tbody></table></div>
+<div class="paths">
+<div><h3>Feed only</h3><p><span class="mono">--no-upstream --no-resolve-maven</span> contacts limbo.watch and nothing else,
+measured through a logging proxy. The price: a <span class="mono">pom.xml</span> gives only its direct dependencies, and
+upstream sources aren’t checked; each is reported, not dropped.</p></div>
+<div><h3>Verify it</h3><p>The code is open source. Pin the action to a commit SHA; its image is pinned by digest and attested:
+<span class="mono">gh attestation verify oci://ghcr.io/limbowatch/limbowatch:&lt;tag&gt; --owner limbowatch</span>. Or run it
+once behind a proxy and compare the hosts with this table.</p></div>
+<div><h3>Lock it down</h3><p>It needs no secrets and only <span class="mono">contents: read</span>. Check out only the
+dependency files, or pass your own SBOM with <span class="mono">--sbom</span>, and allow only the hosts you chose.</p></div></div>
+<p class="links"><a href="{
+        WATCHER_DOC
+    }#security-and-data">Every host, what it receives, and how to check</a></p></section>
+
 <section class="s"><div class="note" style="max-width:860px"><h3>What it does, and what it doesn’t</h3><ul>
-<li>Reads lockfiles with OSV-Scanner, offline. The feed is downloaded whole, so limbo.watch learns nothing about your project.</li>
 <li>Never drops a dependency. A range-only requirement, a git install or an unreadable lockfile is listed with the reason.</li>
 <li>It’s a head start. Most of these advisories are reviewed eventually, after weeks; then your usual scanner reports them and
 Limbowatch notes that they’re visible. In ecosystems GitHub doesn’t review, the wait may never end.</li>

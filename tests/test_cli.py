@@ -1,5 +1,8 @@
 """The command line exposes every command (a decorator moved onto a helper once hid `scan`)."""
 
+import re
+from pathlib import Path
+
 import pytest
 import typer
 from limbowatch_cli.main import app
@@ -87,3 +90,25 @@ def test_watch_never_sends_one_token_to_two_hosts(monkeypatch: pytest.MonkeyPatc
     assert r.exit_code == 2 and "at least one --gitlab-group" in _plain(r.output)
     r = CliRunner().invoke(app, ["watch", "--git", "https://user:pw@git.example.org/a/b.git"])
     assert r.exit_code == 2 and "pw@" not in r.output
+
+
+def test_security_and_data_names_every_host_and_option() -> None:
+    """docs/WATCHER.md#security-and-data lists every host the scan can contact, and only options that exist, so the
+    promise "nothing else leaves" can't drift from the code."""
+    from urllib.parse import urlsplit
+
+    from limbowatch.sources import cve, github, osv
+    from limbowatch.watch import mapping, registries, scan, upstream_check
+
+    doc = (Path(__file__).resolve().parent.parent / "docs/WATCHER.md").read_text()
+    section = doc.split("## Security and data", 1)[1].split("\n## ", 1)[0]
+    urls = [scan.FEED_URL, scan.WATCHLIST_URL, mapping.DEPS_DEV, mapping.RUBYGEMS, mapping.PACKAGIST,
+            mapping.ECOSYSTEMS, mapping.MAVEN_CENTRAL, registries.BCR, registries.RAW, registries.CONAN_REMOTE,
+            github.API, cve.CVE_API, osv.API, upstream_check.CLONE_URL.format(repo="o/r")]  # fmt: skip
+    for host in {urlsplit(u).hostname for u in urls}:
+        assert host in section, f"{host} isn't listed in WATCHER.md's Security and data"
+    cli = typer.main.get_command(app)
+    assert isinstance(cli, TyperGroup)
+    options = {o for p in cli.commands["scan"].params for o in (*p.opts, *p.secondary_opts)}
+    for opt in set(re.findall(r"`(--[a-z-]+)", section)):
+        assert opt in options, f"{opt} is documented but `limbowatch scan` has no such option"
