@@ -2544,6 +2544,21 @@ Answered:
 - **Implication:** the claim "your code never leaves; feed-only mode contacts only limbo.watch" holds and is now documented (WATCHER.md "Security and data", READMEs, limbo.watch/scan). `test_security_and_data_names_every_host_and_option` keeps the documented hosts and options in step with the code.
 - **Sources:** proxy logs in the session scratchpad; packages/core/src/limbowatch/watch/*.py, sources/*.py, http.py.
 
+### F-167
+- **Date:** 2026-11-13 · **Status:** confirmed (direct observation)
+- **Question:** Are the daily report's numbers right, and does it reach subscribers when it should?
+- **Method:** The reports of 2026-11-06 to 11-12 on `tracker-data` (`reports/*.md`) and the comments on issue #1; `state/events.jsonl` and `state/cursors.jsonl` from `tracker-data`; GitHub's reviewed list for each report window (`GET /advisories?type=reviewed&published=<from>..<to>`, paginated); `gh run list --workflow tracker.yml --event schedule` for 2026-10-28 to 11-12; a read of `publish/report.py` and `tracker.py`.
+- **Result:**
+  - **"0 reviewed by GitHub" is right.** GitHub reviewed no advisory at all, of any kind, between 2026-11-07 13:24 and 11-09 16:52 UTC, nor between 11-11 00:47 and 11-12 23:30 UTC (the tracker's `reviewed_at` cursor stopped at 11-11 00:47 for the same reason). Other windows: 16 (11-06/07), 45 (11-09/10), 100+ (11-10/11). The report doesn't say that GitHub reviewed nothing at all, so "0 left limbo" reads like a tracker fault.
+  - **The 180 CVE changes on 11-08 are real:** 176 of the "new CVE from another CNA" events are for CVEs published that day.
+  - **The scheduled run fires 6.5 to 10 hours late**, every day: cron `17 6 * * *` (06:17 UTC), created between 12:43 and 16:34 UTC across 16 days. Reports carry the run's date, so the gap doesn't lose data; subscribers just get them in the afternoon (UTC).
+  - **Three reports on 11-07** went to subscribers, from two manual runs and the scheduled one; the guard that only scheduled runs report (added that day) has kept it to one a day since.
+  - **"+32 other changes" (11-08)** has no matching event: advisories that move into the in-limbo count other than by being first seen (from likely permanent, or back from another state) aren't recorded as events, so the report can't name them.
+  - **Code:** the CVE changes table still writes `[GHSA](html_url)` and the event text raw, not through `mdsafe` like the other tables ([F-164](#f-164)); the values are the tracker's own (CVE IDs), so nothing is exploitable today, but it's inconsistent. `sync_reviewed` adds only the last partial batch to `reviewed_synced` (a run-log undercount, not a report number). The workflow truncates the comment at 65,000 bytes without a note (reports are 9 to 12 KB).
+- **Caveats:** one week of reports.
+- **Implication:** the numbers are right; the report should say how many advisories GitHub reviewed overall, name the "other changes", and link "…and N more" to the tracker. The schedule delay is GitHub's.
+- **Sources:** issue #1 comments; tracker-data `reports/`, `state/`; GitHub REST API; workflow run list.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
