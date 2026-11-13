@@ -47,6 +47,8 @@ Mention in chat when you add entries, and cite IDs (e.g. "see F-012").
 
 Public repo `git@github.com:limbowatch/limbowatch.git` (public since 2026-11-05) in the **limbowatch** GitHub org (moved from blueandhack/Limbowatch on 2026-10-22; old URLs redirect; the local checkout directory may still be named GhostCVE). The user has authorized committing and pushing to it. Org profile repo: `limbowatch/.github`. Domain: limbo.watch.
 
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/): `<type>(<scope>): <summary>`, summary in the imperative, lower case, no period, under about 72 characters. Types: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `build`, `ci`, `chore`. Scope is the area touched, e.g. `report`, `tracker`, `site`, `watcher`, `action`, `component`, `findings`. Mark breaking changes with `!` and a `BREAKING CHANGE:` footer. The body says why, and cites FINDINGS IDs.
+
 ## Commands
 
 Product code: a uv workspace (`packages/core` = library `limbowatch`, `packages/cli` = `limbowatch` command). From the repo root:
