@@ -7,6 +7,7 @@ day is covered by the next report instead of being lost. Factual metadata only (
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -18,13 +19,18 @@ from limbowatch.ecosystems import package_name
 from limbowatch.mdsafe import advisory_link, code
 from limbowatch.models import Status
 from limbowatch.publish import ATTRIBUTION, Item, days_since, fixes_text, items, metrics
-from limbowatch.store import Event, Repo, Store
+from limbowatch.store import Event, Repo, Reviewed, Store
 
 CURSOR = "daily_report"
 NEW_WINDOW = timedelta(days=2)  # "newly published" = published within this long before the report
 TABLE_ROWS = 25
 SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 RECENT = timedelta(days=90)  # "Longest waiting" covers this window; older ones would top it every day
+TRACKER_URL = "https://limbo.watch/tracker/"  # lists every advisory in limbo, newest first
+COMMENT_LIMIT = 65_000  # bytes; GitHub's issue comments hold 65,536 characters
+# CVE changes, most telling first: a reserved CVE that's now public, a CVE newly cited, then other CNAs' and GitHub's
+_CVE_ORDER = (("RESERVED -> PUBLISHED", 0), ("cites ", 1), ("new CVE from another CNA", 2), ("new CVE from GitHub", 3))
+_PLAIN = re.compile(r"[A-Za-z0-9 ,:'()>.-]*")  # event text with nothing Markdown could read as syntax
 
 
 @dataclass
@@ -56,7 +62,7 @@ def _cve(it: Item) -> str:
     return f"{it.assessment.cve_label.value}{' (' + code(', '.join(cves), table=True) + ')' if cves else ''}"
 
 
-def _table(rows: list[Item], now: datetime) -> list[str]:
+def _table(rows: list[Item], now: datetime, more: str = "") -> list[str]:
     out = ["| Advisory | Package | Severity | CVE | Days | Fixed in |", "|---|---|---|---|---:|---|"]
     for it in rows[:TABLE_ROWS]:
         age = days_since(it.adv.published_at, now)
@@ -66,8 +72,24 @@ def _table(rows: list[Item], now: datetime) -> list[str]:
             f"{code(_fix(it), table=True)} |"
         )
     if len(rows) > TABLE_ROWS:
-        out.append(f"\n…and {len(rows) - TABLE_ROWS:,} more (see the feed).")
+        out.append(f"\n…and {len(rows) - TABLE_ROWS:,} more{more}.")
     return out
+
+
+def _event(e: str) -> str:
+    """A CVE change as text when it's plain (they're the tracker's own), else as code: the CVE IDs in it come from
+    advisories and CVE records (F-164)."""
+    return e if _PLAIN.fullmatch(e) else code(e, table=True)
+
+
+def _cve_rank(change: tuple[Item, str]) -> tuple[int, int, str]:
+    it, e = change
+    kind = next((r for k, r in _CVE_ORDER if k in e), len(_CVE_ORDER))
+    return kind, SEVERITY_ORDER.get(it.adv.severity or "", 9), it.adv.ghsa_id
+
+
+def _ids(rows: list[Item]) -> list[str]:
+    return sorted(i.adv.ghsa_id for i in rows)
 
 
 def _delta(now_v: int, prev: int | None, parts: str = "") -> str:
@@ -77,12 +99,21 @@ def _delta(now_v: int, prev: int | None, parts: str = "") -> str:
     return f" ({'+' if d >= 0 else '−'}{abs(d):,} since the last report{': ' + parts if parts else ''})"
 
 
-def _parts(new: int, found: int, left: int, net: int | None) -> str:
-    """Why the pending count moved: newly found advisories aren't new limbo (F-067)."""
+def _parts(new: int, found: int, left: int, net: int | None, moved: tuple[int, int, str] | None = None) -> str:
+    """Why a count moved: newly found advisories aren't new limbo (F-067). `moved`: advisories that came from and went
+    to the other count (their packages changed ecosystem; F-167), and what that other count is called. Without it
+    (the first report after the IDs were kept), what's left is "other changes"."""
     if net is None:
         return ""
-    other = net - (new + found - left)
     out = [f"{new:,} newly published", f"{found:,} older ones found for the first time", f"{left:,} left limbo"]
+    other = net - (new + found - left)
+    if moved is not None:
+        came, went, name = moved
+        if came:
+            out.append(f"{came:,} moved in from {name}")
+        if went:
+            out.append(f"{went:,} moved to {name}")
+        other -= came - went
     if other:
         out.append(f"{'+' if other > 0 else '−'}{abs(other):,} other changes")
     return ", ".join(out)
@@ -102,7 +133,14 @@ def build(store: Store, now: datetime | None = None) -> Report:
         # Event IDs, not timestamps: timestamps have one-second resolution.
         events = list(s.execute(select(Event).where(Event.id > (prev or {}).get("event_id", 0))).scalars())
         new_repos = {r.full_name for r in s.execute(select(Repo)).scalars() if since and _after(r.first_seen, since)}
+        # GitHub's reviews in the period, of any advisory, not only those in limbo here (F-167); with the ones seen
+        # leaving limbo by review, whose review GitHub may list after the last report although it's dated before it
+        reviewed_rows = [(g, at) for g, at in s.execute(select(Reviewed.ghsa_id, Reviewed.reviewed_at))]
     last_event_id = max((e.id for e in events), default=(prev or {}).get("event_id", 0))
+    left_reviewed = {e.ghsa_id for e in events if e.event == "in limbo -> reviewed"}
+    reviewed_all = (
+        len({g for g, at in reviewed_rows if _after(at, since) or g in left_reviewed}) if since is not None else None
+    )
 
     left: Counter[str] = Counter()
     left_pending = 0
@@ -132,6 +170,13 @@ def build(store: Store, now: datetime | None = None) -> Report:
 
     new_pub, discovered = first_seen_split(pending)
     new_perm, discovered_perm = first_seen_split(permanent)
+    # moves between in limbo and likely permanent, from the IDs the last report kept (none before F-167)
+    moves: tuple[tuple[int, int, str], tuple[int, int, str]] | None = None
+    if prev and "pending_ids" in prev and "permanent_ids" in prev:
+        was_p, was_m = set(prev["pending_ids"]), set(prev["permanent_ids"])
+        now_p, now_m = set(_ids(pending)), set(_ids(permanent))
+        to_perm, to_pend = len(was_p & now_m), len(was_m & now_p)
+        moves = ((to_pend, to_perm, "likely permanent"), (to_perm, to_pend, "the in-limbo count"))
     in_new_repos = sum(1 for i in discovered if i.adv.repo in new_repos)
     ages = {i.adv.ghsa_id: days_since(i.adv.published_at, now) or 0 for i in pending}
     over_year = sum(1 for a in ages.values() if a > 365)
@@ -153,7 +198,11 @@ def build(store: Store, now: datetime | None = None) -> Report:
             li["count"],
             prev_limbo := prev and prev.get("limbo"),
             _parts(
-                len(new_pub), len(discovered), left_pending, None if prev_limbo is None else li["count"] - prev_limbo
+                len(new_pub),
+                len(discovered),
+                left_pending,
+                None if prev_limbo is None else li["count"] - prev_limbo,
+                moves and moves[0],
             ),
         )
         + ": published by "
@@ -174,6 +223,7 @@ def build(store: Store, now: datetime | None = None) -> Report:
                 len(discovered_perm),
                 left.total() - left_pending,
                 None if prev_perm is None else lp["count"] - prev_perm,
+                moves and moves[1],
             ),
         )
         + ": "
@@ -186,7 +236,15 @@ def build(store: Store, now: datetime | None = None) -> Report:
         + (f" ({in_new_repos:,} in newly watched repos)." if discovered else "."),
         f"- **Left limbo** (likely permanent included): {left.get('reviewed', 0):,} reviewed by GitHub, "
         f"{left.get('duplicate of a reviewed advisory', 0):,} found to duplicate a reviewed advisory, "
-        f"{left.get('withdrawn', 0) + left.get('no longer published', 0):,} withdrawn or unpublished.",
+        f"{left.get('withdrawn', 0) + left.get('no longer published', 0):,} withdrawn or unpublished."
+        + (
+            ""
+            if reviewed_all is None
+            else " **GitHub reviewed no advisories at all in this period.**"
+            if reviewed_all == 0
+            else f" GitHub reviewed {reviewed_all:,} {'advisory' if reviewed_all == 1 else 'advisories'} "
+            "in all in this period, from any repository."
+        ),
         f"- **CVE changes:** {len(cve_changes):,}"
         + (
             f" ({sum('RESERVED -> PUBLISHED' in e for _, e in cve_changes):,} reserved CVEs published, "
@@ -198,10 +256,14 @@ def build(store: Store, now: datetime | None = None) -> Report:
         "",
     ]
     if new_pub:
-        lines += ["## Newly published, in limbo", "", *_table(new_pub, now), ""]
+        more = f": [the tracker]({TRACKER_URL}) lists them all, newest first"
+        lines += ["## Newly published, in limbo", "", *_table(new_pub, now, more), ""]
     if cve_changes:
+        cve_changes.sort(key=_cve_rank)
         lines += ["## CVE changes", "", "| Advisory | Change |", "|---|---|"]
-        lines += [f"| [{it.adv.ghsa_id}]({it.adv.html_url}) | {e} |" for it, e in cve_changes[:TABLE_ROWS]]
+        lines += [
+            f"| {advisory_link(it.adv.ghsa_id, it.adv.html_url)} | {_event(e)} |" for it, e in cve_changes[:TABLE_ROWS]
+        ]
         if len(cve_changes) > TABLE_ROWS:
             lines.append(f"\n…and {len(cve_changes) - TABLE_ROWS:,} more.")
         lines.append("")
@@ -237,12 +299,27 @@ def build(store: Store, now: datetime | None = None) -> Report:
         "new": len(new_pub),
         "reviewed": left.get("reviewed", 0),
         "cve_changes": len(cve_changes),
+        "reviewed_all": reviewed_all,
+        # for the next report's moves between the two counts (F-167)
+        "pending_ids": _ids(pending),
+        "permanent_ids": _ids(permanent),
     }
     return Report(date, "\n".join(lines), summary)
 
 
-def _after(stamp: str | None, since: datetime) -> bool:
-    return bool(stamp) and datetime.fromisoformat(str(stamp).replace("Z", "+00:00")) > since
+def _after(stamp: str | None, since: datetime | None) -> bool:
+    return bool(stamp) and since is not None and datetime.fromisoformat(str(stamp).replace("Z", "+00:00")) > since
+
+
+def comment(markdown: str, full_url: str, limit: int = COMMENT_LIMIT) -> str:
+    """The report as an issue comment: whole when it fits in `limit` bytes, else cut at a line break with a note
+    linking the full report."""
+    if len(markdown.encode()) <= limit:
+        return markdown
+    note = f"\n\n_The report is longer than an issue comment allows; [read all of it]({full_url})._\n"
+    room = limit - len(note.encode())
+    cut = markdown.encode()[:room].decode(errors="ignore")
+    return cut[: cut.rfind("\n")] + note if "\n" in cut else cut + note
 
 
 def commit(store: Store, report: Report) -> None:

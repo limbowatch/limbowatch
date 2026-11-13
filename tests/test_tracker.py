@@ -351,6 +351,9 @@ async def test_daily_report_tracks_changes(tmp_path: Path, no_sleep: Any) -> Non
         "0 older ones found for the first time, 1 left limbo)" in second.markdown
     )
     assert "1 reviewed by GitHub" in second.markdown
+    # GitHub's reviews overall, including the one seen leaving limbo whatever its review date (F-167)
+    assert "GitHub reviewed 1 advisory in all in this period, from any repository." in second.markdown
+    assert second.summary["pending_ids"] == ["GHSA-f9j4-qggq-h239"] and second.summary["permanent_ids"] == []
     assert "**0 more are likely permanent** (+0 since the last report: 0 newly published," in second.markdown
     assert "## Longest waiting, published in the last 90 days" in second.markdown
     assert "0 advisories in limbo have waited more than a year." in second.markdown
@@ -375,3 +378,65 @@ async def test_watch_cna_repos_backfills_bulk_imported_cves(tmp_path: Path, no_s
         assert tracker.watch_cna_repos() == 0
     with store.session() as s:
         assert [r.full_name for r in s.query(Repo)] == ["acme/widget"]
+
+
+async def test_daily_report_names_moves_and_review_stalls(tmp_path: Path, no_sleep: Any) -> None:
+    """Advisories that move between in limbo and likely permanent are named, not "other changes", and a period in
+    which GitHub reviewed nothing says so (F-167)."""
+    from limbowatch.publish import report
+
+    seed = tmp_path / "seed.txt"
+    seed.write_text("dlclark/regexp2\ngitpython-developers/gitpython\n")
+    store = Store()
+    with respx.mock(assert_all_mocked=True, assert_all_called=False) as router:
+        mock_world(router)
+        await run_once(store, seed, no_sleep)
+    first = report.build(store, datetime.now(UTC))
+    ids = first.summary["pending_ids"]
+    assert len(ids) == 2
+    # as if both had been likely permanent at the last report, and their packages had changed ecosystem since
+    report.commit(store, report.Report(first.date, "", {**first.summary, "limbo": 0, "permanent": 2,
+                                                        "pending_ids": [], "permanent_ids": ids}))  # fmt: skip
+    again = report.build(store, datetime.now(UTC))
+    assert (
+        "**2 advisories in limbo** (+2 since the last report: 0 newly published, 0 older ones found for the first "
+        "time, 0 left limbo, 2 moved in from likely permanent)" in again.markdown
+    )
+    assert "(−2 since the last report: 0 newly published, 0 older ones found for the first time, 0 left limbo, " \
+        "2 moved to the in-limbo count)" in again.markdown  # fmt: skip
+    assert "other changes" not in again.markdown
+    assert "**GitHub reviewed no advisories at all in this period.**" in again.markdown
+
+
+def test_report_comment_fits_an_issue_comment() -> None:
+    from limbowatch.publish import report
+
+    short = "# Report\n\nall of it\n"
+    assert report.comment(short, "https://x/full.md") == short
+    long = "# Report\n" + "".join(f"| row {i} | é |\n" for i in range(10_000))
+    out = report.comment(long, "https://x/full.md", limit=5_000)
+    assert len(out.encode()) <= 5_000
+    assert out.endswith("_The report is longer than an issue comment allows; [read all of it](https://x/full.md)._\n")
+    body = out.split("\n\n_The report")[0]
+    assert body.endswith("|") and long.startswith(body)  # cut at a line break, never inside a character or a row
+
+
+def test_report_cve_changes_are_plain_or_code_and_ordered() -> None:
+    from limbowatch.publish import report
+
+    assert report._event("CVE-2026-1 RESERVED -> PUBLISHED") == "CVE-2026-1 RESERVED -> PUBLISHED"
+    assert report._event("new CVE from GitHub's CNA, not cited: CVE-2026-2") == (
+        "new CVE from GitHub's CNA, not cited: CVE-2026-2"
+    )
+    assert report._event("cites CVE-1 [x](https://e) | y (was none)") == "`cites CVE-1 [x](https://e) \\| y (was none)`"
+    kinds = ["new CVE from another CNA: CVE-3", "cites CVE-2 (was none)", "CVE-1 RESERVED -> PUBLISHED", "duplicate"]
+    item = next(iter(_items_for_rank()))
+    ranked = sorted([(item, k) for k in kinds], key=report._cve_rank)
+    assert [k for _, k in ranked] == [kinds[2], kinds[1], kinds[0], kinds[3]]
+
+
+def _items_for_rank() -> list[Any]:
+    """A stand-in item: _cve_rank reads only the advisory's severity and ID."""
+    from types import SimpleNamespace
+
+    return [SimpleNamespace(adv=SimpleNamespace(severity="high", ghsa_id="GHSA-aaaa-bbbb-cccc"))]

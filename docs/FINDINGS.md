@@ -2557,6 +2557,7 @@ Answered:
   - **Code:** the CVE changes table still writes `[GHSA](html_url)` and the event text raw, not through `mdsafe` like the other tables ([F-164](#f-164)); the values are the tracker's own (CVE IDs), so nothing is exploitable today, but it's inconsistent. `sync_reviewed` adds only the last partial batch to `reviewed_synced` (a run-log undercount, not a report number). The workflow truncates the comment at 65,000 bytes without a note (reports are 9 to 12 KB).
 - **Caveats:** one week of reports.
 - **Implication:** the numbers are right; the report should say how many advisories GitHub reviewed overall, name the "other changes", and link "…and N more" to the tracker. The schedule delay is GitHub's.
+- **Fixed (2026-11-13):** the report counts GitHub's reviews in the period (by review date, plus any seen leaving limbo by review, so the two lines agree when GitHub lists a review late), keeps the IDs it counted so the next report names moves between the two counts (the cursor grows from 1.4 KB to about 0.6 MB, about 2 KB a day once packed), links the rest of the newly published table to the tracker, orders and escapes the CVE changes, cuts a too-long comment at a line with a link, and `reviewed_synced` counts every entry. The schedule is unchanged.
 - **Sources:** issue #1 comments; tracker-data `reports/`, `state/`; GitHub REST API; workflow run list.
 
 ## Archive

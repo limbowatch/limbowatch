@@ -168,7 +168,9 @@ class Tracker:
         newest = cursor
         origins: set[str] = set()
         batch: list[Reviewed] = []
+        seen = 0
         async for e in github.reviewed_since(self.http, since):
+            seen += 1
             batch.append(
                 Reviewed(ghsa_id=e.ghsa_id, cve_id=e.cve_id, reviewed_at=_iso(e.reviewed_at), origin_repo=e.origin_repo)
             )
@@ -180,7 +182,7 @@ class Tracker:
                 self._merge(batch)
                 batch = []
         self._merge(batch)
-        report.reviewed_synced += len(batch)
+        report.reviewed_synced += seen  # every entry, not only the last batch of up to 500 (F-167)
         if newest:
             self.store.set_cursor("reviewed_at", _iso(newest) or "")
         self.add_repos(origins, "reviewed-origin")

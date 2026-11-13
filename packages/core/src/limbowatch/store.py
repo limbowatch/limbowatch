@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, Integer, String, create_engine, func, select
+from sqlalchemy import JSON, Boolean, Integer, String, Text, create_engine, func, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 
@@ -92,7 +92,7 @@ class Event(Base):
 class Cursor(Base):
     __tablename__ = "cursors"
     name: Mapped[str] = mapped_column(String(60), primary_key=True)
-    value: Mapped[str] = mapped_column(String(200))
+    value: Mapped[str] = mapped_column(Text)  # the daily report's keeps the IDs it counted (F-167)
     updated_at: Mapped[str] = mapped_column(String(32))
 
 

@@ -68,18 +68,18 @@ uv run limbowatch publish --state tracker/state --out tracker/site
 ## Daily report
 
 `limbowatch report` writes `reports/YYYY-MM-DD.md` (and `latest.md`). It covers:
-- **the current numbers**, pending and likely permanent, each with the change since the previous report split into newly published advisories, older ones found for the first time (mostly in newly watched repos) and ones that left limbo. Older finds are coverage growth, not new limbo (F-067);
-- **newly published advisories** that entered limbo, sorted by severity;
-- **what left limbo:** reviewed, duplicate, or withdrawn;
-- **CVE changes:** reserved CVEs that got published, new CVEs from other CNAs, and GitHub-assigned CVEs the advisory doesn't cite yet;
+- **the current numbers**, pending and likely permanent, each with the change since the previous report split into newly published advisories, older ones found for the first time (mostly in newly watched repos) ones that left limbo, and ones that moved between the two counts because their packages changed ecosystem. Older finds are coverage growth, not new limbo (F-067);
+- **newly published advisories** that entered limbo, sorted by severity; past 25, a link to the tracker, which lists them all;
+- **what left limbo:** reviewed, duplicate, or withdrawn, and how many advisories GitHub reviewed in all, from any repository, so a day with none left says whether GitHub reviewed anything at all (F-167);
+- **CVE changes:** reserved CVEs that got published, then CVEs newly cited, new CVEs from other CNAs, and GitHub-assigned CVEs the advisory doesn't cite yet;
 - **the longest-waiting advisories published in the last 90 days** (older ones would top it every day), the count waiting more than a year, and coverage.
 
-The previous report's position is stored in the state, so a skipped day is covered by the next report.
+The previous report's position, counts and the IDs it counted are stored in the state (the `daily_report` cursor), so a skipped day is covered by the next report and every change in the counts is named.
 
 In CI the report is:
 - shown in the run summary;
 - committed to the `tracker-data` branch under `reports/`;
-- posted as a comment on the **"Limbo Tracker daily report"** issue. Subscribe to that issue to get it by email. Only the scheduled run reports; a manual run tracks and saves state, and the next daily report covers its changes.
+- posted as a comment on the **"Limbo Tracker daily report"** issue (`--comment`: whole, or cut at a line with a link to the full report if it's longer than a comment allows). Subscribe to that issue to get it by email. Only the scheduled run reports; a manual run tracks and saves state, and the next daily report covers its changes.
 
 ## In CI
 

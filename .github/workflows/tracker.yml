@@ -67,7 +67,9 @@ jobs:
         id: report
         if: github.event_name == 'schedule'
         run: |
-          path=$(uv run limbowatch report --state tracker-data/state --out tracker-data/reports)
+          path=$(uv run limbowatch report --state tracker-data/state --out tracker-data/reports \
+            --comment "$RUNNER_TEMP/comment.md" \
+            --full-url "https://github.com/${{ github.repository }}/blob/tracker-data/reports/{date}.md")
           echo "path=$path" >> "$GITHUB_OUTPUT"
           cat "$path" >> "$GITHUB_STEP_SUMMARY"
       - name: Save state and report
@@ -80,7 +82,6 @@ jobs:
         if: github.event_name == 'schedule'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPORT: ${{ steps.report.outputs.path }}
         run: |
           title="Limbo Tracker daily report"
           n=$(gh issue list --repo "${{ github.repository }}" --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
@@ -89,5 +90,5 @@ jobs:
               --body "Each daily Limbo Tracker run posts its report here. Subscribe to this issue to get it by email. Reports are also kept on the \`tracker-data\` branch under \`reports/\`." \
               | grep -o '[0-9]*$')
           fi
-          head -c 65000 "$REPORT" > "$RUNNER_TEMP/comment.md"
+          # the report as written by `limbowatch report --comment`: cut at a line, with a link, if it's too long
           gh issue comment "$n" --repo "${{ github.repository }}" --body-file "$RUNNER_TEMP/comment.md"

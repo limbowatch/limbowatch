@@ -244,6 +244,12 @@ def report(
     out: Annotated[Path, typer.Option(help="Directory for reports (YYYY-MM-DD.md and latest.md).")] = Path(
         "tracker/reports"
     ),
+    comment: Annotated[
+        Path | None, typer.Option(help="Also write the report as an issue comment: cut to fit, with a link to it all.")
+    ] = None,
+    full_url: Annotated[
+        str, typer.Option(help="Where the full report can be read, for --comment; {date} is the report's date.")
+    ] = "https://github.com/limbowatch/limbowatch/blob/tracker-data/reports/{date}.md",
 ) -> None:
     """Write the daily Markdown report: current numbers and everything that changed since the last report."""
     store = _load(state)
@@ -251,6 +257,8 @@ def report(
     out.mkdir(parents=True, exist_ok=True)
     (out / f"{rep.date}.md").write_text(rep.markdown)
     (out / "latest.md").write_text(rep.markdown)
+    if comment is not None:
+        comment.write_text(report_mod.comment(rep.markdown, full_url.replace("{date}", rep.date)))
     report_mod.commit(store, rep)
     store.export_jsonl(state)
     typer.echo(str(out / f"{rep.date}.md"))
