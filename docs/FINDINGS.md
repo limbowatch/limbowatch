@@ -2592,6 +2592,20 @@ Answered:
 - **Implication:** the audit is now stricter about misses and fairer about staleness.
 - **Sources:** scratchpad `audit.md`, `audit2.md`; scripts/audit.py.
 
+### F-170
+- **Date:** 2026-11-13 · **Status:** confirmed (direct observation)
+- **Question:** Release 0.1.0a14: did every artifact ship as tested?
+- **Method:** the release checklist after the checks of [F-169](#f-169): version commit 35cb7eb, image built on main (`sha-35cb7eb`), pin commit 2495cbc, signed tag `v0.1.0a14`; the component split aaeea2b pushed to gitlab.com with its signed tag `0.1.0-alpha.14`; the action split 710abec pushed to limbowatch/limbowatch-action, its self-test, its signed tag and pre-release; the org profile; the proof repository's run on the published action (limbowatch/limbo-poc run 43420230782).
+- **Result:**
+  - PyPI serves 0.1.0a14 for both packages; the GitHub pre-release exists; `ghcr.io/limbowatch/limbowatch:0.1.0a14` resolves to `sha256:b578721a…`, the digest pinned in `action.yml` and the GitLab template.
+  - The component's pipelines passed on `main` and on the tag; 0.1.0-alpha.14 is in the GitLab CI/CD Catalog.
+  - The action's self-test passed on Linux (image) and macOS (`install: python`, hash-checked); release v0.1.0a14 created. Marketplace still listed a11–a13 before the maintainer ticks a14; its page already showed the new README.
+  - The proof run on the published action: Limbowatch reports all 7 examples (typebox, nats-server, go-openapi/spec, go-toml, mustache, rubyntlm, scapy); OSV-Scanner none; bundler-audit sees rubyntlm, as in [F-162](#f-162).
+  - The action tag in the separate clone wouldn't sign with `-u 4F6CE172` (a short ID gpg didn't resolve to the signing key); without `-u` it signed with the configured key `…F143D31D`.
+- **Caveats:** the screenshots on the scan page weren't refreshed: they need the signed-in browser, which wasn't connected. Only the job summary's table changes (values as code).
+- **Implication:** 0.1.0a14 shipped as tested.
+- **Sources:** PyPI JSON API; `docker buildx imagetools inspect`; GitLab and GitHub run lists; the runs named above.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
