@@ -2606,6 +2606,20 @@ Answered:
 - **Implication:** 0.1.0a14 shipped as tested.
 - **Sources:** PyPI JSON API; `docker buildx imagetools inspect`; GitLab and GitHub run lists; the runs named above.
 
+### F-171
+- **Date:** 2026-11-13 · **Status:** confirmed (direct measurement; official docs)
+- **Question:** Would the public site fit on GitHub Pages behind Cloudflare, and what would that cost?
+- **Method:** built the site from the `tracker-data` branch with `limbowatch publish` (as `site.yml` does) and measured it with `du` and `find`; read the GitHub Pages limits and the Cloudflare Workers pricing and limits, Snippets, Transform Rules and plan pages.
+- **Result:**
+  - The site is **508 MB in 51,813 files**: `advisory/` 311 MB (26,030 pages, about 12 KB each), `feed/` 130 MB, `osv/` 48 MB (50 ecosystems), everything else under 16 MB.
+  - Each watcher scan downloads `feed/all.zip` (25.0 MB) and `feed/watchlist.json` (3.1 MB), and reuses its cached copy when the ETag matches (`watch/scan.py`). The home page is 12 KB gzipped plus its CSS (12 KB) and one of two screenshots (198 KB).
+  - The tracker holds 43,255 advisories; 5,039 were published in 2026-10, up from 2,083 in 2026-04.
+  - GitHub Pages: the published site may be no larger than **1 GB**; soft limits of **100 GB bandwidth a month** and 10 builds an hour (the build limit doesn't apply to custom Actions workflows); deployments time out after 10 minutes. No custom response headers. The docs name no paid tier that raises these limits.
+  - Cloudflare Free: $0, CDN included with no stated bandwidth limit; 10 Transform Rules in total, each setting a fixed header value. Snippets are Pro and up only (Pro costs $20/month billed annually or $25 monthly). Workers Free allows 100,000 requests a day (fail-open or fail-closed with error 1027 beyond that); Workers Paid costs at least $5/month with 10 million requests included, then $0.30 per million. Static assets served by Workers are free and unlimited, but capped at 20,000 files per version on Free and 100,000 on Paid, 25 MiB per file.
+- **Caveats:** one build on one day. Growth depends on how many repos the tracker adds, not only on new advisories. No traffic numbers were measured, because the Cloudflare analytics weren't accessible from here.
+- **Implication:** Pages holds the site today with about 490 MB to spare. At about 19 KB per advisory, the site would pass 1 GB in roughly 8 months at the October rate, sooner if the watchlist grows. The fixed security headers fit in free Transform Rules. The per-file `X-Goog-Hash` ([F-073](#f-073)) needs a Worker on `/osv/*` (free under 100,000 requests a day) or a Pro plan for Snippets. Workers static assets would need Paid ($5/month), because the site has more than 20,000 files.
+- **Sources:** [GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits); [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/); [Workers limits](https://developers.cloudflare.com/workers/platform/limits/); [Snippets](https://developers.cloudflare.com/rules/snippets/); [Transform Rules](https://developers.cloudflare.com/rules/transform/); [Cloudflare plans](https://www.cloudflare.com/plans/network-cdn/).
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
