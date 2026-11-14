@@ -1,0 +1,14 @@
+// The limbo.watch Worker (docs/HOSTING_PLAN.md). Nothing here names a Cloudflare account: wrangler reads
+// CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN from the environment, so the same file deploys to any account
+// that has a bucket of this name.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "limbowatch-site",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "r2_buckets": [{ "binding": "SITE", "bucket_name": "limbowatch-site" }],
+  // Served at limbowatch-site.<subdomain>.workers.dev for the parity check. The custom domains (limbo.watch,
+  // www.limbo.watch) are added here at the switch, step 5.
+  "workers_dev": true,
+  "observability": { "enabled": true }
+}

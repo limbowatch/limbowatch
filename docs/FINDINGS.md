@@ -2709,6 +2709,20 @@ Answered:
 - **Implication:** R2 sync writes about 3,100 objects a day (about 93,000 a month, well inside 1 million free). Feed mirrors and incremental OSV consumers see only records that changed. Supersedes the estimate of about 2,500 a day in [F-174](#f-174).
 - **Sources:** the builds and commands above.
 
+### F-179
+- **Date:** 2026-11-14 · **Status:** confirmed (direct observation; local runtime, not yet Cloudflare's network)
+- **Question:** Does the Worker in `deploy/worker/` serve the site as nginx does, and how does the Workers runtime behave locally?
+- **Method:** 19 tests in workerd with an in-memory R2 bucket (`@cloudflare/vitest-plugin` 1.4.11, vitest 4.1.12, wrangler 4.156.0). `wrangler deploy --dry-run`. `wrangler dev --local` with 15 files from today's build put into a local R2, and `curl -sI` on 18 paths of it and of https://limbo.watch, comparing status and headers. The 25 MB `feed/all.zip` fetched from the Worker: MD5, `If-None-Match`, `Range: bytes=0-99`; read with `from_feed_zip` from limbowatch-cli 0.1.0a14.
+- **Result:**
+  - Same as nginx on all 18 paths: status, `Content-Type` (including `text/csv; charset=utf-8` and `application/atom+xml`), CORS only on `/feed/`, `/osv/` and `/metrics.json`, the five security headers (also on 404s and redirects), `X-Goog-Hash` only on `/osv/<Ecosystem>/all.zip`. The exceptions are below.
+  - Differences, all expected: redirects go to a relative `/tracker/` where nginx sends `http://limbo.watch/tracker/`. The live site's `cache-control: max-age=14400` and `age` on zip, CSV, CSS, SVG and robots.txt, and its missing `accept-ranges` on compressed text, come from Cloudflare's edge (browser cache setting, edge cache, compression), which `wrangler dev` doesn't have. nginx itself sends `max-age=300`.
+  - The zip came back byte for byte (MD5 `49be1d43…`), the ETag is the R2 MD5 (`"49be1d43…"`, where nginx's was `"<mtime>-<size>"`), `If-None-Match` gave 304, the range 206 with 100 bytes, and `X-Goog-Hash` matched `osv/crc32c.map`. 0.1.0a14 read 25,685 records.
+  - **The runtime treats every named export of the main module as an entry point.** `export const UNSATISFIABLE = "…"` in `src/index.js` made `wrangler dev` fail: "Incorrect type for map entry 'UNSATISFIABLE': the provided value is not of type 'function or ExportedHandler'". The vitest tests didn't catch it, because they import the module directly. The helpers now live in `src/serve.js`, and a test checks that `src/index.js` exports only `default`.
+  - Local R2 ignores a range it can't satisfy (`bytes=5000-6000` on 1,000 bytes returned all 1,000 bytes as `{offset: 0, length: 1000}`), and also a malformed one (`bytes=abc`). So the Worker parses `Range` itself: past the end gives 416, malformed is ignored, as nginx does.
+- **Caveats:** local runtime only. Compression, edge headers, latency and CPU time on Cloudflare's network are measured in step 4 against a `workers.dev` deployment. Old ETags won't match the new ones, so each watcher with a cached feed downloads it once after the switch.
+- **Implication:** the Worker is ready to deploy for the parity check. After the switch, browsers revalidate zips and CSS after 5 minutes instead of 4 hours, unless the zone's browser cache setting applies to Worker responses, which step 4 will show.
+- **Sources:** `deploy/worker/`; the runs above.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

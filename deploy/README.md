@@ -58,3 +58,11 @@ ssh root@skylion kubectl -n argocd get application limbowatch-site
 ssh root@skylion kubectl -n limbowatch get deploy,pods,certificate
 curl -sI https://limbo.watch/
 ```
+
+## Next: Cloudflare R2 and a Worker
+
+`deploy/worker/` is the Worker that will replace the nginx image ([docs/HOSTING_PLAN.md](../docs/HOSTING_PLAN.md)). It isn't deployed yet. Its tests run in CI (`ci.yml`, job `worker`) and locally:
+
+```sh
+cd deploy/worker && npm ci --ignore-scripts && npx vitest run
+```

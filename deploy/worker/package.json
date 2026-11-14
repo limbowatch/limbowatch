@@ -1,0 +1,14 @@
+{
+  "name": "limbowatch-site-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.4.11",
+    "vitest": "4.1.12",
+    "wrangler": "4.156.0"
+  }
+}

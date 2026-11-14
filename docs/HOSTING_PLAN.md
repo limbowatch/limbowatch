@@ -26,7 +26,7 @@ GitHub Actions (site.yml)                Cloudflare account
   - the headers in `deploy/site/nginx.conf`: CSP, HSTS, nosniff, Referrer-Policy, Permissions-Policy; CORS `*` on `/feed/`, `/osv/` and `/metrics.json`; `text/csv; charset=utf-8`; `Cache-Control: max-age=300`;
   - `X-Goog-Hash` on `/osv/**/all.zip` and `osv/limbo-db.zip`, read from `osv/crc32c.map` (already published) and kept in memory per isolate (F-073);
   - `www.limbo.watch` → 301 to `limbo.watch` (Traefik does this today);
-  - the Cache API in front of R2, so most requests never read R2.
+  - every request reads R2 directly: about 180,000 reads a month against 10 million free (F-175). A Cache API layer can come later if step 4 shows latency or reads call for it.
 - **Everything is in the repo:** the Worker in `deploy/worker/` (JavaScript, no build step), its `wrangler.jsonc`, and the sync step in `site.yml`. The zone needs no settings beyond the Worker's custom domains: no page rules, cache rules, Transform Rules or other dashboard settings.
 
 ### Cost (F-171, F-173, F-174)
@@ -105,7 +105,7 @@ Each step ends in a working state; nothing changes for users until step 5.
 
 0. **Inputs** (you): traffic checked (F-175); the personal account for now (decided 2026-11-13), moved later with the checklist above; subscribe to Workers Paid, set an email alert on usage and a spending limit high enough that it never takes the site down by accident (F-176); create the bucket and two tokens; add the GitHub variables and environments.
 1. **Stable feed `modified`** (product; done 2026-11-14, F-178: changed files a day 27,615 → 3,112): set each feed record's `modified` to when its content last changed, not the build time. Today every build rewrites all 25,692 feed JSON files (F-174), which also defeats ETags for anyone mirroring them. It's a semantic fix in the OSV schema's sense; test pinned old releases against it.
-2. **Worker** in `deploy/worker/`, with tests in `workerd` (`@cloudflare/vitest-pool-workers`): every nginx behaviour above, against a fake bucket. No network.
+2. **Worker** in `deploy/worker/`, with tests in `workerd` (`@cloudflare/vitest-plugin`): every nginx behaviour above, against an in-memory bucket. No network. (Done 2026-11-14, F-179.)
 3. **Sync** in `site.yml`: pinned rclone (checksum verified), `rclone sync --checksum --max-delete 2%`, uploading the big feed zips and `crc32c.map` last. The 2% cap stops a broken build from wiping the site.
 4. **Parity check** (`scripts/check_hosting.py`, network): for a sample of URLs of each kind, compare the old and new hosts' status, headers, body digest, `HEAD`, 304 and `X-Goog-Hash`. Run OSV-Scanner's refresh path and each pinned old watcher release against the `workers.dev` address.
 5. **Switch:** attach `limbo.watch` and `www.limbo.watch` to the Worker. Keep the cluster serving for a week as the fallback; going back means detaching the custom domain.
@@ -115,6 +115,6 @@ Each step ends in a working state; nothing changes for users until step 5.
 
 - ~~**AI crawlers**~~ Decided 2026-11-13: allow them. ClaudeBot and GPTBot made 58% of requests in the last 30 days (F-175); Workers Paid covers that load.
 
-- Do responses served from the Cache API count as Worker requests? (Yes as far as known: the Worker runs first.) Step 0's traffic numbers say whether this matters.
+- ~~Do responses served from the Cache API count as Worker requests?~~ Yes (F-176), and v1 doesn't use the Cache API.
 - Does Cloudflare accept GitHub's OIDC tokens in place of a stored API token? Nothing found yet; checked before step 0.
 - The site grew by 550 files in one day (F-174). If that's typical, it's about 16,500 a month, which matters for any host with a file cap, not for R2.
