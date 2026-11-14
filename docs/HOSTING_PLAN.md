@@ -1,6 +1,6 @@
 # Plan: serve limbo.watch from Cloudflare R2, at $0 a month
 
-Status: approved 2026-11-14 (the $0 setup); steps 1 and 2 done. Replaces the nginx image on the k3s cluster ([deploy/README.md](../deploy/README.md)). Facts and numbers: FINDINGS F-171 to F-180.
+Status: approved 2026-11-14 (the $0 setup); steps 1 to 5 done, limbo.watch is served from R2 since 2026-11-14. Replaces the nginx image on the k3s cluster ([deploy/README.md](../deploy/README.md)). Facts and numbers: FINDINGS F-171 to F-180.
 
 ## Goals
 
@@ -125,7 +125,7 @@ Each step ends in a working state; nothing changes for users until step 5.
    - `scripts/check_hosting.py` compares `limbo.watch` (nginx) and `next.limbo.watch` path by path: status, headers, body digest, `HEAD`, 304, ranges and `X-Goog-Hash`.
    - Old watcher releases and OSV-Scanner's refresh path run against `next`.
    - The tracker search and the checker are tried in a browser.
-5. **Switch:**
+5. **Switch** (done 2026-11-14 about 09:37 UTC, F-184; the cluster stays as the fallback until 2026-11-21):
    - Connect `limbo.watch` and `www.limbo.watch` to the bucket, replacing the DNS records that point at the cluster.
    - Keep the cluster serving for a week as the fallback. Going back means restoring those DNS records.
 6. **Retire:**

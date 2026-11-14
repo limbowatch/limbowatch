@@ -8,9 +8,13 @@
   "compatibility_date": "2026-10-01",
   "r2_buckets": [{ "binding": "SITE", "bucket_name": "limbowatch-site" }],
   // In the $0 setup the bucket serves the site on its custom domain and this Worker runs only on /osv/*, to add
-  // X-Goog-Hash (F-073, F-180). The route's "fail open" is switched on in the dashboard (no config field for it):
-  // past the free daily limit, requests skip the Worker and R2 answers. limbo.watch/osv/* is added at the switch.
+  // X-Goog-Hash (F-073, F-180). Its routes must fail open: past the free daily limit, requests skip the Worker and
+  // R2 answers. There's no config field for it and every deploy resets it, so run scripts/cf_rules.py after each
+  // deploy; it sets them through the API (F-183).
   "workers_dev": false,
-  "routes": [{ "pattern": "next.limbo.watch/osv/*", "zone_name": "limbo.watch" }],
+  "routes": [
+    { "pattern": "limbo.watch/osv/*", "zone_name": "limbo.watch" },
+    { "pattern": "next.limbo.watch/osv/*", "zone_name": "limbo.watch" }
+  ],
   "observability": { "enabled": true }
 }

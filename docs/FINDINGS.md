@@ -2787,6 +2787,30 @@ Answered:
 - **Implication:** steps 3 and 4 pass. Run `cf_rules.py` after every `wrangler deploy` (deploy/README.md), or the route goes back to failing closed. Step 5 can switch `limbo.watch` once you approve.
 - **Sources:** the runs and commands above.
 
+### F-184
+- **Date:** 2026-11-14 · **Status:** confirmed (direct observation)
+- **Question:** Step 5: does limbo.watch serve the same site from R2 after the switch, and what happened during it?
+- **Method:**
+  - `cf_rules.py --host limbo.watch --host next.limbo.watch --www www.limbo.watch` applied the rules, with a dry run first. The Worker was redeployed with the route `limbo.watch/osv/*`, then `cf_rules.py` set fail-open. Both were done while nginx still served limbo.watch, and `check_hosting.py` was run between steps.
+  - limbo.watch was then connected to the bucket as a custom domain (minimum TLS 1.2), at about 09:37 UTC. The DNS records before the switch were kept outside the repo for rollback.
+  - After the switch:
+    - `check_hosting.py --old https://next.limbo.watch --new https://limbo.watch` (165 paths);
+    - SHA-256 of five files from the cluster directly (`curl --resolve`) and from limbo.watch;
+    - the watcher's own `watch.scan.fetch`, run twice with one cache directory;
+    - requests with five user agents;
+    - the zone's sampled security events.
+- **Result:**
+  - Before the switch the rules changed nothing visible: 125 paths, 0 differ. Redirects and caching moved to Cloudflare's edge (`MISS`/`REVALIDATED` where it had been `DYNAMIC`). The www rule (`substring`) was accepted and sends `https://www.limbo.watch/tracker/?x=1` to `https://limbo.watch/tracker/?x=1`.
+  - **Connecting the custom domain replaced the zone's two proxied A records with the R2 record** automatically. The domain showed "Initializing".
+  - **For a short time right after the switch, three requests got 403.** Within a minute or two every request got 200 (6 rounds of 4 URLs, with and without query strings).
+  - **After the switch: 165 paths, 0 differ** from next.limbo.watch. On limbo.watch, 304s, ranges and `X-Goog-Hash` (all 47 ecosystem zips) passed, and `feed/all.zip` has an R2 ETag (`"03b9dd36…"`).
+  - `feed/all.zip`, `feed/watchlist.json`, `tracker/data.json` and `osv/limbo-db.zip` are byte-identical to the cluster's. The home page differs only by two `<!--email_off-->` markers: the build emits them (`site.py`) and Cloudflare strips them on the way out, as it did with nginx.
+  - The watcher's fetch got the feed (24,996,510 bytes, 0.6 s), reused it by ETag the second time, and read 25,685 records. Both routes fail open; all four rule phases are up to date.
+  - **Python's `urllib` user agent gets 403 on both hosts**; curl, httpx, an empty user agent and `limbowatch/…` get 200. The zone's Browser Integrity Check blocked a request on 2026-11-13 11:47 PST, before the switch, so this setting predates the move.
+- **Caveats:** the 403 window wasn't measured precisely. Cloudflare analytics may show how many visitors hit it.
+- **Implication:** limbo.watch is served from R2 at $0 a month. The cluster keeps running, still deployed daily by `site.yml`, until step 6 (after 2026-11-21). Rolling back means disconnecting the custom domain and restoring the two A records. Browser Integrity Check blocks `urllib` scripts from fetching the feed; turning it off for `/feed/` and `/osv/` is a separate decision.
+- **Sources:** the runs and commands above; Cloudflare dashboard (DNS, R2, security events).
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
