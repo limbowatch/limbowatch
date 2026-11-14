@@ -2634,6 +2634,19 @@ Answered:
 - **Implication:** compressing the files doesn't help. Pages counts the files you deploy, can't serve pre-compressed files, and already compresses in transit. What helps is less boilerplate per advisory page: at about 3 KB a page, `advisory/` would drop from about 320 MB to about 107 MB in tar terms. The per-advisory feed JSON and the advisory URLs are public (sitemaps, checker links, old watchers), so they stay. At the October rate (about 3,000 new pages a month, about 25 KB each in tar terms), the site reaches 1 GB in about 4.5 months as it is.
 - **Sources:** [upload-pages-artifact](https://github.com/actions/upload-pages-artifact); [GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits); the measurements above.
 
+### F-173
+- **Date:** 2026-11-13 · **Status:** confirmed (official docs; file counts from the build in [F-171](#f-171))
+- **Question:** Could the whole site move to Cloudflare (Workers static assets, or R2), and what are the limits?
+- **Method:** read the Workers static assets `_headers` docs and the R2 pricing page; counted the site's OSV zips.
+- **Result:**
+  - Workers static assets take a `_headers` file: per-path rules with splats; at most **100 rules**, 2,000 characters a line; `Access-Control-Allow-Origin` takes only `*`, `null` or one exact origin. `_headers` doesn't apply to responses a Worker script generates.
+  - The nginx headers would need about 52 rules: one for the security headers on `/*`, about 3 for CORS (`/feed/*`, `/osv/*`, `/metrics.json`), one for `press/limbo.csv`, and one `X-Goog-Hash` rule per zip (47 ecosystem zips plus `limbo-db.zip`).
+  - Static assets limits (F-171): 20,000 files on Free and 100,000 on Paid ($5/month); 25 MiB per file. The site has 51,813 files; its largest are `osv/limbo-db.zip` at 24.2 MiB and `feed/all.zip` at 23.9 MiB.
+  - R2: 10 GB-month of storage, 1 million Class A and 10 million Class B operations a month free; then $0.015 per GB-month, $4.50 per million Class A and $0.36 per million Class B; no egress fees.
+- **Caveats:** the docs don't say whether requests answered with `_headers` rules count as Worker invocations. No file-count growth measured over time: each advisory adds a page and a feed JSON, and pages stay after an advisory leaves limbo.
+- **Implication:** Workers static assets fit today on Paid, with every header in `_headers`. They hit two hard limits within months: the 25 MiB file size (the two big zips) and the 100,000 files (about 3,000 new advisories a month, two files each, so roughly 8 months). R2 behind a Worker has neither limit and costs about $0 to $5 a month, but every request runs the Worker (100,000 a day free).
+- **Sources:** [Static assets headers](https://developers.cloudflare.com/workers/static-assets/headers/); [R2 pricing](https://developers.cloudflare.com/r2/pricing/); [Workers limits](https://developers.cloudflare.com/workers/platform/limits/).
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
