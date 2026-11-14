@@ -2848,6 +2848,21 @@ Answered:
 - **Implication:** nothing of the cluster setup remains outside git history and the kubelet GC config on the two nodes. F-186's caveats about the package and next.limbo.watch are resolved.
 - **Sources:** the commands above.
 
+### F-188
+- **Date:** 2026-11-14 · **Status:** confirmed for the samples (direct observation); the total isn't broken down
+- **Question:** Who sends requests with Python's `urllib` user agent, which Browser Integrity Check blocks ([F-184](#f-184))?
+- **Method:** Cloudflare dashboard, zone limbo.watch: Security → Analytics, last 30 days (totals by security service), and Events filtered to Service = Browser integrity check, last 72 hours and last 30 days (sampled logs, each opened for user agent, host and path). Searched the repository for `urllib.request`/`urlopen`. Visitors' IP addresses were read but aren't recorded here.
+- **Result:**
+  - Last 30 days: 186,750 requests; **90 mitigated, 30 of them by Browser Integrity Check** and 60 by managed rules.
+  - The sampled Browser Integrity Check blocks (8 shown):
+    - 2026-11-14 09:41 UTC: 4 requests from `Python-urllib/3.12` and `/3.15` to `/feed/index.json` and `/feed/all.zip` on limbo.watch and next.limbo.watch. These were this session's own tests (F-184).
+    - 2026-11-13 19:47 UTC: **one request from `Python-urllib/3.12`, through Cloudflare's own network (AS13335), for `/feed/GHSA-5hrj-7fc3-cmx9.json`**, one of the home page's examples ([F-157](#f-157)). Origin unknown. The repository's scripts that use `urllib` call only api.osv.dev (`research/2026-11-demo-evidence/verify.py`) or the GitHub, GitLab and Gitea test servers.
+    - 2026-11-06 20:11–20:13 UTC: 3 requests for `www.limbo.watch/` with a malformed, truncated user agent (`"Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X)`, beginning with a quote) from three residential networks. That looks like a scanner, not a visitor.
+  - The traffic samples also showed `next.limbo.watch/tracker/` still being requested at 10:55–11:04 UTC, after the test hostname was removed: crawlers had found it within hours.
+- **Caveats:** sampled logs. 22 of the 30 blocks weren't shown, so their user agents are unknown.
+- **Implication:** almost nobody fetches the site with `urllib`: one unidentified request in 30 days, besides this session's tests. Browser Integrity Check costs nothing and blocks junk such as the malformed scanner, so there's no reason to turn it off for the feed. A test hostname is found by crawlers quickly, so a future one should send `noindex` or sit behind Access.
+- **Sources:** Cloudflare dashboard (zone security analytics and events).
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
