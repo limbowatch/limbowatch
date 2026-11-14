@@ -2607,7 +2607,7 @@ Answered:
 - **Sources:** PyPI JSON API; `docker buildx imagetools inspect`; GitLab and GitHub run lists; the runs named above.
 
 ### F-171
-- **Date:** 2026-11-13 · **Status:** confirmed (direct measurement; official docs)
+- **Date:** 2026-11-13 · **Status:** confirmed (direct measurement; official docs); the size measure and the 8-month estimate are superseded by [F-172](#f-172)
 - **Question:** Would the public site fit on GitHub Pages behind Cloudflare, and what would that cost?
 - **Method:** built the site from the `tracker-data` branch with `limbowatch publish` (as `site.yml` does) and measured it with `du` and `find`; read the GitHub Pages limits and the Cloudflare Workers pricing and limits, Snippets, Transform Rules and plan pages.
 - **Result:**
@@ -2619,6 +2619,20 @@ Answered:
 - **Caveats:** one build on one day. Growth depends on how many repos the tracker adds, not only on new advisories. No traffic numbers were measured, because the Cloudflare analytics weren't accessible from here.
 - **Implication:** Pages holds the site today with about 490 MB to spare. At about 19 KB per advisory, the site would pass 1 GB in roughly 8 months at the October rate, sooner if the watchlist grows. The fixed security headers fit in free Transform Rules. The per-file `X-Goog-Hash` ([F-073](#f-073)) needs a Worker on `/osv/*` (free under 100,000 requests a day) or a Pro plan for Snippets. Workers static assets would need Paid ($5/month), because the site has more than 20,000 files.
 - **Sources:** [GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits); [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/); [Workers limits](https://developers.cloudflare.com/workers/platform/limits/); [Snippets](https://developers.cloudflare.com/rules/snippets/); [Transform Rules](https://developers.cloudflare.com/rules/transform/); [Cloudflare plans](https://www.cloudflare.com/plans/network-cdn/).
+
+### F-172
+- **Date:** 2026-11-13 · **Status:** confirmed (direct measurement; official docs), except where the 1 GB limit is measured (unknown)
+- **Question:** Would compressing the site help it fit GitHub Pages?
+- **Method:** the build from [F-171](#f-171): summed file bytes, `tar -cf - . | wc -c`, `tar | gzip -6 | wc -c`; compared two advisory pages and measured their `<header>`, `<footer>`, `<nav>`, `<svg>` and `<script>` blocks; `curl -D -` with `Accept-Encoding: gzip, br` on https://pages.github.com/; read the actions/upload-pages-artifact README.
+- **Result:**
+  - The site has 445 MB of file bytes (F-171's 508 MB was `du` disk blocks). As a tar it is **662 MB**, because tar adds a 512-byte header to each of the 51,813 files and 26,030 advisory directories and pads every file to 512 bytes. Gzipped, the tar is 98 MB.
+  - By part (file bytes, then gzipped tar): `advisory/` 300 MB, 16.6 MB (18 times smaller); `feed/` 79 MB, 30 MB; `osv/` 51 MB, 46 MB (already zips). The per-advisory `feed/GHSA-*.json` files total 50 MB.
+  - An advisory page is about 10.8 KB. Header 2,253 B, footer 2,364 B, script 1,374 B, SVG 1,262 B and nav 1,159 B, most of it the same on every page. Two pages share about 10 KB as character runs.
+  - Pages already sends gzip in transit (`content-encoding: gzip` observed).
+  - upload-pages-artifact: the artifact is a gzip of a single tar; "the tar file must be under 10GB", "(we recommend under 1 GB!)".
+- **Caveats:** the docs don't say whether the 1 GB limit counts the tar or the unpacked files, so the tar (662 MB) is the safe reading. The character-run match overstates shared content. The gzip ratio is the better sign of how much is repeated.
+- **Implication:** compressing the files doesn't help. Pages counts the files you deploy, can't serve pre-compressed files, and already compresses in transit. What helps is less boilerplate per advisory page: at about 3 KB a page, `advisory/` would drop from about 320 MB to about 107 MB in tar terms. The per-advisory feed JSON and the advisory URLs are public (sitemaps, checker links, old watchers), so they stay. At the October rate (about 3,000 new pages a month, about 25 KB each in tar terms), the site reaches 1 GB in about 4.5 months as it is.
+- **Sources:** [upload-pages-artifact](https://github.com/actions/upload-pages-artifact); [GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits); the measurements above.
 
 ## Archive
 
