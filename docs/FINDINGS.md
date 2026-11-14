@@ -2742,6 +2742,19 @@ Answered:
   Requests not on `/osv/*` never run a Worker, so the 100,000-a-day limit can't take the site down, and Workers Paid isn't needed.
 - **Sources:** [R2 public buckets](https://developers.cloudflare.com/r2/buckets/public-buckets/); [URL rewrites](https://developers.cloudflare.com/rules/transform/url-rewrite/); [URL forwarding availability](https://developers.cloudflare.com/rules/url-forwarding/); [Rules language functions](https://developers.cloudflare.com/ruleset-engine/rules-language/functions/); [Worker routes](https://developers.cloudflare.com/workers/configuration/routing/routes/); GitHub billing usage API.
 
+### F-181
+- **Date:** 2026-11-14 · **Status:** confirmed (official docs)
+- **Question:** Could D1 (Cloudflare's SQLite) serve the tracker search or the package checker, and at what cost?
+- **Method:** read the D1 pricing and limits pages.
+- **Result:**
+  - Free (Workers Free): **5 million rows read and 100,000 rows written a day**, 5 GB in total, 10 databases of up to 500 MB each, 50 queries per Worker invocation. Past a daily limit, "you will not be able to run queries against D1" until 00:00 UTC.
+  - Paid (Workers Paid, $5/month): 25 billion rows read and 50 million written a month included; databases up to 10 GB.
+  - **Rows read counts rows scanned, not returned.** A filter on an unindexed column, or a full-text match over every row, reads the whole table. Indexes cut rows read and cost one extra row written per indexed write.
+  - Each database runs one query at a time; at 1 ms a query that's at most 1,000 a second. Results are capped at 50 MB.
+  - D1 is queried from Workers, so every query also counts against the Workers request limit (100,000 a day on Free, [F-173](#f-173)).
+- **Implication:** an indexed lookup ("is npm `x` 1.2.3 in limbo?") would fit the free tier easily. A substring search over the tracker's 43,255 advisories (its state on 2026-11-13) scans them all, which allows only about 115 searches a day on Free. Any D1 endpoint runs a Worker on every request, bringing back the daily cap that the $0 setup avoids ([F-180](#f-180)). The static files already used by the search and the checker have neither limit.
+- **Sources:** [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/); [D1 limits](https://developers.cloudflare.com/d1/platform/limits/).
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
