@@ -2755,6 +2755,18 @@ Answered:
 - **Implication:** an indexed lookup ("is npm `x` 1.2.3 in limbo?") would fit the free tier easily. A substring search over the tracker's 43,255 advisories (its state on 2026-11-13) scans them all, which allows only about 115 searches a day on Free. Any D1 endpoint runs a Worker on every request, bringing back the daily cap that the $0 setup avoids ([F-180](#f-180)). The static files already used by the search and the checker have neither limit.
 - **Sources:** [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/); [D1 limits](https://developers.cloudflare.com/d1/platform/limits/).
 
+### F-182
+- **Date:** 2026-11-14 · **Status:** confirmed (direct observation; official docs)
+- **Question:** Step 3: does `uv` check the hashes in a requirements file, and can a Worker route's fail-open be set from config?
+- **Method:** `uv pip compile --generate-hashes --exclude-newer 2026-10-31` for `boto3==1.43.123` (deploy/cloudflare/requirements.txt). Replaced both of boto3's hashes with zeros in a copy, cleared boto3 from uv's cache, and installed the copy two ways. Read the Workers limits page on fail-open.
+- **Result:**
+  - `uv run --no-project --with-requirements <copy> python -c "import boto3"` **installed boto3 and exited 0**: the wrong hashes weren't checked.
+  - `uv pip install --require-hashes -r <copy>` into a new venv failed: "Hash mismatch for `boto3==1.43.123`", computed `sha256:d18d66e1…`. With the real file it installed boto3 1.43.123.
+  - Workers limits: "You can configure the fail mode by toggling the corresponding route." The docs name no wrangler or API field for it, nor a default.
+- **Caveats:** one uv version (the one installed here). The fail-open default wasn't observed.
+- **Implication:** `site.yml` installs the upload script's dependencies with `uv pip install --require-hashes` into a separate venv, not `uv run --with-requirements`. The `/osv/*` route's fail-open is switched on in the dashboard after the first deploy, and checked in step 4.
+- **Sources:** the commands above; [Workers limits](https://developers.cloudflare.com/workers/platform/limits/).
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

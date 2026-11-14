@@ -27,6 +27,8 @@ jobs:
   build:
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    # Holds the R2 upload credentials; only main may deploy to it (docs/HOSTING_PLAN.md, "Credentials").
+    environment: site
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -70,3 +72,17 @@ jobs:
           git commit -q -m "ci: deploy site ${{ steps.tag.outputs.tag }}"
           git pull -q --rebase origin main
           git push -q
+      # Also upload the site to R2 (docs/HOSTING_PLAN.md, step 3). Off until the `site` environment has R2_BUCKET.
+      # Only changed files are uploaded; the script refuses to delete more than 2% of the bucket.
+      - name: Upload to R2
+        if: ${{ vars.R2_BUCKET != '' }}
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          # `uv run --with-requirements` doesn't check hashes; `uv pip install --require-hashes` does (F-182)
+          uv venv -q "$RUNNER_TEMP/r2"
+          uv pip install -q --python "$RUNNER_TEMP/r2/bin/python" --require-hashes -r deploy/cloudflare/requirements.txt
+          "$RUNNER_TEMP/r2/bin/python" scripts/sync_r2.py deploy/site/public

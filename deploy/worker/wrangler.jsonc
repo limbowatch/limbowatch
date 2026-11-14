@@ -7,8 +7,10 @@
   "main": "src/index.js",
   "compatibility_date": "2026-10-01",
   "r2_buckets": [{ "binding": "SITE", "bucket_name": "limbowatch-site" }],
-  // Served at limbowatch-site.<subdomain>.workers.dev for the parity check. The custom domains (limbo.watch,
-  // www.limbo.watch) are added here at the switch, step 5.
-  "workers_dev": true,
+  // In the $0 setup the bucket serves the site on its custom domain and this Worker runs only on /osv/*, to add
+  // X-Goog-Hash (F-073, F-180). The route's "fail open" is switched on in the dashboard (no config field for it):
+  // past the free daily limit, requests skip the Worker and R2 answers. limbo.watch/osv/* is added at the switch.
+  "workers_dev": false,
+  "routes": [{ "pattern": "next.limbo.watch/osv/*", "zone_name": "limbo.watch" }],
   "observability": { "enabled": true }
 }

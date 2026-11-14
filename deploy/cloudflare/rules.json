@@ -1,0 +1,76 @@
+{
+  "_comment": "Zone rules for the $0 setup (docs/HOSTING_PLAN.md), applied by scripts/cf_rules.py. $HOSTS is replaced by the hostnames served from R2 and $WWW by the www hostnames that redirect to their apex. Only rules whose ref starts with limbowatch- are managed; others in the zone are left alone.",
+  "http_request_dynamic_redirect": [
+    {
+      "ref": "limbowatch-www",
+      "description": "www to the apex, same path and query",
+      "expression": "http.host in $WWW",
+      "action": "redirect",
+      "action_parameters": {
+        "from_value": {
+          "status_code": 301,
+          "target_url": { "expression": "concat(\"https://\", substring(http.host, 4), http.request.uri.path)" },
+          "preserve_query_string": true
+        }
+      }
+    },
+    {
+      "ref": "limbowatch-slash",
+      "description": "a page without its slash: pages are directories and every file has an extension",
+      "expression": "http.host in $HOSTS and not ends_with(http.request.uri.path, \"/\") and not http.request.uri.path contains \".\"",
+      "action": "redirect",
+      "action_parameters": {
+        "from_value": {
+          "status_code": 301,
+          "target_url": { "expression": "concat(\"https://\", http.host, http.request.uri.path, \"/\")" },
+          "preserve_query_string": true
+        }
+      }
+    }
+  ],
+  "http_request_transform": [
+    {
+      "ref": "limbowatch-index",
+      "description": "a directory's index.html",
+      "expression": "http.host in $HOSTS and ends_with(http.request.uri.path, \"/\")",
+      "action": "rewrite",
+      "action_parameters": { "uri": { "path": { "expression": "concat(http.request.uri.path, \"index.html\")" } } }
+    }
+  ],
+  "http_response_headers_transform": [
+    {
+      "ref": "limbowatch-security",
+      "description": "the security headers nginx sent, on every response",
+      "expression": "http.host in $HOSTS",
+      "action": "rewrite",
+      "action_parameters": {
+        "headers": {
+          "Strict-Transport-Security": { "operation": "set", "value": "max-age=31536000" },
+          "X-Content-Type-Options": { "operation": "set", "value": "nosniff" },
+          "Referrer-Policy": { "operation": "set", "value": "strict-origin-when-cross-origin" },
+          "Permissions-Policy": { "operation": "set", "value": "camera=(), microphone=(), geolocation=()" },
+          "Content-Security-Policy": {
+            "operation": "set",
+            "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.googletagmanager.com https://*.google-analytics.com; connect-src 'self' https://api.deps.dev https://www.googletagmanager.com https://*.google-analytics.com https://*.google.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+          }
+        }
+      }
+    },
+    {
+      "ref": "limbowatch-cors",
+      "description": "the feed, OSV files and metrics are for tools: any origin may fetch them",
+      "expression": "http.host in $HOSTS and (starts_with(http.request.uri.path, \"/feed/\") or starts_with(http.request.uri.path, \"/osv/\") or http.request.uri.path eq \"/metrics.json\")",
+      "action": "rewrite",
+      "action_parameters": { "headers": { "Access-Control-Allow-Origin": { "operation": "set", "value": "*" } } }
+    }
+  ],
+  "http_request_cache_settings": [
+    {
+      "ref": "limbowatch-cache",
+      "description": "cache everything, for each file's own max-age",
+      "expression": "http.host in $HOSTS",
+      "action": "set_cache_settings",
+      "action_parameters": { "cache": true }
+    }
+  ]
+}
