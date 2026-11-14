@@ -155,6 +155,7 @@ def _chunks(items: list[str], n: int) -> Iterable[list[str]]:
 
 def client() -> Any:
     import boto3  # type: ignore[import-not-found]  # only here: the tests don't need it
+    from botocore.config import Config  # type: ignore[import-not-found]
 
     env = os.environ
     return boto3.client(
@@ -163,6 +164,9 @@ def client() -> Any:
         aws_access_key_id=env["R2_ACCESS_KEY_ID"],
         aws_secret_access_key=env["R2_SECRET_ACCESS_KEY"],
         region_name="auto",
+        # boto3 keeps 10 connections by default, so most of WORKERS waited: the first upload of 51,814 files took
+        # 12 minutes (F-183)
+        config=Config(max_pool_connections=WORKERS, retries={"max_attempts": 5, "mode": "standard"}),
     )
 
 

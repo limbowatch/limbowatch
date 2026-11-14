@@ -76,8 +76,19 @@ def apply(dry_run: bool = False, log: Any = print) -> int:
     return int(cf_rules.run(cf, "limbo.watch", ["next.limbo.watch"], [], dry_run, log))
 
 
-def mock(router: respx.MockRouter, existing: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
+def mock(
+    router: respx.MockRouter, existing: dict[str, list[dict[str, Any]]], routes: list[dict[str, Any]] | None = None
+) -> dict[str, Any]:
     puts: dict[str, Any] = {}
+    router.get(f"{API}/zones/{ZONE}/workers/routes").mock(
+        return_value=httpx.Response(200, json={"success": True, "result": routes or []})
+    )
+
+    def put_route(request: httpx.Request) -> httpx.Response:
+        puts[request.url.path.rsplit("/", 1)[-1]] = json.loads(request.content)
+        return httpx.Response(200, json={"success": True, "result": {}})
+
+    router.put(url__regex=rf"{API}/zones/{ZONE}/workers/routes/.+").mock(side_effect=put_route)
     router.get(f"{API}/zones", params={"name": "limbo.watch"}).mock(
         return_value=httpx.Response(200, json={"success": True, "result": [{"id": ZONE}]})
     )
@@ -137,3 +148,21 @@ def test_dry_run_and_errors(monkeypatch: pytest.MonkeyPatch, capsys: Any) -> Non
     assert cf_rules.main(["--zone", "limbo.watch", "--host", "next.limbo.watch"]) == 2
     monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "t")
     assert cf_rules.main(["--zone", "limbo.watch", "--host", "x", "--www", "limbo.watch"]) == 2
+
+
+def test_the_workers_routes_fail_open() -> None:
+    """wrangler creates a route that fails closed; past the free daily limit it would answer 1027 (F-183)."""
+    routes = [
+        {"id": "r1", "pattern": "limbo.watch/osv/*", "script": "limbowatch-site", "request_limit_fail_open": False},
+        {"id": "r2", "pattern": "next.limbo.watch/osv/*", "script": "limbowatch-site", "request_limit_fail_open": True},
+        {"id": "r3", "pattern": "limbo.watch/other/*", "script": "someone-else", "request_limit_fail_open": False},
+    ]
+    stored = {p: cf_rules.desired(spec(), ["next.limbo.watch"], [])[p] for p in PHASES}
+    log: list[str] = []
+    with respx.mock(assert_all_called=False) as router:
+        puts = mock(router, stored, routes)
+        assert apply(dry_run=True, log=log.append) == 1
+        assert puts == {} and "route limbo.watch/osv/*: would set fail open" in log
+        assert apply(log=log.append) == 1
+    want = {"pattern": "limbo.watch/osv/*", "script": "limbowatch-site", "request_limit_fail_open": True}
+    assert puts == {"r1": want}

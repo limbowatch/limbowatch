@@ -4,9 +4,10 @@
     … --host limbo.watch --host next.limbo.watch --www www.limbo.watch           # at the switch (step 5)
 
 Run from a maintainer's machine, not CI: the token needs Zone Read, Transform Rules Edit, Single Redirect Edit,
-Cache Rules Edit and Account Rulesets Read on the zone. Only rules whose `ref` starts with `limbowatch-` are managed;
-the zone's other rules are kept as they are. A phase is written only when its managed rules differ, so a second run
-changes nothing. The token comes from the environment and is never printed.
+Cache Rules Edit and Workers Routes Edit on the zone, and Account Rulesets Read. Only rules whose `ref` starts with
+`limbowatch-` are managed; the zone's other rules are kept as they are. A phase is written only when its managed rules
+differ, so a second run changes nothing. The Worker's routes are set to fail open. The token comes from the
+environment and is never printed.
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ import httpx
 API = "https://api.cloudflare.com/client/v4"
 RULES = Path(__file__).resolve().parents[1] / "deploy" / "cloudflare" / "rules.json"
 PREFIX = "limbowatch-"
+WORKER = "limbowatch-site"  # deploy/worker/wrangler.jsonc
 COMPARED = ("expression", "action", "action_parameters", "description", "enabled")
 READ_ONLY = ("version", "last_updated")
 
@@ -93,6 +95,13 @@ class Cloudflare:
     def put_phase(self, zone: str, phase: str, rules: list[dict[str, Any]]) -> None:
         self._call("PUT", f"/zones/{zone}/rulesets/phases/{phase}/entrypoint", json={"rules": rules})
 
+    def routes(self, zone: str) -> list[dict[str, Any]]:
+        return list(self._call("GET", f"/zones/{zone}/workers/routes"))
+
+    def fail_open(self, zone: str, route: dict[str, Any]) -> None:
+        body = {"pattern": route["pattern"], "script": route["script"], "request_limit_fail_open": True}
+        self._call("PUT", f"/zones/{zone}/workers/routes/{route['id']}", json=body)
+
 
 def run(cf: Cloudflare, zone_name: str, hosts: list[str], www: list[str], dry_run: bool, log: Any = print) -> int:
     spec = json.loads(RULES.read_text())
@@ -110,6 +119,15 @@ def run(cf: Cloudflare, zone_name: str, hosts: list[str], www: list[str], dry_ru
         log(f"{phase}: {'would set' if dry_run else 'set'} {refs}; {kept} other rule(s) kept")
         if not dry_run:
             cf.put_phase(zone, phase, new)
+    # A route wrangler creates fails closed: past the free daily limit its requests would get error 1027. The
+    # Worker's routes fail open instead, so R2 answers without X-Goog-Hash (F-183). The dashboard isn't needed.
+    for r in cf.routes(zone):
+        if r.get("script") != WORKER or r.get("request_limit_fail_open"):
+            continue
+        changed += 1
+        log(f"route {r['pattern']}: {'would set' if dry_run else 'set'} fail open")
+        if not dry_run:
+            cf.fail_open(zone, r)
     return changed
 
 

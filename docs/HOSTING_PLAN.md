@@ -119,7 +119,7 @@ Each step ends in a working state; nothing changes for users until step 5.
 3. **Sync and rules** (code done 2026-11-14; `site.yml` uploads once the `site` environment has `R2_BUCKET` and the R2 secrets):
    - `scripts/sync_r2.py`: list the bucket, compare MD5s, upload changed files with their `Content-Type` and `Cache-Control`, upload the big zips and `crc32c.map` last, and delete removed files. It refuses to delete more than 2%, so a broken build can't wipe the site. Tested offline with a stubbed S3 client.
    - `deploy/cloudflare/rules.json` and `scripts/cf_rules.py` (Rulesets API): idempotent, `--dry-run` shows the diff, and the hostnames are a parameter.
-4. **Test hostname and parity check:**
+4. **Test hostname and parity check** (done 2026-11-14, F-183: 165 paths, 0 differ):
    - Connect the bucket to `next.limbo.watch` as well, with the rules and the `/osv/*` route on both hostnames.
    - First confirm the Free plan accepts the rewrite and redirect rules (F-180 leaves this open).
    - `scripts/check_hosting.py` compares `limbo.watch` (nginx) and `next.limbo.watch` path by path: status, headers, body digest, `HEAD`, 304, ranges and `X-Goog-Hash`.
@@ -134,7 +134,7 @@ Each step ends in a working state; nothing changes for users until step 5.
 
 ## Open questions
 
-- Do dynamic URL rewrites and redirects (`concat`, `ends_with`) work on the Free plan? The docs don't restrict them but don't say so either (F-180). Step 4 checks before anything depends on it. If not: upload each page also under its directory key (`tracker/`), plus one static rule for `/`.
-- ~~Can a route's fail-open be set by config?~~ Only in the dashboard, as far as the docs say (F-182): switched on after the first deploy and checked in step 4.
+- ~~Do dynamic URL rewrites and redirects work on the Free plan?~~ Yes (F-183).
+- ~~Can a route's fail-open be set by config?~~ Through the API (`request_limit_fail_open`), which `cf_rules.py` does. `wrangler deploy` resets it, so run `cf_rules.py` after every deploy (F-183).
 - Does Cloudflare accept GitHub's OIDC tokens in place of a stored API token? Nothing found yet.
 - ~~**AI crawlers**~~ Decided 2026-11-13: allow them (F-175). In the $0 setup they cost nothing.

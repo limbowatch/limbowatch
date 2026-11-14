@@ -61,8 +61,17 @@ curl -sI https://limbo.watch/
 
 ## Next: Cloudflare R2 and a Worker
 
-`deploy/worker/` is the Worker that will replace the nginx image ([docs/HOSTING_PLAN.md](../docs/HOSTING_PLAN.md)). It isn't deployed yet. Its tests run in CI (`ci.yml`, job `worker`) and locally:
+The R2 setup ([docs/HOSTING_PLAN.md](../docs/HOSTING_PLAN.md)) runs alongside the cluster on `next.limbo.watch` until the switch. `site.yml` uploads each build to the bucket `limbowatch-site` (`scripts/sync_r2.py`). The zone rules are in `deploy/cloudflare/rules.json`. `deploy/worker/` is the Worker on `/osv/*`. Its tests run in CI (`ci.yml`, job `worker`) and locally:
 
 ```sh
 cd deploy/worker && npm ci --ignore-scripts && npx vitest run
+```
+
+To deploy the Worker or change the rules, use a maintainer token kept in your keychain (docs/HOSTING_PLAN.md, "Credentials"). **Run `cf_rules.py` after every `wrangler deploy`**: a deploy turns the route back to failing closed (FINDINGS F-183).
+
+```sh
+export CLOUDFLARE_ACCOUNT_ID=… CLOUDFLARE_API_TOKEN="$(security find-generic-password -s limbowatch-cf-maintainer -w)"
+(cd deploy/worker && npx wrangler deploy)
+uv run python scripts/cf_rules.py --zone limbo.watch --host next.limbo.watch    # --dry-run first if unsure
+uv run python scripts/check_hosting.py                                         # limbo.watch vs next.limbo.watch
 ```

@@ -2767,6 +2767,26 @@ Answered:
 - **Implication:** `site.yml` installs the upload script's dependencies with `uv pip install --require-hashes` into a separate venv, not `uv run --with-requirements`. The `/osv/*` route's fail-open is switched on in the dashboard after the first deploy, and checked in step 4.
 - **Sources:** the commands above; [Workers limits](https://developers.cloudflare.com/workers/platform/limits/).
 
+### F-183
+- **Date:** 2026-11-14 · **Status:** confirmed (direct observation)
+- **Question:** Steps 3 and 4: does the $0 setup work on Cloudflare, and does `next.limbo.watch` serve what `limbo.watch` (nginx) serves?
+- **Method:**
+  - `site.yml` run 43578856207 uploaded the build to the new bucket `limbowatch-site`; `next.limbo.watch` was connected as its custom domain with minimum TLS 1.2.
+  - `scripts/cf_rules.py --host next.limbo.watch` applied the six rules, then ran a second time. `wrangler deploy` (4.156.0) deployed the Worker on `next.limbo.watch/osv/*`, run twice.
+  - The route's failure mode was set in the dashboard and read back through `GET /zones/{id}/workers/routes`.
+  - `scripts/check_hosting.py` (new) compared 165 paths: the site's pages, every OSV zip, and 40 advisory pages and 40 feed records sampled with seed 0. The tracker search ("typebox") and the checker (`@jest/schemas` 29.6.3, npm) were tried in Chrome on next.limbo.watch.
+- **Result:**
+  - **First upload: 51,814 files in 12 min 12 s** (09:06:52 to 09:19:04 UTC), 0 deleted. boto3's default pool of 10 connections limited the script's 32 threads; it now has 32.
+  - **The Free plan accepted the dynamic rewrite and redirect** (`concat`, `ends_with`, `contains`). A second run reported every phase up to date. The www rule, which uses `substring`, isn't applied yet.
+  - The custom domain went from "Initializing" to "Active" within about 15 minutes.
+  - **A new route fails closed by default** (dashboard: "Fail closed (block)"). The API has a field for it, `request_limit_fail_open`. **`wrangler deploy` reset it to `false`**: a read right after the redeploy still showed `true`, and a read a few minutes later showed `false`. `cf_rules.py` now sets it through the API (`PUT /zones/{id}/workers/routes/{id}`), and two reads showed `true`.
+  - `HEAD` requests report `cf-cache-status: DYNAMIC`. `GET` requests give `MISS`, then `HIT` with a growing `age`, for HTML, CSS, CSV and JSON. HTML responses have no `ETag` on either host.
+  - **Parity: 165 paths, 0 differ.** Status, body SHA-256, `Content-Type`, CORS, the five security headers, and redirects compared by path all match. Redirects now go to `https://`; nginx's went to `http://`. On next.limbo.watch, `If-None-Match` gave 304 and `Range: bytes=0-99` gave 206 for every zip. `HEAD /osv/<Ecosystem>/all.zip` sent an `X-Goog-Hash` equal to the body's CRC-32C for all 47 ecosystem zips.
+  - The tracker search found `@sinclair/typebox` (1 of 10,410). The checker resolved `@jest/schemas` 29.6.3 through deps.dev and reported `@sinclair/typebox` 0.27.12 as possibly affected. No console errors on either page.
+- **Caveats:** one day, one sample. The www redirect and the `limbo.watch/osv/*` route are untested until step 5. Old watchers weren't run against next.limbo.watch, because their feed URL is fixed to limbo.watch; the bytes they'd get are identical.
+- **Implication:** steps 3 and 4 pass. Run `cf_rules.py` after every `wrangler deploy` (deploy/README.md), or the route goes back to failing closed. Step 5 can switch `limbo.watch` once you approve.
+- **Sources:** the runs and commands above.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
