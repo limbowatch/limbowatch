@@ -2687,6 +2687,16 @@ Answered:
 - **Implication:** the site's capacity on Workers Paid depends on requests, not bandwidth: 10 million is about 57 times the traffic in [F-175](#f-175). A spending limit would take the site down when it trips, so it has to sit well above expected use, with an email alert below it.
 - **Sources:** [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/); [About secret scanning](https://docs.github.com/en/code-security/secret-scanning/introduction/about-secret-scanning); [About GitHub Advanced Security](https://docs.github.com/en/get-started/learning-about-github/about-github-advanced-security).
 
+### F-177
+- **Date:** 2026-11-13 · **Status:** confirmed (official docs)
+- **Question:** Which AI crawlers are for training and which for search or user requests, and do they honour robots.txt?
+- **Method:** read OpenAI's bots page and Anthropic's crawler help article.
+- **Result:**
+  - OpenAI: **GPTBot** crawls for training and honours robots.txt. **OAI-SearchBot** crawls for ChatGPT search and honours robots.txt; opted-out sites don't appear in search answers. **ChatGPT-User** fetches when a user asks; "robots.txt rules may not apply". OpenAI may share one crawl between GPTBot and OAI-SearchBot when both are allowed. Changes take about 24 hours to show in search.
+  - Anthropic: **ClaudeBot** crawls for training, honours robots.txt and `Crawl-delay`. **Claude-SearchBot** crawls for search. **Claude-User** fetches when a user asks. Anthropic says its bots honour robots.txt and advises against blocking by IP, which hides robots.txt from them.
+- **Implication:** the training crawlers (GPTBot, ClaudeBot) made 102,000 of the 175,880 requests in [F-175](#f-175). They can be kept off chosen paths with robots.txt, without affecting search crawlers or answers to users' questions, which read the live page. An advisory page's status changes as advisories are reviewed, so a training snapshot of it goes out of date; live fetches don't.
+- **Sources:** [OpenAI crawlers](https://developers.openai.com/api/docs/bots); [Anthropic crawlers](https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler).
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
