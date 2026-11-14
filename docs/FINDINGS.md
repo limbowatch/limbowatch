@@ -2811,6 +2811,17 @@ Answered:
 - **Implication:** limbo.watch is served from R2 at $0 a month. The cluster keeps running, still deployed daily by `site.yml`, until step 6 (after 2026-11-21). Rolling back means disconnecting the custom domain and restoring the two A records. Browser Integrity Check blocks `urllib` scripts from fetching the feed; turning it off for `/feed/` and `/osv/` is a separate decision.
 - **Sources:** the runs and commands above; Cloudflare dashboard (DNS, R2, security events).
 
+### F-185
+- **Date:** 2026-11-14 · **Status:** confirmed (direct observation)
+- **Question:** Do real watcher scans work against limbo.watch on R2, and how long does a daily deploy take now?
+- **Method:** cloned limbowatch/limbo-poc (the proof repository, F-170) and ran `limbowatch scan` on it with a fresh cache and OSV-Scanner 2.7.1: the current code (`uv run`), and limbowatch-cli 0.1.0a1 and 0.1.0a14 (`uvx`). Checked the 7 examples from F-170 among the findings. Ran `site.yml` by hand (run 43582872578, same tracker data as the run before) and read the step times and the upload script's summary.
+- **Result:**
+  - Current code: 103 findings in 3.7 s, all 7 examples (typebox, nats-server, go-openapi/spec, go-toml, mustache, rubyntlm, scapy). 0.1.0a14: 103 findings in 3 s, 7 of 7. **0.1.0a1: 101 findings in 4 s, 7 of 7.** It warns that it was tested with OSV-Scanner 2.7.0. Its two fewer findings are the ranges fixed in 0.1.0a13 (F-159, F-160).
+  - `site.yml`: **2 min 26 s in total**. Publish 50 s, image build and push 40 s, **Upload to R2 35 s**, which includes making the venv, listing 51,814 objects and comparing MD5s: "r2: 402 uploaded, 0 deleted, 51412 unchanged". With the pool of 32, uploading is no longer the slow part. The first upload with a pool of 10 took 12 min (F-183).
+- **Caveats:** one run with few changes. A day with the usual ~3,100 changed files ([F-178](#f-178)) adds about 3,100 uploads; at the speed observed that's well under a minute more. Not yet measured on such a day.
+- **Implication:** old and new watchers work on the R2 setup. A daily deploy takes about 2 to 3 minutes; step 6 removes the image build (40 s).
+- **Sources:** the runs above.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
