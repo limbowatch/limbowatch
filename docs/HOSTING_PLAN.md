@@ -34,7 +34,7 @@ GitHub Actions (site.yml)                Cloudflare account
 | Item | Use | Free tier | Expected |
 |---|---|---|---|
 | R2 storage | about 0.5 GB | 10 GB | $0 |
-| R2 writes (Class A) | 27,600 a day today, about 830,000 a month; about 2,500 a day once feed `modified` is fixed (step 1) | 1 million a month | $0 |
+| R2 writes (Class A) | about 3,100 a day since step 1 (F-178), about 93,000 a month; it was 27,600 a day | 1 million a month | $0 |
 | R2 reads (Class B) | cache misses only | 10 million a month | $0 |
 | Worker requests | every request: 175,880 in the last 30 days, 63,000 on the busiest recent day, about 80% crawlers (F-175) | 100,000 a day, then error 1027 until midnight UTC | **$5/month (Workers Paid, 10 million a month)** |
 
@@ -104,7 +104,7 @@ Beyond that, it costs $0.30 per extra million requests and $0.02 per extra milli
 Each step ends in a working state; nothing changes for users until step 5.
 
 0. **Inputs** (you): traffic checked (F-175); the personal account for now (decided 2026-11-13), moved later with the checklist above; subscribe to Workers Paid, set an email alert on usage and a spending limit high enough that it never takes the site down by accident (F-176); create the bucket and two tokens; add the GitHub variables and environments.
-1. **Stable feed `modified`** (product): set each feed record's `modified` to when its content last changed, not the build time. Today every build rewrites all 25,692 feed JSON files (F-174), which also defeats ETags for anyone mirroring them. It's a semantic fix in the OSV schema's sense; test pinned old releases against it.
+1. **Stable feed `modified`** (product; done 2026-11-14, F-178: changed files a day 27,615 → 3,112): set each feed record's `modified` to when its content last changed, not the build time. Today every build rewrites all 25,692 feed JSON files (F-174), which also defeats ETags for anyone mirroring them. It's a semantic fix in the OSV schema's sense; test pinned old releases against it.
 2. **Worker** in `deploy/worker/`, with tests in `workerd` (`@cloudflare/vitest-pool-workers`): every nginx behaviour above, against a fake bucket. No network.
 3. **Sync** in `site.yml`: pinned rclone (checksum verified), `rclone sync --checksum --max-delete 2%`, uploading the big feed zips and `crc32c.map` last. The 2% cap stops a broken build from wiping the site.
 4. **Parity check** (`scripts/check_hosting.py`, network): for a sample of URLs of each kind, compare the old and new hosts' status, headers, body digest, `HEAD`, 304 and `X-Goog-Hash`. Run OSV-Scanner's refresh path and each pinned old watcher release against the `workers.dev` address.

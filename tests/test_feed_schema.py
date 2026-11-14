@@ -1,12 +1,13 @@
 """Feed records validate against the OSV JSON schema (vendored, tests/fixtures/osv_schema.json)."""
 
+import io
 import json
 from datetime import UTC, datetime
 
 import jsonschema
 from conftest import FIXTURES, load
 from limbowatch.classify import assess
-from limbowatch.models import Facts
+from limbowatch.models import Facts, Status
 from limbowatch.normalize import repo_advisory
 from limbowatch.publish import Item
 from limbowatch.publish.feed import record
@@ -92,3 +93,71 @@ def test_go_records_name_the_module_and_import_the_package() -> None:
         ("github.com/aws/aws-sdk-go-v2/service/kinesis", "github.com/aws/aws-sdk-go-v2/service/kinesis"),
         ("example.com/unresolved/pkg", None),
     ]
+
+
+def _items() -> list[Item]:
+    out = []
+    for raw in load("repo_advisories_gitpython.json"):
+        adv = repo_advisory(raw, "gitpython-developers/gitpython")
+        f = Facts(ghsa_id=adv.ghsa_id, repo=adv.repo, repo_state="published", reviewed=False, cited_cve=adv.cve_id)
+        out.append(Item(adv, f, assess(adv, f), "2026-10-26T00:00:00Z"))
+    return out
+
+
+def test_unchanged_records_keep_the_previous_feeds_modified() -> None:
+    """`modified` says when a record last changed, not when the site was built, so unchanged records' files are byte
+    for byte the same from one build to the next (F-174)."""
+    import zipfile
+
+    from limbowatch.publish.feed import build, previous_modified
+
+    items = [i for i in _items() if i.assessment.status is Status.LIMBO]
+    assert len(items) >= 2
+    day1, day2 = "2026-11-13T15:00:00Z", "2026-11-14T15:00:00Z"
+    recs1, zip1 = build(items, day1)
+    assert {r["modified"] for r in recs1} == {day1}
+
+    recs2, zip2 = build(items, day2, previous_modified(zip1))
+    assert {r["modified"] for r in recs2} == {day1}
+    assert zip2 == zip1
+
+    # one record changes: only it gets the new time
+    changed = items[0]
+    facts = changed.facts.model_copy(update={"in_osv": False})
+    items2 = [Item(changed.adv, facts, changed.assessment, changed.first_seen), *items[1:]]
+    recs3, _ = build(items2, day2, previous_modified(zip1))
+    assert [r["modified"] for r in recs3 if r["id"] == changed.adv.ghsa_id] == [day2]
+    assert {r["modified"] for r in recs3 if r["id"] != changed.adv.ghsa_id} == {day1}
+
+    # no previous feed, or a record new since it: now
+    assert {r["modified"] for r in build(items, day2)[0]} == {day2}
+    assert {r["modified"] for r in build(items, day2, {})[0]} == {day2}
+
+    # a previous timestamp later than this build isn't taken
+    prev = {k: (key, "2027-01-01T00:00:00Z") for k, (key, _) in previous_modified(zip1).items()}
+    assert {r["modified"] for r in build(items, day2, prev)[0]} == {day2}
+    assert zipfile.ZipFile(io.BytesIO(zip2)).namelist() == [f"{r['id']}.json" for r in recs2]
+
+
+def test_previous_feed_is_read_as_untrusted() -> None:
+    """The previous feed comes over the network: only well-formed records lend a timestamp."""
+    import zipfile
+
+    import pytest
+    from limbowatch.publish.feed import _MAX_RECORD, content_key, previous_modified
+
+    good = {"id": "GHSA-a", "modified": "2026-11-13T15:00:00Z", "affected": []}
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("GHSA-a.json", json.dumps(good))
+        z.writestr("GHSA-b.json", json.dumps({"id": "GHSA-b", "modified": "yesterday"}))
+        z.writestr("GHSA-c.json", json.dumps({"id": "GHSA-c"}))
+        z.writestr("GHSA-d.json", "not json")
+        z.writestr("GHSA-e.json", json.dumps(["a list"]))
+        z.writestr("GHSA-f.json", json.dumps({"id": 7, "modified": "2026-11-13T15:00:00Z"}))
+        z.writestr("GHSA-g.json", " " * (_MAX_RECORD + 1))
+        z.writestr("README.txt", "x")
+        z.writestr("dir/", "")
+    assert previous_modified(buf.getvalue()) == {"GHSA-a": (content_key(good), "2026-11-13T15:00:00Z")}
+    with pytest.raises(zipfile.BadZipFile):
+        previous_modified(b"<html>not a zip</html>")

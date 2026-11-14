@@ -8,10 +8,12 @@ record the moment the real one arrives. Factual metadata only: no summary or det
 from __future__ import annotations
 
 import base64
+import hashlib
 import io
 import json
+import re
 import zipfile
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import datetime
 from typing import Any
 
@@ -189,12 +191,57 @@ def _quality(affected: list[dict[str, Any]]) -> dict[str, str]:
     return {"names": names, "ranges": ranges}
 
 
-def build(items: list[Item], modified: str) -> tuple[list[dict[str, Any]], bytes]:
-    """In-limbo records, plus an `all.zip` in the OSV bulk layout (one <ID>.json per record)."""
+def build(
+    items: list[Item], modified: str, previous: Mapping[str, tuple[str, str]] | None = None
+) -> tuple[list[dict[str, Any]], bytes]:
+    """In-limbo records, plus an `all.zip` in the OSV bulk layout (one <ID>.json per record).
+
+    `modified` is when this build ran. A record that's the same as in `previous` (from `previous_modified`, the last
+    published feed) keeps that feed's `modified`, so it says when the record last changed, as OSV defines it, and an
+    unchanged record's file is byte for byte the same as yesterday's (F-174)."""
     recs = [
         record(i, modified) for i in sorted(items, key=lambda i: i.adv.ghsa_id) if i.assessment.status is Status.LIMBO
     ]
+    now = datetime.fromisoformat(modified)
+    for r in recs:
+        if (p := (previous or {}).get(r["id"])) and p[0] == content_key(r) and datetime.fromisoformat(p[1]) <= now:
+            r["modified"] = p[1]
     return recs, _zip(recs)
+
+
+def content_key(rec: Mapping[str, Any]) -> str:
+    """A record's digest without its `modified`: equal keys mean nothing a consumer reads has changed."""
+    body = {k: v for k, v in rec.items() if k != "modified"}
+    return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+# A published record is a few KB; anything far larger isn't one of ours, so it's skipped rather than read.
+_MAX_RECORD = 1 << 20
+_TIMESTAMP = re.compile(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z")
+
+
+def previous_modified(zipped: bytes) -> dict[str, tuple[str, str]]:
+    """GHSA ID → (content_key, modified) for each record in a previously published `all.zip`.
+
+    The file comes over the network, so it's only trusted this far: a record whose content matches today's lends it its
+    timestamp, and only a well-formed one (`build` also refuses a timestamp later than the build). Entries that aren't
+    valid records are skipped; a file that isn't a zip raises `zipfile.BadZipFile`."""
+    out: dict[str, tuple[str, str]] = {}
+    with zipfile.ZipFile(io.BytesIO(zipped)) as z:
+        for zi in z.infolist():
+            if zi.is_dir() or not zi.filename.endswith(".json") or zi.file_size > _MAX_RECORD:
+                continue
+            try:
+                with z.open(zi) as f:
+                    rec = json.loads(f.read(_MAX_RECORD + 1))
+            except (ValueError, zipfile.BadZipFile, OSError):
+                continue
+            if not isinstance(rec, dict):
+                continue
+            rid, mod = rec.get("id"), rec.get("modified")
+            if isinstance(rid, str) and isinstance(mod, str) and _TIMESTAMP.fullmatch(mod):
+                out[rid] = (content_key(rec), mod)
+    return out
 
 
 def _zip(recs: Iterable[dict[str, Any]]) -> bytes:

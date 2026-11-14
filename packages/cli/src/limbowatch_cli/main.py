@@ -13,6 +13,7 @@ import sys
 import tempfile
 import time
 import traceback
+import zipfile
 from collections.abc import Collection
 from datetime import UTC, datetime
 from pathlib import Path
@@ -159,6 +160,16 @@ def track(
         typer.echo(f"  {e}")
 
 
+def _previous_feed(path: Path) -> dict[str, tuple[str, str]] | None:
+    """The previous feed's `modified` per record, or None (with a warning) when there's none to read: the site is still
+    published, with every record's `modified` set to now."""
+    try:
+        return feed_mod.previous_modified(path.read_bytes())
+    except (OSError, zipfile.BadZipFile) as e:
+        typer.echo(f"warning: previous feed {path} not read ({e}); every record's modified is now", err=True)
+        return None
+
+
 @app.command()
 def publish(
     state: StateDir = Path("tracker/state"),
@@ -174,6 +185,13 @@ def publish(
             envvar="LIMBOWATCH_GA_ID", help="GA4 measurement ID (G-…); adds Google Analytics behind a consent banner."
         ),
     ] = None,
+    previous_feed: Annotated[
+        Path | None,
+        typer.Option(
+            help="The last published feed/all.zip: records that haven't changed keep its `modified`. "
+            "Without it, or if it can't be read, every record's `modified` is now."
+        ),
+    ] = None,
 ) -> None:
     """Write the site, feed (all.zip, index.json, one JSON per record) and metrics.json from the state."""
     store = _load(state)
@@ -181,7 +199,11 @@ def publish(
     all_items = items(store)
     m = metrics(store, now, json.loads(top_packages.read_text()) if top_packages.exists() else None)
     modified = m["generated_at"]
-    records, zipped = feed_mod.build(all_items, modified)
+    previous = _previous_feed(previous_feed) if previous_feed else None
+    records, zipped = feed_mod.build(all_items, modified, previous)
+    if previous is not None:
+        kept = sum(r["modified"] != modified for r in records)
+        typer.echo(f"feed: {kept} of {len(records)} records unchanged since the previous feed", err=True)
     (out / "feed").mkdir(parents=True, exist_ok=True)
     (out / "feed" / "all.zip").write_bytes(zipped)
     (out / "feed" / "index.json").write_text(

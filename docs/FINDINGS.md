@@ -2697,6 +2697,18 @@ Answered:
 - **Implication:** the training crawlers (GPTBot, ClaudeBot) made 102,000 of the 175,880 requests in [F-175](#f-175). They can be kept off chosen paths with robots.txt, without affecting search crawlers or answers to users' questions, which read the live page. An advisory page's status changes as advisories are reviewed, so a training snapshot of it goes out of date; live fetches don't.
 - **Sources:** [OpenAI crawlers](https://developers.openai.com/api/docs/bots); [Anthropic crawlers](https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler).
 
+### F-178
+- **Date:** 2026-11-14 · **Status:** confirmed (direct measurement)
+- **Question:** With `modified` kept for unchanged records, how much of the site changes a day, and do old watchers still read the feed?
+- **Method:** `limbowatch publish --previous-feed` (new): a record whose content, without `modified`, is the same as in the previous `all.zip` keeps that feed's `modified`. Built from `tracker-data` 48cbde8 with the 76530a5 build (F-174) as the previous feed; compared MD5s file by file with that build. Read the new `all.zip` with `from_feed_zip` from limbowatch-cli 0.1.0a1, 0.1.0a6 and 0.1.0a14 (`uvx`). 0.1.0a7 and 0.1.0a8 aren't installable from PyPI.
+- **Result:**
+  - 25,063 of 25,685 records were unchanged and kept their `modified`.
+  - Files changed or new compared with the previous build: **3,112, down from 27,615**: `advisory/` 2,154, `feed/` 329, `osv/` 12, others 17 changed; 600 new.
+  - All three releases read 25,685 records. No release reads `modified`: no `watch/` code from v0.1.0a1 to v0.1.0a14 contains it.
+- **Caveats:** one pair of days. The 2,154 changed advisory pages now make up most of the daily change; why they change wasn't examined. The previous feed is fetched from limbo.watch in `site.yml`; if that fails, every record's `modified` is the build time for that day, as before.
+- **Implication:** R2 sync writes about 3,100 objects a day (about 93,000 a month, well inside 1 million free). Feed mirrors and incremental OSV consumers see only records that changed. Supersedes the estimate of about 2,500 a day in [F-174](#f-174).
+- **Sources:** the builds and commands above.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

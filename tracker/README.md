@@ -84,11 +84,10 @@ In CI the report is:
 ## In CI
 
 `.github/workflows/tracker.yml`:
-- runs `track` and `publish`;
-- commits the JSONL state to the `tracker-data` branch;
-- deploys the site to GitHub Pages.
+- runs `track`, and `report` on the scheduled run;
+- commits the JSONL state and the report to the `tracker-data` branch.
 
-It runs daily at 06:17 UTC (and on manual dispatch). The first run also downloads the latest CVE List release once, to bootstrap CVEs that other CNAs assigned earlier. When it succeeds, the `site` workflow publishes and deploys limbo.watch ([deploy/README.md](../deploy/README.md)).
+It runs daily at 06:17 UTC (and on manual dispatch). The first run also downloads the latest CVE List release once, to bootstrap CVEs that other CNAs assigned earlier. When it succeeds, the `site` workflow publishes and deploys limbo.watch ([deploy/README.md](../deploy/README.md)). It passes the live `feed/all.zip` to `publish --previous-feed`, so a record keeps its `modified` until its content changes (FINDINGS F-174, F-178).
 
 **Token choice:**
 - **`GITHUB_TOKEN`** allows 1,000 requests/hour, and its ETags probably don't carry over between runs (FINDINGS F-058, Q11). So most repos cost a full request every day.

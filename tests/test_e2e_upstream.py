@@ -13,6 +13,7 @@ import json
 import os
 import shutil
 import subprocess
+import time
 import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
@@ -258,6 +259,25 @@ def test_publish_and_report_from_a_small_state(tmp_path: Path) -> None:
     r = run(["report", "--state", str(state), "--out", str(tmp_path / "reports")])
     assert r.exit_code == 0, r.output
     assert (tmp_path / "reports" / "latest.md").exists()
+
+    # the next build, given this feed, leaves the unchanged record's file as it was (F-174)
+    record_file = out / "feed" / "GHSA-c000-0000-0001.json"
+    first = record_file.read_bytes()
+    time.sleep(1.1)  # so that "now" differs from the first build's
+    r = run(["publish", "--state", str(state), "--out", str(tmp_path / "site2"),
+             "--previous-feed", str(out / "feed" / "all.zip")])  # fmt: skip
+    assert r.exit_code == 0, r.output
+    assert "feed: 1 of 1 records unchanged since the previous feed" in r.stderr
+    assert (tmp_path / "site2" / "feed" / "GHSA-c000-0000-0001.json").read_bytes() == first
+    assert (tmp_path / "site2" / "feed" / "all.zip").read_bytes() == (out / "feed" / "all.zip").read_bytes()
+
+    # no previous feed to read: still published, with a warning, and modified is now
+    (tmp_path / "bad.zip").write_text("<html>")
+    for prev in (tmp_path / "missing.zip", tmp_path / "bad.zip"):
+        r = run(["publish", "--state", str(state), "--out", str(tmp_path / "site3"), "--previous-feed", str(prev)])
+        assert r.exit_code == 0, r.output
+        assert f"warning: previous feed {prev} not read" in r.stderr
+        assert (tmp_path / "site3" / "feed" / "GHSA-c000-0000-0001.json").read_bytes() != first
 
 
 def test_issues_dry_run_for_an_upstream_finding(world: dict[str, Any]) -> None:

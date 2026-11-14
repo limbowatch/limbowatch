@@ -35,10 +35,16 @@ jobs:
         run: git clone -q --depth 1 --branch tracker-data "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" tracker-data
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - run: uv sync --locked
+      # Unchanged records keep the live feed's `modified` (FINDINGS F-174). If it can't be fetched, publish warns and
+      # every record's `modified` is the build time, as before.
+      - name: Previous feed
+        run: curl -fsSL --retry 3 --max-time 120 -o "$RUNNER_TEMP/previous-all.zip" https://limbo.watch/feed/all.zip || true
       - name: Publish
         env:
           LIMBOWATCH_GA_ID: ${{ vars.LIMBOWATCH_GA_ID }}  # repository variable; empty means no analytics
-        run: uv run limbowatch publish --state tracker-data/state --out deploy/site/public
+        run: |
+          uv run limbowatch publish --state tracker-data/state --out deploy/site/public \
+            --previous-feed "$RUNNER_TEMP/previous-all.zip"
       - id: tag
         run: echo "tag=$(date -u +%Y%m%d)-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
