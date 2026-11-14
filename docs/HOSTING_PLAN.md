@@ -78,7 +78,7 @@ Secrets in a public repo are safe if they reach only trusted code, can do little
 - The worst case for `R2_SYNC`: someone who ran code on `main` could replace site files. That's the same power the workflow's own `GITHUB_TOKEN` has today, since it pushes the site image and commits the deploy tag.
 - The feed is also protected by the checksums published on GitHub (the feed-integrity work). A tampered feed fails the watchers' check and `scripts/audit.py`.
 
-**Repo hardening that goes with it:**
+**Repo hardening that goes with it** (the first four done 2026-11-13: ruleset `protect main`):
 - Turn on secret scanning and push protection (free for public repos; `cfat_` tokens are detectable).
 - Require outside contributors' workflow runs to be approved (today only first-time contributors' are).
 - Require actions pinned to a full SHA (the workflows already do this; the setting enforces it).
@@ -88,11 +88,22 @@ Secrets in a public repo are safe if they reach only trusted code, can do little
 
 **Detection:** Cloudflare's audit log records token and Worker changes; alerts on them are set up where Cloudflare offers them (checked in step 0). The audit compares the live feed's digests with the ones on GitHub.
 
-## Steps
+### Capacity on Workers Paid (F-176)
+
+Every request runs the Worker, including those answered from its cache, so requests are the unit. Bandwidth is free.
+
+| If all 10 million requests a month were | Each needs | That's about |
+|---|---|---|
+| Today's mix of visitors, crawlers and watchers | — | 57 times today's traffic |
+| People reading the site | 5 to 8 requests a visit | 1.2 to 2 million visits a month |
+| Watcher scans | 2 requests (`feed/all.zip`, `feed/watchlist.json`) | 5 million scans a month, about 165,000 a day |
+
+Beyond that, it costs $0.30 per extra million requests and $0.02 per extra million CPU milliseconds (30 million included; CPU time per request is measured in step 4). For example, 30 million requests a month costs about $11.
+
 
 Each step ends in a working state; nothing changes for users until step 5.
 
-0. **Inputs** (you): traffic checked (F-175); the personal account for now (decided 2026-11-13), moved later with the checklist above; subscribe to Workers Paid; create the bucket and two tokens; add the GitHub variables and environments.
+0. **Inputs** (you): traffic checked (F-175); the personal account for now (decided 2026-11-13), moved later with the checklist above; subscribe to Workers Paid, set an email alert on usage and a spending limit high enough that it never takes the site down by accident (F-176); create the bucket and two tokens; add the GitHub variables and environments.
 1. **Stable feed `modified`** (product): set each feed record's `modified` to when its content last changed, not the build time. Today every build rewrites all 25,692 feed JSON files (F-174), which also defeats ETags for anyone mirroring them. It's a semantic fix in the OSV schema's sense; test pinned old releases against it.
 2. **Worker** in `deploy/worker/`, with tests in `workerd` (`@cloudflare/vitest-pool-workers`): every nginx behaviour above, against a fake bucket. No network.
 3. **Sync** in `site.yml`: pinned rclone (checksum verified), `rclone sync --checksum --max-delete 2%`, uploading the big feed zips and `crc32c.map` last. The 2% cap stops a broken build from wiping the site.

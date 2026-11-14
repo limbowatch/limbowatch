@@ -2676,6 +2676,17 @@ Answered:
 - **Implication:** all of it fits every option in [F-171](#f-171) and [F-173](#f-173): 14.58 GB a month is far under GitHub Pages' 100 GB, and Workers Paid's 10 million requests a month is 57 times the current traffic. But the busiest recent day (63,000) is close to the 100,000-a-day limit of Workers Free. Above that the Worker returns error 1027 until midnight UTC, and with R2 behind it there's no origin to fail open to. So the plan budgets Workers Paid ($5/month). About 32 feed fetches a day come from watchers and curl.
 - **Sources:** Cloudflare dashboard analytics for the zone (not public).
 
+### F-176
+- **Date:** 2026-11-13 · **Status:** confirmed (official docs)
+- **Question:** What does Workers Paid include beyond requests, and what else is free for a public repo?
+- **Method:** read the Workers pricing page and GitHub's docs on secret scanning, push protection and Advanced Security.
+- **Result:**
+  - Workers Paid: 10 million requests a month and **30 million CPU milliseconds**; then $0.30 per million requests and $0.02 per million CPU milliseconds. No charge for egress or bandwidth. Requests answered from the Worker's cache are billed per request like any other (CPU time only on a miss).
+  - A Workers **spending limit** blocks new invocations of every Worker on the account once usage charges pass a threshold (the subscription isn't counted). Email alerts can be set instead, without blocking.
+  - GitHub: secret scanning and push protection are free for public repositories. Private repositories need GitHub Secret Protection (Team or Enterprise).
+- **Implication:** the site's capacity on Workers Paid depends on requests, not bandwidth: 10 million is about 57 times the traffic in [F-175](#f-175). A spending limit would take the site down when it trips, so it has to sit well above expected use, with an email alert below it.
+- **Sources:** [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/); [About secret scanning](https://docs.github.com/en/code-security/secret-scanning/introduction/about-secret-scanning); [About GitHub Advanced Security](https://docs.github.com/en/get-started/learning-about-github/about-github-advanced-security).
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
