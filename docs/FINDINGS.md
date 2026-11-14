@@ -2662,6 +2662,20 @@ Answered:
 - **Implication:** with `modified` as the build time, R2 sync would write about 27,600 objects a day (about 830,000 a month, near the 1 million free). Feed mirrors also can't use ETags. Setting `modified` to when a record's content last changed brings the writes to about 2,500 a day. Moving accounts needs only a nameserver change at Spaceship. Tokens can be limited to one bucket and owned by the account. See [docs/HOSTING_PLAN.md](HOSTING_PLAN.md).
 - **Sources:** [Account API tokens](https://developers.cloudflare.com/fundamentals/api/get-started/account-owned-tokens/); [R2 API tokens](https://developers.cloudflare.com/r2/api/tokens/); [Move a domain between accounts](https://developers.cloudflare.com/fundamentals/manage-domains/move-domain/); RDAP for limbo.watch.
 
+### F-175
+- **Date:** 2026-11-13 · **Status:** confirmed (direct observation)
+- **Question:** How much traffic does limbo.watch get, and what is it?
+- **Method:** Cloudflare dashboard, zone limbo.watch (Free plan), Analytics → Requests, last 30 days and last 24 hours, read on 2026-11-13. Cloudflare's own numbers, not counted from logs.
+- **Result:**
+  - Last 30 days: **175,880 requests, 14.58 GB transferred, 71,530 visits**. Cache hit rate 2.26%: 168,640 requests were "dynamic", so nearly everything went to the origin. Status codes: 2xx 166,040; 3xx 7,930; 4xx 1,590; 5xx 320 (526 origin SSL error 250, 521 origin down 70).
+  - Last 24 hours: 63,000 requests, 1.68 GB, 4,640 visits, a burst from crawlers. The 30-day average is about 5,900 a day.
+  - By user agent, last 30 days: ClaudeBot 52,690; GPTBot 49,290; AhrefsBot 26,370; Googlebot 9,760; ShapBot 6,220; curl 5,910. That's about 80% crawlers, 58% AI crawlers.
+  - Top paths: `/` 3,200; `/favicon.svg` 2,900; `/metrics.json` 1,900; `/feed/index.json` 1,830; **`/feed/all.zip` 960**; `/tracker/` 870.
+  - Countries: United States 137,470, Canada 16,500, then Germany, the United Kingdom and France.
+- **Caveats:** Free plan analytics may be sampled. The `/feed/all.zip` count includes 304s and `HEAD`, so it isn't a count of full downloads. Client IPs were seen but not recorded.
+- **Implication:** all of it fits every option in [F-171](#f-171) and [F-173](#f-173): 14.58 GB a month is far under GitHub Pages' 100 GB, and Workers Paid's 10 million requests a month is 57 times the current traffic. But the busiest recent day (63,000) is close to the 100,000-a-day limit of Workers Free. Above that the Worker returns error 1027 until midnight UTC, and with R2 behind it there's no origin to fail open to. So the plan budgets Workers Paid ($5/month). About 32 feed fetches a day come from watchers and curl.
+- **Sources:** Cloudflare dashboard analytics for the zone (not public).
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

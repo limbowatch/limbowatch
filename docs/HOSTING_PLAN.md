@@ -36,9 +36,9 @@ GitHub Actions (site.yml)                Cloudflare account
 | R2 storage | about 0.5 GB | 10 GB | $0 |
 | R2 writes (Class A) | 27,600 a day today, about 830,000 a month; about 2,500 a day once feed `modified` is fixed (step 1) | 1 million a month | $0 |
 | R2 reads (Class B) | cache misses only | 10 million a month | $0 |
-| Worker requests | every request | 100,000 a day | $0, or $5/month (10 million) if traffic passes that |
+| Worker requests | every request: 175,880 in the last 30 days, 63,000 on the busiest recent day, about 80% crawlers (F-175) | 100,000 a day, then error 1027 until midnight UTC | **$5/month (Workers Paid, 10 million a month)** |
 
-Traffic figures come from the Cloudflare analytics, checked in step 0.
+The free daily limit is too close: one crawler burst would take the site down for the rest of the day, because the Worker is the only origin and there's nothing to fail open to. So the plan budgets Workers Paid, $5 a month. Blocking AI crawlers (below) would cut requests by about 60%, but wouldn't remove the risk.
 
 ## Moving to another Cloudflare account
 
@@ -92,7 +92,7 @@ Secrets in a public repo are safe if they reach only trusted code, can do little
 
 Each step ends in a working state; nothing changes for users until step 5.
 
-0. **Inputs** (you): last 30 days of requests and bandwidth from Cloudflare analytics; decide personal or project account; create the bucket and two tokens; add the GitHub variables and environments.
+0. **Inputs** (you): traffic checked (F-175); the personal account for now (decided 2026-11-13), moved later with the checklist above; decide whether to allow AI crawlers; subscribe to Workers Paid; create the bucket and two tokens; add the GitHub variables and environments.
 1. **Stable feed `modified`** (product): set each feed record's `modified` to when its content last changed, not the build time. Today every build rewrites all 25,692 feed JSON files (F-174), which also defeats ETags for anyone mirroring them. It's a semantic fix in the OSV schema's sense; test pinned old releases against it.
 2. **Worker** in `deploy/worker/`, with tests in `workerd` (`@cloudflare/vitest-pool-workers`): every nginx behaviour above, against a fake bucket. No network.
 3. **Sync** in `site.yml`: pinned rclone (checksum verified), `rclone sync --checksum --max-delete 2%`, uploading the big feed zips and `crc32c.map` last. The 2% cap stops a broken build from wiping the site.
@@ -101,6 +101,8 @@ Each step ends in a working state; nothing changes for users until step 5.
 6. **Retire:** remove `deploy/site`, `deploy/k8s`, `deploy/argocd-app.yaml`, the site image build, the Argo CD app and the ghcr package; rewrite `deploy/README.md` and fix the stale line in `tracker/README.md`.
 
 ## Open questions
+
+- **AI crawlers:** ClaudeBot and GPTBot made 58% of requests in the last 30 days (F-175). Letting them crawl helps AI assistants know about Limbowatch; blocking them (Cloudflare's AI Crawl Control) cuts load. It's your call, and either way works on R2.
 
 - Do responses served from the Cache API count as Worker requests? (Yes as far as known: the Worker runs first.) Step 0's traffic numbers say whether this matters.
 - Does Cloudflare accept GitHub's OIDC tokens in place of a stored API token? Nothing found yet; checked before step 0.
