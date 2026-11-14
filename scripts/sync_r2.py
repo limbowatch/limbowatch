@@ -1,7 +1,7 @@
 """Upload the built site to the R2 bucket that serves limbo.watch (docs/HOSTING_PLAN.md, step 3).
 
     R2_ACCESS_KEY_ID=… R2_SECRET_ACCESS_KEY=… CF_ACCOUNT_ID=… R2_BUCKET=limbowatch-site \\
-      python scripts/sync_r2.py deploy/site/public [--dry-run] [--force]
+      python scripts/sync_r2.py <site dir> [--dry-run] [--force]
 
 in a venv with deploy/cloudflare/requirements.txt (`uv pip install --require-hashes -r …`), as site.yml does.
 

@@ -217,7 +217,7 @@ def publish(
         )
     )
     # The same records per ecosystem, in OSV's download layout, for OSV-Scanner (FINDINGS F-073, F-074).
-    # nginx sends each zip's CRC-32C as X-Goog-Hash, from the map written here (deploy/site/nginx.conf).
+    # The Worker on /osv/* sends each zip's CRC-32C as X-Goog-Hash, from the map written here (deploy/worker).
     zips = feed_mod.by_ecosystem(records)
     hashes = []
     for eco, data in zips.items():

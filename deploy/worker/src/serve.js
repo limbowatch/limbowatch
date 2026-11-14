@@ -1,4 +1,4 @@
-// Helpers for src/index.js, which serves limbo.watch from R2 as deploy/site/nginx.conf does (docs/HOSTING_PLAN.md).
+// Helpers for src/index.js, which serves limbo.watch's /osv/* from R2 as the nginx setup did until 2026-11-14 (F-179).
 // They live here because the Workers runtime treats every named export of the main module as an entry point and
 // refuses anything else. Every response carries the security headers, including 404s and redirects.
 

@@ -12,9 +12,6 @@
   // R2 answers. There's no config field for it and every deploy resets it, so run scripts/cf_rules.py after each
   // deploy; it sets them through the API (F-183).
   "workers_dev": false,
-  "routes": [
-    { "pattern": "limbo.watch/osv/*", "zone_name": "limbo.watch" },
-    { "pattern": "next.limbo.watch/osv/*", "zone_name": "limbo.watch" }
-  ],
+  "routes": [{ "pattern": "limbo.watch/osv/*", "zone_name": "limbo.watch" }],
   "observability": { "enabled": true }
 }

@@ -1,7 +1,7 @@
-# Builds the public site from the latest tracker state and deploys it to limbo.watch.
+# Builds the public site from the latest tracker state and uploads it to the R2 bucket that serves limbo.watch
+# (docs/HOSTING_PLAN.md, deploy/README.md).
 # - Runs after each successful tracker run, when site code changes, or by hand.
-# - Pushes ghcr.io/limbowatch/limbowatch-site:<date>-<run id>, then points deploy/k8s/deployment.yaml
-#   at it. Argo CD on the cluster syncs that change (deploy/README.md).
+# - Only changed files are uploaded; the upload refuses to delete more than 2% of the bucket.
 name: site
 on:
   workflow_run:
@@ -10,16 +10,16 @@ on:
   push:
     branches: [main]
     paths:
-      - "deploy/site/**"
       - "packages/core/src/limbowatch/publish/**"
       - "packages/cli/src/limbowatch_cli/**"
       - "brand/assets/**"
       - "docs/screenshots/**"
+      - "deploy/cloudflare/requirements.txt"
+      - "scripts/sync_r2.py"
       - ".github/workflows/site.yml"
   workflow_dispatch:
 permissions:
-  contents: write
-  packages: write
+  contents: read
 concurrency:
   group: site
   cancel-in-progress: false
@@ -38,44 +38,16 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - run: uv sync --locked
       # Unchanged records keep the live feed's `modified` (FINDINGS F-174). If it can't be fetched, publish warns and
-      # every record's `modified` is the build time, as before.
+      # every record's `modified` is the build time.
       - name: Previous feed
         run: curl -fsSL --retry 3 --max-time 120 -o "$RUNNER_TEMP/previous-all.zip" https://limbo.watch/feed/all.zip || true
       - name: Publish
         env:
           LIMBOWATCH_GA_ID: ${{ vars.LIMBOWATCH_GA_ID }}  # repository variable; empty means no analytics
         run: |
-          uv run limbowatch publish --state tracker-data/state --out deploy/site/public \
+          uv run limbowatch publish --state tracker-data/state --out "$RUNNER_TEMP/site" \
             --previous-feed "$RUNNER_TEMP/previous-all.zip"
-      - id: tag
-        run: echo "tag=$(date -u +%Y%m%d)-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
-      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: deploy/site
-          push: true
-          labels: |
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-          tags: |
-            ghcr.io/limbowatch/limbowatch-site:latest
-            ghcr.io/limbowatch/limbowatch-site:${{ steps.tag.outputs.tag }}
-      - name: Point the deployment at the new image
-        run: |
-          sed -i "s|image: ghcr.io/limbowatch/limbowatch-site:.*|image: ghcr.io/limbowatch/limbowatch-site:${{ steps.tag.outputs.tag }}|" deploy/k8s/deployment.yaml
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add deploy/k8s/deployment.yaml
-          git commit -q -m "ci: deploy site ${{ steps.tag.outputs.tag }}"
-          git pull -q --rebase origin main
-          git push -q
-      # Also upload the site to R2 (docs/HOSTING_PLAN.md, step 3). Off until the `site` environment has R2_BUCKET.
-      # Only changed files are uploaded; the script refuses to delete more than 2% of the bucket.
       - name: Upload to R2
-        if: ${{ vars.R2_BUCKET != '' }}
         env:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           R2_BUCKET: ${{ vars.R2_BUCKET }}
@@ -85,4 +57,4 @@ jobs:
           # `uv run --with-requirements` doesn't check hashes; `uv pip install --require-hashes` does (F-182)
           uv venv -q "$RUNNER_TEMP/r2"
           uv pip install -q --python "$RUNNER_TEMP/r2/bin/python" --require-hashes -r deploy/cloudflare/requirements.txt
-          "$RUNNER_TEMP/r2/bin/python" scripts/sync_r2.py deploy/site/public
+          "$RUNNER_TEMP/r2/bin/python" scripts/sync_r2.py "$RUNNER_TEMP/site"

@@ -2822,6 +2822,22 @@ Answered:
 - **Implication:** old and new watchers work on the R2 setup. A daily deploy takes about 2 to 3 minutes; step 6 removes the image build (40 s).
 - **Sources:** the runs above.
 
+### F-186
+- **Date:** 2026-11-14 · **Status:** confirmed (direct observation)
+- **Question:** Step 6: was the cluster setup retired cleanly, and does limbo.watch still serve correctly from R2 alone?
+- **Method:**
+  - On the cluster (`ssh root@skylion kubectl`): listed the Argo CD applications and their repositories, deleted the application `limbowatch-site` (no finalizers), the namespace `limbowatch`, and the repository secret `argocd/repo-limbowatch-ssh`.
+  - On GitHub: deleted the deploy key `argocd-skylion` (`gh api -X DELETE repos/…/keys/…`).
+  - In the repository: removed `deploy/site`, `deploy/k8s`, `deploy/argocd-app.yaml` and `deploy/node`; `site.yml` builds and uploads to R2 only.
+  - Removed `next.limbo.watch` from `wrangler.jsonc` and redeployed, read the zone's routes, and ran `cf_rules.py --host limbo.watch --www www.limbo.watch` twice. Checked six URLs on limbo.watch.
+- **Result:**
+  - Argo CD now lists only the cluster's other four applications, which use other repositories. The namespace `limbowatch` is gone. The repository has no deploy keys left. limbo.watch kept answering 200. A direct request to a cluster address no longer gets a TLS answer.
+  - **The redeploy removed the `next.limbo.watch/osv/*` route** and reset `limbo.watch/osv/*` to fail closed (as in F-183). `cf_rules.py` set fail-open again, and its second run had nothing to change.
+  - limbo.watch serves redirects (`/tracker` → `https://limbo.watch/tracker/`; www → apex, keeping the query), `X-Goog-Hash` on `/osv/PyPI/all.zip`, CORS on the feed, `text/csv; charset=utf-8`, and the CSP on pages and files. The www redirect carries no security headers: the security rule covers only the served hosts.
+- **Caveats:** the kubelet image GC config (`20-image-gc.conf`) stays installed on both nodes. It's general and harmless; its source file left the repo. The private package `ghcr.io/limbowatch/limbowatch-site` (126 versions) wasn't deleted: that needs the `delete:packages` scope. `next.limbo.watch` is still connected to the bucket until it's disconnected in the dashboard.
+- **Implication:** the cluster serves nothing for limbo.watch any more. Going back now means rebuilding the nginx setup from git history (before this commit), not only restoring DNS.
+- **Sources:** the commands above.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
