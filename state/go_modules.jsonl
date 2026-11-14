@@ -49,6 +49,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/MANTRA-Chain/mantrachain","path":"github.com/MANTRA-Chain/mantrachain/x/tokenfactory"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/Masterminds/vcs","path":"github.com/Masterminds/vcs"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/MicahParks/jwkset","path":"github.com/MicahParks/jwkset"}
+{"checked_at":"2026-11-14T14:10:34Z","module":"github.com/MicahParks/keyfunc/v3","path":"github.com/MicahParks/keyfunc/v3"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/MontFerret/ferret/v2","path":"github.com/MontFerret/ferret/v2"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/OliveTin/OliveTin","path":"github.com/OliveTin/OliveTin"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/OpenListTeam/OpenList","path":"github.com/OpenListTeam/OpenList"}
@@ -888,6 +889,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/jaredallard/archives","path":"github.com/jaredallard/archives"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/jhaals/yopass","path":"github.com/jhaals/yopass"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/jhump/protoreflect","path":"github.com/jhump/protoreflect"}
+{"checked_at":"2026-11-14T14:10:34Z","module":"github.com/jhump/protoreflect/v2","path":"github.com/jhump/protoreflect/v2/protoresolve/remotereg"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/jkroepke/openvpn-auth-oauth2","path":"github.com/jkroepke/openvpn-auth-oauth2"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/jlaffaye/ftp","path":"github.com/jlaffaye/ftp"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/jmpsec/osctrl","path":"github.com/jmpsec/osctrl/cmd/admin"}
