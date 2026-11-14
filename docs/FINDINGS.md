@@ -2647,6 +2647,21 @@ Answered:
 - **Implication:** Workers static assets fit today on Paid, with every header in `_headers`. They hit two hard limits within months: the 25 MiB file size (the two big zips) and the 100,000 files (about 3,000 new advisories a month, two files each, so roughly 8 months). R2 behind a Worker has neither limit and costs about $0 to $5 a month, but every request runs the Worker (100,000 a day free).
 - **Sources:** [Static assets headers](https://developers.cloudflare.com/workers/static-assets/headers/); [R2 pricing](https://developers.cloudflare.com/r2/pricing/); [Workers limits](https://developers.cloudflare.com/workers/platform/limits/).
 
+### F-174
+- **Date:** 2026-11-13 · **Status:** confirmed (direct measurement; official docs); the daily change is one day's sample, so tentative as a rate
+- **Question:** How much of the site changes each day, and what do moving between Cloudflare accounts and scoping its tokens involve?
+- **Method:** built the site with the same code from `tracker-data` at 76530a5 (2026-11-12) and 48cbde8 (2026-11-13) and compared MD5s file by file; read the Cloudflare docs on account-owned tokens, R2 API tokens and moving a domain between accounts; looked up limbo.watch in RDAP.
+- **Result:**
+  - Between the two builds: 51,263 → 51,813 files; 600 new, 50 gone (feed JSON of advisories that left the feed), 27,015 changed. That's 168.7 MB to upload. The changed files: 25,692 in `feed/`, 1,891 in `advisory/`, 15 in `osv/`.
+  - **Every per-advisory feed JSON changes on every build**: its `modified` field is the build time (e.g. `2026-11-14T06:31:49Z` and then `2026-11-14T05:53:17Z`; the two builds were run minutes apart, so the difference is only the clock).
+  - Account-owned API tokens (`cfat_` prefix, detectable by scanners) belong to the account, not a person, and keep working after the creator leaves. Workers and R2 support them; Registrar and Page Rules don't.
+  - R2 API tokens: Admin Read & Write, Admin Read only, Object Read & Write, Object Read only. Object tokens can be scoped to chosen buckets and can be account-owned. The S3 key ID is the token ID, and the secret is the SHA-256 of the token value.
+  - Moving a zone to another account: add it there and change the nameservers at the registrar. Certificates don't carry over. Remove DNSSEC and zone holds first. Domains registered with Cloudflare Registrar need a manual transfer request.
+  - limbo.watch: registrar Spaceship, Inc.; nameservers chad and dina.ns.cloudflare.com; DNSSEC not signed.
+- **Caveats:** one pair of builds. The second build's `modified` reflects when it was run here, not the CI run. The 600 new files in one day may include a watchlist expansion.
+- **Implication:** with `modified` as the build time, R2 sync would write about 27,600 objects a day (about 830,000 a month, near the 1 million free). Feed mirrors also can't use ETags. Setting `modified` to when a record's content last changed brings the writes to about 2,500 a day. Moving accounts needs only a nameserver change at Spaceship. Tokens can be limited to one bucket and owned by the account. See [docs/HOSTING_PLAN.md](HOSTING_PLAN.md).
+- **Sources:** [Account API tokens](https://developers.cloudflare.com/fundamentals/api/get-started/account-owned-tokens/); [R2 API tokens](https://developers.cloudflare.com/r2/api/tokens/); [Move a domain between accounts](https://developers.cloudflare.com/fundamentals/manage-domains/move-domain/); RDAP for limbo.watch.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
