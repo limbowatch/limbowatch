@@ -2723,6 +2723,25 @@ Answered:
 - **Implication:** the Worker is ready to deploy for the parity check. After the switch, browsers revalidate zips and CSS after 5 minutes instead of 4 hours, unless the zone's browser cache setting applies to Worker responses, which step 4 will show.
 - **Sources:** `deploy/worker/`; the runs above.
 
+### F-180
+- **Date:** 2026-11-14 · **Status:** confirmed (official docs; GitHub billing API); dynamic rewrites and redirects on the Free plan are tentative (not stated in the docs)
+- **Question:** Can limbo.watch be served from R2 at no monthly cost, without a Worker on every request? What does the project cost on GitHub today?
+- **Method:** read Cloudflare's docs on R2 public buckets, URL rewrites, Single Redirects, Rules language functions and Worker routes. `gh api orgs/limbowatch/settings/billing/usage`.
+- **Result:**
+  - An R2 bucket can be public on a **custom domain** of a zone in the same account, with Cloudflare's cache, WAF and rules in front. Only some file types are cached unless a cache-everything rule is set. `r2.dev` is rate-limited and meant for development. The docs don't mention index documents (`index.html` for `/`).
+  - Single Redirects: 10 rules on Free (25 Pro, 50 Business), wildcards on every plan, regex only on Business and up. Transform Rules: 10 on Free in total (F-173). `concat`, `ends_with`, `starts_with`, `regex_replace` and `wildcard_replace` have no plan restriction in the Rules language reference. The rewrite and redirect pages don't say whether dynamic expressions work on Free.
+  - A Worker route can cover a subpath only (`example.com/images/*`); other paths go to the origin. On Workers Free with fail open, requests over the daily limit skip the Worker ([F-173](#f-173)).
+  - GitHub, organization limbowatch (Free plan): **$0 net**. November gross so far: Actions Linux 2,135 minutes ($12.81), macOS 204 minutes ($12.65), all discounted to $0 for a public repository. Storage is negligible, with no Packages line. The site image has been built 126 times since 2026-10-28.
+- **Caveats:** free-plan support for dynamic rewrites and redirects has to be confirmed by creating the rules. The package list needs `read:packages`, which the token here lacks.
+- **Implication:** the site can run at $0 a month as R2 on a custom domain:
+  - one URL rewrite (`/…/` → `/…/index.html`);
+  - two header rules (the security headers; CORS on the feed, OSV files and metrics);
+  - two redirects (slash, www);
+  - a cache rule;
+  - the Worker only on `/osv/*` for `X-Goog-Hash`, failing open.
+  Requests not on `/osv/*` never run a Worker, so the 100,000-a-day limit can't take the site down, and Workers Paid isn't needed.
+- **Sources:** [R2 public buckets](https://developers.cloudflare.com/r2/buckets/public-buckets/); [URL rewrites](https://developers.cloudflare.com/rules/transform/url-rewrite/); [URL forwarding availability](https://developers.cloudflare.com/rules/url-forwarding/); [Rules language functions](https://developers.cloudflare.com/ruleset-engine/rules-language/functions/); [Worker routes](https://developers.cloudflare.com/workers/configuration/routing/routes/); GitHub billing usage API.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
