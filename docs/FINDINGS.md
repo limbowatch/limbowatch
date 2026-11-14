@@ -2863,6 +2863,21 @@ Answered:
 - **Implication:** almost nobody fetches the site with `urllib`: one unidentified request in 30 days, besides this session's tests. Browser Integrity Check costs nothing and blocks junk such as the malformed scanner, so there's no reason to turn it off for the feed. A test hostname is found by crawlers quickly, so a future one should send `noindex` or sit behind Access.
 - **Sources:** Cloudflare dashboard (zone security analytics and events).
 
+### F-189
+- **Date:** 2026-11-14 · **Status:** confirmed (direct observation)
+- **Question:** Do the published GitHub Action and GitLab component work against limbo.watch on R2 from hosted CI runners, or does Cloudflare block them?
+- **Method:**
+  - Ran limbowatch/limbo-poc's `proof` workflow by hand (run 43588916833, GitHub-hosted `ubuntu-latest`, `limbowatch/limbowatch-action@v0.1.0a14` with its pinned image).
+  - Ran a pipeline of the GitLab demo project limbowatch/demo-app (pipeline 3068138374, GitLab.com shared runner on Google Cloud, component `limbowatch@0.1.0-alpha.14`, `fail_on: high`, runner cache from before the switch).
+  - Grouped the zone's 25 sampled security events of the last 72 hours by service, network, user agent, method and path.
+- **Result:**
+  - Action: success. The scan read the "limbo feed of 2026-11-14 10:13 UTC" (the first R2-only build, F-186) and reported **103 advisories in limbo in 7 packages**, as on 2026-11-13.
+  - GitLab component: the scan read the same 10:13 feed after restoring its cache, which held the feed with nginx's ETag. It reported **11 advisories in 4 packages, 4 high**, the same as before the switch. The job fails, as the demo intends with `fail_on: high`.
+  - Security events: 16 `wp-config.php` probes (TLM-Audit-Scanner), 3 `POST /` from Google Cloud with a Windows browser user agent, 2 exploit probes from a Go client, and 4 `urllib` requests (this session's tests). None was a feed or OSV download by a watcher.
+- **Caveats:** one run on each platform. Self-hosted runners and Gitea/Forgejo weren't tried; they use the same client and user agent.
+- **Implication:** customers using the Action, the component or the CLI aren't affected by Browser Integrity Check or managed rules. Limbowatch sends its own user agent (`limbowatch/<version> (+https://limbo.watch)`) from every release, and its requests are plain `GET`s of the feed. Only hand-written scripts using Python's default `urllib` user agent are blocked; the feed's documentation should say to send a user agent.
+- **Sources:** the runs above; Cloudflare dashboard (zone security events).
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
