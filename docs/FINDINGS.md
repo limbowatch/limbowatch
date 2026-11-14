@@ -2838,6 +2838,16 @@ Answered:
 - **Implication:** the cluster serves nothing for limbo.watch any more. Going back now means rebuilding the nginx setup from git history (before this commit), not only restoring DNS.
 - **Sources:** the commands above.
 
+### F-187
+- **Date:** 2026-11-14 · **Status:** confirmed (direct observation)
+- **Question:** Are the last pieces of the cluster setup gone (follow-up to [F-186](#f-186))?
+- **Method:** `gh api orgs/limbowatch/packages/container/limbowatch-site` (with `read:packages`, `delete:packages` added by the maintainer), then `DELETE` on it, then the package list. `dig` and `curl` for next.limbo.watch after it was removed from the bucket in the dashboard.
+- **Result:**
+  - The private package `limbowatch-site` (created 2026-10-28, last pushed 2026-11-14 09:58 UTC) had **387 versions**, not 126. Each of the 126 pushes also stored untagged versions. It's deleted. The only container package left is the public `limbowatch` watcher image.
+  - `next.limbo.watch` has no DNS record and doesn't connect.
+- **Implication:** nothing of the cluster setup remains outside git history and the kubelet GC config on the two nodes. F-186's caveats about the package and next.limbo.watch are resolved.
+- **Sources:** the commands above.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
