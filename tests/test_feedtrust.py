@@ -10,6 +10,7 @@ import hashlib
 import io
 import json
 import zipfile
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -50,7 +51,7 @@ def test_the_recorded_attestation_vouches_for_its_file() -> None:
 def test_anything_else_is_refused() -> None:
     assert feedtrust.check(ANSWER, "0" * 64)[0] is Verdict.REJECTED  # another file
     assert feedtrust.check({"attestations": []}, DIGEST)[0] is Verdict.REJECTED
-    assert feedtrust.check("not json", DIGEST)[0] is Verdict.REJECTED
+    assert feedtrust.check({"attestations": []}, DIGEST)[0] is Verdict.REJECTED  # GitHub's clear "none"
     for change in (
         lambda s: s["predicate"]["buildDefinition"]["externalParameters"]["workflow"].update(
             path=".github/workflows/x.yml"
@@ -67,9 +68,25 @@ def test_anything_else_is_refused() -> None:
         st = statement(ANSWER)
         change(st)
         assert feedtrust.check(with_statement(st), DIGEST)[0] is Verdict.REJECTED
+
+
+def test_an_answer_that_cant_be_read_is_unknown_not_a_rejection() -> None:
+    """A proxy's HTML page or a changed format mustn't refuse a genuine feed (F-193)."""
     broken = copy.deepcopy(ANSWER)
     broken["attestations"][0]["bundle"]["dsseEnvelope"]["payload"] = "!!!"
-    assert feedtrust.check(broken, DIGEST)[0] is Verdict.REJECTED
+    for body in (
+        "<html>Sign in to the Wi-Fi</html>",
+        {"message": "something else"},
+        {"attestations": [{"bundle": None, "bundle_url": "https://example.invalid/b"}]},
+        broken,
+    ):
+        assert feedtrust.check(body, DIGEST)[0] is Verdict.UNKNOWN, body
+    # one readable attestation for another file, plus an unreadable one: GitHub has spoken, it's a no
+    other = statement(ANSWER)
+    other["subject"] = [{"name": "x", "digest": {"sha256": "1" * 64}}]
+    both = with_statement(other)
+    both["attestations"].append(broken["attestations"][0])
+    assert feedtrust.check(both, DIGEST)[0] is Verdict.REJECTED
 
 
 # --- asking GitHub --------------------------------------------------------------------------------------------------
@@ -153,8 +170,8 @@ async def test_load_feed_refuses_what_github_doesnt_vouch_for(tmp_path: Path) ->
         (
             "require",
             httpx.Response(500),
-            "couldn't be verified (GitHub's attestation API couldn't be reached)",
-        ),  # retried
+            "couldn't be verified (GitHub's attestation API answered 500)",
+        ),
         ("require", httpx.Response(403, headers={"x-ratelimit-remaining": "0"}), "API answered 403); --verify-feed"),
     ):
         with respx.mock() as router:
@@ -170,7 +187,9 @@ async def test_load_feed_refuses_what_github_doesnt_vouch_for(tmp_path: Path) ->
         async with HttpClient(sleep=lambda _: _no_op()) as http:
             got, doc = await watch_scan.load_feed(http, tmp_path / "auto2", "auto", warnings.append)
     assert got == feed and doc == {"repos": {}}
-    assert warnings[0].startswith("limbowatch: couldn't verify the limbo feed's feed/all.zip (GitHub's attestation API")
+    assert warnings == [
+        "limbowatch: couldn't verify the limbo feed (GitHub's attestation API answered 503); using it unverified"
+    ]
 
     # off: GitHub isn't asked at all
     with respx.mock() as router:
@@ -240,3 +259,88 @@ def test_the_feed_zip_is_checked_before_unpacking(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(candidates, "MAX_UNPACKED_BYTES", 1_500)
     with pytest.raises(candidates.FeedTooLarge, match="unpacks to 1,800 bytes"):
         candidates.from_feed_zip(zipped({"GHSA-1.json": b" " * 900, "GHSA-2.json": b" " * 900}))
+
+
+# --- from the independent review (F-193) ----------------------------------------------------------------------------
+
+
+async def test_a_read_only_or_damaged_cache_never_fails_the_scan(tmp_path: Path, patched_digest: None) -> None:
+    ro = tmp_path / "ro"
+    ro.mkdir()
+    (ro / feedtrust.VERIFIED_FILE).write_bytes(b"\xff\xfe not utf-8")
+    ro.chmod(0o500)
+    (ro / feedtrust.VERIFIED_FILE).chmod(0o400)
+    try:
+        with respx.mock() as router:
+            router.get(url(DIGEST)).mock(return_value=httpx.Response(200, json=ANSWER))
+            async with HttpClient(sleep=no_waiting) as http:
+                assert (await feedtrust.verify(http, b"the feed", ro))[0] is Verdict.VERIFIED
+    finally:
+        ro.chmod(0o700)
+
+
+async def test_a_refused_token_is_retried_without_it(tmp_path: Path, patched_digest: None) -> None:
+    with respx.mock() as router:
+        route = router.get(url(DIGEST)).mock(
+            side_effect=lambda req: httpx.Response(401 if "authorization" in req.headers else 200, json=ANSWER)
+        )
+        async with HttpClient("expired-token", sleep=no_waiting) as http:
+            assert (await feedtrust.verify(http, b"the feed", tmp_path))[0] is Verdict.VERIFIED
+    assert route.call_count == 2
+
+
+async def test_one_attempt_no_waiting_when_github_is_unreachable_or_failing(tmp_path: Path) -> None:
+    other = hashlib.sha256(b"x").hexdigest()
+    for answer in (httpx.ConnectTimeout("blocked"), httpx.Response(503)):
+        with respx.mock() as router:
+            route = router.get(url(other)).mock(side_effect=[answer] * 6)
+            async with HttpClient(sleep=no_waiting) as http:
+                assert (await feedtrust.verify(http, b"x", tmp_path))[0] is Verdict.UNKNOWN
+        assert route.call_count == 1
+
+
+async def test_unknown_warns_once_and_a_rejected_copy_is_forgotten(tmp_path: Path) -> None:
+    feed, wl = feed_zip(), b'{"repos": {}}'
+    warnings: list[str] = []
+    with respx.mock() as router:
+        mock_feed(router, feed, wl, httpx.Response(503))
+        lookups = router.routes[2]
+        async with HttpClient(sleep=no_waiting) as http:
+            await watch_scan.load_feed(http, tmp_path / "a", "auto", warnings.append)
+    assert lookups.call_count == 1 and len(warnings) == 1
+    assert (
+        warnings[0]
+        == "limbowatch: couldn't verify the limbo feed (GitHub's attestation API answered 503); using it unverified"
+    )
+
+    cache = tmp_path / "b"
+    with respx.mock() as router:
+        mock_feed(router, feed, wl, httpx.Response(404))
+        async with HttpClient(sleep=no_waiting) as http:
+            with pytest.raises(RuntimeError, match="failed verification"):
+                await watch_scan.load_feed(http, cache, "auto", warnings.append)
+    assert not (cache / "all.zip").exists() and not (cache / "all.zip.etag").exists()
+
+
+async def test_a_damaged_record_is_a_clean_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("GHSA-a.json", b"{not json")
+    with pytest.raises(candidates.FeedUnreadable, match=r"GHSA-a\.json: JSONDecodeError"):
+        candidates.from_feed_zip(buf.getvalue())
+    async with HttpClient() as http:
+        with pytest.raises(RuntimeError, match=r"the limbo feed couldn't be read: GHSA-a\.json"):
+            await watch_scan.prepare([], http, feed_zip=buf.getvalue(), watchlist={}, now=datetime.now(UTC))
+        with pytest.raises(RuntimeError, match="couldn't be read"):
+            await watch_scan.prepare([], http, feed_zip=b"not a zip", watchlist={}, now=datetime.now(UTC))
+
+
+def test_previous_feed_timestamps_must_parse() -> None:
+    from limbowatch.publish.feed import previous_modified
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        for i, mod in enumerate(["2026-13-45T10:00:00Z", "2026-11-14T24:00:00Z", "２０２６-11-14T10:00:00Z",
+                                 "2026-11-14T10:00:00Z"]):  # fmt: skip
+            z.writestr(f"GHSA-{i}.json", json.dumps({"id": f"GHSA-{i}", "modified": mod}))
+    assert [k for k in previous_modified(buf.getvalue())] == ["GHSA-3"]

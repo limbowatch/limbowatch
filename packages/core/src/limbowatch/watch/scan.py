@@ -6,6 +6,7 @@ Nothing about the project is sent to limbo.watch: the feed and watchlist are dow
 
 from __future__ import annotations
 
+import contextlib
 import json
 import zipfile
 from collections.abc import Callable, Sequence
@@ -26,7 +27,7 @@ from limbowatch.models import (
 )
 from limbowatch.watch import feedtrust, mapping, upstream
 from limbowatch.watch import upstream_check as upcheck
-from limbowatch.watch.candidates import FeedTooLarge, Index, from_feed_zip
+from limbowatch.watch.candidates import FeedTooLarge, FeedUnreadable, Index, from_feed_zip
 from limbowatch.watch.match import match
 from limbowatch.watch.registries import Registries
 
@@ -80,14 +81,16 @@ async def load_feed(
 ) -> tuple[bytes, dict[str, Any]]:
     """The feed's all.zip and watchlist, each checked against its build attestation (`verify`: auto, require or off).
 
-    A file GitHub doesn't vouch for is refused (RuntimeError). If GitHub can't be asked, `auto` warns and goes on,
-    `require` refuses (FINDINGS F-192)."""
+    A file GitHub doesn't vouch for is refused (RuntimeError), and its cached copy removed so the next run downloads
+    it again. If GitHub can't be asked, `auto` warns once and goes on, `require` refuses (FINDINGS F-192, F-193)."""
     feed = await fetch(http, FEED_URL, cache)
     watchlist = await fetch(http, WATCHLIST_URL, cache, WATCHLIST_MAX_BYTES)
     if verify != "off":
-        for name, data in (("feed/all.zip", feed), ("feed/watchlist.json", watchlist)):
+        for url, data in ((FEED_URL, feed), (WATCHLIST_URL, watchlist)):
+            name = "feed/" + Path(url).name
             verdict, why = await feedtrust.verify(http, data, cache)
             if verdict is feedtrust.Verdict.REJECTED:
+                _forget(cache, url)
                 raise RuntimeError(
                     f"the limbo feed's {name} failed verification ({why}), so it wasn't used. It may have been "
                     "tampered with: SECURITY.md says how to report it. --verify-feed off skips this check."
@@ -95,12 +98,23 @@ async def load_feed(
             if verdict is feedtrust.Verdict.UNKNOWN:
                 if verify == "require":
                     raise RuntimeError(f"the limbo feed's {name} couldn't be verified ({why}); --verify-feed require")
-                warn(f"limbowatch: couldn't verify the limbo feed's {name} ({why}); using it unverified")
+                # GitHub can't be asked: asking again for the next file would only wait again
+                warn(f"limbowatch: couldn't verify the limbo feed ({why}); using it unverified")
+                break
     try:
         doc = json.loads(watchlist)
     except ValueError as e:
         raise RuntimeError(f"the limbo feed's watchlist isn't JSON: {e}") from e
     return feed, doc if isinstance(doc, dict) else {}
+
+
+def _forget(cache: Path | None, url: str) -> None:
+    """Drop a cached file and its ETag (best effort), so a refused copy isn't reused on a 304."""
+    if cache is None:
+        return
+    for p in (cache / Path(url).name, cache / (Path(url).name + ".etag")):
+        with contextlib.suppress(OSError):
+            p.unlink(missing_ok=True)
 
 
 @dataclass
@@ -134,7 +148,7 @@ async def prepare(
     index = Index()
     try:
         candidates = from_feed_zip(feed_zip)
-    except (FeedTooLarge, zipfile.BadZipFile) as e:  # a clean error (exit 2), not a traceback
+    except (FeedTooLarge, FeedUnreadable, zipfile.BadZipFile) as e:  # a clean error (exit 2), not a traceback
         raise RuntimeError(f"the limbo feed couldn't be read: {e}") from e
     for c in candidates:
         index.add(c)

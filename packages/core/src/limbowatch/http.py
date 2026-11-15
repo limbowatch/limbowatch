@@ -26,6 +26,7 @@ from limbowatch import __version__
 log = logging.getLogger(__name__)
 USER_AGENT = f"limbowatch/{__version__} (+https://limbo.watch)"
 GITHUB_API = "api.github.com"
+IMPATIENT_TIMEOUT = 10.0  # seconds, for `get(..., patient=False)`: one attempt, no waiting (F-193)
 GITHUB_WRITE_SPACING = 1.0  # seconds between content-creating requests to one GitHub host (F-146)
 HOST_CONCURRENCY = {
     GITHUB_API: 8,
@@ -118,6 +119,10 @@ class HttpClient:
     async def __aexit__(self, *exc: object) -> None:
         await self._client.aclose()
 
+    @property
+    def has_github_token(self) -> bool:
+        return bool(self._token)
+
     def budget_left(self) -> int | None:
         return None if self.github_budget is None else self.github_budget - self.stats.github_counted
 
@@ -134,13 +139,15 @@ class HttpClient:
         raw: bool = False,
         max_bytes: int | None = None,
         patient: bool = True,
+        anonymous: bool = False,
     ) -> Response:
         """GET (or POST with `json_body`). Returns status 304 with no body when `etag` still matches.
 
         With `raw`, the body is the response bytes (e.g. a zip), and `etag` is sent to any host. `max_bytes` caps a
         GET: the body is streamed and ResponseTooLarge raised once it passes the cap, so a huge or decompressing
-        response can't exhaust memory (FINDINGS F-192). `patient=False` returns a GitHub rate-limit answer at once
-        instead of waiting for the limit to reset.
+        response can't exhaust memory (FINDINGS F-192). `patient=False` makes one attempt with a short timeout and
+        returns whatever comes back (a rate limit, an error, nothing) at once: no retries, no waiting. `anonymous`
+        leaves the GitHub token out.
         """
         self._check_deadline()
         host = urlsplit(url).hostname or ""
@@ -150,7 +157,7 @@ class HttpClient:
         headers: dict[str, str] = {}
         if is_gh:
             headers.update({"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"})
-            if self._token:
+            if self._token and not anonymous:
                 headers["Authorization"] = f"Bearer {self._token}"
             if etag:
                 headers["If-None-Match"] = etag
@@ -271,15 +278,19 @@ class HttpClient:
                     r = await self._client.post(url, headers=headers, json=json_body)
                 elif max_bytes is not None:
                     r = await self._get_capped(url, headers, max_bytes)
+                elif not patient:
+                    r = await self._client.get(url, headers=headers, timeout=IMPATIENT_TIMEOUT)
                 else:
                     r = await self._client.get(url, headers=headers)
             except httpx.HTTPError as e:
                 log.warning("http error", extra={"url": url, "error": type(e).__name__, "attempt": attempt})
+                if not patient:
+                    return None
                 await self._sleep(min(60, 2**attempt))
                 continue
+            if not patient:
+                return r
             if is_gh and r.status_code in (403, 429):
-                if not patient:
-                    return r
                 if r.headers.get("x-ratelimit-remaining") == "0":
                     await self._wait_for_reset(r)
                     continue
@@ -289,7 +300,7 @@ class HttpClient:
             if r.status_code in (429, 500, 502, 503, 504):
                 await self._sleep(min(60, int(r.headers.get("retry-after", 2 ** (attempt + 1)))))
                 continue
-            if is_gh and patient and int(r.headers.get("x-ratelimit-remaining", "1000")) < 20:
+            if is_gh and int(r.headers.get("x-ratelimit-remaining", "1000")) < 20:
                 await self._wait_for_reset(r)
             return r
         return None

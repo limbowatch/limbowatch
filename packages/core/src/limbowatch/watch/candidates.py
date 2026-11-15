@@ -82,6 +82,10 @@ class FeedTooLarge(ValueError):
     """The feed's zip is far larger than any real feed: refused before unpacking."""
 
 
+class FeedUnreadable(ValueError):
+    """A record in the feed's zip couldn't be decoded (bad JSON, compression or fields)."""
+
+
 def from_feed_zip(data: bytes) -> list[Candidate]:
     """Every record of the feed's `all.zip` (one `<GHSA>.json` per advisory in limbo).
 
@@ -97,8 +101,11 @@ def from_feed_zip(data: bytes) -> list[Candidate]:
         for i in records:
             if i.file_size > MAX_RECORD_BYTES:
                 raise FeedTooLarge(f"{i.filename} is {i.file_size:,} bytes; no real record is that big")
-            with z.open(i) as f:
-                out.append(from_feed_record(json.loads(f.read(MAX_RECORD_BYTES + 1))))
+            try:
+                with z.open(i) as f:
+                    out.append(from_feed_record(json.loads(f.read(MAX_RECORD_BYTES + 1))))
+            except Exception as e:  # anything a damaged record raises: named, then a clean exit 2 (F-193)
+                raise FeedUnreadable(f"{i.filename}: {type(e).__name__}: {e}") from e
         return out
 
 

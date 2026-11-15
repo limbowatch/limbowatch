@@ -2939,6 +2939,30 @@ Answered:
 - **Implication:** a feed swapped anywhere between our build and the customer's runner (R2, Cloudflare, the network, or the runner's cache) is refused rather than used to under-report. The WATCHER.md hosts table now lists api.github.com for verification (`--verify-feed off` removes it), so "feed only" means limbo.watch and api.github.com unless verification is off.
 - **Sources:** the API answer and runs above; `tests/test_feedtrust.py`.
 
+### F-193
+- **Date:** 2026-11-15 · **Status:** confirmed (independent review, reproduced; fixed and tested)
+- **Question:** Before 0.1.0a15: does an independent review of the changes since 0.1.0a14 find bugs or crashes in the feed verification and size limits ([F-192](#f-192))?
+- **Method:**
+  - A fresh reviewer agent got only `git diff v0.1.0a14..HEAD -- packages integrations`, not my conclusions. It traced cases with mock transports.
+  - I probed `GET /repos/limbowatch/limbowatch/attestations/sha256:…` anonymously, with a classic token, and with an invalid token.
+  - After the fixes, live runs on limbowatch/limbo-poc: a normal scan, a cache with one advisory removed, the next run, and a run with an expired `LIMBOWATCH_GITHUB_TOKEN`.
+- **Result:**
+  - No crash in normal use. Problems found, all fixed:
+    1. Any 200 answer that wasn't the expected JSON (a proxy's HTML page, entries with only `bundle_url`) refused a genuine feed. Now only a 404, an empty list, or attestations that were read and don't match are a rejection; anything unreadable is "unknown".
+    2. `patient=False` still retried with sleeps: about 63 s unreachable and 122 s on 5xx per file, up to about 7 min with a firewall dropping packets, twice. Now it's one attempt with a 10 s timeout, and after one "unknown" the second file isn't asked.
+    3. A read-only cache, or a `feed-verified.txt` that isn't UTF-8, turned a successful check into exit 2. Now the cache is read and written on a best-effort basis.
+    4. `publish --previous-feed` crashed on `2026-13-45T10:00:00Z`, `…T24:00:00Z` or Unicode digits, which matched the regex; and a tampered previous feed could lend earlier dates. Now timestamps must parse (`re.ASCII`), and `site.yml` uses the previous feed only if `gh attestation verify` vouches for it.
+    5. A damaged record (bad JSON, unsupported compression) ended in a traceback. Now it's a clean error naming the record (exit 2).
+  - Suspicions:
+    - Token: anonymous 200, classic token 200, **invalid token 401**. A 401, 403 or 404 with a token is now retried without it.
+    - A refused copy stayed cached and failed every run until the ETag changed. It's now deleted, and the next run recovered by itself.
+    - F-192's "in the runner's cache" holds for the cached feed, but not against someone who can also write `feed-verified.txt`. Anyone who can write the runner's files could change the watcher too.
+  - Live after the fixes: normal scan exit 1 with 103 findings and no warning; tampered cache exit 2 with the copy removed; the next run exit 1, verified; expired token exit 1, verified anonymously.
+  - Also: in Docker mode the action now passes `LIMBOWATCH_VERIFY_FEED` into the container.
+- **Caveats:** the tests use recorded and mocked answers. The live runs were on one network.
+- **Implication:** the feed check can no longer refuse a genuine feed for an answer it can't read, slow a scan by minutes, or fail on a cache problem. 405 tests pass.
+- **Sources:** the review and runs above; `tests/test_feedtrust.py`.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

@@ -217,7 +217,19 @@ def content_key(rec: Mapping[str, Any]) -> str:
 
 # A published record is a few KB; anything far larger isn't one of ours, so it's skipped rather than read.
 _MAX_RECORD = 1 << 20
-_TIMESTAMP = re.compile(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z")
+_TIMESTAMP = re.compile(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z", re.ASCII)
+
+
+def _timestamp(value: object) -> str | None:
+    """`value` if it's a real UTC timestamp in the feed's form, else None: the regex alone lets `2026-13-45T…` and
+    `…T24:00:00Z` through, which `fromisoformat` rejects (F-193)."""
+    if not isinstance(value, str) or not _TIMESTAMP.fullmatch(value):
+        return None
+    try:
+        datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    return value
 
 
 def previous_modified(zipped: bytes) -> dict[str, tuple[str, str]]:
@@ -238,8 +250,8 @@ def previous_modified(zipped: bytes) -> dict[str, tuple[str, str]]:
                 continue
             if not isinstance(rec, dict):
                 continue
-            rid, mod = rec.get("id"), rec.get("modified")
-            if isinstance(rid, str) and isinstance(mod, str) and _TIMESTAMP.fullmatch(mod):
+            rid, mod = rec.get("id"), _timestamp(rec.get("modified"))
+            if isinstance(rid, str) and mod is not None:
                 out[rid] = (content_key(rec), mod)
     return out
 

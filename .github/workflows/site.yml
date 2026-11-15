@@ -46,8 +46,19 @@ jobs:
       - run: uv sync --locked
       # Unchanged records keep the live feed's `modified` (FINDINGS F-174). If it can't be fetched, publish warns and
       # every record's `modified` is the build time.
+      # Its dates are only borrowed if our own attestation vouches for the file (F-193): a swapped copy is ignored.
       - name: Previous feed
-        run: curl -fsSL --retry 3 --max-time 120 -o "$RUNNER_TEMP/previous-all.zip" https://limbo.watch/feed/all.zip || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prev="$RUNNER_TEMP/previous-all.zip"
+          curl -fsSL --retry 3 --max-time 120 -o "$prev" https://limbo.watch/feed/all.zip || rm -f "$prev"
+          if [ -f "$prev" ] && ! gh attestation verify "$prev" --repo "${{ github.repository }}" \
+               --signer-workflow "${{ github.repository }}/.github/workflows/site.yml" \
+               --source-ref refs/heads/main --deny-self-hosted-runners > /dev/null; then
+            echo "::warning title=site::the live feed/all.zip didn't verify; every record's modified is the build time"
+            rm -f "$prev"
+          fi
       - name: Publish
         env:
           LIMBOWATCH_GA_ID: ${{ vars.LIMBOWATCH_GA_ID }}  # repository variable; empty means no analytics
