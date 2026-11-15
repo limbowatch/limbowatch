@@ -2,6 +2,10 @@
 
 Versions follow [semantic versioning](https://semver.org). The PyPI packages `limbowatch` and `limbowatch-cli`, the GitLab CI/CD component and the Actions action share one version number.
 
+## Unreleased
+
+- **Faster scans of large projects** (FINDINGS F-204). Finding the line that declares each dependency, for annotations and Code Quality, searched the whole lockfile with a regular expression once per dependency: minutes for a monorepo with thousands of dependencies. Each lockfile is now indexed once and only the lines that can match are searched: 20 to 27 times faster on cal.com (3,901 dependencies, 44 s to 1.6 s) and Grafana, with the same line for every dependency.
+
 ## 0.1.0a15 (2026-11-15)
 
 Still an **alpha**. On PyPI it's `0.1.0a15`; the GitHub tag and the action's ref are `v0.1.0a15`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a15`; the GitLab CI/CD component is `0.1.0-alpha.15`. The scan now checks that the feed it downloads is genuine before using it, and limbo.watch moved to Cloudflare R2. Upgrade from 0.1.0a14 and earlier.

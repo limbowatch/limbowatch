@@ -9,7 +9,9 @@ from __future__ import annotations
 import json
 import re
 import tomllib
+from bisect import bisect_right
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any
 
 PINNED, RANGE, VCS, PATH = "pinned", "range", "vcs", "path"
@@ -183,13 +185,51 @@ def _npm_packages(text: str) -> dict[str, dict[str, Any]]:
     return {str(k): v for k, v in packages.items() if isinstance(v, dict)}
 
 
+@dataclass(frozen=True)
+class _Lines:
+    """A lockfile split once, for the many dependencies located in it."""
+
+    lines: list[str]
+    text: str  # the lines joined by "\n", so offsets map to lines
+    starts: list[int]  # offset of each line in `text`
+
+    def candidates(self, needle: str, fold: bool = False) -> list[int]:
+        """1-based numbers of the lines containing `needle` (case-insensitively with `fold`), in order."""
+        if fold:  # line by line: lower() can change a string's length, so offsets wouldn't hold. A non-ASCII line
+            # always goes to the pattern: re.I also matches e.g. the Kelvin sign to "k"
+            low = needle.lower()
+            return [i for i, ln in enumerate(self.lines, 1) if low in ln.lower() or not ln.isascii()]
+        hay = self.text
+        out: list[int] = []
+        i = hay.find(needle)
+        while i != -1:
+            n = bisect_right(self.starts, i)
+            if not out or out[-1] != n:
+                out.append(n)
+            i = hay.find(needle, self.starts[n] if n < len(self.starts) else len(hay))
+        return out
+
+
+@lru_cache(maxsize=4)
+def _index(text: str) -> _Lines:
+    lines = text.splitlines()
+    joined = "\n".join(lines)
+    starts, pos = [], 0
+    for ln in lines:
+        starts.append(pos)
+        pos += len(ln) + 1
+    return _Lines(lines, joined, starts)
+
+
 def locate(text: str, filename: str, name: str, version: str = "") -> int:
     """The 1-based line that declares `name` in a lockfile or manifest, or 1 if it can't be found.
 
-    Code Quality and SARIF alerts need a line; OSV-Scanner doesn't report one (FINDINGS F-078, F-079).
+    Code Quality and SARIF alerts need a line; OSV-Scanner doesn't report one (FINDINGS F-078, F-079). A large lockfile
+    is indexed once, and each pattern is tried only on the lines holding text it can't match without (F-204).
     """
-    lines = text.splitlines()
-    patterns = []
+    idx = _index(text)
+    lines = idx.lines
+    patterns: list[tuple[re.Pattern[str], str, bool]] = []  # (pattern, text every match contains, case-insensitive)
     base = filename.rsplit("/", 1)[-1]
     if base.endswith(".xml") and name.count(":") == 1:  # Maven: groupId and artifactId on lines of their own (F-157)
         group, artifact = name.split(":")
@@ -218,19 +258,23 @@ def locate(text: str, filename: str, name: str, version: str = "") -> int:
         if hits:
             return hits[0]
     if base in ("package-lock.json", "npm-shrinkwrap.json"):
-        patterns.append(re.compile(rf'"(?:[^"]*/)?node_modules/{re.escape(name)}"'))
+        patterns.append((re.compile(rf'"(?:[^"]*/)?node_modules/{re.escape(name)}"'), f'node_modules/{name}"', False))
     if base == "Cargo.lock":
-        patterns.append(re.compile(rf'^name = "{re.escape(name)}"$'))
+        patterns.append((re.compile(rf'^name = "{re.escape(name)}"$'), f'name = "{name}"', False))
     if base.endswith(".txt"):
-        patterns.append(re.compile(rf"^\s*{_pep503_pattern(name)}\s*(?:[\[=<>!~;@ ]|$)", re.I))
-    patterns.append(re.compile(rf"(?<![\w./-]){re.escape(name)}(?![\w-])"))
+        parts = [x for x in re.split(r"[-_.]+", name) if x]
+        patterns.append((re.compile(rf"^\s*{_pep503_pattern(name)}\s*(?:[\[=<>!~;@ ]|$)", re.I),
+                         max(parts, key=len) if parts else "", True))  # fmt: skip
+    patterns.append((re.compile(rf"(?<![\w./-]){re.escape(name)}(?![\w-])"), name, False))
     if "/" in name:  # e.g. a Git URL: the lockfile names the package by its last path segment
         tail = re.sub(r"\.git$", "", name.rstrip("/").rsplit("/", 1)[-1])
         patterns.append(
-            re.compile(rf'"(?:[^"]*/)?node_modules/{re.escape(tail)}"|(?<![\w.-]){re.escape(tail)}(?![\w-])')
-        )
-    for pat in patterns:
-        hits = [i for i, ln in enumerate(lines, 1) if pat.search(ln)]
+            (re.compile(rf'"(?:[^"]*/)?node_modules/{re.escape(tail)}"|(?<![\w.-]){re.escape(tail)}(?![\w-])'), tail,
+             False)
+        )  # fmt: skip
+    for pat, needle, fold in patterns:
+        rows = idx.candidates(needle, fold) if needle else range(1, len(lines) + 1)
+        hits = [i for i in rows if pat.search(lines[i - 1])]
         if not hits:
             continue
         if version and len(hits) > 1:

@@ -3135,6 +3135,17 @@ Answered:
 - **Implication:** the home page now shows this count (critical and high, with the total), the most widely pinned packages as cards, and `/popular/` with every project, its commit and its advisory IDs. The `showcase` workflow refreshes the inventory daily; the site build recounts it against each feed; audit check 12 verifies it.
 - **Sources:** GitHub (clones, REST API); OSV API; https://limbo.watch/feed/all.zip.
 
+### F-204
+- **Date:** 2026-11-15 · **Status:** confirmed (measured)
+- **Question:** Why did the showcase inventory take 20 minutes locally and over 45 in CI, when OSV-Scanner itself is fast?
+- **Method:** `cProfile` of `limbowatch.inventory.osv_scanner.run` on cal.com's dependency files (3,901 dependencies); then the old and new `checks.locate` on every package OSV-Scanner reports for cal.com, Grafana and Gitea (12,646 calls), comparing results and time; `tests/test_locate.py` compares them on every name in the test lockfiles.
+- **Result:**
+  - cal.com: 57.5 s in all, 0.2 s of it OSV-Scanner. 56.6 s in `checks.locate`, which split the lockfile and ran a regular expression on every line once per dependency: 164 million regex searches.
+  - Indexed once per lockfile, with each pattern tried only on lines holding a literal it can't match without: **0 of 12,646 lines differ**; cal.com 44.4 s → 1.6 s, Grafana 23.9 s → 1.0 s, Gitea 2.0 s → 0.1 s.
+- **Caveats:** case-insensitive patterns (requirements files) still check every line, and any non-ASCII line, so `re.I`'s Unicode folding can't be skipped.
+- **Implication:** `limbowatch scan` on large monorepos, in users' CI too, no longer spends minutes locating lines; the showcase inventory fits easily in its daily run.
+- **Sources:** the profile and timings above; `tests/test_locate.py`, `tests/locate_reference.py`.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
