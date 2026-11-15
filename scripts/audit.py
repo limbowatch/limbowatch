@@ -23,8 +23,8 @@ Checks:
 10. examples: every example on the home page is still in limbo, live: the repository advisory published, not in
     GitHub's reviewed database, not in OSV, and at the pinned version no other advisory in OSV (or, for RubyGems, in
     ruby-advisory-db) that a scanner would report (F-157 to F-162). The curated examples not shown are listed.
-11. proof: the home page's numbers equal `limbowatch scan`'s certain findings for the proof repository's pins in the
-    live feed; the pins equal the proof repository's; its latest run found the same advisories, apart from ones that
+11. proof: the proof repository's numbers (on the home page when it doesn't count the popular projects) equal
+    `limbowatch scan`'s certain findings for its pins in the live feed; the pins equal the proof repository's; its latest run found the same advisories, apart from ones that
     left limbo or joined the feed since; and OSV-Scanner, npm audit and pip-audit reported none of them there (F-201).
 12. popular: when the home page counts the popular projects (F-203), its numbers and /popular/data.json equal a recount
     of the latest showcase artifact against the live feed, every project in tracker/showcase/projects.txt was tried,
@@ -582,7 +582,8 @@ def check_proof(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
     shown = re.search(r'<p class="rv">([\d,]+)</p>\s*<p class="rd">of [\d,]+, with the upgrade.*?\(([\d,]+) in all', home, re.S)
     shown_n = (int(shown[1].replace(",", "")), int(shown[2].replace(",", ""))) if shown else None
     problems = []
-    if shown_n != (len(ours.serious), ours.total):
+    popular = 'href="/popular/"' in home  # the home page counts the popular projects (check 12); the proof is the fallback
+    if not popular and shown_n != (len(ours.serious), ours.total):
         problems.append(f"home page shows {shown_n}, the live feed gives {(len(ours.serious), ours.total)}")
     s, f = gh("/repos/limbowatch/limbo-poc/contents/proof/packages.json")
     theirs = [{k: x[k] for k in ("ecosystem", "name", "version", "repo", "file")}
@@ -616,9 +617,10 @@ def check_proof(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
                 hit = set(re.findall(r"GHSA-\w{4}-\w{4}-\w{4}", (ev / name).read_text())) & ours.ids
                 if hit:
                     problems.append(f"{name} in run {run['id']} reports {', '.join(sorted(hit))}")
-    rep.check("proof", not problems, f"home page shows {len(ours.serious)} high or critical of {ours.total} in "
-              f"{ours.packages} pinned packages, as the live feed gives; the proof run "
-              f"{run['id'] if run else '–'} agrees ({explained} changed since it ran)")  # fmt: skip
+    where = "the live feed gives" if popular else "the home page shows, as the live feed gives,"
+    rep.check("proof", not problems, f"{where} {len(ours.serious)} high or critical of {ours.total} in {ours.packages} "
+              f"pinned packages; the proof run {run['id'] if run else '–'} agrees ({explained} changed since it ran)"
+              + ("; the home page shows the popular projects instead" if popular else ""))  # fmt: skip
     for p in problems:
         rep.note(p)
 
