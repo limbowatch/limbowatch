@@ -3103,6 +3103,18 @@ Answered:
 - **Implication:** the home page now shows the critical and high count from each build's feed (37 today), with the total (102) beside it, and drops the comparison if none is left. `scripts/audit.py` check 11 compares it with the live feed and the proof repository's latest run.
 - **Sources:** limbowatch/limbo-poc run 43692013227 and `proof/packages.json`; https://limbo.watch/feed/all.zip.
 
+### F-202
+- **Date:** 2026-11-15 · **Status:** confirmed (direct observation)
+- **Question:** Can the Worker deploy from GitHub with a token that can't touch anything else?
+- **Method:** creating the account token in the Cloudflare dashboard (Account API tokens → Create → Start from scratch); `.github/workflows/worker.yml` runs 43699386428 and 43700413002; `curl -I` on `/osv/SHA256SUMS.txt` and `/osv/PyPI/all.zip`.
+- **Result:**
+  - A policy's scope can be **Specified Workers**: the token `limbowatch-worker-deploy` has Individual Workers Editor on `limbowatch-site` only (the account's other Workers are out of reach), plus Workers Routes Write and Zone Read on limbo.watch. That was enough for `wrangler deploy` (with an R2 binding) and for setting the route to fail open; no R2 permission was needed.
+  - The first run deployed but failed to set the route to fail open: `uv run` at the workspace root installs only the root project, which has no httpx. With `--package limbowatch` the second run set `limbo.watch/osv/*` to fail open and the live check passed.
+  - Live after the deploy: `osv/SHA256SUMS.txt` sends `no-cache`; the zips keep `max-age=300` and `X-Goog-Hash`.
+- **Caveats:** between the two runs (about 5 minutes) the route failed closed; traffic was far below the daily limit.
+- **Implication:** Worker changes deploy from `main` after a maintainer approves the `worker` environment; Cache-Control comes from the object the site sync stores, so cache changes need no Worker deploy.
+- **Sources:** the runs above; Cloudflare dashboard token review page.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
