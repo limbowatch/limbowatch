@@ -2878,6 +2878,26 @@ Answered:
 - **Implication:** customers using the Action, the component or the CLI aren't affected by Browser Integrity Check or managed rules. Limbowatch sends its own user agent (`limbowatch/<version> (+https://limbo.watch)`) from every release, and its requests are plain `GET`s of the feed. Only hand-written scripts using Python's default `urllib` user agent are blocked; the feed's documentation should say to send a user agent.
 - **Sources:** the runs above; Cloudflare dashboard (zone security events).
 
+### F-190
+- **Date:** 2026-11-14 · **Status:** confirmed (direct observation and GitLab source); why GitLab counts 0 is unknown
+- **Question:** Can we tell how many projects use the GitHub Action and the GitLab CI/CD Catalog component, and can a README badge show it?
+- **Method:**
+  - GitHub: `github.com/limbowatch/limbowatch-action/network/dependents` (the dependency graph, logged out); `gh api search/code` for `"limbowatch/limbowatch-action" path:.github/workflows`; `gh api repos/limbowatch/limbowatch-action/traffic/{clones,views}`; the ghcr package page's "Total downloads".
+  - GitLab: GraphQL `ciCatalogResource(fullPath: "limbowatch/limbowatch-component") { last30DayUsageCount }`, by POST and by GET, logged out and with `glab api graphql`, and per component version. Compared with `components/sast` and `components/secret-detection`. Read GitLab's docs (`doc/ci/components/_index.md`) and source (`Chain::ComponentUsage`, `TrackComponentUsageWorker`, `AggregateLast30DayUsageService`) on master. Listed the private GitLab demo-app's pipelines and its `include:`.
+  - PyPI: `pypistats.org/api/packages/{limbowatch-cli,limbowatch}/recent`.
+  - Badges: shields.io dynamic JSON badge on the GitLab GraphQL GET URL, and `img.shields.io/pypi/dm/limbowatch-cli`.
+- **Result:**
+  - **GitHub Action: 3 dependent repositories, all ours** (limbowatch/demo-app, limbowatch/limbo-poc and the maintainer's personal site). GitHub has no API or shields.io badge for an Action's dependents; the page is HTML and says its counts are approximate. Code search found only 1 of the 3 (the index lags). Marketplace shows no usage count. Repo traffic, last 14 days: 170 clones (55 unique), 7 views; clones include our own CI.
+  - **ghcr image: 455 total downloads** since it was published. That includes our own CI, e2e and release checks. The Packages API doesn't return download counts; only the HTML page does.
+  - **GitLab component: `last30DayUsageCount` = 0**, for the resource and for each version, logged out or in. SAST shows 8,419 and Secret Detection 9,934, so the counter works on GitLab.com. The field is public and GraphQL accepts GET, so shields.io can render it directly (it shows "0").
+    - Docs: the count is unique projects that used any component of the resource in a pipeline in the last 30 days. The Analytics tab (Free, 18.9) shows the same number to maintainers; the per-project Usage tab is Premium (19.0).
+    - Source: a pipeline enqueues `TrackComponentUsageWorker` with the included components. It records a usage only if the project is a catalog resource and the included SHA is a released version, and only when the pipeline has a user. A daily cron job counts distinct projects per resource over 30 days.
+    - The private demo-app has included released versions (`@0.1.0-alpha.5` to `@0.1.0-alpha.14`) on every push since at least 2026-11-07 (15 pipelines, the latest on 2026-11-14 by API), so it should count as 1. It doesn't, and the cause isn't visible from outside.
+  - PyPI: limbowatch-cli 1,417 downloads in the last month, limbowatch 1,606 (pypistats, excluding nothing). These include mirrors, bots, and our own `install: python` CI runs.
+- **Caveats:** one day's look. The GitHub dependents page sees only public repos with the dependency graph enabled; private users are invisible. Download counts are not users. Limbo.watch's Cloudflare analytics by user agent (`limbowatch/<version>`, F-189) would count feed fetches from every host, but weren't read here (no API token in this session).
+- **Implication:** today there are no outside users we can see on either platform; every visible user is ours. A usage badge would show 3 (GitHub, all ours) and 0 (GitLab), which is misleading or unhelpful. Only GitLab's count can be badged without our own infrastructure. Combining both would need a scheduled job that reads the dependents page (minus the limbowatch org) and the GraphQL field and publishes a shields.io endpoint JSON on limbo.watch.
+- **Sources:** GitHub dependency graph page and REST API; ghcr package page; GitLab GraphQL API; [GitLab CI/CD components docs](https://docs.gitlab.com/ci/components/); GitLab source (`lib/gitlab/ci/pipeline/chain/component_usage.rb`, `app/workers/ci/catalog/resources/track_component_usage_worker.rb`, `app/services/ci/catalog/resources/aggregate_last30_day_usage_service.rb`); pypistats.org API; shields.io.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
