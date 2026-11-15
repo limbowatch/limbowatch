@@ -537,8 +537,9 @@ fetch('/tracker/data.json').then(r=>r.json()).then(d=>{D=d;const ecos=[...new Se
 
 
 def _v(asset: str) -> str:
-    """A short content hash for an asset's URL. Browsers and the CDN cache assets for hours; a new URL per version
-    means new pages never get an old stylesheet or script."""
+    """A short content hash for an asset's URL, so a page always gets the script it was built with. Only for assets on
+    a page or two: one on every page would change all 50,000 pages with each edit, and every one would be uploaded
+    again (F-205). Those (site.css, analytics.js) keep one URL; they're cached for 5 minutes, like the pages."""
     return hashlib.sha256(asset.encode()).hexdigest()[:10]
 
 
@@ -683,7 +684,7 @@ def page(title: str, description: str, body: str, path: str = "/", jsonld: dict[
         '<meta name="twitter:card" content="summary_large_image">\n'
         '<link rel="alternate" type="application/atom+xml" title="New advisories in limbo" href="/feed/limbo.atom">\n'
         f'<link rel="icon" href="/favicon.svg" type="image/svg+xml">\n{THEME_HEAD_JS}'
-        f'<link rel="stylesheet" href="/assets/site.css?v={_v(CSS)}">\n'
+        '<link rel="stylesheet" href="/assets/site.css">\n'
         + (f'<script type="application/ld+json">{ld}</script>\n' if ld else "")
         + f"</head>\n<body>\n{EMAIL_OFF}{new_tab(body)}{EMAIL_ON}\n{MENU_JS}"
         + (SHOTS_JS if '<figure class="shot' in body else "")
@@ -2864,9 +2865,7 @@ def build(
         related = [r for r in by_repo.get(i.adv.repo, []) if r is not i]
         out[f"advisory/{i.adv.ghsa_id}/index.html"] = advisory(i, by_ghsa.get(i.adv.ghsa_id, []), now, related)
     if analytics_id:
-        tag = (
-            f'<script src="/assets/analytics.js?v={_v(ANALYTICS_JS)}" data-id="{analytics_id}" defer></script>\n</head>'
-        )
+        tag = f'<script src="/assets/analytics.js" data-id="{analytics_id}" defer></script>\n</head>'
         out = {k: v.replace("</head>", tag, 1) if k.endswith(".html") else v for k, v in out.items()}
         out["assets/analytics.js"] = ANALYTICS_JS
     return out

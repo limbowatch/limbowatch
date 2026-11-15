@@ -3146,6 +3146,18 @@ Answered:
 - **Implication:** `limbowatch scan` on large monorepos, in users' CI too, no longer spends minutes locating lines; the showcase inventory fits easily in its daily run.
 - **Sources:** the profile and timings above; `tests/test_locate.py`, `tests/locate_reference.py`.
 
+### F-205
+- **Date:** 2026-11-15 · **Status:** confirmed (measured; Cloudflare's pricing page)
+- **Question:** On Cloudflare's free tier, what do the site deploys cost in R2 operations, and what drives the count?
+- **Method:** the `r2: N uploaded, N deleted, N unchanged` line of every successful `site.yml` run since the move to R2 (2026-11-14 and 15, 15 runs); https://developers.cloudflare.com/r2/pricing/; the size of a local build.
+- **Result:**
+  - Free each month: 10 GB-month storage, 1 million Class A (PutObject, ListObjects…), 10 million Class B (GetObject, HeadObject); egress and DeleteObject free. Beyond: $4.50 per million Class A, $0.36 per million Class B, $0.015 per GB-month.
+  - The site: 52,045 files, about 0.5 GB.
+  - Uploads in those 15 runs: about 91,000 Class A, plus about 52 list calls a run. Of them, 51,814 were the first upload; one run uploaded 26,185 (2774cac, a stylesheet change: every page links `site.css?v=<hash>`, so all advisory pages changed); the others 84 to 6,567 (a normal deploy 84 to 1,030).
+- **Caveats:** two days; the tracker's daily deploy uploads about 3,100 files (F-178).
+- **Implication:** a normal month is about 15% of the free Class A allowance. The risk was stylesheet changes, at 26,000 to 52,000 uploads each; `site.css` and `analytics.js` are now linked without a version, so a stylesheet change uploads one file. Browsers may pair a new page with the old stylesheet for at most the 5-minute cache. The deploy that drops the version uploads every page once more.
+- **Sources:** the site.yml run logs; Cloudflare R2 pricing page.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

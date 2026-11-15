@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 
+import pytest
 from limbowatch.csvsafe import cell
 from limbowatch.publish import site
 
@@ -155,3 +156,11 @@ def test_feed_page_download_buttons_look_the_same() -> None:
     assert [h for _, h in buttons] == ["/feed/all.zip", "/osv/limbo-db.zip"]
     assert {c for c, _ in buttons} == {"btn line"}
     assert 'href="/feed/SHA256SUMS.txt"' in html and 'href="/osv/SHA256SUMS.txt"' in html
+
+
+def test_a_stylesheet_change_leaves_the_pages_as_they_were(monkeypatch: pytest.MonkeyPatch) -> None:
+    """site.css is on every page: a version in its URL made every edit re-upload all of them to R2 (F-205)."""
+    before = site.page("t", "d", "<p>x</p>", "/")
+    monkeypatch.setattr(site, "CSS", site.CSS + "\n.new{color:red}")
+    assert site.page("t", "d", "<p>x</p>", "/") == before
+    assert '<link rel="stylesheet" href="/assets/site.css">' in before and "site.css?v" not in before
