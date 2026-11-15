@@ -226,10 +226,11 @@ def _timestamp(value: object) -> str | None:
     if not isinstance(value, str) or not _TIMESTAMP.fullmatch(value):
         return None
     try:
-        datetime.fromisoformat(value)
+        parsed = datetime.fromisoformat(value)
     except ValueError:
         return None
-    return value
+    # Python 3.14 reads `T24:00:00` as the next midnight; 3.12 refuses it. Only what reads back as written counts.
+    return value if parsed.strftime("%Y-%m-%dT%H:%M:%S") == value[:19] else None
 
 
 def previous_modified(zipped: bytes) -> dict[str, tuple[str, str]]:

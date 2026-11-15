@@ -11,7 +11,7 @@ import json
 import zipfile
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +37,7 @@ WATCHLIST_URL = "https://limbo.watch/feed/watchlist.json"
 FEED_MAX_BYTES = 500_000_000
 WATCHLIST_MAX_BYTES = 100_000_000
 VERIFY_MODES = ("auto", "require", "off")
+STALE_FEED = timedelta(days=3)  # the feed is rebuilt daily; older means it stopped updating, or was rolled back
 # A tracker check older than this and the watcher checks the repo itself. The tracker re-checks quiet repos only
 # every 30 days (and after releases, F-104), so a project's own dependencies get fresher checks here (F-071).
 STALE = timedelta(days=10)
@@ -52,8 +53,11 @@ class ScanResult:
     stats: dict[str, int] = field(default_factory=dict)
 
 
-async def fetch(http: HttpClient, url: str, cache: Path | None, max_bytes: int = FEED_MAX_BYTES) -> bytes:
-    """Download `url`, reusing a cached copy while its ETag still matches. A response over `max_bytes` is refused."""
+async def fetch(
+    http: HttpClient, url: str, cache: Path | None, max_bytes: int = FEED_MAX_BYTES, stale: set[str] | None = None
+) -> bytes:
+    """Download `url`, reusing a cached copy while its ETag still matches. A response over `max_bytes` is refused.
+    If the download fails and an older cached copy is used instead, `url` is added to `stale`."""
     body = etag = None
     if cache is not None:
         f, t = cache / Path(url).name, cache / (Path(url).name + ".etag")
@@ -67,6 +71,8 @@ async def fetch(http: HttpClient, url: str, cache: Path | None, max_bytes: int =
         return body
     if not r.ok or not isinstance(r.body, bytes):
         if body is not None:
+            if stale is not None:
+                stale.add(url)
             return body  # stale but usable; the result says when the feed was generated
         raise RuntimeError(f"couldn't download {url}: HTTP {r.status}")
     if cache is not None:
@@ -77,35 +83,54 @@ async def fetch(http: HttpClient, url: str, cache: Path | None, max_bytes: int =
 
 
 async def load_feed(
-    http: HttpClient, cache: Path | None, verify: str, warn: Callable[[str], None]
+    http: HttpClient, cache: Path | None, verify: str, warn: Callable[[str], None], now: datetime | None = None
 ) -> tuple[bytes, dict[str, Any]]:
-    """The feed's all.zip and watchlist, each checked against its build attestation (`verify`: auto, require or off).
+    """The feed's all.zip and watchlist, checked against their build attestation (`verify`: auto, require or off):
+    GitHub must vouch for all.zip, and for the watchlist as part of the same build (FINDINGS F-192 to F-194).
 
-    A file GitHub doesn't vouch for is refused (RuntimeError), and its cached copy removed so the next run downloads
-    it again. If GitHub can't be asked, `auto` warns once and goes on, `require` refuses (FINDINGS F-192, F-193)."""
-    feed = await fetch(http, FEED_URL, cache)
-    watchlist = await fetch(http, WATCHLIST_URL, cache, WATCHLIST_MAX_BYTES)
-    if verify != "off":
-        for url, data in ((FEED_URL, feed), (WATCHLIST_URL, watchlist)):
-            name = "feed/" + Path(url).name
-            verdict, why = await feedtrust.verify(http, data, cache)
-            if verdict is feedtrust.Verdict.REJECTED:
-                _forget(cache, url)
-                raise RuntimeError(
-                    f"the limbo feed's {name} failed verification ({why}), so it wasn't used. It may have been "
-                    "tampered with: SECURITY.md says how to report it. --verify-feed off skips this check."
-                )
-            if verdict is feedtrust.Verdict.UNKNOWN:
-                if verify == "require":
-                    raise RuntimeError(f"the limbo feed's {name} couldn't be verified ({why}); --verify-feed require")
-                # GitHub can't be asked: asking again for the next file would only wait again
-                warn(f"limbowatch: couldn't verify the limbo feed ({why}); using it unverified")
-                break
+    A pair GitHub doesn't vouch for is refused (RuntimeError) and its cached copies removed, so the next run downloads
+    them again. If GitHub can't be asked, `auto` warns and goes on, `require` refuses. A mix of builds that this run
+    caused itself (a download failed and an older cached copy stood in) is a warning in `auto`. A feed older than
+    STALE_FEED is a warning: an attacker could serve an old genuine pair, which verifies."""
+    stale: set[str] = set()
+    feed = await fetch(http, FEED_URL, cache, stale=stale)
+    watchlist = await fetch(http, WATCHLIST_URL, cache, WATCHLIST_MAX_BYTES, stale=stale)
     try:
         doc = json.loads(watchlist)
     except ValueError as e:
         raise RuntimeError(f"the limbo feed's watchlist isn't JSON: {e}") from e
-    return feed, doc if isinstance(doc, dict) else {}
+    doc = doc if isinstance(doc, dict) else {}
+    if verify != "off":
+        result = await feedtrust.verify(http, feed, watchlist, cache)
+        if result.verdict is feedtrust.Verdict.REJECTED and not (result.mixed and stale and verify == "auto"):
+            for url in (FEED_URL, WATCHLIST_URL):
+                _forget(cache, url)
+            raise RuntimeError(
+                f"the limbo feed failed verification ({result.why}), so it wasn't used. It may have been tampered "
+                "with: SECURITY.md says how to report it. --verify-feed off skips this check."
+            )
+        if result.verdict is feedtrust.Verdict.REJECTED:
+            old = ", ".join(sorted("feed/" + Path(u).name for u in stale))
+            warn(f"limbowatch: couldn't download all of the limbo feed; the older cached {old} is from another build")
+        if result.verdict is feedtrust.Verdict.UNKNOWN:
+            if verify == "require":
+                raise RuntimeError(f"the limbo feed couldn't be verified ({result.why}); --verify-feed require")
+            warn(f"limbowatch: couldn't verify the limbo feed ({result.why}); using it unverified")
+    generated = _parse_time(doc.get("generated_at"))
+    if generated is not None and (now or datetime.now(UTC)) - generated > STALE_FEED:
+        warn(f"limbowatch: the limbo feed is from {doc['generated_at']}, more than {STALE_FEED.days} days ago: "
+             "newer advisories in limbo aren't in it")  # fmt: skip
+    return feed, doc
+
+
+def _parse_time(value: object) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        t = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    return t if t.tzinfo is not None else None
 
 
 def _forget(cache: Path | None, url: str) -> None:

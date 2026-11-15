@@ -2963,6 +2963,29 @@ Answered:
 - **Implication:** the feed check can no longer refuse a genuine feed for an answer it can't read, slow a scan by minutes, or fail on a cache problem. 405 tests pass.
 - **Sources:** the review and runs above; `tests/test_feedtrust.py`.
 
+### F-194
+- **Date:** 2026-11-15 · **Status:** confirmed (independent re-review; fixed and tested on Python 3.12, 3.13, 3.14)
+- **Question:** Do the fixes in [F-193](#f-193) hold, and is anything left before 0.1.0a15?
+- **Method:**
+  - The same reviewer re-read commit a2b4bee.
+  - CI (`ci.yml`) on a2b4bee: Python 3.12, 3.13, 3.14 on Ubuntu and 3.12 on macOS.
+  - Full test suite locally on Python 3.12, 3.13 and 3.14, in separate environments.
+  - The `site` run on a2b4bee: its new `gh attestation verify` of the previous feed.
+- **Result:**
+  - The six fixes hold; no crash or stall found. **Still open: rollback.** Every build's attestation stays valid, so whoever controls limbo.watch could serve an older genuine `all.zip` next to today's watchlist. Both verified on their own, and newer advisories disappeared.
+    - **Fixed:** one lookup of `all.zip` must return a statement from the site workflow on `main` that also lists the downloaded `watchlist.json`'s digest. The two must come from the same build, as one statement lists all 18 files (F-191).
+    - A mix this run caused itself (a download failed and an older cached copy stood in) is a warning in `auto` and refused in `require`.
+    - A pair from one old build still verifies, so a feed whose `generated_at` is over 3 days old is a warning.
+  - Also from the re-review:
+    - A retry without the token now happens only on 401 or 403. A 404 with a working token is GitHub's final "none", and a rate-limited retry mustn't soften it.
+    - `per_page=100`, since a byte-identical `all.zip` can be attested daily.
+    - Malformed statements (`predicate: 3`, `subject: 7`) no longer raise.
+  - **CI failed on Python 3.14 only:** `datetime.fromisoformat("2026-11-14T24:00:00Z")` is accepted there (the next midnight) and refused on 3.12 and 3.13. Now a previous-feed timestamp counts only if it reads back exactly as written. The full suite (408 tests) passes on 3.12, 3.13 and 3.14.
+  - `site` run on a2b4bee: the previous feed verified, "feed: 25782 of 25782 records unchanged", "Attestation created for 18 subjects", "r2: 162 uploaded".
+- **Caveats:** a rollback to a pair from a single old build can only be warned about, not refused. Nothing ties a build to today except its date.
+- **Implication:** the checks are ready for 0.1.0a15.
+- **Sources:** the review, runs and tests above.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
