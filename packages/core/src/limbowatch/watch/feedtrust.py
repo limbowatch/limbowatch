@@ -122,6 +122,11 @@ def _remember(cache: Path | None, pair: str) -> None:
         f.write_text("\n".join([*lines[-(KEEP - 1) :], pair]) + "\n")
 
 
+def known_pair(cache: Path | None, feed: bytes, watchlist: bytes) -> bool:
+    """Whether this pair was verified before (its record is in the cache)."""
+    return f"{hashlib.sha256(feed).hexdigest()}:{hashlib.sha256(watchlist).hexdigest()}" in _known(cache)
+
+
 async def verify(http: HttpClient, feed: bytes, watchlist: bytes, cache: Path | None) -> Result:
     """Look the watchlist up in GitHub's attestation API and check that the same build's statement also lists
     `feed`. One request at most (a pair verified before isn't asked again), one attempt, a short timeout.

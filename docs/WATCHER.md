@@ -310,7 +310,8 @@ A GitHub token, when there is one, goes only to api.github.com; a tracker token 
     - If GitHub can't be reached or its answer can't be read, the scan warns and goes on. The lookup is one request with a 10-second timeout; it never waits on a rate limit.
     - `--verify-feed require` refuses in that case too; `--verify-feed off` (or `LIMBOWATCH_VERIFY_FEED=off`) skips the check.
     - A feed verified once isn't looked up again, so an unchanged feed costs no request.
-    - A feed more than 3 days old gets a warning: the site rebuilds it daily, so an old one means it stopped updating, or someone is serving an old build, which would still verify.
+    - A feed more than 3 days old gets a warning (refused with `require`): the site rebuilds it daily, so an old one means it stopped updating, or someone is serving an old build, which would still verify.
+    - During a deploy, the two files can briefly come from different builds. The scan then downloads them again after 5 seconds, and if they still don't match, uses its cached pair verified before (with a warning), or stops and says to try again in a few minutes.
   - **It never reads more than a real feed's size.** Downloads stop at 500 MB, the zip's own listing is checked before anything is unpacked (at most 500,000 records, 5 MB each, 1 GB in all), and a feed over those limits is refused (F-192).
   - **To check a copy yourself**, including the one the scan cached under `~/.cache/limbowatch`, with the Sigstore signature checked too: `gh attestation verify all.zip --repo limbowatch/limbowatch --signer-workflow limbowatch/limbowatch/.github/workflows/site.yml --source-ref refs/heads/main --deny-self-hosted-runners` (F-191).
 - **Watch it.** Run it once behind a logging proxy (`HTTPS_PROXY`; Limbowatch, OSV-Scanner and git all honour it) and compare the hosts with the table above.

@@ -6,10 +6,11 @@ Nothing about the project is sent to limbo.watch: the feed and watchlist are dow
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import json
 import zipfile
-from collections.abc import Callable, Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -37,6 +38,7 @@ WATCHLIST_URL = "https://limbo.watch/feed/watchlist.json"
 FEED_MAX_BYTES = 500_000_000
 WATCHLIST_MAX_BYTES = 100_000_000
 VERIFY_MODES = ("auto", "require", "off")
+MIX_RETRY_SECONDS = 5.0  # a pair from two builds is most likely a deploy in progress (F-196)
 STALE_FEED = timedelta(days=3)  # the feed is rebuilt daily; older means it stopped updating, or was rolled back
 # A tracker check older than this and the watcher checks the repo itself. The tracker re-checks quiet repos only
 # every 30 days (and after releases, F-104), so a project's own dependencies get fresher checks here (F-071).
@@ -83,64 +85,105 @@ async def fetch(
 
 
 async def load_feed(
-    http: HttpClient, cache: Path | None, verify: str, warn: Callable[[str], None], now: datetime | None = None
+    http: HttpClient,
+    cache: Path | None,
+    verify: str,
+    warn: Callable[[str], None],
+    now: datetime | None = None,
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
 ) -> tuple[bytes, dict[str, Any]]:
     """The feed's all.zip and watchlist, checked against their build attestation (`verify`: auto, require or off).
-    GitHub must vouch for the two as files of the same build (FINDINGS F-192 to F-195).
+    GitHub must vouch for the two as files of the same build (FINDINGS F-192 to F-196).
 
     The two are handled as a pair: downloads are held in memory and written to the cache only once the pair passes,
     so the cache always holds a pair that went together. If a download fails, the cached pair stands in, both files,
-    never one new file next to an old one. A pair GitHub doesn't vouch for, or a mixed pair, is refused (RuntimeError)
-    and the cache cleared. If GitHub can't be asked, `auto` warns and goes on, `require` refuses. A feed older than
-    STALE_FEED is a warning: an old build's pair still verifies."""
+    never one new file next to an old one.
+
+    A mixed pair is what a scan sees during a deploy, for a moment, so it's downloaded again, fresh, after
+    MIX_RETRY_SECONDS. If it's still mixed, a cached pair verified before is used, with a warning; otherwise it's
+    refused. A pair GitHub doesn't vouch for is refused (RuntimeError) and the cache cleared. If GitHub can't be asked,
+    `auto` warns and goes on, `require` refuses. A feed older than STALE_FEED is a warning in `auto` and refused in
+    `require`: an old build's pair still verifies."""
     files = ((FEED_URL, FEED_MAX_BYTES), (WATCHLIST_URL, WATCHLIST_MAX_BYTES))
     cached = {url: _cached(cache, url) for url, _ in files}
-    got: dict[str, tuple[bytes, str | None, bool]] = {}  # url -> (body, etag, downloaded now)
-    for url, cap in files:
-        old = cached[url]
-        try:
-            r = await http.get(url, etag=old[1] if old else None, raw=True, max_bytes=cap)
-        except ResponseTooLarge as e:
-            raise RuntimeError(f"{e}: far larger than the real feed, so it wasn't used") from e
-        if r.status == 304 and old is not None:
-            got[url] = (old[0], old[1], False)
-        elif r.ok and isinstance(r.body, bytes):
-            got[url] = (r.body, r.etag, True)
+    got: dict[str, tuple[bytes, str | None, bool]] = {}
+    result: feedtrust.Result | None = None
+    for attempt in (1, 2):
+        got = await _download_pair(http, files, cached, warn, conditional=attempt == 1)
+        if verify == "off":
+            break
+        result = await feedtrust.verify(http, got[FEED_URL][0], got[WATCHLIST_URL][0], cache)
+        if not (result.mixed and attempt == 1):
+            break
+        await sleep(MIX_RETRY_SECONDS)  # most likely mid-deploy: the other file is a moment away
+    if result is not None and result.verdict is feedtrust.Verdict.REJECTED:
+        old = cached[FEED_URL], cached[WATCHLIST_URL]
+        if result.mixed and old[0] and old[1] and feedtrust.known_pair(cache, old[0][0], old[1][0]):
+            warn("limbowatch: the limbo feed's files on limbo.watch come from different builds (it may be updating); "
+                 "using the cached copy verified earlier")  # fmt: skip
+            got = {u: (c[0], c[1], False) for u, c in cached.items() if c}
         else:
-            if all(cached.values()):  # the last pair that went together, never a mix
-                warn(f"limbowatch: couldn't download {url} (HTTP {r.status}); using the cached copy of the feed")
-                got = {u: (c[0], c[1], False) for u, c in cached.items() if c}
-                break
-            raise RuntimeError(f"couldn't download {url}: HTTP {r.status}")
-    feed, watchlist = got[FEED_URL][0], got[WATCHLIST_URL][0]
-    if verify != "off":
-        result = await feedtrust.verify(http, feed, watchlist, cache)
-        if result.verdict is feedtrust.Verdict.REJECTED:
-            for url, _ in files:
-                _forget(cache, url)
+            if not result.mixed:
+                for url, _ in files:
+                    _forget(cache, url)
             raise RuntimeError(
-                f"the limbo feed failed verification ({result.why}), so it wasn't used. It may have been tampered "
-                "with: SECURITY.md says how to report it. --verify-feed off skips this check."
+                f"the limbo feed failed verification ({result.why}), so it wasn't used. "
+                + ("It may be updating: try again in a few minutes. " if result.mixed else "")
+                + "It may have been tampered with: SECURITY.md says how to report it. "
+                "--verify-feed off skips this check."
             )
-        if result.verdict is feedtrust.Verdict.UNKNOWN:
-            if verify == "require":
-                raise RuntimeError(f"the limbo feed couldn't be verified ({result.why}); --verify-feed require")
-            warn(f"limbowatch: couldn't verify the limbo feed ({result.why}); using it unverified")
+    if result is not None and result.verdict is feedtrust.Verdict.UNKNOWN:
+        if verify == "require":
+            raise RuntimeError(f"the limbo feed couldn't be verified ({result.why}); --verify-feed require")
+        warn(f"limbowatch: couldn't verify the limbo feed ({result.why}); using it unverified")
+    feed, watchlist = got[FEED_URL][0], got[WATCHLIST_URL][0]
     try:
         doc = json.loads(watchlist)
     except (ValueError, RecursionError) as e:
         for url, _ in files:
             _forget(cache, url)
         raise RuntimeError(f"the limbo feed's watchlist isn't readable JSON: {type(e).__name__}") from e
-    for url, (body, etag, fresh) in got.items():
-        if fresh:
-            _store(cache, url, body, etag)
     doc = doc if isinstance(doc, dict) else {}
     generated = _parse_time(doc.get("generated_at"))
     if generated is not None and (now or datetime.now(UTC)) - generated > STALE_FEED:
-        warn(f"limbowatch: the limbo feed is from {doc['generated_at']}, more than {STALE_FEED.days} days ago: "
-             "newer advisories in limbo aren't in it")  # fmt: skip
+        old_feed = (
+            f"the limbo feed is from {doc['generated_at']}, more than {STALE_FEED.days} days ago: newer advisories in "
+            "limbo aren't in it"
+        )
+        if verify == "require":
+            raise RuntimeError(f"{old_feed}; --verify-feed require")
+        warn(f"limbowatch: {old_feed}")
+    for url, (body, etag, fresh) in got.items():
+        if fresh:
+            _store(cache, url, body, etag)
     return feed, doc
+
+
+async def _download_pair(
+    http: HttpClient,
+    files: tuple[tuple[str, int], ...],
+    cached: dict[str, tuple[bytes, str | None] | None],
+    warn: Callable[[str], None],
+    conditional: bool,
+) -> dict[str, tuple[bytes, str | None, bool]]:
+    """Both files, url -> (body, etag, downloaded now). If a download fails, the whole cached pair, or an error."""
+    got: dict[str, tuple[bytes, str | None, bool]] = {}
+    for url, cap in files:
+        old = cached[url]
+        try:
+            r = await http.get(url, etag=old[1] if old and conditional else None, raw=True, max_bytes=cap)
+        except ResponseTooLarge as e:
+            raise RuntimeError(f"{e}: far larger than the real feed, so it wasn't used") from e
+        if r.status == 304 and old is not None:
+            got[url] = (old[0], old[1], False)
+        elif r.ok and isinstance(r.body, bytes):
+            got[url] = (r.body, r.etag, True)
+        elif all(cached.values()):  # the last pair that went together, never a mix
+            warn(f"limbowatch: couldn't download {url} (HTTP {r.status}); using the cached copy of the feed")
+            return {u: (c[0], c[1], False) for u, c in cached.items() if c}
+        else:
+            raise RuntimeError(f"couldn't download {url}: HTTP {r.status}")
+    return got
 
 
 def _cached(cache: Path | None, url: str) -> tuple[bytes, str | None] | None:
@@ -149,9 +192,13 @@ def _cached(cache: Path | None, url: str) -> tuple[bytes, str | None] | None:
         return None
     f, t = cache / Path(url).name, cache / (Path(url).name + ".etag")
     try:
-        return (f.read_bytes(), t.read_text().strip() or None) if f.exists() and t.exists() else None
+        if not (f.exists() and t.exists()):
+            return None
+        body, etag = f.read_bytes(), t.read_text(errors="replace").strip()
     except OSError:
         return None
+    # a damaged ETag can't go in a header (httpx sends ASCII only): treat it as none, so the file is downloaded again
+    return body, etag if etag and etag.isascii() and etag.isprintable() else None
 
 
 def _store(cache: Path | None, url: str, body: bytes, etag: str | None) -> None:

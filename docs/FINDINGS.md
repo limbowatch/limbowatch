@@ -3007,6 +3007,24 @@ Answered:
 - **Implication:** someone who controls limbo.watch can make scans fail (exit 2) or, by serving one old build, warn after 3 days. They can't make a scan quietly use a feed the build didn't make.
 - **Sources:** the review, tests and runs above.
 
+### F-196
+- **Date:** 2026-11-15 · **Status:** confirmed (independent review; fixed, tested on Python 3.12, 3.13, 3.14; integrations in a container)
+- **Question:** Does the pair check of [F-195](#f-195) hold up in normal operation, not only under attack?
+- **Method:**
+  - The same reviewer's final pass on commit 9bdfee3.
+  - The full suite on three Pythons, and `scripts/check_integrations.py` (the GitLab component and Action in a clean container, against the live feed).
+- **Result:**
+  - Against an attacker controlling limbo.watch, every combination of 200, 304, 5xx and oversize per file was closed.
+  - **Genuine feeds were refused around each deploy.** `sync_r2.py` uploaded `watchlist.json` (rank 0) a minute or so before the zips (rank 1), among about 3,100 files, and Cloudflare cached each file on its own for `max-age=300`. For the upload time plus up to about 5 minutes per edge, a scan could get a new watchlist with an old `all.zip` and refuse the pair as "mixed" (exit 2, "may have been tampered with"), every day. Fixed on both sides:
+    - **Site:** the pair is uploaded last, `all.zip` then `watchlist.json`, back to back. Both carry `Cache-Control: no-cache`, so the edge checks R2 on each request instead of keeping a copy for minutes. Both are uploaded on every sync, so they always carry it.
+    - **Watcher:** a mixed pair is downloaded again, fresh, after 5 s. If it's still mixed, a cached pair verified before is used, with a warning. Otherwise it's refused with "It may be updating: try again in a few minutes", and the cache is kept.
+  - A damaged `.etag` file crashed the scan in two ways: a UnicodeDecodeError, and, once that was decoded with replacement, httpx's UnicodeEncodeError on a non-ASCII header. Now an ETag that isn't printable ASCII is ignored, and the file is downloaded again.
+  - `--verify-feed require` now also refuses a feed more than 3 days old.
+  - 415 tests pass on 3.12, 3.13 and 3.14; integrations passed.
+- **Caveats:** two GETs can still straddle the moment between the two uploads; the retry after 5 s covers that.
+- **Implication:** a deploy no longer fails scans. A scan uses only a pair from one build, verified, or its own cached pair verified before.
+- **Sources:** the review, tests and runs above.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

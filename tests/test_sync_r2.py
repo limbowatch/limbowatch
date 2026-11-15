@@ -64,6 +64,7 @@ FILES = {
     "tracker/index.html": "tracker",
     "press/limbo.csv": "a,b",
     "feed/all.zip": "zip",
+    "feed/watchlist.json": "{}",
     "feed/GHSA-a.json": "{}",
     "osv/PyPI/all.zip": "pypi",
     "osv/crc32c.map": "map",
@@ -78,12 +79,14 @@ def test_first_sync_uploads_everything_with_types_and_the_checksums_last(tmp_pat
     out: list[str] = []
     sync.apply(b, "x", local, p, log=out.append)
     assert {k: v.decode() for k, v in b.objects.items()} == FILES
-    assert b.log[-1] == "osv/crc32c.map"
-    assert set(b.log[-3:-1]) == {"feed/all.zip", "osv/PyPI/all.zip"}
+    # the OSV zips, their checksums, then the feed pair back to back: all.zip, watchlist.json (F-196)
+    assert b.log[-4:] == ["osv/PyPI/all.zip", "osv/crc32c.map", "feed/all.zip", "feed/watchlist.json"]
+    assert b.meta["feed/all.zip"]["CacheControl"] == b.meta["feed/watchlist.json"]["CacheControl"] == "no-cache"
+    assert b.meta["osv/PyPI/all.zip"]["CacheControl"] == "max-age=300"
     assert b.meta["press/limbo.csv"] == {"ContentType": "text/csv; charset=utf-8", "CacheControl": "max-age=300"}
     assert b.meta["index.html"]["ContentType"] == "text/html"
     assert b.meta["osv/crc32c.map"]["ContentType"] == "application/octet-stream"
-    assert out == ["r2: 7 uploaded, 0 deleted, 0 unchanged"]
+    assert out == ["r2: 8 uploaded, 0 deleted, 0 unchanged"]
 
 
 def test_next_sync_uploads_only_what_changed_and_deletes_what_went(tmp_path: Path) -> None:
@@ -92,7 +95,9 @@ def test_next_sync_uploads_only_what_changed_and_deletes_what_went(tmp_path: Pat
     (root / "tracker" / "index.html").write_text("tracker, updated")
     local = sync.scan(root)
     p = sync.plan(local, sync.remote_etags(b, "x"))
-    assert p.put == ["tracker/index.html"] and p.delete == ["feed/GHSA-gone.json"] and p.unchanged == 6
+    # the feed pair is uploaded every time, so it always carries its Cache-Control (F-196)
+    assert p.put == ["tracker/index.html", "feed/all.zip", "feed/watchlist.json"]
+    assert p.delete == ["feed/GHSA-gone.json"] and p.unchanged == 5
     sync.apply(b, "x", local, p, log=lambda _: None)
     assert "feed/GHSA-gone.json" not in b.objects and b.objects["tracker/index.html"] == b"tracker, updated"
     assert sync.plan(local, sync.remote_etags(b, "x"), force=True).put == sorted(
@@ -133,7 +138,7 @@ def test_main_dry_run_changes_nothing(tmp_path: Path, monkeypatch: pytest.Monkey
     monkeypatch.setattr(sync, "client", lambda: b)
     monkeypatch.setenv("R2_BUCKET", "x")
     assert sync.main([str(root), "--dry-run"]) == 0
-    assert capsys.readouterr().out.strip() == "r2 (dry run): would upload 7, delete 1; 0 unchanged"
+    assert capsys.readouterr().out.strip() == "r2 (dry run): would upload 8, delete 1; 0 unchanged"
     assert b.log == []
     assert sync.main([str(root)]) == 0
     assert set(b.objects) == set(FILES)

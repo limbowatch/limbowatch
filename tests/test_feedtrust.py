@@ -229,7 +229,7 @@ def mock_feed(
 
 async def load(cache: Path, mode: str, warnings: list[str]) -> tuple[bytes, dict[str, Any]]:
     async with HttpClient(sleep=no_waiting) as http:
-        return await watch_scan.load_feed(http, cache, mode, warnings.append, NOW)
+        return await watch_scan.load_feed(http, cache, mode, warnings.append, NOW, sleep=_no_op)
 
 
 async def test_load_feed_uses_a_vouched_pair_quietly(tmp_path: Path) -> None:
@@ -255,8 +255,7 @@ async def test_load_feed_refuses_what_github_doesnt_vouch_for(tmp_path: Path) ->
             with pytest.raises(RuntimeError, match=outcome):
                 await load(cache, mode, warnings)
         assert warnings == []
-        if answer.status_code != 500:  # refused: the cached copies are forgotten
-            assert not (cache / "all.zip").exists() and not (cache / "watchlist.json").exists()
+        assert not (cache / "all.zip").exists() and not (cache / "watchlist.json").exists()  # nothing cached
 
 
 async def test_load_feed_warns_once_when_github_cant_be_asked(tmp_path: Path) -> None:
@@ -292,7 +291,7 @@ async def test_a_failed_download_falls_back_to_the_cached_pair_never_a_mix(tmp_p
             router.get(watch_scan.WATCHLIST_URL).mock(return_value=wl_answer)
             router.get(url(sha(old_wl))).mock(return_value=httpx.Response(200, json=answer_for(ZIP, old_wl)))
             async with HttpClient(sleep=_no_op) as http:
-                got, doc = await watch_scan.load_feed(http, tmp_path, "require", warnings.append, NOW)
+                got, doc = await watch_scan.load_feed(http, tmp_path, "require", warnings.append, NOW, sleep=_no_op)
         assert (got, doc["generated_at"]) == (ZIP, "2026-11-14T06:00:00Z")  # the cached pair, verified, both files
         assert warnings[0].endswith("using the cached copy of the feed")
         assert (tmp_path / "all.zip").read_bytes() == ZIP  # nothing new was cached
@@ -306,7 +305,7 @@ async def test_without_a_cached_pair_a_failed_download_is_an_error(tmp_path: Pat
         router.get(watch_scan.WATCHLIST_URL).mock(return_value=httpx.Response(503))
         async with HttpClient(sleep=_no_op) as http:
             with pytest.raises(RuntimeError, match=r"couldn't download https://limbo\.watch/feed/watchlist\.json"):
-                await watch_scan.load_feed(http, tmp_path, "auto", lambda _: None, NOW)
+                await watch_scan.load_feed(http, tmp_path, "auto", lambda _: None, NOW, sleep=_no_op)
 
 
 async def test_the_cache_is_written_only_after_the_pair_passes(tmp_path: Path) -> None:
@@ -415,3 +414,81 @@ def test_previous_feed_timestamps_must_parse() -> None:
                                  "2026-11-14T10:00:00Z"]):  # fmt: skip
             z.writestr(f"GHSA-{i}.json", json.dumps({"id": f"GHSA-{i}", "modified": mod}))
     assert list(previous_modified(buf.getvalue())) == ["GHSA-3"]
+
+
+# --- during a deploy (F-196) ----------------------------------------------------------------------------------------
+
+NEW_ZIP, NEW_WL = feed_zip_with("GHSA-new"), b'{"generated_at": "2026-11-15T07:00:00Z", "repos": {}}'
+
+
+def seed_cache(cache: Path, zip_: bytes, wl: bytes, verified: bool) -> None:
+    cache.mkdir(parents=True, exist_ok=True)
+    (cache / "all.zip").write_bytes(zip_)
+    (cache / "all.zip.etag").write_text('"z1"')
+    (cache / "watchlist.json").write_bytes(wl)
+    (cache / "watchlist.json.etag").write_text('"w1"')
+    if verified:
+        (cache / feedtrust.VERIFIED_FILE).write_text(f"{sha(zip_)}:{sha(wl)}\n")
+
+
+async def test_a_mixed_pair_is_downloaded_again_and_then_used(tmp_path: Path) -> None:
+    """Mid-deploy: the new watchlist is live, all.zip a moment later. The second, fresh download is consistent."""
+    waits: list[float] = []
+
+    async def sleep(s: float) -> None:
+        waits.append(s)
+
+    warnings: list[str] = []
+    with respx.mock() as router:
+        router.get(watch_scan.FEED_URL).mock(
+            side_effect=[httpx.Response(200, content=ZIP), httpx.Response(200, content=NEW_ZIP)]
+        )
+        router.get(watch_scan.WATCHLIST_URL).mock(return_value=httpx.Response(200, content=NEW_WL))
+        router.get(url(sha(NEW_WL))).mock(return_value=httpx.Response(200, json=answer_for(NEW_ZIP, NEW_WL)))
+        async with HttpClient(sleep=no_waiting) as http:
+            got, doc = await watch_scan.load_feed(http, tmp_path, "require", warnings.append, NOW, sleep=sleep)
+    assert (got, doc["generated_at"], waits, warnings) == (NEW_ZIP, "2026-11-15T07:00:00Z", [5.0], [])
+    assert (tmp_path / "all.zip").read_bytes() == NEW_ZIP
+
+
+async def test_still_mixed_uses_the_cached_pair_verified_before(tmp_path: Path) -> None:
+    seed_cache(tmp_path, ZIP, WATCHLIST, verified=True)
+    warnings: list[str] = []
+    with respx.mock() as router:
+        router.get(watch_scan.FEED_URL).mock(return_value=httpx.Response(304))  # old all.zip, unchanged
+        router.get(watch_scan.WATCHLIST_URL).mock(return_value=httpx.Response(200, content=NEW_WL))
+        router.get(url(sha(NEW_WL))).mock(return_value=httpx.Response(200, json=answer_for(NEW_ZIP, NEW_WL)))
+        got, doc = await load(tmp_path, "require", warnings)
+    assert (got, doc["generated_at"]) == (ZIP, "2026-11-15T06:00:00Z")
+    assert warnings == [
+        "limbowatch: the limbo feed's files on limbo.watch come from different builds (it may be updating); "
+        "using the cached copy verified earlier"
+    ]
+    assert (tmp_path / "watchlist.json").read_bytes() == WATCHLIST  # the mix wasn't cached
+
+
+async def test_still_mixed_without_a_verified_pair_is_refused_but_the_cache_is_kept(tmp_path: Path) -> None:
+    seed_cache(tmp_path, ZIP, WATCHLIST, verified=False)
+    with respx.mock() as router:
+        router.get(watch_scan.FEED_URL).mock(return_value=httpx.Response(200, content=ZIP))
+        router.get(watch_scan.WATCHLIST_URL).mock(return_value=httpx.Response(200, content=NEW_WL))
+        router.get(url(sha(NEW_WL))).mock(return_value=httpx.Response(200, json=answer_for(NEW_ZIP, NEW_WL)))
+        with pytest.raises(RuntimeError, match="It may be updating: try again in a few minutes"):
+            await load(tmp_path, "auto", [])
+    assert (tmp_path / "all.zip").exists() and (tmp_path / "watchlist.json").read_bytes() == WATCHLIST
+
+
+async def test_require_refuses_an_old_feed(tmp_path: Path) -> None:
+    old = b'{"generated_at": "2026-11-01T06:00:00Z", "repos": {}}'
+    with respx.mock() as router:
+        mock_feed(router, httpx.Response(200, json=answer_for(ZIP, old)), watchlist=old)
+        with pytest.raises(RuntimeError, match=r"more than 3 days ago.*--verify-feed require"):
+            await load(tmp_path, "require", [])
+
+
+async def test_a_damaged_etag_file_is_no_etag(tmp_path: Path) -> None:
+    seed_cache(tmp_path, ZIP, WATCHLIST, verified=True)
+    (tmp_path / "all.zip.etag").write_bytes(b"\xff\xfe")
+    with respx.mock(assert_all_called=False) as router:  # the pair was verified before: no lookup
+        mock_feed(router, httpx.Response(200, json=answer_for(ZIP, WATCHLIST)))
+        assert (await load(tmp_path, "require", []))[0] == ZIP

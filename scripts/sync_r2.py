@@ -55,11 +55,25 @@ def content_type(key: str) -> str:
     return TYPES.get(ext, "application/octet-stream")
 
 
+# The watcher uses these two only as a pair from one build (FINDINGS F-195, F-196). They go last, back to back, so a
+# new pair is live within a moment, and every request checks R2 rather than an edge copy that could be minutes older
+# than its partner's. Both are uploaded on every sync, so they always carry that Cache-Control.
+PAIR = ("feed/all.zip", "feed/watchlist.json")
+PAIR_CACHE_CONTROL = "no-cache"
+
+
 def last_rank(key: str) -> int:
-    """Upload order: everything else (0), then the zips (1), then the checksums that describe them (2)."""
+    """Upload order: everything else (0), then the zips (1), the checksums that describe them (2), then the feed pair:
+    all.zip (3), watchlist.json (4)."""
+    if key in PAIR:
+        return 3 + PAIR.index(key)
     if key == "osv/crc32c.map":
         return 2
     return 1 if key.endswith(".zip") else 0
+
+
+def cache_control(key: str) -> str:
+    return PAIR_CACHE_CONTROL if key in PAIR else CACHE_CONTROL
 
 
 @dataclass(frozen=True)
@@ -113,7 +127,8 @@ class TooManyDeletes(Exception):
 def plan(local: dict[str, Local], remote: dict[str, str], *, force: bool = False) -> Plan:
     if not local:
         raise TooManyDeletes("the build is empty; refusing to sync it")
-    put = sorted((k for k, f in local.items() if force or remote.get(k) != f.md5), key=lambda k: (last_rank(k), k))
+    changed = (k for k, f in local.items() if force or k in PAIR or remote.get(k) != f.md5)
+    put = sorted(changed, key=lambda k: (last_rank(k), k))
     delete = sorted(k for k in remote if k not in local)
     if len(delete) > max(MAX_DELETE * len(remote), MAX_DELETE_FLOOR):
         raise TooManyDeletes(
@@ -132,12 +147,12 @@ def apply(s3: Bucket, bucket: str, local: dict[str, Local], p: Plan, log: Callab
             Key=key,
             Body=body,
             ContentType=content_type(key),
-            CacheControl=CACHE_CONTROL,
+            CacheControl=cache_control(key),
             ContentMD5=base64.b64encode(hashlib.md5(body).digest()).decode(),  # R2 rejects a corrupted upload
         )
 
     # each rank finishes before the next starts, so the zips land after the pages and the checksums after the zips
-    for rank in (0, 1, 2):
+    for rank in range(5):
         batch = [k for k in p.put if last_rank(k) == rank]
         with ThreadPoolExecutor(WORKERS) as pool:
             list(pool.map(upload, batch))
