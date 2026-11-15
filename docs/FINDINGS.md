@@ -3036,6 +3036,31 @@ Answered:
 - **Implication:** a caching proxy at a customer site can't keep an old `all.zip` for 4 hours next to a new watchlist. The cache rule in the repo now carries this setting.
 - **Sources:** the requests above; `deploy/cloudflare/rules.json`.
 
+### F-198
+- **Date:** 2026-11-15 · **Status:** confirmed (direct observation)
+- **Question:** Release 0.1.0a15: did every artifact ship as tested?
+- **Method:** the release checklist after the checks of [F-193](#f-193) to [F-197](#f-197).
+  - Commits: version commit 20aec98, image built on main (`sha-20aec98`), pin commit 9f1b969.
+  - Before tagging:
+    - the audit, twice (all 10 checks passed);
+    - the integration check in a container;
+    - the upstream end-to-end test;
+    - 415 tests on Python 3.12, 3.13 and 3.14, and CI on Ubuntu and macOS;
+    - the image's attestation, version and a scan inside it;
+    - the component pipeline on its split 9b70950;
+    - the action from the pin commit in the private e2e repository (run 43691513484, issues on).
+  - Then the signed tag `v0.1.0a15`; the component's signed tag `0.1.0-alpha.15` on gitlab.com; the action split 0cb59c8 with its self-test, signed tag and pre-release; the org profile; the proof repository's run on the published action (limbowatch/limbo-poc run 43692013227).
+- **Result:**
+  - PyPI serves 0.1.0a15 for both packages, and a fresh install reports `limbowatch 0.1.0a15`. The GitHub pre-release has its 4 files. `ghcr.io/limbowatch/limbowatch:0.1.0a15` resolves to `sha256:637702af…`, the digest pinned in `action.yml` and the GitLab template.
+  - The component's pipelines passed on `main` and on the tag (the `limbowatch-ultimate-gate` job fails by design and may fail, as for 0.1.0a14), and its release `0.1.0-alpha.15` exists in the CI/CD Catalog.
+  - The action's self-test passed on Linux (image) and macOS (`install: python`).
+  - Inside the image, the private e2e run and the proof run, the scan read the live feed (built 07:41 UTC) and verified it without a warning.
+  - Proof run: 103 advisories in limbo in all 7 example packages; the other scanners report only the controls.
+  - Marketplace still lists v0.1.0a14 as latest until the maintainer ticks v0.1.0a15.
+- **Caveats:** the screenshots on the scan page are of 0.1.0a14. The output they show didn't change, apart from the new warnings, which a normal run doesn't print.
+- **Implication:** 0.1.0a15 shipped as tested.
+- **Sources:** PyPI JSON API; `docker buildx imagetools inspect`; GitLab and GitHub run lists; the runs named above.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
