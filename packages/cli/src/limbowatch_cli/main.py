@@ -230,6 +230,14 @@ def publish(
     (out / "feed" / "repos.txt").write_text(repos_with_advisories(store, modified))
     (out / "feed" / "watchlist.json").write_text(json.dumps(watchlist(store, modified), separators=(",", ":")))
     (out / "metrics.json").write_text(dumps(m))
+    # checksums for the downloads, attested with them (.github/workflows/site.yml)
+    for folder, names in (
+        ("feed", ["all.zip", "index.json", "watchlist.json"]),
+        ("osv", ["limbo-db.zip", *(f"{eco}/all.zip" for eco in zips)]),
+    ):
+        (out / folder / feed_mod.SUMS).write_text(
+            feed_mod.sha256sums({n: (out / folder / n).read_bytes() for n in names})
+        )
     for r in records:
         (out / "feed" / f"{r['id']}.json").write_text(dumps(r))
     # the feed page shows a real record: the newest pending one with a machine-readable range

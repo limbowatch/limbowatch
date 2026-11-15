@@ -314,3 +314,15 @@ def crc32c(data: bytes) -> int:
 def goog_hash(data: bytes) -> str:
     """The `X-Goog-Hash` header value OSV-Scanner expects on `HEAD <host>/<Ecosystem>/all.zip` (F-073)."""
     return "crc32c=" + base64.b64encode(crc32c(data).to_bytes(4, "big")).decode()
+
+
+SUMS = "SHA256SUMS.txt"  # not SHA256SUMS: the site redirects a path without a dot to path/ (deploy/cloudflare)
+
+
+def sha256sums(files: Mapping[str, bytes]) -> str:
+    """A `sha256sum -c` file: `<hex>  <name>` per file, sorted by name. Names are relative to the file's directory,
+    so it checks a download saved next to it (`sha256sum -c --ignore-missing SHA256SUMS.txt`)."""
+    for name in files:
+        if not name or name.startswith("/") or ".." in name.split("/") or any(c in name for c in "\n\\"):
+            raise ValueError(f"not a relative file name: {name!r}")
+    return "".join(f"{hashlib.sha256(files[n]).hexdigest()}  {n}\n" for n in sorted(files))

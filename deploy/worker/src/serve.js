@@ -21,10 +21,12 @@ export const MAX_AGE = 300;
 
 // The watcher uses these two only as a pair from one build, so no edge copy may be older than its partner (F-196),
 // as scripts/sync_r2.py sets on R2: revalidated on every request.
+// The checksums of the downloads are revalidated the same way.
 const PAIR = new Set(["feed/all.zip", "feed/watchlist.json"]);
+const SUMS = new Set(["feed/SHA256SUMS.txt", "osv/SHA256SUMS.txt"]);
 
 export function cacheControl(key) {
-  return PAIR.has(key) ? "no-cache" : `max-age=${MAX_AGE}`;
+  return PAIR.has(key) || SUMS.has(key) ? "no-cache" : `max-age=${MAX_AGE}`;
 }
 
 // The types nginx sends for the site's files; anything else is application/octet-stream, as in nginx.

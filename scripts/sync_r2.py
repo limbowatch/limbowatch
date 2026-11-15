@@ -60,11 +60,17 @@ def content_type(key: str) -> str:
 # than its partner's. Both are uploaded on every sync, so they always carry that Cache-Control.
 PAIR = ("feed/all.zip", "feed/watchlist.json")
 PAIR_CACHE_CONTROL = "no-cache"
+# The checksums of the downloads go after the pair, so they never list a file before it is live, and are revalidated
+# on every request like the pair. The other zips they list keep max-age=300, so for a few minutes after a deploy an
+# edge copy of one may be older than its line here; the feed page says to retry.
+SUMS = ("feed/SHA256SUMS.txt", "osv/SHA256SUMS.txt")
 
 
 def last_rank(key: str) -> int:
     """Upload order: everything else (0), then the zips (1), the checksums that describe them (2), then the feed pair:
-    all.zip (3), watchlist.json (4)."""
+    all.zip (3), watchlist.json (4), then the SHA256SUMS.txt files (5)."""
+    if key in SUMS:
+        return 5
     if key in PAIR:
         return 3 + PAIR.index(key)
     if key == "osv/crc32c.map":
@@ -73,7 +79,7 @@ def last_rank(key: str) -> int:
 
 
 def cache_control(key: str) -> str:
-    return PAIR_CACHE_CONTROL if key in PAIR else CACHE_CONTROL
+    return PAIR_CACHE_CONTROL if key in PAIR or key in SUMS else CACHE_CONTROL
 
 
 @dataclass(frozen=True)
@@ -127,7 +133,7 @@ class TooManyDeletes(Exception):
 def plan(local: dict[str, Local], remote: dict[str, str], *, force: bool = False) -> Plan:
     if not local:
         raise TooManyDeletes("the build is empty; refusing to sync it")
-    changed = (k for k, f in local.items() if force or k in PAIR or remote.get(k) != f.md5)
+    changed = (k for k, f in local.items() if force or k in PAIR or k in SUMS or remote.get(k) != f.md5)
     put = sorted(changed, key=lambda k: (last_rank(k), k))
     delete = sorted(k for k in remote if k not in local)
     if len(delete) > max(MAX_DELETE * len(remote), MAX_DELETE_FLOOR):
@@ -152,7 +158,7 @@ def apply(s3: Bucket, bucket: str, local: dict[str, Local], p: Plan, log: Callab
         )
 
     # each rank finishes before the next starts, so the zips land after the pages and the checksums after the zips
-    for rank in range(5):
+    for rank in range(6):
         batch = [k for k in p.put if last_rank(k) == rank]
         with ThreadPoolExecutor(WORKERS) as pool:
             list(pool.map(upload, batch))

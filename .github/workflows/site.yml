@@ -74,6 +74,8 @@ jobs:
             ${{ runner.temp }}/site/feed/all.zip
             ${{ runner.temp }}/site/feed/watchlist.json
             ${{ runner.temp }}/site/feed/index.json
+            ${{ runner.temp }}/site/feed/SHA256SUMS.txt
+            ${{ runner.temp }}/site/osv/SHA256SUMS.txt
             ${{ runner.temp }}/site/osv/limbo-db.zip
             ${{ runner.temp }}/site/osv/*/all.zip
       - name: Upload to R2

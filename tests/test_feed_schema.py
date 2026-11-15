@@ -5,12 +5,13 @@ import json
 from datetime import UTC, datetime
 
 import jsonschema
+import pytest
 from conftest import FIXTURES, load
 from limbowatch.classify import assess
 from limbowatch.models import Facts, Status
 from limbowatch.normalize import repo_advisory
 from limbowatch.publish import Item
-from limbowatch.publish.feed import record
+from limbowatch.publish.feed import record, sha256sums
 
 
 def test_feed_record_is_valid_osv() -> None:
@@ -161,3 +162,13 @@ def test_previous_feed_is_read_as_untrusted() -> None:
     assert previous_modified(buf.getvalue()) == {"GHSA-a": (content_key(good), "2026-11-13T15:00:00Z")}
     with pytest.raises(zipfile.BadZipFile):
         previous_modified(b"<html>not a zip</html>")
+
+
+def test_sha256sums_is_what_sha256sum_writes() -> None:
+    assert sha256sums({"b.zip": b"", "a/all.zip": b"abc"}) == (
+        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad  a/all.zip\n"
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  b.zip\n"
+    )
+    for bad in ("", "/etc/passwd", "../x", "a\nb"):
+        with pytest.raises(ValueError):
+            sha256sums({bad: b""})

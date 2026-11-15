@@ -389,7 +389,13 @@ figure.shot a.on-light{background:var(--surface)}figure.shot .on-dark{display:no
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) figure.shot .on-light{display:none}
 :root:not([data-theme="light"]) figure.shot .on-dark{display:block}}
 figure.shot img{display:block;width:100%;height:auto}figure.shot figcaption{margin-top:10px;font-size:var(--fs-s);color:var(--ink2)}
-figure.shot.narrow{max-width:820px}.shots2{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:24px;align-items:start}
+figure.shot a{cursor:zoom-in}figure.shot.narrow{max-width:820px}
+dialog.lightbox{padding:0;border:0;background:transparent;max-width:min(96vw,1600px);max-height:96vh;overflow:visible}
+dialog.lightbox::backdrop{background:rgba(8,10,14,.88)}html:has(dialog.lightbox[open]){overflow:hidden}
+dialog.lightbox img{display:block;margin:0 auto;max-width:100%;max-height:calc(96vh - 56px);width:auto;height:auto;border-radius:var(--r-m);cursor:zoom-out}
+dialog.lightbox p{margin:12px auto 0;max-width:760px;font-size:var(--fs-s);color:#C9CED8;text-align:center}
+dialog.lightbox .lb-x{position:fixed;top:14px;right:14px;width:44px;height:44px;border:0;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font-size:26px;line-height:1;cursor:pointer}
+dialog.lightbox .lb-x:hover{background:rgba(255,255,255,.24)}.shots2{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:24px;align-items:start}
 table.fmts th{font-size:var(--fs-s);width:130px;color:var(--ink)}table.fmts td{color:var(--ink2)}
 @media (max-width:640px){.shots2{grid-template-columns:1fr}}
 /* data quality */
@@ -617,6 +623,20 @@ _MOON = (
     'stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>'
 )
 THEME_BUTTON = f'<button class="theme" type="button" hidden>{_SUN}{_MOON}</button>'
+# A click on a screenshot opens it large in a dialog, over the page; Esc, the close button or a click anywhere closes
+# it. Without JavaScript, on a phone (where pinch-zoom on the image itself works better) or with a modifier key, the
+# link opens the image as before.
+SHOTS_JS = (
+    "<script>(()=>{let d;document.addEventListener('click',e=>{const a=e.target.closest('figure.shot a');"
+    "if(!a||e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||innerWidth<640||!window.HTMLDialogElement)return;"
+    "e.preventDefault();if(!d){d=document.createElement('dialog');d.className='lightbox';"
+    'd.innerHTML=\'<button type="button" class="lb-x" aria-label="Close">×</button><img alt=""><p></p>\';'
+    "d.addEventListener('click',v=>{if(!v.target.closest('p'))d.close()});"
+    "d.addEventListener('close',()=>d.querySelector('img').removeAttribute('src'));document.body.append(d)}"
+    "const i=a.querySelector('img'),c=a.closest('figure').querySelector('figcaption'),m=d.querySelector('img');"
+    "m.src=a.href;m.alt=i.alt;d.querySelector('p').textContent=c?c.textContent:'';d.setAttribute('aria-label',i.alt);"
+    "d.showModal()})})();</script>\n"
+)
 MENU_JS = (
     "<script>document.addEventListener('click',e=>{document.querySelectorAll('details.menu[open],details.learn[open]')"
     ".forEach(m=>{if(!m.contains(e.target)||e.target.closest('a'))m.open=false})});\n"
@@ -663,7 +683,9 @@ def page(title: str, description: str, body: str, path: str = "/", jsonld: dict[
         f'<link rel="icon" href="/favicon.svg" type="image/svg+xml">\n{THEME_HEAD_JS}'
         f'<link rel="stylesheet" href="/assets/site.css?v={_v(CSS)}">\n'
         + (f'<script type="application/ld+json">{ld}</script>\n' if ld else "")
-        + f"</head>\n<body>\n{EMAIL_OFF}{new_tab(body)}{EMAIL_ON}\n{MENU_JS}</body>\n</html>\n"
+        + f"</head>\n<body>\n{EMAIL_OFF}{new_tab(body)}{EMAIL_ON}\n{MENU_JS}"
+        + (SHOTS_JS if '<figure class="shot' in body else "")
+        + "</body>\n</html>\n"
     )
 
 
@@ -1715,25 +1737,33 @@ layout as OSV’s own bulk downloads. Use it to see what your scanner can’t ye
 <div class="adv-body" style="margin-top:48px">
 <section style="flex:3 1 560px"><h2 class="xs">Files</h2><div class="card files">
 <div><div class="x"><a class="mono" href="/feed/all.zip">feed/all.zip</a><p>One <span class="mono">GHSA-….json</span> per advisory
-in limbo, OSV bulk layout. Byte-stable, so you can diff it.</p></div><a class="btn solid" href="/feed/all.zip">Download</a></div>
+in limbo, OSV bulk layout. Byte-stable, so you can diff it.</p></div><a class="btn line" href="/feed/all.zip">Download</a></div>
 <div><div class="x"><a class="mono" href="/osv/limbo-db.zip">osv/limbo-db.zip</a><p>The feed split by ecosystem, laid out
-as OSV-Scanner’s offline database. Unzip it and scan.</p></div><a class="btn" href="/osv/limbo-db.zip">Download</a></div>
+as OSV-Scanner’s offline database. Unzip it and scan.</p></div><a class="btn line" href="/osv/limbo-db.zip">Download</a></div>
 <div><div class="x"><a class="mono" href="/osv/ecosystems.txt">osv/&lt;Ecosystem&gt;/all.zip</a><p>One zip per OSV ecosystem, the
 way OSV serves its own, with the <span class="mono">X-Goog-Hash</span> checksum it sends.</p></div></div>
 <div><div class="x"><a class="mono" href="/feed/repos.txt">feed/repos.txt</a><p>Every watched repo with a published
 advisory, one per line. Names only, for trackers that poll repos.</p></div></div>
 <div><div class="x"><a class="mono" href="/feed/index.json">feed/index.json</a><p>Every ID in the feed, to fetch only what changed.</p></div></div>
 <div><div class="x"><a class="mono" href="/feed/{sample_id}.json">feed/&lt;GHSA-ID&gt;.json</a><p>A single record, linked from each advisory page.</p></div></div>
+<div><div class="x"><a class="mono" href="/feed/SHA256SUMS.txt">feed/SHA256SUMS.txt</a>, <a class="mono" href="/osv/SHA256SUMS.txt">osv/SHA256SUMS.txt</a><p>SHA-256
+checksums of the downloads in each folder, from the same build and attested with them.</p></div></div>
 <div><div class="x"><a class="mono" href="/metrics.json">metrics.json</a><p>Today’s counts by severity, CVE state and age, plus coverage.</p></div></div>
 </div>
 <h2 class="xs" style="margin-top:48px">Use it</h2><ol class="steps" style="display:flex;flex-direction:column;gap:20px">
 <li><span class="num">1</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">Download and unpack the feed</p>
 <pre>curl -O https://limbo.watch/feed/all.zip
 unzip -q all.zip -d limbo</pre>
-<p class="ink2" style="margin:10px 0 0;font-size:var(--fs-m)">To check that the file is exactly what our build made from
-<span class="mono">main</span>, signed through GitHub and Sigstore rather than by this website:
-<span class="mono">gh attestation verify all.zip --repo limbowatch/limbowatch</span>. The same works for
-<span class="mono">watchlist.json</span>, <span class="mono">index.json</span> and the OSV zips.</p></div></li>
+<p class="ink2" style="margin:10px 0 0;font-size:var(--fs-m)">To check that the download is complete, compare it with the
+checksum file next to it (on macOS, <span class="mono">shasum -a 256 -c</span>):</p>
+<pre>curl -O https://limbo.watch/feed/SHA256SUMS.txt
+sha256sum -c --ignore-missing SHA256SUMS.txt</pre>
+<p class="ink2" style="margin:10px 0 0;font-size:var(--fs-m)">A checksum from this website only shows the file arrived
+intact. To check that it is exactly what our build made from <span class="mono">main</span>, signed through GitHub and
+Sigstore rather than by this website: <span class="mono">gh attestation verify all.zip --repo limbowatch/limbowatch</span>.
+The same works for <span class="mono">SHA256SUMS.txt</span>, <span class="mono">watchlist.json</span>,
+<span class="mono">index.json</span> and the OSV zips. If a check fails, the files may be updating (the site is rebuilt at
+least once a day): download them again in a few minutes.</p></div></li>
 <li><span class="num">2</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">Look for your packages</p>
 <pre>jq -r 'select(.affected[].package.name == "sanitize-html") | .id' limbo/*.json</pre></div></li>
 <li><span class="num">3</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">Or scan with OSV-Scanner</p>

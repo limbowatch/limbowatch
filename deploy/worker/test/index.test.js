@@ -172,6 +172,14 @@ describe("downloads, as watchers make them", () => {
     expect((await call("/osv/PyPI/all.zip")).headers.get("Cache-Control")).toBe("max-age=300");
   });
 
+  it("revalidates the checksums of the downloads on every request", async () => {
+    await env.SITE.put("osv/SHA256SUMS.txt", "0  limbo-db.zip\n");
+    const res = await call("/osv/SHA256SUMS.txt");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("no-cache");
+    expect(res.headers.get("Content-Type")).toBe("text/plain");
+  });
+
   it("serves the feed zip whole, with an ETag and Last-Modified", async () => {
     const res = await call("/feed/all.zip");
     expect(res.status).toBe(200);

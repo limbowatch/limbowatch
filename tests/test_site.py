@@ -140,3 +140,18 @@ def test_sitemaps_split_and_date_each_page() -> None:
         "<loc>https://limbo.watch/advisory/GHSA-0001-aaaa-bbbb/</loc><lastmod>2026-10-02</lastmod>"
         in out["sitemap-advisories-1.xml"]
     )
+
+
+def test_screenshots_open_in_a_lightbox_only_where_there_are_some() -> None:
+    with_shot = site.page("t", "d", site.shot("terminal", "A caption."), "/scan/")
+    assert site.SHOTS_JS in with_shot and with_shot.count("<dialog") == 0  # made on first click, not in the HTML
+    assert '<a href="/assets/screens/terminal.png" class="on-dark">' in with_shot  # still a link without JavaScript
+    assert site.SHOTS_JS not in site.page("t", "d", "<p>no pictures</p>", "/")
+
+
+def test_feed_page_download_buttons_look_the_same() -> None:
+    html = site.feed({"in_limbo": {"count": 3}, "likely_permanent": {"count": 1}}, None)
+    buttons = re.findall(r'<a class="(btn[^"]*)" href="([^"]+)">Download</a>', html)
+    assert [h for _, h in buttons] == ["/feed/all.zip", "/osv/limbo-db.zip"]
+    assert {c for c, _ in buttons} == {"btn line"}
+    assert 'href="/feed/SHA256SUMS.txt"' in html and 'href="/osv/SHA256SUMS.txt"' in html

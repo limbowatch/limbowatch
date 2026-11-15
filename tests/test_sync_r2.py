@@ -68,6 +68,8 @@ FILES = {
     "feed/GHSA-a.json": "{}",
     "osv/PyPI/all.zip": "pypi",
     "osv/crc32c.map": "map",
+    "feed/SHA256SUMS.txt": "sums",
+    "osv/SHA256SUMS.txt": "sums",
 }
 
 
@@ -79,14 +81,17 @@ def test_first_sync_uploads_everything_with_types_and_the_checksums_last(tmp_pat
     out: list[str] = []
     sync.apply(b, "x", local, p, log=out.append)
     assert {k: v.decode() for k, v in b.objects.items()} == FILES
-    # the OSV zips, their checksums, then the feed pair back to back: all.zip, watchlist.json (F-196)
-    assert b.log[-4:] == ["osv/PyPI/all.zip", "osv/crc32c.map", "feed/all.zip", "feed/watchlist.json"]
+    # the OSV zips, their checksums, the feed pair back to back: all.zip, watchlist.json (F-196), then SHA256SUMS.txt
+    assert b.log[-6:-2] == ["osv/PyPI/all.zip", "osv/crc32c.map", "feed/all.zip", "feed/watchlist.json"]
+    assert sorted(b.log[-2:]) == ["feed/SHA256SUMS.txt", "osv/SHA256SUMS.txt"]
     assert b.meta["feed/all.zip"]["CacheControl"] == b.meta["feed/watchlist.json"]["CacheControl"] == "no-cache"
+    assert b.meta["feed/SHA256SUMS.txt"] == {"ContentType": "text/plain", "CacheControl": "no-cache"}
+    assert b.meta["osv/SHA256SUMS.txt"]["CacheControl"] == "no-cache"
     assert b.meta["osv/PyPI/all.zip"]["CacheControl"] == "max-age=300"
     assert b.meta["press/limbo.csv"] == {"ContentType": "text/csv; charset=utf-8", "CacheControl": "max-age=300"}
     assert b.meta["index.html"]["ContentType"] == "text/html"
     assert b.meta["osv/crc32c.map"]["ContentType"] == "application/octet-stream"
-    assert out == ["r2: 8 uploaded, 0 deleted, 0 unchanged"]
+    assert out == ["r2: 10 uploaded, 0 deleted, 0 unchanged"]
 
 
 def test_next_sync_uploads_only_what_changed_and_deletes_what_went(tmp_path: Path) -> None:
@@ -95,8 +100,14 @@ def test_next_sync_uploads_only_what_changed_and_deletes_what_went(tmp_path: Pat
     (root / "tracker" / "index.html").write_text("tracker, updated")
     local = sync.scan(root)
     p = sync.plan(local, sync.remote_etags(b, "x"))
-    # the feed pair is uploaded every time, so it always carries its Cache-Control (F-196)
-    assert p.put == ["tracker/index.html", "feed/all.zip", "feed/watchlist.json"]
+    # the feed pair and the checksums are uploaded every time, so they always carry their Cache-Control (F-196)
+    assert p.put == [
+        "tracker/index.html",
+        "feed/all.zip",
+        "feed/watchlist.json",
+        "feed/SHA256SUMS.txt",
+        "osv/SHA256SUMS.txt",
+    ]
     assert p.delete == ["feed/GHSA-gone.json"] and p.unchanged == 5
     sync.apply(b, "x", local, p, log=lambda _: None)
     assert "feed/GHSA-gone.json" not in b.objects and b.objects["tracker/index.html"] == b"tracker, updated"
@@ -138,7 +149,7 @@ def test_main_dry_run_changes_nothing(tmp_path: Path, monkeypatch: pytest.Monkey
     monkeypatch.setattr(sync, "client", lambda: b)
     monkeypatch.setenv("R2_BUCKET", "x")
     assert sync.main([str(root), "--dry-run"]) == 0
-    assert capsys.readouterr().out.strip() == "r2 (dry run): would upload 8, delete 1; 0 unchanged"
+    assert capsys.readouterr().out.strip() == "r2 (dry run): would upload 10, delete 1; 0 unchanged"
     assert b.log == []
     assert sync.main([str(root)]) == 0
     assert set(b.objects) == set(FILES)

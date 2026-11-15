@@ -8,6 +8,7 @@ lockfile anyway) and HTTP (respx; an unexpected request fails the test).
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import os
@@ -255,6 +256,13 @@ def test_publish_and_report_from_a_small_state(tmp_path: Path) -> None:
     assert a["ranges"] == [{"type": "GIT", "repo": "https://github.com/acme/lib",
                             "events": [{"introduced": "0"}, {"fixed": "f" * 40}]}]  # fmt: skip
     (c,) = from_feed_zip((out / "feed" / "all.zip").read_bytes())
+    # each folder's SHA256SUMS.txt lists its downloads, as `sha256sum -c` reads it
+    for folder, expect in (("feed", {"all.zip", "index.json", "watchlist.json"}), ("osv", {"limbo-db.zip"})):
+        lines = (out / folder / "SHA256SUMS.txt").read_text().splitlines()
+        sums = dict(reversed(line.split("  ", 1)) for line in lines)
+        assert expect <= set(sums) and list(sums) == sorted(sums)
+        assert all(hashlib.sha256((out / folder / n).read_bytes()).hexdigest() == h for n, h in sums.items())
+    assert any(n.endswith("/all.zip") for n in (out / "osv" / "SHA256SUMS.txt").read_text().split())
     assert c.adv.packages[0].vulnerable_version_range == "< 1.2.0"
     r = run(["report", "--state", str(state), "--out", str(tmp_path / "reports")])
     assert r.exit_code == 0, r.output
