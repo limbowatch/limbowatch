@@ -2898,6 +2898,27 @@ Answered:
 - **Implication:** today there are no outside users we can see on either platform; every visible user is ours. A usage badge would show 3 (GitHub, all ours) and 0 (GitLab), which is misleading or unhelpful. Only GitLab's count can be badged without our own infrastructure. Combining both would need a scheduled job that reads the dependents page (minus the limbowatch org) and the GraphQL field and publishes a shields.io endpoint JSON on limbo.watch.
 - **Sources:** GitHub dependency graph page and REST API; ghcr package page; GitLab GraphQL API; [GitLab CI/CD components docs](https://docs.gitlab.com/ci/components/); GitLab source (`lib/gitlab/ci/pipeline/chain/component_usage.rb`, `app/workers/ci/catalog/resources/track_component_usage_worker.rb`, `app/services/ci/catalog/resources/aggregate_last30_day_usage_service.rb`); pypistats.org API; shields.io.
 
+### F-191
+- **Date:** 2026-11-15 · **Status:** confirmed (direct observation; code read)
+- **Question:** Can users, and the Action in their CI, trust what they download from limbo.watch?
+- **Method:**
+  - Live checks with curl and openssl: plain HTTP, TLS 1.0, 1.1 and 1.2, bucket listing (`?list-type=2`), `..` paths, the headers on each file type, and the certificate.
+  - Read the Action's `install.sh` and the watcher's HTTP client, feed reader (`from_feed_zip`) and annotation output. Listed every `${…}` in `check.js` not wrapped in `esc()`, and followed each value that comes from the URL or deps.dev.
+  - Added `actions/attest` v4.2.2 to `site.yml` (run 43684806854). Downloaded six files from limbo.watch and ran `gh attestation verify` with `--signer-workflow …/site.yml --source-ref refs/heads/main --deny-self-hosted-runners`, then the same on a copy with one byte added.
+  - Read the GitHub org's 2FA settings (API) and the Cloudflare login's (dashboard).
+- **Result:**
+  - **`http://limbo.watch/feed/all.zip` returned 200**, served unencrypted. A new zone rule, `limbowatch-https`, now answers 301 to `https://` for every path, keeping the query. TLS 1.0 and 1.1 are refused; the certificate (Google Trust Services, valid to 2027-02-12) is fine. The bucket can't be listed, and `..` paths get 400.
+  - Every file type carries its `Content-Type`, `nosniff`, HSTS and the CSP; CORS is on feed and OSV files only.
+  - The Action pulls its image by digest (attested), or in Python mode checks OSV-Scanner's SHA-256 and installs with `--require-hashes`. The watcher keeps httpx's TLS verification. Annotations escape `%`, CR and LF, and Markdown output is escaped (F-164).
+  - `check.js` and the tracker escape every value from the URL, deps.dev or the feed before writing HTML: no cross-site scripting found.
+  - **`from_feed_zip` has no size limits.** A tampered feed couldn't run code, but a zip bomb could exhaust a runner's memory.
+  - Attestation: "Attestation created for 18 subjects": the 51 files have 18 distinct digests, since many empty ecosystem zips are identical. All six live downloads VERIFIED; the altered copy was rejected (no attestation for its digest, HTTP 404).
+  - That run uploaded 6,567 changed files (45,475 unchanged), more than the 3,100 estimated in F-178 but far inside R2's free writes.
+  - Cloudflare login: TOTP 2FA on. GitHub: the org's only member has 2FA, but the org doesn't require it.
+- **Caveats:** the watcher doesn't verify the attestation itself yet; users and mirrors can, with `gh`. Attestations exist only for builds from this run on.
+- **Implication:** downloads are HTTPS-only, and any copy can be checked against a signature that doesn't depend on the website, R2 or Cloudflare. Still to do: the watcher should verify the feed's attestation before using it, and cap what it reads from the zip (next release). The org should require 2FA.
+- **Sources:** the commands and runs above; `integrations/action/install.sh`, `limbowatch/http.py`, `watch/candidates.py`, `watch/output.py`, `publish/check.js`.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
