@@ -13,6 +13,7 @@
 [![Tracker](https://github.com/limbowatch/limbowatch/actions/workflows/tracker.yml/badge.svg)](https://github.com/limbowatch/limbowatch/actions/workflows/tracker.yml)
 [![PyPI](https://img.shields.io/pypi/v/limbowatch-cli?include_prereleases&label=PyPI)](https://pypi.org/project/limbowatch-cli/)
 [![Python](https://img.shields.io/pypi/pyversions/limbowatch-cli)](https://pypi.org/project/limbowatch-cli/)
+[![Downloads](https://img.shields.io/pypi/dm/limbowatch-cli?label=downloads)](https://pypistats.org/packages/limbowatch-cli)
 [![GitHub Marketplace](https://img.shields.io/badge/GitHub_Marketplace-limbowatch-2088ff?logo=github)](https://github.com/marketplace/actions/limbowatch)
 [![GitLab CI/CD Catalog](https://img.shields.io/badge/GitLab_CI%2FCD_Catalog-limbowatch-fc6d26?logo=gitlab)](https://gitlab.com/explore/catalog/limbowatch/limbowatch-component)
 [![Image](https://img.shields.io/badge/image-ghcr.io%2Flimbowatch%2Flimbowatch-blue?logo=docker)](https://github.com/limbowatch/limbowatch/pkgs/container/limbowatch)
