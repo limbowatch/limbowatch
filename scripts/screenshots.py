@@ -10,6 +10,8 @@
   released CLI (`uvx --from limbowatch-cli==<version>`), drawn in a terminal window.
 - html-report.png / html-report-light.png: report.html from the demo pull request's CI artifact
   (`gh run download <run> -R limbowatch/demo-app -n limbowatch-report -D <dir>`), in each color scheme.
+- home.png: the top of limbo.watch's home page, which is dark in both themes, from a local build without analytics (so
+  no consent banner): `limbowatch publish --state <tracker-data>/state --showcase <showcase artifact> --out <dir>`, then --site <dir>.
 
 Needs Google Chrome (CHROME=<path> to override) and OSV-Scanner 2.7.1 on PATH. The GitHub and GitLab screenshots are
 captured from a signed-in browser; docs/SCREENSHOTS.md has the steps.
@@ -18,12 +20,15 @@ captured from a signed-in browser; docs/SCREENSHOTS.md has the steps.
 from __future__ import annotations
 
 import argparse
+import functools
 import html
+import http.server
 import os
 import re
 import shutil
 import subprocess
 import tempfile
+import threading
 from pathlib import Path
 
 from PIL import Image, ImageChops
@@ -129,11 +134,27 @@ def report(artifact: Path) -> None:
         shoot(page.as_uri(), out, 1000, 910, 1.6, scheme)
 
 
+HOME_SIZE = (1280, 744)  # CSS px: the hero and the comparison, down to the rule above the cards
+
+
+def site(build: Path) -> None:
+    if not (build / "index.html").exists() or 'href="/popular/"' not in (build / "index.html").read_text():
+        raise SystemExit(f"{build} isn't a site build with the popular projects (publish --showcase)")
+    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(build))
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        shoot(f"http://127.0.0.1:{server.server_port}/", OUT / "home.png", *HOME_SIZE, 2, "dark")
+    finally:
+        server.shutdown()
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--demo", type=Path, help="checkout of limbowatch/demo-app, branch add-scapy")
     ap.add_argument("--report", type=Path, help="the demo pull request's limbowatch-report artifact, unzipped")
     ap.add_argument("--version", help="the released limbowatch-cli version to run (default: the workspace's)")
+    ap.add_argument("--site", type=Path, help="a local site build with the popular projects, without analytics")
     a = ap.parse_args()
     version = a.version or re.search(r'^version = "([^"]+)"', (OUT.parent.parent / "packages/cli/pyproject.toml")
                                      .read_text(), re.M).group(1)  # type: ignore[union-attr]  # fmt: skip
@@ -141,6 +162,8 @@ def main() -> None:
         terminal(a.demo.resolve(), version)
     if a.report:
         report(a.report.resolve())
+    if a.site:
+        site(a.site.resolve())
     for p in sorted(OUT.glob("*.png")):
         with Image.open(p) as im:
             print(f"{p.name}: {im.width}x{im.height}")

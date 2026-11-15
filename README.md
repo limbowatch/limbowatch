@@ -25,6 +25,8 @@ Limbowatch measures the gap between a maintainer publishing a security advisory 
 
 When a maintainer publishes a security advisory in their GitHub repository, Dependabot, npm audit, OSV-Scanner and most other dependency scanners stay silent until GitHub reviews that advisory into its global Advisory Database. Until then, the advisory is **in limbo**: public, usually already fixed upstream, and invisible to the tools teams rely on.
 
+<a href="https://limbo.watch"><img src="docs/screenshots/home.png" width="820" alt="The limbo.watch home page on 2026-11-15: Fixed upstream, still clean in your scanner. Dependabot, OSV-Scanner, npm audit and pip-audit report 0 of 260 high and critical advisories in limbo in the dependency files of 55 popular open-source projects; limbowatch scan reports all 260, with the upgrade that clears each one."></a>
+
 ## Scan your project
 
 `limbowatch scan` checks your lockfiles against every advisory in limbo and shows what it finds where your team already looks: GitLab merge requests (Code Quality), GitHub pull requests (code scanning), and issues in GitLab, GitHub, Gitea or Forgejo.
@@ -46,9 +48,10 @@ include:
     sarif: limbowatch.sarif
 ```
 
-What it finds, measured 2026-11-07 and 11-08 against the live feed:
+What it finds, measured against the live feed:
 
-- **1,080 confirmed findings in 13 popular open-source projects that Dependabot didn't alert on.** On the same dependency files GitHub's Dependabot raised 2,020 alerts, none for any of them, though every affected package was in GitHub's own dependency graph: the advisories hadn't been reviewed yet. 277 advisories; 262 findings rated critical or high; only 95 with a CVE. Each was rechecked with the ecosystem's own version library. [The comparison](research/2026-11-dependabot-compare/), [FINDINGS F-112](docs/FINDINGS.md#f-112).
+- **260 critical or high advisories in limbo in the dependency files of 55 popular open-source projects** (625 in all, in 54 of the 55), on 2026-11-15. brace-expansion, ws and vite each pin an affected version in 38 to 43 of them. Recounted daily: [limbo.watch/popular](https://limbo.watch/popular/), [FINDINGS F-203](docs/FINDINGS.md#f-203).
+- **1,080 confirmed findings in 13 popular open-source projects that Dependabot didn't alert on** (2026-11-08). On the same dependency files GitHub's Dependabot raised 2,020 alerts, none for any of them, though every affected package was in GitHub's own dependency graph: the advisories hadn't been reviewed yet. 277 advisories; 262 findings rated critical or high; only 95 with a CVE. Each was rechecked with the ecosystem's own version library. [The comparison](research/2026-11-dependabot-compare/), [FINDINGS F-112](docs/FINDINGS.md#f-112).
 - **16 vs 0 on a demo app** with real npm, Go, pip and Bundler lockfiles: Limbowatch found 16 advisories in limbo; OSV-Scanner and GitHub's Dependabot alerts reported none of them. See the [demo pull request](https://github.com/limbowatch/demo-app/pull/1): 52 new alerts on 2026-11-12, inline on the line that adds the package. [Evidence: all 16 rechecked against GitHub and OSV](research/2026-11-demo-evidence/), 1.6 to 23.5 days in limbo.
 - **7 vs 0 on real, fixed packages**, rerun daily: the public [proof repository](https://github.com/limbowatch/limbo-poc) pins nats-server, typebox, go-openapi/spec, go-toml, mustache, rubyntlm and scapy at versions with high or critical advisories in limbo, each with a fix released 41 to 212 days earlier. Limbowatch reports all 7; OSV-Scanner, npm audit, pip-audit and Dependabot report none of them, and do report the old control packages ([F-162](docs/FINDINGS.md#f-162)).
 

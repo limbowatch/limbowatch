@@ -12,6 +12,18 @@ file exists at the size `SCREENS` in `publish/site.py` declares.
 | `github-pr-inline` | code scanning alerts on the line the demo pull request adds | signed-in browser |
 | `github-job-summary` | the Actions job summary of that run | signed-in browser |
 | `gitlab-mr-widgets` | the GitLab demo merge request's pipeline, Code Quality and test summary widgets | signed-in browser |
+| `home` | the top of limbo.watch's home page (README and the org profile; dark in both themes, so one file) | `scripts/screenshots.py --site` |
+
+The home page shot comes from a local build of the live data without analytics, so it has no consent banner:
+
+```sh
+gh run download <latest showcase run> -R limbowatch/limbowatch -n showcase -D /tmp/showcase
+git -C <checkout> archive origin/tracker-data state | tar -x -C /tmp/tracker
+uv run limbowatch publish --state /tmp/tracker/state --showcase /tmp/showcase/showcase.json --out /tmp/site
+uv run scripts/screenshots.py --site /tmp/site
+```
+
+Refresh it when the hero changes, and update the date and numbers in its alt text (README, org profile).
 
 ## When to refresh
 
