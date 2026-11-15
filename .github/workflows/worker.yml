@@ -47,7 +47,8 @@ jobs:
       - name: Routes fail open
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: uv run --frozen --no-dev python scripts/cf_rules.py --zone limbo.watch --routes-only
+        # --package: the workspace root has no dependencies of its own; the core package brings httpx
+        run: uv run --frozen --no-dev --package limbowatch python scripts/cf_rules.py --zone limbo.watch --routes-only
       - name: Check the live Worker
         run: |
           # past the edge cache (its key includes the query), so the answer is the new Worker's
