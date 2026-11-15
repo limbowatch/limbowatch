@@ -19,6 +19,14 @@ export const SECURITY_HEADERS = {
 // The data changes once a day (nginx: `expires 5m`).
 export const MAX_AGE = 300;
 
+// The watcher uses these two only as a pair from one build, so no edge copy may be older than its partner (F-196),
+// as scripts/sync_r2.py sets on R2: revalidated on every request.
+const PAIR = new Set(["feed/all.zip", "feed/watchlist.json"]);
+
+export function cacheControl(key) {
+  return PAIR.has(key) ? "no-cache" : `max-age=${MAX_AGE}`;
+}
+
 // The types nginx sends for the site's files; anything else is application/octet-stream, as in nginx.
 const TYPES = {
   html: "text/html",

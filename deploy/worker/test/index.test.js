@@ -167,6 +167,11 @@ describe("headers", () => {
 });
 
 describe("downloads, as watchers make them", () => {
+  it("never lets an edge copy of the feed pair go stale (F-196)", async () => {
+    expect((await call("/feed/all.zip")).headers.get("Cache-Control")).toBe("no-cache");
+    expect((await call("/osv/PyPI/all.zip")).headers.get("Cache-Control")).toBe("max-age=300");
+  });
+
   it("serves the feed zip whole, with an ETag and Last-Modified", async () => {
     const res = await call("/feed/all.zip");
     expect(res.status).toBe(200);

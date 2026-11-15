@@ -1,7 +1,7 @@
 // limbo.watch: serves the static output of `limbowatch publish` from the R2 bucket bound as SITE, doing what nginx
 // did until 2026-11-14 (docs/HOSTING_PLAN.md, F-179). In the $0 setup it runs on /osv/* only. Only the default export
 // may live here: the runtime treats every named export of this module as an entry point.
-import { MAX_AGE, UNSATISFIABLE, baseHeaders, contentType, corsAllowed, gooHash, keyFor, notFound, parseRange, redirect } from "./serve.js";
+import { UNSATISFIABLE, baseHeaders, cacheControl, contentType, corsAllowed, gooHash, keyFor, notFound, parseRange, redirect } from "./serve.js";
 
 export default {
   async fetch(request, env) {
@@ -48,7 +48,7 @@ export default {
 
     const h = baseHeaders();
     h.set("Content-Type", contentType(key));
-    h.set("Cache-Control", `max-age=${MAX_AGE}`);
+    h.set("Cache-Control", cacheControl(key));
     h.set("ETag", obj.httpEtag);
     h.set("Last-Modified", obj.uploaded.toUTCString());
     h.set("Accept-Ranges", "bytes");
