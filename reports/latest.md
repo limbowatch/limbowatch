@@ -1,99 +1,94 @@
-# Limbo Tracker daily report — 2026-11-14
+# Limbo Tracker daily report — 2026-11-15
 
-Generated 2026-11-14 14:11:44 UTC; changes since 2026-11-13 15:19:39 UTC.
+Generated 2026-11-15 14:34:50 UTC; changes since 2026-11-14 14:11:44 UTC.
 
 ## Now
 
-- **10,463 advisories in limbo** (+53 since the last report: 90 newly published, 3 older ones found for the first time, 32 left limbo, 1 moved in from likely permanent, 9 moved to likely permanent): published by maintainers on GitHub, in ecosystems GitHub reviews, but not yet in GitHub's reviewed database or OSV.
-  - 5,856 with no CVE anywhere · 600 citing a CVE that's still only reserved · 1,314 with a CVE from another CNA they don't cite
-  - severity: 984 critical, 4,111 high, 4,388 medium, 980 low · median wait so far 52.8 days
-- **15,319 more are likely permanent** (+44 since the last report: 35 newly published, 3 older ones found for the first time, 2 left limbo, 9 moved in from the in-limbo count, 1 moved to the in-limbo count): in ecosystems GitHub doesn't review, so GitHub-based scanners will probably never see them.
+- **10,550 advisories in limbo** (+87 since the last report: 70 newly published, 17 older ones found for the first time, 0 left limbo): published by maintainers on GitHub, in ecosystems GitHub reviews, but not yet in GitHub's reviewed database or OSV.
+  - 5,920 with no CVE anywhere · 619 citing a CVE that's still only reserved · 1,312 with a CVE from another CNA they don't cite
+  - severity: 987 critical, 4,147 high, 4,432 medium, 984 low · median wait so far 53.0 days
+- **15,339 more are likely permanent** (+20 since the last report: 20 newly published, 0 older ones found for the first time, 0 left limbo): in ecosystems GitHub doesn't review, so GitHub-based scanners will probably never see them.
 
 ## Since the last report
 
-- **90 newly published** advisories entered limbo.
-- 3 older advisories were found for the first time (2 in newly watched repos).
-- **Left limbo** (likely permanent included): 34 reviewed by GitHub, 0 found to duplicate a reviewed advisory, 0 withdrawn or unpublished. GitHub reviewed 43 advisories in all in this period, from any repository.
-- **CVE changes:** 76 (31 reserved CVEs published, 4 new CVEs from other CNAs).
+- **70 newly published** advisories entered limbo.
+- 17 older advisories were found for the first time (13 in newly watched repos).
+- **Left limbo** (likely permanent included): 0 reviewed by GitHub, 0 found to duplicate a reviewed advisory, 0 withdrawn or unpublished. **GitHub reviewed no advisories at all in this period.**
+- **CVE changes:** 22 (1 reserved CVEs published, 1 new CVEs from other CNAs).
 
 ## Newly published, in limbo
 
 | Advisory | Package | Severity | CVE | Days | Fixed in |
 |---|---|---|---|---:|---|
-| [GHSA-gj7w-2hmm-q26q](https://github.com/wintercms/winter/security/advisories/GHSA-gj7w-2hmm-q26q) | `composer:winter/wn-backend-module` | critical | no CVE anywhere | 1 | `1.2.15` |
-| [GHSA-7wrr-qcrp-4hhf](https://github.com/neos/flow-development-collection/security/advisories/GHSA-7wrr-qcrp-4hhf) | `composer:neos/flow` | critical | no CVE anywhere | 1 | `8.3.22, 8.4.7, 9.0.10, 9.1.5, 9.2.3` |
-| [GHSA-rg57-5c8r-3p43](https://github.com/WeblateOrg/weblate/security/advisories/GHSA-rg57-5c8r-3p43) | `pip:weblate` | critical | no CVE anywhere | 0 | `2026.11.2` |
-| [GHSA-r5p9-7834-rqr3](https://github.com/WeblateOrg/weblate/security/advisories/GHSA-r5p9-7834-rqr3) | `pip:weblate` | critical | no CVE anywhere | 0 | `2026.11` |
-| [GHSA-hp98-8hvc-643h](https://github.com/WeblateOrg/weblate/security/advisories/GHSA-hp98-8hvc-643h) | `pip:weblate` | critical | no CVE anywhere | 0 | `2026.11` |
-| [GHSA-6hph-c9x9-4mcv](https://github.com/WeblateOrg/weblate/security/advisories/GHSA-6hph-c9x9-4mcv) | `pip:weblate` | critical | no CVE anywhere | 0 | `2026.11` |
-| [GHSA-37g9-w4hg-h9qr](https://github.com/websockets/ws/security/advisories/GHSA-37g9-w4hg-h9qr) | `npm:ws` | high | no CVE anywhere | 1 | `5.2.8, 6.2.7, 7.5.14, 8.23.0` |
-| [GHSA-rf6g-xhmp-gm7v](https://github.com/puma/puma/security/advisories/GHSA-rf6g-xhmp-gm7v) | `rubygems:puma` | high | no CVE anywhere | 1 | `7.2.2, 8.0.3` |
-| [GHSA-xw3h-pgr9-3vg7](https://github.com/puma/puma/security/advisories/GHSA-xw3h-pgr9-3vg7) | `rubygems:puma` | high | no CVE anywhere | 1 | `8.0.3, 7.2.2` |
-| [GHSA-x646-wp7c-h9mg](https://github.com/puma/puma/security/advisories/GHSA-x646-wp7c-h9mg) | `rubygems:puma` | high | no CVE anywhere | 1 | `7.2.2, 8.0.3` |
-| [GHSA-86xc-wrr9-xmmq](https://github.com/puma/puma/security/advisories/GHSA-86xc-wrr9-xmmq) | `rubygems:puma` | high | no CVE anywhere | 1 | `7.2.2, 8.0.3` |
-| [GHSA-q4v7-v68c-x6hx](https://github.com/wallabag/wallabag/security/advisories/GHSA-q4v7-v68c-x6hx) | `composer:wallabag/wallabag` | high | no CVE anywhere | 1 | `2.6.16, 2.7.0` |
-| [GHSA-xc5v-89vq-hv5m](https://github.com/elixir-grpc/grpc/security/advisories/GHSA-xc5v-89vq-hv5m) | `erlang:grpc, erlang:grpc_server` | high | CVE published, cited (`CVE-2026-124278`) | 0 | `1.1.0, 1.0.0` |
-| [GHSA-736x-r87j-jhcm](https://github.com/elixir-grpc/grpc/security/advisories/GHSA-736x-r87j-jhcm) | `erlang:grpc_server` | high | CVE published, cited (`CVE-2026-124279`) | 0 | `1.1.0` |
-| [GHSA-c2h9-f9cc-27xh](https://github.com/elixir-grpc/grpc/security/advisories/GHSA-c2h9-f9cc-27xh) | `erlang:grpc, erlang:grpc_server` | high | CVE published, cited (`CVE-2026-121809`) | 0 | `1.0.0, 1.1.0` |
-| [GHSA-r43p-22px-2mvm](https://github.com/modoboa/modoboa/security/advisories/GHSA-r43p-22px-2mvm) | `pip:modoboa` | high | no CVE anywhere | 0 | `2.13.0` |
-| [GHSA-3vvv-hfx8-4jhm](https://github.com/modoboa/modoboa/security/advisories/GHSA-3vvv-hfx8-4jhm) | `pip:modoboa` | high | no CVE anywhere | 0 | `2.13.0` |
-| [GHSA-fxxr-gqx3-p253](https://github.com/TryGhost/Ghost/security/advisories/GHSA-fxxr-gqx3-p253) | `npm:ghost` | high | no CVE anywhere | 0 | `6.76.0` |
-| [GHSA-h7m4-392w-vpjj](https://github.com/OpenHands/software-agent-sdk/security/advisories/GHSA-h7m4-392w-vpjj) | `pip:openhands-agent-server` | high | no CVE anywhere | 0 | `1.61.0` |
-| [GHSA-f55r-3mcp-7vvh](https://github.com/OpenHands/software-agent-sdk/security/advisories/GHSA-f55r-3mcp-7vvh) | `pip:openhands-agent-server` | high | no CVE anywhere | 0 | `1.61.0` |
-| [GHSA-h5qc-9ccp-2jpr](https://github.com/WeblateOrg/weblate/security/advisories/GHSA-h5qc-9ccp-2jpr) | `pip:weblate` | high | no CVE anywhere | 0 | `2026.11` |
-| [GHSA-58m4-xqvh-78xj](https://github.com/WeblateOrg/weblate/security/advisories/GHSA-58m4-xqvh-78xj) | `pip:weblate` | high | no CVE anywhere | 0 | `2026.11` |
-| [GHSA-r6wp-8gf8-82fx](https://github.com/WeblateOrg/weblate/security/advisories/GHSA-r6wp-8gf8-82fx) | `pip:weblate` | high | no CVE anywhere | 0 | `2026.11.1` |
-| [GHSA-946j-ggg5-f8jh](https://github.com/WeblateOrg/weblate/security/advisories/GHSA-946j-ggg5-f8jh) | `pip:weblate` | high | no CVE anywhere | 0 | `2026.11.2` |
-| [GHSA-655x-rwmw-vcv8](https://github.com/WeblateOrg/weblate/security/advisories/GHSA-655x-rwmw-vcv8) | `pip:weblate` | high | no CVE anywhere | 0 | `2026.11.2` |
+| [GHSA-2v77-pvhx-25c3](https://github.com/AcademySoftwareFoundation/openexr/security/advisories/GHSA-2v77-pvhx-25c3) | `pip:openexr` | critical | no CVE anywhere | 0 | `3.3.16, 3.4.18, 3.5.4` |
+| [GHSA-mf3p-hrx2-rmf7](https://github.com/moquette-io/moquette/security/advisories/GHSA-mf3p-hrx2-rmf7) | `maven:io.moquette:moquette-broker` | critical | no CVE anywhere | 0 | `0.18.2, 0.19.0` |
+| [GHSA-x8q7-6c7m-52gw](https://github.com/nltk/nltk/security/advisories/GHSA-x8q7-6c7m-52gw) | `pip:nltk` | critical | CVE reserved (RBP) (`CVE-2026-128138`) | 0 | `3.10.4` |
+| [GHSA-9gg7-283r-5gm9](https://github.com/TryGhost/express-hbs/security/advisories/GHSA-9gg7-283r-5gm9) | `npm:express-hbs` | high | no CVE anywhere | 1 | `2.5.1, 4.0.2` |
+| [GHSA-rhr2-p2j3-8jjj](https://github.com/laravolt/laravolt/security/advisories/GHSA-rhr2-p2j3-8jjj) | `composer:laravolt/laravolt` | high | no CVE anywhere | 1 | `8.3.3` |
+| [GHSA-vc3f-72gv-5pgp](https://github.com/laravolt/laravolt/security/advisories/GHSA-vc3f-72gv-5pgp) | `composer:laravolt/laravolt` | high | no CVE anywhere | 1 | `8.3.3` |
+| [GHSA-pg34-5xcr-7jrp](https://github.com/laravolt/laravolt/security/advisories/GHSA-pg34-5xcr-7jrp) | `composer:laravolt/laravolt` | high | no CVE anywhere | 1 | `8.3.3` |
+| [GHSA-c62c-wjcx-gjxx](https://github.com/luben/zstd-jni/security/advisories/GHSA-c62c-wjcx-gjxx) | `maven:com.github.luben:zstd-jni` | high | no CVE anywhere | 1 | `1.5.7-27` |
+| [GHSA-779h-x4xj-2f4f](https://github.com/luben/zstd-jni/security/advisories/GHSA-779h-x4xj-2f4f) | `maven:com.github.luben:zstd-jni` | high | no CVE anywhere | 1 | `–` |
+| [GHSA-f9fw-76m6-wc75](https://github.com/authorizerdev/authorizer/security/advisories/GHSA-f9fw-76m6-wc75) | `go:github.com/authorizerdev/authorizer` | high | no CVE anywhere | 0 | `2.4.5` |
+| [GHSA-93q4-j2hq-5qgg](https://github.com/authorizerdev/authorizer/security/advisories/GHSA-93q4-j2hq-5qgg) | `go:github.com/authorizerdev/authorizer` | high | no CVE anywhere | 0 | `2.4.5` |
+| [GHSA-h5xf-qc2v-94w6](https://github.com/zip-rs/zip2/security/advisories/GHSA-h5xf-qc2v-94w6) | `rust:zip` | high | no CVE anywhere | 0 | `9.2.0` |
+| [GHSA-mpc8-q7jp-wjrf](https://github.com/zip-rs/zip2/security/advisories/GHSA-mpc8-q7jp-wjrf) | `rust:zip` | high | no CVE anywhere | 0 | `9.2.0` |
+| [GHSA-98qm-p6jx-5wj2](https://github.com/facelessuser/soupsieve/security/advisories/GHSA-98qm-p6jx-5wj2) | `pip:soupsieve` | high | no CVE anywhere | 0 | `4.1.1` |
+| [GHSA-fpjv-w4vg-qmfm](https://github.com/astropy/astropy/security/advisories/GHSA-fpjv-w4vg-qmfm) | `pip:astropy` | high | no CVE anywhere | 0 | `7.3.2, 8.0.2, 8.1.0` |
+| [GHSA-32w6-43vp-5fmg](https://github.com/inducer/relate/security/advisories/GHSA-32w6-43vp-5fmg) | `pip:relate-courseware` | high | no CVE anywhere | 0 | `d6bead4df2085f4900cbf774a0726509b19616c5` |
+| [GHSA-w8p9-5v6q-h9ch](https://github.com/doobidoo/mcp-memory-service/security/advisories/GHSA-w8p9-5v6q-h9ch) | `pip:mcp-memory-service` | high | no CVE anywhere | 0 | `12.10.0` |
+| [GHSA-5wpc-45jc-6ccc](https://github.com/petergoldstein/dalli/security/advisories/GHSA-5wpc-45jc-6ccc) | `rubygems:dalli` | high | no CVE anywhere | 0 | `3.2.16, 4.3.11, 5.0.15, 5.1.9, 5.2.9, 5.` |
+| [GHSA-67rw-6x6r-23jr](https://github.com/getarcaneapp/arcane/security/advisories/GHSA-67rw-6x6r-23jr) | `go:github.com/getarcaneapp/arcane/backend/v2` | high | no CVE anywhere | 0 | `v3.0.` |
+| [GHSA-2pfr-pfcp-pv44](https://github.com/MobSF/Mobile-Security-Framework-MobSF/security/advisories/GHSA-2pfr-pfcp-pv44) | `pip:mobsf` | high | no CVE anywhere | 0 | `4.6.6` |
+| [GHSA-q882-9g6p-v5f2](https://github.com/MobSF/Mobile-Security-Framework-MobSF/security/advisories/GHSA-q882-9g6p-v5f2) | `pip:mobsf` | high | no CVE anywhere | 0 | `4.6.6` |
+| [GHSA-6p6x-gx77-3gv3](https://github.com/MobSF/Mobile-Security-Framework-MobSF/security/advisories/GHSA-6p6x-gx77-3gv3) | `pip:mobsf` | high | no CVE anywhere | 0 | `4.6.6` |
+| [GHSA-mjcw-gfh6-3cxm](https://github.com/i18next/i18next-http-middleware/security/advisories/GHSA-mjcw-gfh6-3cxm) | `npm:i18next-http-middleware` | high | no CVE anywhere | 0 | `3.10.1` |
+| [GHSA-xxvx-vcj6-rjq5](https://github.com/i18next/i18next-http-middleware/security/advisories/GHSA-xxvx-vcj6-rjq5) | `npm:i18next-http-middleware` | high | no CVE anywhere | 0 | `3.10.2` |
+| [GHSA-3jj8-q2mj-cg7q](https://github.com/moquette-io/moquette/security/advisories/GHSA-3jj8-q2mj-cg7q) | `maven:io.moquette:moquette-broker` | high | no CVE anywhere | 0 | `–` |
 
-…and 65 more: [the tracker](https://limbo.watch/tracker/) lists them all, newest first.
+…and 45 more: [the tracker](https://limbo.watch/tracker/) lists them all, newest first.
 
 ## CVE changes
 
 | Advisory | Change |
 |---|---|
-| [GHSA-2c8x-f46r-8phh](https://github.com/bacnet-stack/bacnet-stack/security/advisories/GHSA-2c8x-f46r-8phh) | CVE-2026-62974 RESERVED -> PUBLISHED |
-| [GHSA-32jj-x86x-w98w](https://github.com/bacnet-stack/bacnet-stack/security/advisories/GHSA-32jj-x86x-w98w) | CVE-2026-62976 RESERVED -> PUBLISHED |
-| [GHSA-3f36-4qv4-vfgh](https://github.com/PrestaShop/PrestaShop/security/advisories/GHSA-3f36-4qv4-vfgh) | CVE-2026-71531 RESERVED -> PUBLISHED |
-| [GHSA-3xxw-jfwm-rq9c](https://github.com/bacnet-stack/bacnet-stack/security/advisories/GHSA-3xxw-jfwm-rq9c) | CVE-2026-62973 RESERVED -> PUBLISHED |
-| [GHSA-4fgg-fghm-jm43](https://github.com/bacnet-stack/bacnet-stack/security/advisories/GHSA-4fgg-fghm-jm43) | CVE-2026-52787 RESERVED -> PUBLISHED |
-| [GHSA-4p4w-m434-jrhj](https://github.com/bacnet-stack/bacnet-stack/security/advisories/GHSA-4p4w-m434-jrhj) | CVE-2026-58498 RESERVED -> PUBLISHED |
-| [GHSA-4rf9-4vgq-5gcw](https://github.com/bacnet-stack/bacnet-stack/security/advisories/GHSA-4rf9-4vgq-5gcw) | CVE-2026-52789 RESERVED -> PUBLISHED |
-| [GHSA-4vgv-v5ph-rmxr](https://github.com/bacnet-stack/bacnet-stack/security/advisories/GHSA-4vgv-v5ph-rmxr) | CVE-2026-100403 RESERVED -> PUBLISHED |
-| [GHSA-7r8r-2rj2-5wvr](https://github.com/bacnet-stack/bacnet-stack/security/advisories/GHSA-7r8r-2rj2-5wvr) | CVE-2026-49341 RESERVED -> PUBLISHED |
-| [GHSA-8456-m9x4-j6mc](https://github.com/bacnet-stack/bacnet-stack/security/advisories/GHSA-8456-m9x4-j6mc) | CVE-2026-82414 RESERVED -> PUBLISHED |
-| [GHSA-8759-hx7g-94qx](https://github.com/bacnet-stack/bacnet-stack/security/advisories/GHSA-8759-hx7g-94qx) | CVE-2026-49990 RESERVED -> PUBLISHED |
-| [GHSA-92q2-p4vr-fvmp](https://github.com/bacnet-stack/bacnet-stack/security/advisories/GHSA-92q2-p4vr-fvmp) | CVE-2026-102612 RESERVED -> PUBLISHED |
-| [GHSA-gr74-333w-7wg8](https://github.com/bacnet-stack/bacnet-stack/security/advisories/GHSA-gr74-333w-7wg8) | CVE-2026-97692 RESERVED -> PUBLISHED |
-| [GHSA-h57f-c9j4-577x](https://github.com/indico/indico/security/advisories/GHSA-h57f-c9j4-577x) | CVE-2026-107398 RESERVED -> PUBLISHED |
-| [GHSA-hg85-pmm3-jfcf](https://github.com/bacnet-stack/bacnet-stack/security/advisories/GHSA-hg85-pmm3-jfcf) | CVE-2026-104204 RESERVED -> PUBLISHED |
-| [GHSA-hjwq-7qvv-qxj4](https://github.com/PrestaShop/PrestaShop/security/advisories/GHSA-hjwq-7qvv-qxj4) | CVE-2026-71519 RESERVED -> PUBLISHED |
-| [GHSA-jgm4-2wg9-jwfg](https://github.com/bacnet-stack/bacnet-stack/security/advisories/GHSA-jgm4-2wg9-jwfg) | CVE-2026-102537 RESERVED -> PUBLISHED |
-| [GHSA-jr7p-rm2x-739x](https://github.com/bacnet-stack/bacnet-stack/security/advisories/GHSA-jr7p-rm2x-739x) | CVE-2026-52790 RESERVED -> PUBLISHED |
-| [GHSA-rf83-3rr5-v4mj](https://github.com/bacnet-stack/bacnet-stack/security/advisories/GHSA-rf83-3rr5-v4mj) | CVE-2026-52788 RESERVED -> PUBLISHED |
-| [GHSA-xxp9-7hp4-rqwp](https://github.com/elixir-grpc/grpc/security/advisories/GHSA-xxp9-7hp4-rqwp) | CVE-2026-121808 RESERVED -> PUBLISHED |
-| [GHSA-7x9q-vvph-rjcr](https://github.com/elixir-grpc/grpc/security/advisories/GHSA-7x9q-vvph-rjcr) | CVE-2026-123635 RESERVED -> PUBLISHED |
-| [GHSA-9hq3-w3pc-8385](https://github.com/bacnet-stack/bacnet-stack/security/advisories/GHSA-9hq3-w3pc-8385) | CVE-2026-62972 RESERVED -> PUBLISHED |
-| [GHSA-cf8g-hp9m-9fvv](https://github.com/bacnet-stack/bacnet-stack/security/advisories/GHSA-cf8g-hp9m-9fvv) | CVE-2026-62975 RESERVED -> PUBLISHED |
-| [GHSA-hxqr-h35w-2898](https://github.com/gittuf/gittuf/security/advisories/GHSA-hxqr-h35w-2898) | CVE-2026-128034 RESERVED -> PUBLISHED |
-| [GHSA-j66x-fr38-r7m5](https://github.com/bacnet-stack/bacnet-stack/security/advisories/GHSA-j66x-fr38-r7m5) | CVE-2026-58265 RESERVED -> PUBLISHED |
-
-…and 51 more.
+| [GHSA-93j3-gf96-8376](https://github.com/wp-graphql/wp-graphql/security/advisories/GHSA-93j3-gf96-8376) | CVE-2026-123707 RESERVED -> PUBLISHED |
+| [GHSA-73v3-wf97-vpgj](https://github.com/msgpack/msgpack-ruby/security/advisories/GHSA-73v3-wf97-vpgj) | cites CVE-2026-126366 (was none) |
+| [GHSA-89p3-fcch-88ph](https://github.com/nltk/nltk/security/advisories/GHSA-89p3-fcch-88ph) | cites CVE-2026-126299 (was none) |
+| [GHSA-qph8-7859-gq2f](https://github.com/actix/actix-web/security/advisories/GHSA-qph8-7859-gq2f) | cites CVE-2026-128242 (was none) |
+| [GHSA-r53h-rw34-8h97](https://github.com/nltk/nltk/security/advisories/GHSA-r53h-rw34-8h97) | cites CVE-2026-126298 (was none) |
+| [GHSA-v8f3-6phw-6mh9](https://github.com/nltk/nltk/security/advisories/GHSA-v8f3-6phw-6mh9) | cites CVE-2026-126297 (was none) |
+| [GHSA-xcvg-w56q-r89m](https://github.com/python-pillow/Pillow/security/advisories/GHSA-xcvg-w56q-r89m) | cites CVE-2026-128067 (was none) |
+| [GHSA-345x-3rq2-jfrm](https://github.com/flavorjones/loofah/security/advisories/GHSA-345x-3rq2-jfrm) | cites CVE-2026-126208 (was none) |
+| [GHSA-59f9-gqg8-mqpj](https://github.com/nltk/nltk/security/advisories/GHSA-59f9-gqg8-mqpj) | cites CVE-2026-126296 (was none) |
+| [GHSA-ffr9-mgrr-wcvr](https://github.com/nltk/nltk/security/advisories/GHSA-ffr9-mgrr-wcvr) | cites CVE-2026-126300 (was none) |
+| [GHSA-fg9w-wfp5-j933](https://github.com/nltk/nltk/security/advisories/GHSA-fg9w-wfp5-j933) | cites CVE-2026-126295 (was none) |
+| [GHSA-gg5j-6742-v827](https://github.com/grpc/grpc-node/security/advisories/GHSA-gg5j-6742-v827) | cites CVE-2026-128065 (was none) |
+| [GHSA-gpwc-27cw-rh9r](https://github.com/nltk/nltk/security/advisories/GHSA-gpwc-27cw-rh9r) | cites CVE-2026-126301 (was none) |
+| [GHSA-h6v6-rg66-fqj4](https://github.com/flavorjones/loofah/security/advisories/GHSA-h6v6-rg66-fqj4) | cites CVE-2026-126203 (was none) |
+| [GHSA-m3x9-938q-5767](https://github.com/flavorjones/loofah/security/advisories/GHSA-m3x9-938q-5767) | cites CVE-2026-126207 (was none) |
+| [GHSA-mf2j-8f84-cc9q](https://github.com/flavorjones/loofah/security/advisories/GHSA-mf2j-8f84-cc9q) | cites CVE-2026-126205 (was none) |
+| [GHSA-r7hq-q2xm-6c5m](https://github.com/grpc/grpc-node/security/advisories/GHSA-r7hq-q2xm-6c5m) | cites CVE-2026-126367 (was none) |
+| [GHSA-wqgw-9xfh-qf2g](https://github.com/python-pillow/Pillow/security/advisories/GHSA-wqgw-9xfh-qf2g) | cites CVE-2026-128066 (was none) |
+| [GHSA-xmfg-f9cm-w86q](https://github.com/nltk/nltk/security/advisories/GHSA-xmfg-f9cm-w86q) | cites CVE-2026-126302 (was none) |
+| [GHSA-jcff-cj73-4w4f](https://github.com/flavorjones/loofah/security/advisories/GHSA-jcff-cj73-4w4f) | cites CVE-2026-126206 (was none) |
+| [GHSA-p9wj-w8xq-vjx6](https://github.com/flavorjones/loofah/security/advisories/GHSA-p9wj-w8xq-vjx6) | cites CVE-2026-126209 (was none) |
+| [GHSA-fr36-wcx2-7gfq](https://github.com/yuzutech/kroki/security/advisories/GHSA-fr36-wcx2-7gfq) | new CVE from another CNA: CVE-2026-129447 |
 
 ## Longest waiting, published in the last 90 days
 
 | Advisory | Package | Severity | CVE | Days | Fixed in |
 |---|---|---|---|---:|---|
-| [GHSA-54cf-28h8-9p23](https://github.com/PyTables/PyTables/security/advisories/GHSA-54cf-28h8-9p23) | `pip:tables` | high | no CVE anywhere | 89 | `3.12.0` |
-| [GHSA-6mmx-p77c-4hmr](https://github.com/PyTables/PyTables/security/advisories/GHSA-6mmx-p77c-4hmr) | `pip:tables` | high | no CVE anywhere | 89 | `3.12.0` |
-| [GHSA-rf3w-rj48-jxcc](https://github.com/wekan/wekan/security/advisories/GHSA-rf3w-rj48-jxcc) | `actions:wekan/wekan` | high | no CVE anywhere | 89 | `10.98` |
-| [GHSA-fjvm-966v-hmm2](https://github.com/LearningCircuit/local-deep-research/security/advisories/GHSA-fjvm-966v-hmm2) | `pip:local-deep-research` | critical | no CVE anywhere | 89 | `1.10.4` |
-| [GHSA-wcrr-jh84-fchg](https://github.com/moquette-io/moquette/security/advisories/GHSA-wcrr-jh84-fchg) | `maven:io.moquette:moquette-broker` | medium | no CVE anywhere | 89 | `0.18.2, 0.19.0` |
+| [GHSA-rmxg-5p3r-j6hh](https://github.com/rmosolgo/graphql-ruby/security/advisories/GHSA-rmxg-5p3r-j6hh) | `rubygems:graphql` | high | no CVE anywhere | 89 | `2.6.9` |
+| [GHSA-9gmj-q25w-vq6x](https://github.com/kyndryl-open-source/hashi-vault-js/security/advisories/GHSA-9gmj-q25w-vq6x) | `npm:hashi-vault-js` | critical | no CVE anywhere | 89 | `0.5.3` |
+| [GHSA-x69f-q4wj-vx72](https://github.com/nautobot/nautobot/security/advisories/GHSA-x69f-q4wj-vx72) | `pip:nautobot` | medium | no CVE anywhere | 89 | `2.4.40, 3.2.3` |
+| [GHSA-qfwj-vfxf-92j2](https://github.com/quinn-rs/quinn/security/advisories/GHSA-qfwj-vfxf-92j2) | `rust:quinn-proto` | high | no CVE anywhere | 89 | `0.11.17` |
+| [GHSA-2hv7-gw8g-gpq5](https://github.com/quinn-rs/quinn/security/advisories/GHSA-2hv7-gw8g-gpq5) | `rust:quinn-proto` | high | no CVE anywhere | 89 | `0.11.17` |
 
 607 advisories in limbo have waited more than a year.
 
 ## Coverage
 
-Watchlist 67,513 repositories; 67,513 up to date on their schedule (daily for repos with an advisory in limbo, every 3 days for other repos with advisories, every 30 days and after each release for the rest); 7,820 checked in the last 24 hours; 37,780 reviewed advisories known. Every number is a floor: the tracker only sees repositories on its watchlist. Version ranges are as entered by maintainers and unreviewed.
+Watchlist 67,591 repositories; 67,591 up to date on their schedule (daily for repos with an advisory in limbo, every 3 days for other repos with advisories, every 30 days and after each release for the rest); 4,949 checked in the last 24 hours; 37,780 reviewed advisories known. Every number is a floor: the tracker only sees repositories on its watchlist. Version ranges are as entered by maintainers and unreviewed.
 
 _Advisory metadata from published GitHub repository security advisories and the GitHub Advisory Database (https://github.com/advisories, CC BY 4.0); CVE state from CVE Services; OSV.dev; NVD API (this product uses the NVD API but is not endorsed or certified by the NVD). Compiled by Limbowatch (https://limbo.watch), CC BY 4.0._
