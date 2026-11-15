@@ -3073,6 +3073,21 @@ Answered:
 - **Implication:** all ten screenshots and their captions were refreshed (docs/SCREENSHOTS.md). The [F-198](#f-198) caveat about 0.1.0a14 screenshots no longer holds.
 - **Sources:** the runs above; GitHub Advisory Database API; OSV API.
 
+### F-200
+- **Date:** 2026-11-15 · **Status:** confirmed (direct observation; GitHub's monthly totals count reviews by publish date)
+- **Question:** Is GitHub catching up on the review backlog (Q12)? Has its review throughput risen since the June blog post ([F-035](#f-035))?
+- **Method:**
+  - GitHub's throughput: `gh api --paginate "/advisories?type=reviewed&published=2026-MM-01..2026-MM-DD"` for each month of 2026 (12,553 reviewed advisories, 2026-01-01 to 2026-11-15 08:30 UTC), counted by week and month, split by `repository_advisory_url` (reviewed from a repository advisory). For 10,442 of them, `published_at` and `github_reviewed_at` fall on the same day.
+  - Inflow against outflow in the watched repos: the tracker's daily reports on `tracker-data` (2026-11-01 to 11-14), "newly published" against "reviewed by GitHub".
+  - GitHub's statements: github/advisory-database#10425 (2026-10-19) and community discussion #189802 (last GitHub post 2026-10-02).
+- **Result:**
+  - Reviews from repository advisories per month: Jan 362, Feb 595, Mar 1,377, Apr 1,190, May 1,260, Jun 1,152, Jul 1,211, **Aug 660, Sep 873, Oct 1,182**, Nov 1–15 251. Throughput peaked March to July and hasn't risen since; weeks swing between 35 and 433 (batches, as in [F-050](#f-050)).
+  - In the watched repos, 2026-11-01 to 11-14: **1,757 advisories newly published into limbo, 203 reviewed out**, about 9 in for each 1 out (F-092 and F-120 found 11 to 1 and 16 to 1). The in-limbo count rose 8,167 → 10,463, part of it from newly watched repos.
+  - GitHub (2026-10-19): review times "are currently longer than our documentation states"; the 72-hour estimate is being removed; no replacement estimate. Its October updates are about intake: structured report forms, daily rate limits on private vulnerability reports, and planned AI-assisted triage for maintainers. None says review capacity has grown.
+- **Caveats:** the monthly totals include reviews of advisories that didn't come from watched repos; a review whose global `published_at` predates 2026 is not counted. Throughput is weekly batches, so single weeks mislead.
+- **Implication:** No sign that GitHub is closing the gap: outflow is about 250 to 300 a week against about 900 a week of new advisories in reviewable ecosystems in the watched repos alone. Q12 stays open for the per-ecosystem view; the answer to "is it shrinking" is no as of this date.
+- **Sources:** GitHub Advisory Database REST API; `tracker-data` reports 2026-11-01 to 11-14; https://github.com/github/advisory-database/issues/10425; https://github.com/orgs/community/discussions/189802.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
