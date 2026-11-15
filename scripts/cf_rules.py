@@ -2,12 +2,14 @@
 
     CLOUDFLARE_API_TOKEN=… uv run python scripts/cf_rules.py --zone limbo.watch --host next.limbo.watch [--dry-run]
     … --host limbo.watch --host next.limbo.watch --www www.limbo.watch           # at the switch (step 5)
+    … --zone limbo.watch --routes-only    # after a Worker deploy (.github/workflows/worker.yml)
 
 Run from a maintainer's machine, not CI: the token needs Zone Read, Transform Rules Edit, Single Redirect Edit,
 Cache Rules Edit and Workers Routes Edit on the zone, and Account Rulesets Read. Only rules whose `ref` starts with
 `limbowatch-` are managed; the zone's other rules are kept as they are. A phase is written only when its managed rules
 differ, so a second run changes nothing. The Worker's routes are set to fail open. The token comes from the
-environment and is never printed.
+environment and is never printed. With --routes-only it only sets the routes to fail open, so a token with just Workers
+Routes Edit on the zone (and Zone Read) is enough; the Worker's deploy workflow runs it that way.
 """
 
 from __future__ import annotations
@@ -103,11 +105,12 @@ class Cloudflare:
         self._call("PUT", f"/zones/{zone}/workers/routes/{route['id']}", json=body)
 
 
-def run(cf: Cloudflare, zone_name: str, hosts: list[str], www: list[str], dry_run: bool, log: Any = print) -> int:
+def run(cf: Cloudflare, zone_name: str, hosts: list[str], www: list[str], dry_run: bool, log: Any = print,
+        rules: bool = True) -> int:  # fmt: skip
     spec = json.loads(RULES.read_text())
     zone = cf.zone_id(zone_name)
     changed = 0
-    for phase, ours in desired(spec, hosts, www).items():
+    for phase, ours in desired(spec, hosts, www).items() if rules else ():
         existing = cf.phase_rules(zone, phase)
         new = merge(existing, ours)
         if new is None:
@@ -134,10 +137,14 @@ def run(cf: Cloudflare, zone_name: str, hosts: list[str], www: list[str], dry_ru
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--zone", required=True, help="the zone's name, e.g. limbo.watch")
-    ap.add_argument("--host", action="append", required=True, help="a hostname served from R2; repeatable")
+    ap.add_argument("--host", action="append", default=[], help="a hostname served from R2; repeatable")
     ap.add_argument("--www", action="append", default=[], help="a www hostname that redirects to its apex")
     ap.add_argument("--dry-run", action="store_true", help="show what would change; change nothing")
+    ap.add_argument("--routes-only", action="store_true", help="only set the Worker's routes to fail open")
     a = ap.parse_args(argv)
+    if not a.host and not a.routes_only:
+        print("--host is required, except with --routes-only", file=sys.stderr)
+        return 2
     token = os.environ.get("CLOUDFLARE_API_TOKEN")
     if not token:
         print("CLOUDFLARE_API_TOKEN is not set", file=sys.stderr)
@@ -146,7 +153,7 @@ def main(argv: list[str] | None = None) -> int:
     if bad:
         print(f"--www takes www hostnames: {bad}", file=sys.stderr)
         return 2
-    run(Cloudflare(token), a.zone, a.host, a.www, a.dry_run)
+    run(Cloudflare(token), a.zone, a.host, a.www, a.dry_run, rules=not a.routes_only)
     return 0
 
 

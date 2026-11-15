@@ -28,9 +28,20 @@ Nothing in this repository names a Cloudflare account. Moving to another account
 | Credential | Where | Can do |
 |---|---|---|
 | R2 token `limbowatch-r2-sync` (account token, expires 2027-11) | GitHub environment `site` (main only): `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`; plus `CF_ACCOUNT_ID` and the variable `R2_BUCKET` | Read and write objects in `limbowatch-site`, nothing else |
+| Worker token `limbowatch-worker-deploy` (account token) | GitHub environment `worker` (main only, a maintainer approves each run): `CLOUDFLARE_API_TOKEN`, `CF_ACCOUNT_ID` | Account: Workers Scripts Edit. Zone limbo.watch: Workers Routes Edit, Zone Read. No DNS, zone rules or R2 data |
 | Maintainer token (user token, short-lived) | Your keychain only (`limbowatch-cf-maintainer`) | Zone rules, the Worker and its routes on limbo.watch |
 
 ## Changing the Worker or the rules
+
+**The Worker** deploys itself: a push to `main` that changes `deploy/worker/` starts `.github/workflows/worker.yml`, which
+waits for a maintainer to approve it, runs the tests, deploys, sets the routes to fail open (`cf_rules.py --routes-only`)
+and checks the live answer. It can also be started by hand (Actions → worker → Run workflow).
+
+**Cache-Control** needs no Worker deploy: `scripts/sync_r2.py` stores it on each object, and both the bucket and the
+Worker send what's stored.
+
+**The zone rules** (`cloudflare/rules.json`) are applied by hand with the maintainer token, as is a deploy without
+GitHub:
 
 ```sh
 export CLOUDFLARE_ACCOUNT_ID=… CLOUDFLARE_API_TOKEN="$(security find-generic-password -s limbowatch-cf-maintainer -w)"

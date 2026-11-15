@@ -167,3 +167,16 @@ def test_the_workers_routes_fail_open() -> None:
         assert apply(log=log.append) == 1
     want = {"pattern": "limbo.watch/osv/*", "script": "limbowatch-site", "request_limit_fail_open": True}
     assert puts == {"r1": want}
+
+
+def test_routes_only_reads_no_rules(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The Worker's deploy workflow runs it this way, with a token that can't touch the zone's rules."""
+    route = {"id": "r1", "pattern": "limbo.watch/osv/*", "script": "limbowatch-site", "request_limit_fail_open": False}
+    routes = [route]
+    with respx.mock(assert_all_called=False) as router:
+        puts = mock(router, {}, routes)
+        monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "t")
+        assert cf_rules.main(["--zone", "limbo.watch", "--routes-only"]) == 0
+        called = {c.request.url.path for c in router.calls}
+    assert set(puts) == {"r1"} and not any("rulesets" in p for p in called)
+    assert cf_rules.main(["--zone", "limbo.watch"]) == 2  # rules need --host

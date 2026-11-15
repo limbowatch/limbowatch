@@ -48,7 +48,7 @@ export default {
 
     const h = baseHeaders();
     h.set("Content-Type", contentType(key));
-    h.set("Cache-Control", cacheControl(key));
+    h.set("Cache-Control", cacheControl(key, obj.httpMetadata?.cacheControl));
     h.set("ETag", obj.httpEtag);
     h.set("Last-Modified", obj.uploaded.toUTCString());
     h.set("Accept-Ranges", "bytes");

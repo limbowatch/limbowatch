@@ -25,7 +25,13 @@ export const MAX_AGE = 300;
 const PAIR = new Set(["feed/all.zip", "feed/watchlist.json"]);
 const SUMS = new Set(["feed/SHA256SUMS.txt", "osv/SHA256SUMS.txt"]);
 
-export function cacheControl(key) {
+// scripts/sync_r2.py stores each file's Cache-Control on its R2 object, and the bucket's custom domain sends it as is.
+// The Worker sends it too, so a cache change ships with the site and needs no Worker deploy. Only the two forms the
+// sync writes are taken; anything else falls back to the list above.
+const STORED = /^(no-cache|max-age=\d{1,6})$/;
+
+export function cacheControl(key, stored) {
+  if (typeof stored === "string" && STORED.test(stored)) return stored;
   return PAIR.has(key) || SUMS.has(key) ? "no-cache" : `max-age=${MAX_AGE}`;
 }
 

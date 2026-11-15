@@ -1,0 +1,61 @@
+# Deploys the limbo.watch Worker (deploy/worker, on /osv/*) when its code changes on main, then sets its routes to fail
+# open again, which every deploy resets (F-183). The Cloudflare token lives only in the `worker` environment: main
+# only, and a maintainer approves each run. It can edit Workers scripts on the account and Workers routes on
+# limbo.watch, nothing else: no DNS, no zone rules, no R2 data (deploy/README.md).
+name: worker
+
+on:
+  push:
+    branches: [main]
+    paths: ["deploy/worker/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: worker
+    timeout-minutes: 15
+    env:
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - name: Install (pinned by package-lock.json, no install scripts)
+        working-directory: deploy/worker
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Test
+        working-directory: deploy/worker
+        run: npx vitest run
+      - name: Deploy
+        working-directory: deploy/worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: npx wrangler deploy
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Routes fail open
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: uv run --frozen --no-dev python scripts/cf_rules.py --zone limbo.watch --routes-only
+      - name: Check the live Worker
+        run: |
+          # past the edge cache (its key includes the query), so the answer is the new Worker's
+          for i in $(seq 1 12); do
+            h=$(curl -sfI "https://limbo.watch/osv/SHA256SUMS.txt?deploy=$GITHUB_RUN_ID-$i" | tr -d '\r')
+            if echo "$h" | grep -qi '^cache-control: no-cache$' && echo "$h" | grep -qi '^content-type: text/plain'; then
+              echo "live: $(echo "$h" | grep -i '^cache-control')"; exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::the Worker's answer for osv/SHA256SUMS.txt isn't the expected one"; echo "$h"; exit 1

@@ -172,6 +172,15 @@ describe("downloads, as watchers make them", () => {
     expect((await call("/osv/PyPI/all.zip")).headers.get("Cache-Control")).toBe("max-age=300");
   });
 
+  it("sends the Cache-Control the sync stored on the object, if it's one the sync writes", async () => {
+    await env.SITE.put("osv/Go/all.zip", ZIP, { httpMetadata: { cacheControl: "no-cache" } });
+    expect((await call("/osv/Go/all.zip")).headers.get("Cache-Control")).toBe("no-cache");
+    await env.SITE.put("osv/Go/all.zip", ZIP, { httpMetadata: { cacheControl: "max-age=60" } });
+    expect((await call("/osv/Go/all.zip")).headers.get("Cache-Control")).toBe("max-age=60");
+    await env.SITE.put("osv/Go/all.zip", ZIP, { httpMetadata: { cacheControl: "public, max-age=31536000, immutable" } });
+    expect((await call("/osv/Go/all.zip")).headers.get("Cache-Control")).toBe("max-age=300");
+  });
+
   it("revalidates the checksums of the downloads on every request", async () => {
     await env.SITE.put("osv/SHA256SUMS.txt", "0  limbo-db.zip\n");
     const res = await call("/osv/SHA256SUMS.txt");
