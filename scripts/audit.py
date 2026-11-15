@@ -26,6 +26,9 @@ Checks:
 11. proof: the home page's numbers equal `limbowatch scan`'s certain findings for the proof repository's pins in the
     live feed; the pins equal the proof repository's; its latest run found the same advisories, apart from ones that
     left limbo or joined the feed since; and OSV-Scanner, npm audit and pip-audit reported none of them there (F-201).
+12. popular: when the home page counts the popular projects (F-203), its numbers and /popular/data.json equal a recount
+    of the latest showcase artifact against the live feed, every project in tracker/showcase/projects.txt was tried,
+    and every critical or high advisory counted is live still unreviewed and not in OSV.
 
 Exit 1 if a check fails. The report is Markdown (stdout, or --out).
 """
@@ -620,6 +623,59 @@ def check_proof(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
         rep.note(p)
 
 
+def check_popular(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
+    from limbowatch.publish.showcase import counts
+
+    home = http.get(f"{SITE}/", params=NOCACHE).text
+    if 'href="/popular/"' not in home:
+        rep.check("popular", True, "the home page shows the proof repository, not the popular projects")
+        return
+    problems: list[str] = []
+    s, runs = gh("/repos/limbowatch/limbowatch/actions/workflows/showcase.yml/runs?status=success&branch=main&per_page=1")
+    run = (runs or {}).get("workflow_runs", [None])[0] if s == 200 else None
+    if run is None:
+        rep.check("popular", False, "the home page counts popular projects, but there's no successful showcase run")
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        subprocess.run(["gh", "run", "download", str(run["id"]), "-R", "limbowatch/limbowatch", "-n", "showcase",
+                        "-D", tmp], check=True, capture_output=True)  # fmt: skip
+        data = json.loads((Path(tmp) / "showcase.json").read_text())
+    sc = counts(recs.values(), data)
+    listed = [x.split("#", 1)[0].strip() for x in (Path(__file__).resolve().parents[1] / "tracker" / "showcase" /
+              "projects.txt").read_text().splitlines()]  # fmt: skip
+    if [p.repo for p in sc.projects] != [x for x in listed if x]:
+        problems.append("the artifact's projects aren't tracker/showcase/projects.txt")
+    shown = re.search(r'<p class="rv">([\d,]+)</p>\s*<p class="rd">of [\d,]+, with the upgrade.*?\(([\d,]+) in all', home, re.S)
+    got = (int(shown[1].replace(",", "")), int(shown[2].replace(",", ""))) if shown else None
+    if got != (len(sc.serious), len(sc.ids)):
+        problems.append(f"home page shows {got}, the artifact against the live feed gives {(len(sc.serious), len(sc.ids))}")
+    live = http.get(f"{SITE}/popular/data.json", params=NOCACHE).json()
+    per = {p.repo: sorted(p.ids) for p in sc.projects}
+    if {x["repo"]: x["advisories"] for x in live["projects"]} != per:
+        problems.append("/popular/data.json differs from the recount")
+
+    def one(g: str) -> str | None:
+        s2, ga = gh(f"/advisories/{g}")
+        if s2 == 200 and ga.get("type") == "reviewed":
+            return f"{g} reviewed at {ga.get('github_reviewed_at')}"
+        if http.get(f"https://api.osv.dev/v1/vulns/{g}").status_code == 200:
+            return f"{g} in OSV"
+        return None
+
+    with ThreadPoolExecutor(8) as ex:
+        seen = [x for x in ex.map(one, sorted(sc.serious)) if x]
+    problems += seen
+    failed = [p.repo for p in sc.projects if p.error]
+    rep.check("popular", not problems, f"home page shows {len(sc.serious):,} high or critical of {len(sc.ids):,} in "
+              f"{len(sc.affected)} of {len(sc.read)} projects read (showcase run {run['id']}, {data.get('scanned_at')}); "
+              f"{len(sc.serious) - len(seen)} of {len(sc.serious)} still unreviewed and not in OSV; "
+              f"{len(failed)} project(s) not read")  # fmt: skip
+    for p in problems:
+        rep.note(p)
+    if failed:
+        rep.note(f"not read: {', '.join(failed)}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--sample", type=int, default=300, help="advisories in limbo to verify live (others scale)")
@@ -648,6 +704,7 @@ def main() -> None:
         check_old_watchers(rep, z)
         check_examples(rep, st)
         check_proof(rep, recs)
+        check_popular(rep, recs)
     rep.lines.append(f"\n{'All checks passed.' if not rep.failed else 'Failed: ' + ', '.join(rep.failed)}")
     text = "\n".join(rep.lines) + "\n"
     if a.out:

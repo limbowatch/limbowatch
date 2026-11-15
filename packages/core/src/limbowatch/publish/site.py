@@ -31,6 +31,7 @@ from limbowatch.models import AdvisoryPackage, CveLabel, Status
 from limbowatch.publish import ATTRIBUTION, Item, check, days_since, eco_label, fixes_text
 from limbowatch.publish.proof import Proof
 from limbowatch.publish.quality import NAME, Problem, problems
+from limbowatch.publish.showcase import Showcase
 from limbowatch.versions import fixed_versions, no_fix, osv_ranges
 
 REPO_URL = "https://github.com/limbowatch/limbowatch"
@@ -1179,7 +1180,149 @@ as nats-server, typebox and scapy. Counted from today’s feed. Every scanner th
 none is broken. <a href="{POC_RUNS}">See today’s run</a></figcaption></figure>"""
 
 
-def home(items: list[Item], m: dict[str, Any], now: datetime, proof: Proof | None = None) -> str:
+# --- popular projects (F-203) ------------------------------------------------------------------------
+
+PROJECTS_FILE = f"{REPO_URL}/blob/main/tracker/showcase/projects.txt"
+_GENERIC = {"core", "server", "app", "web", "main", "api"}  # repo names that only make sense with their owner
+SHOWN_PACKAGES = 6
+
+
+def project_label(repo: str) -> str:
+    owner, name = repo.split("/", 1)
+    return owner if name.lower() in _GENERIC else name
+
+
+def package_label(eco: str, name: str) -> str:
+    """Go module paths lose their host: github.com/jackc/pgx/v5 reads as jackc/pgx/v5."""
+    return name.split("/", 1)[1] if eco == "go" and name.count("/") >= 2 else name
+
+
+def showcase_pair(sc: Showcase | None) -> str:
+    """The scanners that read GitHub's database or OSV against `limbowatch scan`, on the dependency files of popular
+    projects, from the day's feed. Empty when there's nothing to show; the home page then shows the proof repository."""
+    if sc is None or not sc.serious or not sc.read:
+        return ""
+    n, read = len(sc.serious), len(sc.read)
+    names = [E(project_label(p.repo)) for p in sc.affected][:3]
+    such = f", such as {names[0] if len(names) == 1 else ', '.join(names[:-1]) + ' and ' + names[-1]}," if names else ""
+    return f"""<figure class="pair"><div class="res quiet"><p class="rt">Dependabot, OSV-Scanner, npm audit, pip-audit</p><p class="rv">0</p>
+<p class="rd">of {n:,} high and critical advisories in limbo, each with a released fix</p></div>
+<div class="res loud"><p class="rt">limbowatch scan</p><p class="rv">{n:,}</p>
+<p class="rd">of {n:,}, with the upgrade that clears each one ({len(sc.ids):,} in all, counting medium and low)</p></div>
+<figcaption>The dependency files of {read} popular open-source projects{such} checked against today’s feed: {len(sc.affected)} of them pin a version with an advisory in limbo. A pinned
+version isn’t necessarily exploitable. <a href="/popular/">Every project, and how we count</a></figcaption></figure>"""
+
+
+def showcase_section(sc: Showcase | None, now: datetime) -> str:
+    """The packages behind the home page's number. Empty without a showcase; the curated examples are shown instead."""
+    if sc is None or not sc.packages or not sc.read:
+        return ""
+    cards = []
+    for k in sc.packages[:SHOWN_PACKAGES]:
+        who = [project_label(r) for r in k.projects]
+        pinned = ", ".join(who) if len(who) <= 2 else f"{len(who)} of {len(sc.read)} projects"
+        version = k.versions[0] if len(k.versions) == 1 else f"{len(k.versions)} versions"
+        more = f" ({len(k.serious)} high or critical)" if k.serious and len(k.serious) < len(k.ids) else ""
+        cards.append(
+            f'<a class="exc" href="/advisory/{E(k.worst_id)}/"><div class="top2"><span class="pk">{E(package_label(k.ecosystem, k.name))}</span>'
+            f'<span class="sev {E(k.worst)}">{E(k.worst.upper())}</span></div><p class="eco">{E(eco_label(k.ecosystem))} · '
+            f'<span class="mono">{E(version)}</span></p><dl>'
+            f"<div><dt>Advisories in limbo</dt><dd>{len(k.ids):,}{more}</dd></div>"
+            f"<div><dt>Pinned by</dt><dd>{E(pinned)}</dd></div>"
+            f"<div><dt>Fix released</dt><dd>{E(k.fix) if k.fix else 'yes'}</dd></div>"
+            f"<div><dt>Public for</dt><dd>{fmt_days(days_since(k.oldest, now))}</dd></div></dl>"
+            f'<span class="go">{E(k.worst_id)} →</span></a>'
+        )
+    names = ", ".join(E(project_label(p.repo)) for p in sc.read)
+    return f"""<section class="wrap s" id="examples"><div class="intro"><h2>Real packages, right now</h2>
+<p class="sub">The packages behind that number, in the dependency files of the projects named. Their maintainers published
+each advisory and shipped the fix. None is in GitHub’s reviewed database or OSV yet, so the scanners that read them report
+these versions as clean, and nothing tells the teams using them to upgrade.</p></div>
+<div class="ex">{"".join(cards)}</div>
+<p class="floor">Checked {E(stamp(sc.scanned_at))} against today’s feed: {names}.
+<a href="/popular/">Every project, its commit and its count</a>. To watch the scanners side by side on a few of these
+packages, see our <a href="{POC_URL}">public proof repository</a> and <a href="{POC_RUNS}">its daily run</a>.</p></section>"""
+
+
+def popular_data(sc: Showcase) -> str:
+    """The numbers behind /popular/, so anyone can recount them (CC BY 4.0, like the feed)."""
+    return json.dumps(
+        {
+            "scanned_at": sc.scanned_at,
+            "tool": sc.tool,
+            "advisories": len(sc.ids),
+            "high_or_critical": len(sc.serious),
+            "projects": [
+                {
+                    "repo": p.repo,
+                    "commit": p.commit,
+                    "dependencies": p.dependencies,
+                    "advisories": sorted(p.ids),
+                    "high_or_critical": sorted(p.serious),
+                }
+                | ({"error": p.error} if p.error else {})
+                for p in sc.projects
+            ],
+            "attribution": ATTRIBUTION,
+        },
+        indent=1,
+    )
+
+
+def popular(sc: Showcase) -> str:
+    rows = "".join(
+        f'<tr><th scope="row"><a href="https://github.com/{E(p.repo)}">{E(p.repo)}</a></th>'
+        + (
+            f'<td colspan="4" class="muted">couldn’t be read today: {E(p.error)}</td></tr>'
+            if p.error
+            else f'<td class="mono"><a href="https://github.com/{E(p.repo)}/tree/{E(p.commit or "")}">{E((p.commit or "")[:7])}</a></td>'
+            f'<td class="n">{p.dependencies:,}</td><td class="n">{len(p.ids):,}</td><td class="n">{len(p.serious):,}</td></tr>'
+        )
+        for p in sorted(sc.projects, key=lambda p: (p.error is not None, -len(p.ids), p.repo.lower()))
+    )
+    body = f"""<header class="top">{header("")}</header>
+<main class="wrap"><div class="head"><div><p class="eyebrow">How the home page’s number is made</p>
+<h1 class="page">Popular projects, today</h1>
+<p class="sub lead">Every day we read the dependency files of {len(sc.projects)} popular open-source projects and check them
+against the limbo feed. On {E(stamp(sc.scanned_at))}: <strong>{len(sc.ids):,} advisories in limbo, {len(sc.serious):,}
+high or critical</strong>, in {len(sc.affected)} of the {len(sc.read)} projects we could read.</p></div></div>
+<section class="s"><div class="two"><div class="prose">
+<h2 class="sm">How we count</h2><ul>
+<li><strong>Which projects.</strong> The <a href="{PROJECTS_FILE}">list</a> was chosen on 2026-11-15 for popularity, before
+we scanned it; five of the projects were also in an <a href="{COMPARE}">earlier comparison</a>. It includes projects with
+few advisories in limbo or none, and changes only in a commit of its own.</li>
+<li><strong>Which files.</strong> A shallow copy of each project’s default branch, only its lockfiles and the manifests next
+to them, without test fixtures and vendored code. OSV-Scanner lists the dependencies, as <span class="mono">limbowatch scan</span>
+reads them.</li>
+<li><strong>Which advisories.</strong> Each pinned version is matched against the day’s feed with the watcher’s own code.
+Only certain matches count, and only advisories that name a fixed version. An advisory counts once in the total, however
+many projects pin it.</li>
+<li><strong>Why scanners report none.</strong> Every one of them is waiting for GitHub’s review: not in GitHub’s reviewed
+database and not in OSV, which is what Dependabot, OSV-Scanner, npm audit and pip-audit read. We re-check that daily
+(<a href="/methodology/">methodology</a>).</li></ul>
+<h2 class="sm">What it doesn’t say</h2><ul>
+<li>A pinned version isn’t necessarily exploitable: the vulnerable code may not be used, and some of these files only build
+tests, docs or examples.</li>
+<li>It says nothing against these projects. Their maintainers can’t act on what their scanners don’t show; that’s the gap.</li>
+<li>Counts are by package name; <span class="mono">limbowatch scan</span> on the same files can find a few more, through
+source repositories.</li></ul>
+<p>Rerun it: clone a project and run <span class="mono">limbowatch scan .</span>. The numbers for every project, with
+each advisory’s ID: <a href="/popular/data.json">data.json</a> (CC BY 4.0).</p></div>
+<div><table class="eco"><thead><tr><th scope="col">Project</th><th scope="col">Commit</th><th scope="col" class="n">Dependencies</th>
+<th scope="col" class="n">In limbo</th><th scope="col" class="n">High or critical</th></tr></thead><tbody>{rows}</tbody></table></div></div></section>
+</main>
+{footer()}"""
+    return page(
+        "Popular projects, today · limbo.watch",
+        f"{len(sc.ids):,} advisories in limbo in the dependency files of {len(sc.read)} popular open-source projects, which "
+        "scanners reading GitHub’s database or OSV don’t report yet.",
+        body,
+        "/popular/",
+    )
+
+
+def home(items: list[Item], m: dict[str, Any], now: datetime, proof: Proof | None = None,
+         showcase: Showcase | None = None) -> str:  # fmt: skip
     li, cov = m["in_limbo"], m["coverage"]
     flow = m.get("flow_7d") or {}
     pend = pending(items)
@@ -1223,10 +1366,10 @@ the databases Dependabot, npm audit and OSV-Scanner read. <a href="/tracker/?fix
 Until GitHub reviews them, nothing alerts you, so nothing gets upgraded. Limbowatch finds the ones in your dependencies.</p>
 <div class="hx-cta"><a class="btn light" href="#fix">Add it to your CI</a><a class="btn ghost" href="/check/">Check a package</a></div>
 <p class="hx-meta">Live count, re-checked daily, updated {E(updated)}.</p></div>
-{proof_pair(proof)}
+{showcase_pair(showcase) or proof_pair(proof)}
 </section></div>
 <main>
-{examples_section(items, now)}
+{showcase_section(showcase, now) or examples_section(items, now)}
 <section class="wrap s" id="gap"><div class="intro"><h2>What happens after a maintainer publishes an advisory</h2>
 <p class="sub">One advisory, day by day, at October 2026’s median wait for review: {REVIEW_MEDIAN} days. Drag the slider,
 or press play.</p></div>
@@ -2574,6 +2717,7 @@ SITEMAP_PAGES = [
     "/scan/",
     "/feed/",
     "/methodology/",
+    "/popular/",
     "/press/",
     "/why/",
     "/quality/",
@@ -2657,6 +2801,7 @@ def build(
     sample: dict[str, Any] | None = None,
     analytics_id: str | None = None,
     proof: Proof | None = None,
+    showcase: Showcase | None = None,
 ) -> dict[str, str]:
     """Every page of the site, keyed by its path under the output directory. With a GA4 measurement ID,
     every page loads Google Analytics behind a consent banner."""
@@ -2672,7 +2817,7 @@ def build(
     was_in_limbo = {e["ghsa_id"] for e in events if e["event"].startswith("in limbo -> ")}
     with_page = [i for i in items if i.assessment.status is Status.LIMBO or i.adv.ghsa_id in was_in_limbo]
     out = {
-        "index.html": home(items, metrics, now, proof),
+        "index.html": home(items, metrics, now, proof, showcase),
         "tracker/index.html": tracker(metrics, data),
         "tracker/data.json": json.dumps(data, separators=(",", ":")),
         "check/index.html": check_page(metrics),
@@ -2702,6 +2847,11 @@ def build(
             "Critical and high security advisories published on GitHub that scanners can’t see yet.",
         ),
         **sitemaps({i.adv.ghsa_id: _changed(i, by_ghsa.get(i.adv.ghsa_id, []), now) for i in with_page}, now),
+        **(
+            {"popular/index.html": popular(showcase), "popular/data.json": popular_data(showcase)}
+            if showcase is not None and showcase.read
+            else {}
+        ),
         "robots.txt": ROBOTS,
         "assets/site.css": CSS,
         "assets/tracker.js": TRACKER_JS,

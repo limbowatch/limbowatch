@@ -1,0 +1,54 @@
+# Lists the dependencies of the popular projects the home page counts (tracker/showcase/projects.txt, FINDINGS F-203)
+# and keeps them as an artifact; the site build matches them against the feed it publishes (site.yml). Daily, before
+# the tracker and the site build after it. Read-only: no secrets, no writes, only public clones from GitHub.
+name: showcase
+
+on:
+  schedule:
+    - cron: "41 4 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "tracker/showcase/**"
+      - "scripts/showcase.py"
+      - ".github/workflows/showcase.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: showcase
+  cancel-in-progress: false
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      OSV_SCANNER: "2.7.1"
+      # osv-scanner_linux_amd64 of that release (its osv-scanner_SHA256SUMS), pinned here so a swapped release file fails
+      OSV_SCANNER_SHA256: fb7dab19a8bd9bbe5c3189f09d4b7ee1820c9553a23bac202648a56efd2f6ee8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: OSV-Scanner
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/bin/osv-scanner" \
+            "https://github.com/google/osv-scanner/releases/download/v$OSV_SCANNER/osv-scanner_linux_amd64"
+          echo "$OSV_SCANNER_SHA256  $RUNNER_TEMP/bin/osv-scanner" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/bin/osv-scanner"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: List the dependencies
+        run: |
+          uv run --frozen --no-dev --package limbowatch python scripts/showcase.py \
+            --projects tracker/showcase/projects.txt --out "$RUNNER_TEMP/showcase.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: showcase
+          path: ${{ runner.temp }}/showcase.json
+          retention-days: 7
+          if-no-files-found: error

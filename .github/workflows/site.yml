@@ -31,8 +31,10 @@ jobs:
     environment: site
     # Signs build provenance for the feed files (F-191): id-token mints the Sigstore certificate, attestations
     # stores the attestation, artifact-metadata its record.
+    # actions: read fetches the showcase workflow's artifact (the popular projects' dependencies, F-203).
     permissions:
       contents: read
+      actions: read
       id-token: write
       attestations: write
       artifact-metadata: write
@@ -59,12 +61,27 @@ jobs:
             echo "::warning title=site::the live feed/all.zip didn't verify; every record's modified is the build time"
             rm -f "$prev"
           fi
+      # The popular projects' dependencies from the latest successful showcase run on main. Without them the home page
+      # shows the proof repository instead.
+      - name: Showcase
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run=$(gh run list -R "${{ github.repository }}" --workflow showcase.yml --branch main --status success \
+                --limit 1 --json databaseId -q '.[0].databaseId')
+          if [ -n "$run" ] && gh run download "$run" -R "${{ github.repository }}" -n showcase -D "$RUNNER_TEMP/showcase"; then
+            echo "showcase: run $run"
+          else
+            echo "::warning title=site::no showcase artifact; the home page shows the proof repository"
+          fi
       - name: Publish
         env:
           LIMBOWATCH_GA_ID: ${{ vars.LIMBOWATCH_GA_ID }}  # repository variable; empty means no analytics
         run: |
+          extra=()
+          if [ -f "$RUNNER_TEMP/showcase/showcase.json" ]; then extra=(--showcase "$RUNNER_TEMP/showcase/showcase.json"); fi
           uv run limbowatch publish --state tracker-data/state --out "$RUNNER_TEMP/site" \
-            --previous-feed "$RUNNER_TEMP/previous-all.zip"
+            --previous-feed "$RUNNER_TEMP/previous-all.zip" "${extra[@]}"
       # Anyone can check that a downloaded feed file is exactly what this workflow built from main, independently of
       # limbo.watch and Cloudflare: gh attestation verify <file> --repo limbowatch/limbowatch (docs/WATCHER.md).
       - name: Attest the feed

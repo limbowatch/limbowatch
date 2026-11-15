@@ -1,0 +1,60 @@
+# Popular open-source projects whose dependency files the site scans every day (FINDINGS F-203).
+# Chosen on 2026-11-15 for popularity, before the list was scanned; five (langchain, n8n, open-webui, gitea, kubernetes)
+# were also in the 13-project comparison (F-112). It includes projects with few or no advisories in limbo. Change it
+# only in a commit of its own that says why, so the number can't be tuned by choosing.
+# One GitHub repository per line (owner/name).
+langchain-ai/langchain
+n8n-io/n8n
+open-webui/open-webui
+langgenius/dify
+danny-avila/LibreChat
+supabase/supabase
+immich-app/immich
+home-assistant/core
+apache/superset
+apache/airflow
+mastodon/mastodon
+discourse/discourse
+grafana/grafana
+go-gitea/gitea
+TryGhost/Ghost
+strapi/strapi
+directus/directus
+toeverything/AFFiNE
+excalidraw/excalidraw
+nocodb/nocodb
+twentyhq/twenty
+calcom/cal.com
+mattermost/mattermost
+RocketChat/Rocket.Chat
+zulip/zulip
+getsentry/sentry
+PostHog/posthog
+appsmithorg/appsmith
+outline/outline
+payloadcms/payload
+hoppscotch/hoppscotch
+saleor/saleor
+netbox-community/netbox
+paperless-ngx/paperless-ngx
+jupyterlab/jupyterlab
+streamlit/streamlit
+gradio-app/gradio
+vllm-project/vllm
+huggingface/transformers
+PrefectHQ/prefect
+run-llama/llama_index
+microsoft/autogen
+crewAIInc/crewAI
+browser-use/browser-use
+Significant-Gravitas/AutoGPT
+lobehub/lobe-chat
+mem0ai/mem0
+coollabsio/coolify
+nextcloud/server
+kubernetes/kubernetes
+traefik/traefik
+gohugoio/hugo
+caddyserver/caddy
+ollama/ollama
+prometheus/prometheus

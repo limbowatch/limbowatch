@@ -3115,6 +3115,26 @@ Answered:
 - **Implication:** Worker changes deploy from `main` after a maintainer approves the `worker` environment; Cache-Control comes from the object the site sync stores, so cache changes need no Worker deploy.
 - **Sources:** the runs above; Cloudflare dashboard token review page.
 
+### F-203
+- **Date:** 2026-11-15 · **Status:** confirmed (direct observation; one day, 55 projects)
+- **Question:** For the home page: in the dependency files of popular open-source projects, how many advisories in limbo are there today, and can the site count them daily?
+- **Method:**
+  - 55 popular projects on GitHub, listed in `tracker/showcase/projects.txt` before scanning (5 were also in [F-112](#f-112)).
+  - `scripts/showcase.py`: a shallow, blob-less clone of each default branch's lockfiles and manifests (test fixtures, `vendor`, `node_modules` left out), OSV-Scanner 2.7.1's inventory (`limbowatch.inventory.osv_scanner.run`, no Maven resolution).
+  - `limbowatch.publish.showcase.counts`: every dependency through `watch.match` against the live feed of 2026-11-15 07:41 UTC; certain findings with a fixed version only; by package name (no source-repo matching).
+  - Live re-checks of the three most widely pinned packages' advisories: `GET /repos/{repo}/security-advisories/{ghsa}`, `GET /advisories/{ghsa}`, OSV `GET /v1/vulns/{ghsa}`.
+- **Result:**
+  - All 55 read: 127,535 distinct dependencies (package and version per project), in 19.6 min on a laptop (CPU-bound parsing; 6 processes).
+  - **627 advisories in limbo, 261 critical or high, in 54 of the 55 projects.** Most: PostHog 192, AutoGPT 115, llama_index 100, Grafana 86, Payload 84, cal.com 83, n8n 82. Fewest: Kubernetes 1, browser-use 1, Caddy 4; huggingface/transformers 0.
+  - Most widely pinned with a critical or high advisory: brace-expansion (43 of 55 projects; GHSA-6jwq-xf8q-xcwh, high, published 2026-11-11), ws (42; GHSA-37g9-w4hg-h9qr, high, 2026-11-12), vite (38; GHSA-p4f5-76q4-ffq7, critical, 2026-11-10). All three are published by their maintainers, not reviewed, not in OSV.
+  - An earlier pass the same day with `limbowatch scan --no-upstream` per project gave the same numbers for Gitea (30), Caddy (4) and open-webui (61), and more for some others (PostHog 204, Kubernetes 3): `scan` also counts possible matches' advisories and reads each lockfile on its own.
+- **Caveats:**
+  - A pinned version isn't necessarily exploitable; dev, test, docs and example lockfiles count.
+  - Name matching only: `limbowatch scan` also matches through source repositories and can find more.
+  - The most widely pinned advisories are days old and may be reviewed soon; the counts are a daily snapshot.
+- **Implication:** the home page now shows this count (critical and high, with the total), the most widely pinned packages as cards, and `/popular/` with every project, its commit and its advisory IDs. The `showcase` workflow refreshes the inventory daily; the site build recounts it against each feed; audit check 12 verifies it.
+- **Sources:** GitHub (clones, REST API); OSV API; https://limbo.watch/feed/all.zip.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

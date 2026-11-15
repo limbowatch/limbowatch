@@ -93,6 +93,15 @@ It runs daily at 06:17 UTC (and on manual dispatch). The first run also download
 - **`GITHUB_TOKEN`** allows 1,000 requests/hour, and its ETags probably don't carry over between runs (FINDINGS F-058, Q11). So most repos cost a full request every day.
 - **A fine-grained PAT** stored as the `LIMBOWATCH_GITHUB_TOKEN` secret (public repositories, read-only, no extra permissions) allows 5,000/hour, and its ETags stay valid, so unchanged repos are free. Recommended.
 
+## Popular projects (home page)
+
+The home page's number counts the advisories in limbo in the dependency files of the popular projects in
+[`showcase/projects.txt`](showcase/projects.txt) (FINDINGS F-203). The `showcase` workflow runs daily at 04:41 UTC: a
+shallow clone of each project's lockfiles and manifests, OSV-Scanner's inventory, kept as an artifact for 7 days
+(`scripts/showcase.py`). The site build fetches the latest one and matches it against the feed it publishes with the
+watcher's own code, so the page and `/popular/` agree with that feed. Without an artifact the home page shows the proof
+repository instead. `scripts/audit.py` check 12 recounts it against the live feed.
+
 ## What it doesn't see
 
 - **Repos outside the watchlist.** GitHub has no global list of repository advisories, so the tracker sees only repos on its watchlist: where reviewed advisories originated, the seed lists, and repos named in GitHub-assigned CVEs. **Every number is a floor.**

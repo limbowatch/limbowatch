@@ -34,6 +34,7 @@ from limbowatch.publish import all_events, dumps, items, metrics, repos_with_adv
 from limbowatch.publish import feed as feed_mod
 from limbowatch.publish import proof as proof_mod
 from limbowatch.publish import report as report_mod
+from limbowatch.publish import showcase as showcase_mod
 from limbowatch.publish import site as site_mod
 from limbowatch.sources import osv as osv_source
 from limbowatch.sources.releases import read_maven_packages
@@ -95,6 +96,20 @@ def _token() -> str | None:
         )
     except (OSError, subprocess.CalledProcessError):
         return None
+
+
+def _showcase(path: Path | None, records: list[dict[str, Any]]) -> showcase_mod.Showcase | None:
+    if path is None:
+        return None
+    try:
+        sc = showcase_mod.counts(records, json.loads(path.read_text()))
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        typer.echo(f"warning: showcase {path} not read ({type(e).__name__}); the home page shows the proof repository",
+                   err=True)  # fmt: skip
+        return None
+    typer.echo(f"showcase: {len(sc.ids):,} advisories in limbo ({len(sc.serious):,} high or critical) in "
+               f"{len(sc.affected)} of {len(sc.read)} projects read, of {len(sc.projects)}", err=True)  # fmt: skip
+    return sc
 
 
 def _load(state: Path) -> Store:
@@ -193,6 +208,14 @@ def publish(
             "Without it, or if it can't be read, every record's `modified` is now."
         ),
     ] = None,
+    showcase: Annotated[
+        Path | None,
+        typer.Option(
+            help="The popular projects' dependencies (scripts/showcase.py): the home page counts them against this "
+            "feed and /popular/ lists them. Without it, or if it can't be read, the home page shows the proof "
+            "repository."
+        ),
+    ] = None,
 ) -> None:
     """Write the site, feed (all.zip, index.json, one JSON per record) and metrics.json from the state."""
     store = _load(state)
@@ -253,6 +276,7 @@ def publish(
         sample=sample,
         analytics_id=analytics_id or None,
         proof=proof_mod.counts(records),
+        showcase=_showcase(showcase, records),
     ).items():
         (out / path).parent.mkdir(parents=True, exist_ok=True)
         (out / path).write_text(text)
