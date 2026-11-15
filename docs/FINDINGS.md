@@ -3158,6 +3158,19 @@ Answered:
 - **Implication:** a normal month is about 15% of the free Class A allowance. The risk was stylesheet changes, at 26,000 to 52,000 uploads each; `site.css` and `analytics.js` are now linked without a version, so a stylesheet change uploads one file. Browsers may pair a new page with the old stylesheet for at most the 5-minute cache. The deploy that drops the version uploads every page once more.
 - **Sources:** the site.yml run logs; Cloudflare R2 pricing page.
 
+### F-206
+- **Date:** 2026-11-15 · **Status:** confirmed (direct observation)
+- **Question:** One day after the switch to R2 ([F-184](#f-184)), how close is limbo.watch to any Cloudflare free-tier limit?
+- **Method:** Cloudflare dashboard, read 2026-11-15 about 13:00 PST: R2 overview (billing period usage) and bucket `limbowatch-site` metrics, Worker `limbowatch-site` metrics, Workers & Pages usage, zone limbo.watch Analytics → Requests. All "last 24 hours" unless noted.
+- **Result:**
+  - **R2, billing period 2026-11-14 to 12-14 so far (account-wide):** Class A 120,710 of 1 million (12%), Class B 34,630 of 10 million, storage 611 MB of 10 GB; billable usage **$0.00**. The account holds two other buckets (about 153 MB), so not all of it is this site.
+  - **R2, bucket, last 24 hours:** 457.7 MB, 52,260 objects; Class A 64,670 (two deploy spikes of about 27,000 and 21,000, the uploads of every page in [F-205](#f-205)); Class B 19,660; errors 1,370 (404 1,370, 503 1).
+  - **Worker** (`/osv/*`): 91 invocations, 0 errors, median CPU 1.29 ms. **Account Workers usage today: 105 of 100,000** requests (three Workers on the account).
+  - **Zone:** 32,880 requests (down 47.7% on the day before), 2.9 GB, 5,070 visits, 5xx 0%. Status: 2xx 17,690, **3xx 13,790**, 4xx 1,400. Cache: none 13,640, miss 13,120, expired 3,010, revalidated 2,760, hit 327 (hit rate 9.4%). Top paths: `/tracker/` 263, `/` 242, `/feed/all.zip` 165, `/feed/watchlist.json` 114, `/feed/critical.atom` 97. Countries: US 29,470, Singapore 1,720.
+- **Caveats:** one day, and a deploy day with two full uploads. Free-plan analytics may be sampled. Where the 3xx come from (slash, www or HTTP→HTTPS redirects) wasn't examined.
+- **Implication:** nothing is near a limit. At about 20,000 Class B a day, a month is about 600,000 (6% of free); cache misses are the long tail of 52,000 pages crawled under a 5-minute cache, which costs reads, not money. The only allowance that can run out is Class A, and only through repeated full uploads (about 52,000 each; about 17 a month on top of the daily 3,100 would pass 1 million). Past a free allowance R2 bills ($4.50 per million Class A) rather than blocking, so the site wouldn't go down; a budget alert on the account would show it. The Worker uses 0.1% of its daily limit and fails open.
+- **Sources:** Cloudflare dashboard for the account and zone (not public).
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
