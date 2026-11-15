@@ -111,11 +111,14 @@
   "http_request_cache_settings": [
     {
       "ref": "limbowatch-cache",
-      "description": "cache everything, for each file's own max-age",
+      "description": "cache everything, for each file's own Cache-Control; browsers get it too, not the zone's 4 hours (F-197)",
       "expression": "http.host in $HOSTS",
       "action": "set_cache_settings",
       "action_parameters": {
-        "cache": true
+        "cache": true,
+        "browser_ttl": {
+          "mode": "respect_origin"
+        }
       }
     }
   ]

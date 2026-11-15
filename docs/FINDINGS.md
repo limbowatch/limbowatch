@@ -3025,6 +3025,17 @@ Answered:
 - **Implication:** a deploy no longer fails scans. A scan uses only a pair from one build, verified, or its own cached pair verified before.
 - **Sources:** the review, tests and runs above.
 
+### F-197
+- **Date:** 2026-11-15 · **Status:** confirmed (direct observation)
+- **Question:** After [F-196](#f-196), what cache headers do clients actually get for the feed pair?
+- **Method:** `curl -D -` on `feed/all.zip`, `feed/watchlist.json`, `osv/PyPI/all.zip` and `assets/site.css` after the `site` run on cc72cb1, which uploaded the pair last with `Cache-Control: no-cache` ("r2: 94 uploaded"). Then added `browser_ttl: respect_origin` to the zone's cache rule (`cf_rules.py`) and checked again.
+- **Result:**
+  - Before the rule change, the edge revalidated the pair (`cf-cache-status: REVALIDATED`, `EXPIRED`), but clients got `cache-control: max-age=14400`: the zone's "Browser Cache TTL: 4 hours" replaced the files' own headers. The site had sent that with nginx too.
+  - After it (within about a minute): the pair `cache-control: no-cache`, `assets/site.css` `max-age=300`; `osv/PyPI/all.zip` `max-age=300`, from the Worker. Both pair files `last-modified: 07:33:40 GMT`, the same second.
+- **Caveats:** a client or proxy that ignores `no-cache` is out of our hands; the watcher's retry and verified-pair fallback cover it.
+- **Implication:** a caching proxy at a customer site can't keep an old `all.zip` for 4 hours next to a new watchlist. The cache rule in the repo now carries this setting.
+- **Sources:** the requests above; `deploy/cloudflare/rules.json`.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
