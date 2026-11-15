@@ -7,12 +7,14 @@ Nothing about the project is sent to limbo.watch: the feed and watchlist are dow
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+import zipfile
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
-from limbowatch.http import HttpClient
+from limbowatch.http import HttpClient, ResponseTooLarge
 from limbowatch.models import (
     Dependency,
     Finding,
@@ -22,14 +24,18 @@ from limbowatch.models import (
     Upstream,
     UpstreamKind,
 )
-from limbowatch.watch import mapping, upstream
+from limbowatch.watch import feedtrust, mapping, upstream
 from limbowatch.watch import upstream_check as upcheck
-from limbowatch.watch.candidates import Index, from_feed_zip
+from limbowatch.watch.candidates import FeedTooLarge, Index, from_feed_zip
 from limbowatch.watch.match import match
 from limbowatch.watch.registries import Registries
 
 FEED_URL = "https://limbo.watch/feed/all.zip"
 WATCHLIST_URL = "https://limbo.watch/feed/watchlist.json"
+# Download caps (FINDINGS F-192): on 2026-11-14 the feed was 25 MB and the watchlist 3 MB.
+FEED_MAX_BYTES = 500_000_000
+WATCHLIST_MAX_BYTES = 100_000_000
+VERIFY_MODES = ("auto", "require", "off")
 # A tracker check older than this and the watcher checks the repo itself. The tracker re-checks quiet repos only
 # every 30 days (and after releases, F-104), so a project's own dependencies get fresher checks here (F-071).
 STALE = timedelta(days=10)
@@ -45,14 +51,17 @@ class ScanResult:
     stats: dict[str, int] = field(default_factory=dict)
 
 
-async def fetch(http: HttpClient, url: str, cache: Path | None) -> bytes:
-    """Download `url`, reusing a cached copy while its ETag still matches."""
+async def fetch(http: HttpClient, url: str, cache: Path | None, max_bytes: int = FEED_MAX_BYTES) -> bytes:
+    """Download `url`, reusing a cached copy while its ETag still matches. A response over `max_bytes` is refused."""
     body = etag = None
     if cache is not None:
         f, t = cache / Path(url).name, cache / (Path(url).name + ".etag")
         if f.exists() and t.exists():
             body, etag = f.read_bytes(), t.read_text().strip() or None
-    r = await http.get(url, etag=etag, raw=True)
+    try:
+        r = await http.get(url, etag=etag, raw=True, max_bytes=max_bytes)
+    except ResponseTooLarge as e:
+        raise RuntimeError(f"{e}: far larger than the real feed, so it wasn't used") from e
     if r.status == 304 and body is not None:
         return body
     if not r.ok or not isinstance(r.body, bytes):
@@ -64,6 +73,34 @@ async def fetch(http: HttpClient, url: str, cache: Path | None) -> bytes:
         (cache / Path(url).name).write_bytes(r.body)
         (cache / (Path(url).name + ".etag")).write_text(r.etag or "")
     return r.body
+
+
+async def load_feed(
+    http: HttpClient, cache: Path | None, verify: str, warn: Callable[[str], None]
+) -> tuple[bytes, dict[str, Any]]:
+    """The feed's all.zip and watchlist, each checked against its build attestation (`verify`: auto, require or off).
+
+    A file GitHub doesn't vouch for is refused (RuntimeError). If GitHub can't be asked, `auto` warns and goes on,
+    `require` refuses (FINDINGS F-192)."""
+    feed = await fetch(http, FEED_URL, cache)
+    watchlist = await fetch(http, WATCHLIST_URL, cache, WATCHLIST_MAX_BYTES)
+    if verify != "off":
+        for name, data in (("feed/all.zip", feed), ("feed/watchlist.json", watchlist)):
+            verdict, why = await feedtrust.verify(http, data, cache)
+            if verdict is feedtrust.Verdict.REJECTED:
+                raise RuntimeError(
+                    f"the limbo feed's {name} failed verification ({why}), so it wasn't used. It may have been "
+                    "tampered with: SECURITY.md says how to report it. --verify-feed off skips this check."
+                )
+            if verdict is feedtrust.Verdict.UNKNOWN:
+                if verify == "require":
+                    raise RuntimeError(f"the limbo feed's {name} couldn't be verified ({why}); --verify-feed require")
+                warn(f"limbowatch: couldn't verify the limbo feed's {name} ({why}); using it unverified")
+    try:
+        doc = json.loads(watchlist)
+    except ValueError as e:
+        raise RuntimeError(f"the limbo feed's watchlist isn't JSON: {e}") from e
+    return feed, doc if isinstance(doc, dict) else {}
 
 
 @dataclass
@@ -95,7 +132,11 @@ async def prepare(
     osv_commits: bool = True,
 ) -> Shared:
     index = Index()
-    for c in from_feed_zip(feed_zip):
+    try:
+        candidates = from_feed_zip(feed_zip)
+    except (FeedTooLarge, zipfile.BadZipFile) as e:  # a clean error (exit 2), not a traceback
+        raise RuntimeError(f"the limbo feed couldn't be read: {e}") from e
+    for c in candidates:
         index.add(c)
     sh = Shared(index, upstream_check=upstream_check)
     if upstream_check:

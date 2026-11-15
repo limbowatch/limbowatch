@@ -98,13 +98,14 @@ def test_security_and_data_names_every_host_and_option() -> None:
     from urllib.parse import urlsplit
 
     from limbowatch.sources import cve, github, osv
-    from limbowatch.watch import mapping, registries, scan, upstream_check
+    from limbowatch.watch import feedtrust, mapping, registries, scan, upstream_check
 
     doc = (Path(__file__).resolve().parent.parent / "docs/WATCHER.md").read_text()
     section = doc.split("## Security and data", 1)[1].split("\n## ", 1)[0]
     urls = [scan.FEED_URL, scan.WATCHLIST_URL, mapping.DEPS_DEV, mapping.RUBYGEMS, mapping.PACKAGIST,
             mapping.ECOSYSTEMS, mapping.MAVEN_CENTRAL, registries.BCR, registries.RAW, registries.CONAN_REMOTE,
-            github.API, cve.CVE_API, osv.API, upstream_check.CLONE_URL.format(repo="o/r")]  # fmt: skip
+            github.API, cve.CVE_API, osv.API, upstream_check.CLONE_URL.format(repo="o/r"),
+            feedtrust.ATTESTATIONS.format(digest="0")]  # fmt: skip
     for host in {urlsplit(u).hostname for u in urls}:
         assert host in section, f"{host} isn't listed in WATCHER.md's Security and data"
     cli = typer.main.get_command(app)

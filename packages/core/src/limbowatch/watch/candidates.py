@@ -71,10 +71,35 @@ def from_feed_record(r: dict[str, Any]) -> Candidate:
     return Candidate(adv, label, tuple(r.get("aliases") or ()), "feed")
 
 
+# What the watcher will unpack from the feed. On 2026-11-14 it held 25,782 records, 50.1 MB unpacked, the largest
+# 210 KB (FINDINGS F-192): these leave 20 times that or more, and stop a zip bomb before it fills a CI runner's memory.
+MAX_RECORDS = 500_000
+MAX_RECORD_BYTES = 5_000_000
+MAX_UNPACKED_BYTES = 1_000_000_000
+
+
+class FeedTooLarge(ValueError):
+    """The feed's zip is far larger than any real feed: refused before unpacking."""
+
+
 def from_feed_zip(data: bytes) -> list[Candidate]:
-    """Every record of the feed's `all.zip` (one `<GHSA>.json` per advisory in limbo)."""
+    """Every record of the feed's `all.zip` (one `<GHSA>.json` per advisory in limbo).
+
+    The zip's own listing is checked against the limits first, and each record is read at most to its limit (a
+    record can't unpack to more than its listed size), so a tampered feed can't exhaust memory."""
     with zipfile.ZipFile(io.BytesIO(data)) as z:
-        return [from_feed_record(json.loads(z.read(n))) for n in z.namelist() if n.endswith(".json")]
+        records = [i for i in z.infolist() if i.filename.endswith(".json")]
+        if len(records) > MAX_RECORDS:
+            raise FeedTooLarge(f"the feed has {len(records):,} records; more than {MAX_RECORDS:,} isn't a real feed")
+        if (total := sum(i.file_size for i in records)) > MAX_UNPACKED_BYTES:
+            raise FeedTooLarge(f"the feed unpacks to {total:,} bytes; over {MAX_UNPACKED_BYTES:,} isn't a real feed")
+        out = []
+        for i in records:
+            if i.file_size > MAX_RECORD_BYTES:
+                raise FeedTooLarge(f"{i.filename} is {i.file_size:,} bytes; no real record is that big")
+            with z.open(i) as f:
+                out.append(from_feed_record(json.loads(f.read(MAX_RECORD_BYTES + 1))))
+        return out
 
 
 @dataclass

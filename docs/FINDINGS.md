@@ -2919,6 +2919,26 @@ Answered:
 - **Implication:** downloads are HTTPS-only, and any copy can be checked against a signature that doesn't depend on the website, R2 or Cloudflare. Still to do: the watcher should verify the feed's attestation before using it, and cap what it reads from the zip (next release). The org should require 2FA.
 - **Sources:** the commands and runs above; `integrations/action/install.sh`, `limbowatch/http.py`, `watch/candidates.py`, `watch/output.py`, `publish/check.js`.
 
+### F-192
+- **Date:** 2026-11-15 · **Status:** confirmed (direct observation; tests on recorded fixtures)
+- **Question:** Can the watcher itself refuse a feed that isn't ours, and stay within a real feed's size, before customers rely on it?
+- **Method:**
+  - `GET https://api.github.com/repos/limbowatch/limbowatch/attestations/sha256:<digest>` for the live `feed/all.zip`, without a token; the answer is recorded as `tests/fixtures/attestations/feed_all_zip.json`.
+  - Measured the live zip: size, records, largest record.
+  - Built `watch/feedtrust.py`, the download cap in `limbowatch.http` and the zip limits in `watch/candidates.py`, plus 8 tests (`tests/test_feedtrust.py`).
+  - Ran the new watcher on limbowatch/limbo-poc against limbo.watch, then dropped one advisory (GHSA-gqhc-vf4h-h7hg, critical) from its cached `all.zip` and ran it again. The server answers 304, so the altered cache is reused.
+- **Result:**
+  - The attestation API answers without a token (`x-ratelimit-limit: 60` an hour), with the Sigstore bundle. Its in-toto statement lists the 18 subjects by SHA-256, `predicateType` `https://slsa.dev/provenance/v1`, `externalParameters.workflow` = `{repository: https://github.com/limbowatch/limbowatch, path: .github/workflows/site.yml, ref: refs/heads/main}`, and builder `…/site.yml@refs/heads/main`.
+  - Live feed: 25.1 MB, 25,782 records, 50.1 MB unpacked, largest record 210.4 KB. The limits: downloads 500 MB (watchlist 100 MB), counted after decompression; 500,000 records, 5 MB each, 1 GB unpacked, checked from the zip's listing before unpacking.
+  - **Normal scan:** both files verified (2 digests cached), 103 findings, the same as before. **Tampered cache:** "the limbo feed's feed/all.zip failed verification (GitHub has no attestation for it), so it wasn't used", exit 2.
+  - Tests: a statement for another file, workflow, ref, fork or predicate type is refused. 404 is refused; 5xx, 403 or 429 rate limits are "unknown", answered without waiting. `auto` warns and goes on when GitHub can't be reached; `require` refuses; `off` asks nothing. A verified digest isn't asked again. A gzip response that unpacks past the cap is stopped, as are zips over each limit.
+- **Caveats:**
+  - The watcher trusts GitHub's API, over TLS, for the signature: it checks the statement GitHub stored, not the Sigstore certificate chain, which `gh attestation verify` does.
+  - The unauthenticated limit is 60 lookups an hour per address. A scan asks only for a feed it hasn't verified before (about once a day per cache), and uses `GITHUB_TOKEN` when set.
+  - Pinned old releases don't verify; customers get this from the next release.
+- **Implication:** a feed swapped anywhere between our build and the customer's runner (R2, Cloudflare, the network, or the runner's cache) is refused rather than used to under-report. The WATCHER.md hosts table now lists api.github.com for verification (`--verify-feed off` removes it), so "feed only" means limbo.watch and api.github.com unless verification is off.
+- **Sources:** the API answer and runs above; `tests/test_feedtrust.py`.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

@@ -335,6 +335,10 @@ def _check_osv_scanner(binary: str) -> None:
         typer.echo(f"warning: tested with osv-scanner {osv_scanner.TESTED_VERSION}, found {found}", err=True)
 
 
+def _warn(msg: str) -> None:
+    typer.echo(msg, err=True)
+
+
 def _fail(msg: str) -> int:
     typer.echo(f"error: {msg}", err=True)
     return 2
@@ -412,6 +416,14 @@ def scan(
     ignore_file: Annotated[Path | None, typer.Option(help="File of accepted IDs, one per line, # comments.")] = None,
     upstream: Annotated[bool, typer.Option(help="Also check source repos the tracker doesn't cover.")] = True,
     cache: Annotated[Path | None, typer.Option(help="Where the feed is cached [default: ~/.cache/limbowatch].")] = None,
+    verify_feed: Annotated[
+        str,
+        typer.Option(
+            envvar="LIMBOWATCH_VERIFY_FEED",
+            help="Check the feed against its signed build attestation on GitHub: auto (refuse a feed GitHub doesn't "
+            "vouch for; warn if GitHub can't be reached), require (refuse in both cases) or off.",
+        ),
+    ] = "auto",
     binary: Annotated[str, typer.Option("--osv-scanner", help="OSV-Scanner executable.")] = "osv-scanner",
     verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Show the evidence for every finding.")] = False,
     scan_ignored: Annotated[bool, typer.Option(help="Also read lockfiles a .gitignore excludes.")] = False,
@@ -438,6 +450,8 @@ def scan(
 
     Exit codes: 0 passed, 1 a finding at or above --fail-on, 2 an error (nothing was judged).
     """
+    if verify_feed not in watch_scan.VERIFY_MODES:
+        raise typer.BadParameter(f"--verify-feed wants {', '.join(watch_scan.VERIFY_MODES)}, not {verify_feed!r}")
     if fail_on not in (*output.SEVERITIES, "none"):
         raise typer.BadParameter(f"--fail-on wants one of {', '.join((*output.SEVERITIES, 'none'))}, not {fail_on!r}")
     if color not in ("auto", "always", "never"):
@@ -463,8 +477,7 @@ def scan(
     async def run() -> tuple[watch_scan.ScanResult, str | None]:
         nonlocal changes
         async with HttpClient(_token()) as http:
-            feed = await watch_scan.fetch(http, watch_scan.FEED_URL, cache)
-            wl_doc = json.loads(await watch_scan.fetch(http, watch_scan.WATCHLIST_URL, cache))
+            feed, wl_doc = await watch_scan.load_feed(http, cache, verify_feed, _warn)
             res = await watch_scan.scan(inv, http, feed_zip=feed, watchlist=dict(wl_doc.get("repos") or {}),
                                         now=datetime.now(UTC), upstream_check=upstream, git_cache=cache,
                                         osv_commits=osv_commits)  # fmt: skip
@@ -765,6 +778,14 @@ def watch(
     ignore_file: Annotated[Path | None, typer.Option(help="File of accepted IDs, one per line, # comments.")] = None,
     upstream: Annotated[bool, typer.Option(help="Also check source repos the tracker doesn't cover.")] = True,
     cache: Annotated[Path | None, typer.Option(help="Where the feed is cached [default: ~/.cache/limbowatch].")] = None,
+    verify_feed: Annotated[
+        str,
+        typer.Option(
+            envvar="LIMBOWATCH_VERIFY_FEED",
+            help="Check the feed against its signed build attestation on GitHub: auto (refuse a feed GitHub doesn't "
+            "vouch for; warn if GitHub can't be reached), require (refuse in both cases) or off.",
+        ),
+    ] = "auto",
     binary: Annotated[str, typer.Option("--osv-scanner", help="OSV-Scanner executable.")] = "osv-scanner",
     jobs: Annotated[int, typer.Option(help="Projects cloned and inventoried at a time.")] = 4,
     resolve_maven: ResolveMaven = True,
@@ -789,6 +810,8 @@ def watch(
     projects. Run it on a schedule. Exit codes: 0 passed, 1 a project's findings meet --fail-on, 2 a source
     couldn't be listed or no project could be checked. LIMBOWATCH_SOURCE_TOKEN reads private groups.
     """
+    if verify_feed not in watch_scan.VERIFY_MODES:
+        raise typer.BadParameter(f"--verify-feed wants {', '.join(watch_scan.VERIFY_MODES)}, not {verify_feed!r}")
     if fail_on not in (*output.SEVERITIES, "none"):
         raise typer.BadParameter(f"--fail-on wants one of {', '.join((*output.SEVERITIES, 'none'))}, not {fail_on!r}")
     if color not in ("auto", "always", "never"):
@@ -824,8 +847,7 @@ def watch(
     async def run() -> org_output.OrgReport:
         async with HttpClient(_token()) as http:
             listings = await _list_sources(http, groups, orgs, gh_orgs, git or [], token, include_archived)
-            feed = await watch_scan.fetch(http, watch_scan.FEED_URL, cache)
-            wl_doc = json.loads(await watch_scan.fetch(http, watch_scan.WATCHLIST_URL, cache))
+            feed, wl_doc = await watch_scan.load_feed(http, cache, verify_feed, _warn)
             w = await org_mod.run(listings, http, feed_zip=feed, watchlist=dict(wl_doc.get("repos") or {}),
                                   now=datetime.now(UTC), inventory=take, token=token, exclude=exclude or [],
                                   upstream_check=upstream, jobs=jobs, git_cache=cache,

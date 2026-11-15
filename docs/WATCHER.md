@@ -102,13 +102,14 @@ Every format carries the CC BY 4.0 attribution for the advisory data. SARIF 2.1.
 | `--no-resolve-maven` | Don't send a `pom.xml`'s dependencies to deps.dev and Maven Central to resolve its transitive ones |
 | `--no-osv-commits` | Don't ask OSV about the commits the project pins for its upstream sources |
 | `--scan-ignored` | Also read lockfiles a `.gitignore` excludes, including an enclosing repo's (F-085) |
+| `--verify-feed auto\|require\|off` | Check the feed against its signed build attestation before using it (default `auto`; `LIMBOWATCH_VERIFY_FEED`). [Security and data](#security-and-data) |
 | `-v` | Show the evidence for every finding, and every dependency checked by name only |
 
 | Exit code | Meaning |
 |---|---|
 | **0** | Passed: nothing meets `--fail-on` |
 | **1** | Failed: at least one finding meets `--fail-on` |
-| **2** | Error: the scan couldn't run (no OSV-Scanner, no network, a bad option), so nothing was judged |
+| **2** | Error: the scan couldn't run (no OSV-Scanner, no network, a bad option, a feed that failed verification), so nothing was judged |
 
 When stdout isn't the table (`-f json`, `-q`), a one-line verdict goes to stderr, so CI logs still say why the job passed or failed.
 
@@ -287,6 +288,7 @@ The scan runs where your code already is, in your CI job or on your machine. It 
 | api.deps.dev, rubygems.org, repo.packagist.org, packages.ecosyste.ms, repo1.maven.org | Package names and versions, to find each package's source repository | `--no-upstream` |
 | api.deps.dev, repo.maven.apache.org, repo1.maven.org (from OSV-Scanner) | A `pom.xml`'s dependencies, to resolve the transitive ones | `--no-resolve-maven` |
 | bcr.bazel.build, raw.githubusercontent.com, center2.conan.io | Bazel module, vcpkg port and Conan package names (and the vcpkg baseline commit) | `--no-upstream` |
+| api.github.com | The SHA-256 of the feed and watchlist just downloaded, to check their build attestation (once per new feed) | `--verify-feed off` |
 | api.github.com | Names of source repositories the tracker hasn't checked in 10 days, to read their published advisories | `--no-upstream` |
 | github.com | Clones, commits and tags only, of upstream repositories that have advisories in limbo | `--no-upstream` |
 | cveawg.mitre.org | CVE IDs those repositories' advisories cite, to read their state | `--no-upstream` |
@@ -295,14 +297,21 @@ The scan runs where your code already is, in your CI job or on your machine. It 
 
 A GitHub token, when there is one, goes only to api.github.com; a tracker token only to your tracker. Every request carries the user agent `limbowatch/<version> (+https://limbo.watch)`.
 
-**Feed only.** `--no-upstream --no-resolve-maven` (without `--state` or `--issues`) contacts limbo.watch and nothing else: measured through a logging proxy on a project with npm, Go, Cargo, Python, Maven, Gradle and CMake dependencies (FINDINGS F-166). The price: a `pom.xml` gives only its direct dependencies, upstream sources and repositories the tracker doesn't watch aren't checked, and each is reported as such. Install time is separate: the image comes from ghcr.io (registry.gitlab.com for the GitLab component); `install: python` uses pypi.org and files.pythonhosted.org for the pinned dependencies, and github.com for OSV-Scanner and Limbowatch's own source.
+**Feed only.** `--no-upstream --no-resolve-maven` (without `--state` or `--issues`) contacts limbo.watch, and api.github.com to verify the feed (add `--verify-feed off` for limbo.watch alone), and nothing else: measured through a logging proxy on a project with npm, Go, Cargo, Python, Maven, Gradle and CMake dependencies (FINDINGS F-166). The price: a `pom.xml` gives only its direct dependencies, upstream sources and repositories the tracker doesn't watch aren't checked, and each is reported as such. Install time is separate: the image comes from ghcr.io (registry.gitlab.com for the GitLab component); `install: python` uses pypi.org and files.pythonhosted.org for the pinned dependencies, and github.com for OSV-Scanner and Limbowatch's own source.
 
 **What it can change.** Nothing, unless you turn on issues. It needs no token and no secrets; in GitHub Actions, `permissions: contents: read` is enough, and the action passes the scan a token only with `issues:` set (or one you set yourself). It writes reports where you point it, and its cache (the feed and upstream clones) under `~/.cache/limbowatch` or `--cache`.
 
 **How to verify it.**
 - **Read it.** The code is open source (Apache-2.0). Limbowatch's own requests all go through one module, `limbowatch.http`, the only one that imports an HTTP client; OSV-Scanner and git run as separate programs, with the options above.
 - **Pin what you read.** Pin the action to a commit SHA rather than a tag. Its default image is pinned by digest and attested by this repository: `gh attestation verify oci://ghcr.io/limbowatch/limbowatch:<tag> --owner limbowatch`. The PyPI packages are published with trusted publishing and carry build attestations: `gh attestation verify <file> -R limbowatch/limbowatch`.
-- **Check what it downloads.** The feed comes from limbo.watch over HTTPS only. Each build's `feed/all.zip`, `feed/watchlist.json`, `feed/index.json` and OSV zips carry a build attestation, signed through GitHub and Sigstore by the workflow that made them. That proof doesn't depend on the website, its host or Cloudflare. To verify a downloaded copy, or the one the scan cached under `~/.cache/limbowatch`: `gh attestation verify all.zip --repo limbowatch/limbowatch --signer-workflow limbowatch/limbowatch/.github/workflows/site.yml --source-ref refs/heads/main --deny-self-hosted-runners` (FINDINGS F-191).
+- **Check what it downloads.** The feed comes from limbo.watch over HTTPS only. Each build's `feed/all.zip`, `feed/watchlist.json`, `feed/index.json` and OSV zips carry a build attestation, signed through GitHub and Sigstore by the workflow that made them. That proof doesn't depend on the website, its host or Cloudflare.
+  - **The scan checks it before using the feed.** It looks up the SHA-256 of `all.zip` and `watchlist.json` in GitHub's attestation API and uses them only if an attestation from `limbowatch/limbowatch`'s `.github/workflows/site.yml` on `main` names them.
+    - A feed GitHub doesn't vouch for is refused, and the scan stops (exit 2), saying so.
+    - If GitHub can't be reached, the scan warns and goes on.
+    - `--verify-feed require` refuses in that case too; `--verify-feed off` (or `LIMBOWATCH_VERIFY_FEED=off`) skips the check.
+    - A feed verified once isn't looked up again, so an unchanged feed costs no request.
+  - **It never reads more than a real feed's size.** Downloads stop at 500 MB, the zip's own listing is checked before anything is unpacked (at most 500,000 records, 5 MB each, 1 GB in all), and a feed over those limits is refused (F-192).
+  - **To check a copy yourself**, including the one the scan cached under `~/.cache/limbowatch`, with the Sigstore signature checked too: `gh attestation verify all.zip --repo limbowatch/limbowatch --signer-workflow limbowatch/limbowatch/.github/workflows/site.yml --source-ref refs/heads/main --deny-self-hosted-runners` (F-191).
 - **Watch it.** Run it once behind a logging proxy (`HTTPS_PROXY`; Limbowatch, OSV-Scanner and git all honour it) and compare the hosts with the table above.
 
 **How to lock it down.**

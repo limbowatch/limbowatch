@@ -52,6 +52,14 @@ class DeadlineReached(Exception):
     """The run's wall-clock deadline has passed."""
 
 
+class ResponseTooLarge(Exception):
+    """A capped download (`get(..., max_bytes=…)`) was larger than its cap, counted after decompression."""
+
+    def __init__(self, url: str, max_bytes: int) -> None:
+        super().__init__(f"{url} is larger than {max_bytes:,} bytes")
+        self.url, self.max_bytes = url, max_bytes
+
+
 @dataclass
 class Response:
     status: int
@@ -117,10 +125,22 @@ class HttpClient:
         if self.deadline is not None and time.monotonic() > self.deadline:
             raise DeadlineReached
 
-    async def get(self, url: str, *, etag: str | None = None, json_body: Any = None, raw: bool = False) -> Response:
+    async def get(
+        self,
+        url: str,
+        *,
+        etag: str | None = None,
+        json_body: Any = None,
+        raw: bool = False,
+        max_bytes: int | None = None,
+        patient: bool = True,
+    ) -> Response:
         """GET (or POST with `json_body`). Returns status 304 with no body when `etag` still matches.
 
-        With `raw`, the body is the response bytes (e.g. a zip), and `etag` is sent to any host.
+        With `raw`, the body is the response bytes (e.g. a zip), and `etag` is sent to any host. `max_bytes` caps a
+        GET: the body is streamed and ResponseTooLarge raised once it passes the cap, so a huge or decompressing
+        response can't exhaust memory (FINDINGS F-192). `patient=False` returns a GitHub rate-limit answer at once
+        instead of waiting for the limit to reset.
         """
         self._check_deadline()
         host = urlsplit(url).hostname or ""
@@ -146,7 +166,7 @@ class HttpClient:
                 self._nvd_last = time.monotonic()
         sem = self._sems.get(host, self._default_sem)
         async with sem:
-            r = await self._send(url, headers, json_body, is_gh)
+            r = await self._send(url, headers, json_body, is_gh, max_bytes, patient)
         self.stats.requests[host] = self.stats.requests.get(host, 0) + 1
         if r is None:
             self.stats.failures += 1
@@ -235,19 +255,31 @@ class HttpClient:
         return Response(r.status_code, body, etag=r.headers.get("etag"), link=r.headers.get("link"),
                         scopes=r.headers.get("x-oauth-scopes"))  # fmt: skip
 
-    async def _send(self, url: str, headers: dict[str, str], json_body: Any, is_gh: bool) -> httpx.Response | None:
+    async def _send(
+        self,
+        url: str,
+        headers: dict[str, str],
+        json_body: Any,
+        is_gh: bool,
+        max_bytes: int | None = None,
+        patient: bool = True,
+    ) -> httpx.Response | None:
         for attempt in range(6):
             self._check_deadline()
             try:
-                if json_body is None:
-                    r = await self._client.get(url, headers=headers)
-                else:
+                if json_body is not None:
                     r = await self._client.post(url, headers=headers, json=json_body)
+                elif max_bytes is not None:
+                    r = await self._get_capped(url, headers, max_bytes)
+                else:
+                    r = await self._client.get(url, headers=headers)
             except httpx.HTTPError as e:
                 log.warning("http error", extra={"url": url, "error": type(e).__name__, "attempt": attempt})
                 await self._sleep(min(60, 2**attempt))
                 continue
             if is_gh and r.status_code in (403, 429):
+                if not patient:
+                    return r
                 if r.headers.get("x-ratelimit-remaining") == "0":
                     await self._wait_for_reset(r)
                     continue
@@ -257,10 +289,26 @@ class HttpClient:
             if r.status_code in (429, 500, 502, 503, 504):
                 await self._sleep(min(60, int(r.headers.get("retry-after", 2 ** (attempt + 1)))))
                 continue
-            if is_gh and int(r.headers.get("x-ratelimit-remaining", "1000")) < 20:
+            if is_gh and patient and int(r.headers.get("x-ratelimit-remaining", "1000")) < 20:
                 await self._wait_for_reset(r)
             return r
         return None
+
+    async def _get_capped(self, url: str, headers: dict[str, str], max_bytes: int) -> httpx.Response:
+        """A GET whose body is read at most `max_bytes` (after decompression) before ResponseTooLarge."""
+        async with self._client.stream("GET", url, headers=headers) as r:
+            declared = r.headers.get("content-length", "")
+            if declared.isdigit() and int(declared) > max_bytes and "content-encoding" not in r.headers:
+                raise ResponseTooLarge(url, max_bytes)
+            body = bytearray()
+            async for chunk in r.aiter_bytes():  # decoded: a compressed response counts at its real size
+                body += chunk
+                if len(body) > max_bytes:
+                    raise ResponseTooLarge(url, max_bytes)
+            # the body is decoded already, so the new response mustn't claim an encoding or the old length
+            dropped = ("content-encoding", "content-length")
+            kept = [(k, v) for k, v in r.headers.multi_items() if k.lower() not in dropped]
+            return httpx.Response(r.status_code, headers=kept, content=bytes(body), request=r.request)
 
     async def _space_write(self, host: str) -> None:
         lock = self._write_locks.setdefault(host, asyncio.Lock())

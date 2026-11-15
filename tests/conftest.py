@@ -19,3 +19,10 @@ def no_sleep() -> Any:
         return None
 
     return _sleep
+
+
+@pytest.fixture(autouse=True)
+def _feed_unverified(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Scan tests mock the feed but not GitHub's attestation API: verification is off unless a test turns it on
+    (tests/test_feedtrust.py does)."""
+    monkeypatch.setenv("LIMBOWATCH_VERIFY_FEED", "off")
