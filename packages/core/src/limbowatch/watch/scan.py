@@ -85,42 +85,83 @@ async def fetch(
 async def load_feed(
     http: HttpClient, cache: Path | None, verify: str, warn: Callable[[str], None], now: datetime | None = None
 ) -> tuple[bytes, dict[str, Any]]:
-    """The feed's all.zip and watchlist, checked against their build attestation (`verify`: auto, require or off):
-    GitHub must vouch for all.zip, and for the watchlist as part of the same build (FINDINGS F-192 to F-194).
+    """The feed's all.zip and watchlist, checked against their build attestation (`verify`: auto, require or off).
+    GitHub must vouch for the two as files of the same build (FINDINGS F-192 to F-195).
 
-    A pair GitHub doesn't vouch for is refused (RuntimeError) and its cached copies removed, so the next run downloads
-    them again. If GitHub can't be asked, `auto` warns and goes on, `require` refuses. A mix of builds that this run
-    caused itself (a download failed and an older cached copy stood in) is a warning in `auto`. A feed older than
-    STALE_FEED is a warning: an attacker could serve an old genuine pair, which verifies."""
-    stale: set[str] = set()
-    feed = await fetch(http, FEED_URL, cache, stale=stale)
-    watchlist = await fetch(http, WATCHLIST_URL, cache, WATCHLIST_MAX_BYTES, stale=stale)
-    try:
-        doc = json.loads(watchlist)
-    except ValueError as e:
-        raise RuntimeError(f"the limbo feed's watchlist isn't JSON: {e}") from e
-    doc = doc if isinstance(doc, dict) else {}
+    The two are handled as a pair: downloads are held in memory and written to the cache only once the pair passes,
+    so the cache always holds a pair that went together. If a download fails, the cached pair stands in, both files,
+    never one new file next to an old one. A pair GitHub doesn't vouch for, or a mixed pair, is refused (RuntimeError)
+    and the cache cleared. If GitHub can't be asked, `auto` warns and goes on, `require` refuses. A feed older than
+    STALE_FEED is a warning: an old build's pair still verifies."""
+    files = ((FEED_URL, FEED_MAX_BYTES), (WATCHLIST_URL, WATCHLIST_MAX_BYTES))
+    cached = {url: _cached(cache, url) for url, _ in files}
+    got: dict[str, tuple[bytes, str | None, bool]] = {}  # url -> (body, etag, downloaded now)
+    for url, cap in files:
+        old = cached[url]
+        try:
+            r = await http.get(url, etag=old[1] if old else None, raw=True, max_bytes=cap)
+        except ResponseTooLarge as e:
+            raise RuntimeError(f"{e}: far larger than the real feed, so it wasn't used") from e
+        if r.status == 304 and old is not None:
+            got[url] = (old[0], old[1], False)
+        elif r.ok and isinstance(r.body, bytes):
+            got[url] = (r.body, r.etag, True)
+        else:
+            if all(cached.values()):  # the last pair that went together, never a mix
+                warn(f"limbowatch: couldn't download {url} (HTTP {r.status}); using the cached copy of the feed")
+                got = {u: (c[0], c[1], False) for u, c in cached.items() if c}
+                break
+            raise RuntimeError(f"couldn't download {url}: HTTP {r.status}")
+    feed, watchlist = got[FEED_URL][0], got[WATCHLIST_URL][0]
     if verify != "off":
         result = await feedtrust.verify(http, feed, watchlist, cache)
-        if result.verdict is feedtrust.Verdict.REJECTED and not (result.mixed and stale and verify == "auto"):
-            for url in (FEED_URL, WATCHLIST_URL):
+        if result.verdict is feedtrust.Verdict.REJECTED:
+            for url, _ in files:
                 _forget(cache, url)
             raise RuntimeError(
                 f"the limbo feed failed verification ({result.why}), so it wasn't used. It may have been tampered "
                 "with: SECURITY.md says how to report it. --verify-feed off skips this check."
             )
-        if result.verdict is feedtrust.Verdict.REJECTED:
-            old = ", ".join(sorted("feed/" + Path(u).name for u in stale))
-            warn(f"limbowatch: couldn't download all of the limbo feed; the older cached {old} is from another build")
         if result.verdict is feedtrust.Verdict.UNKNOWN:
             if verify == "require":
                 raise RuntimeError(f"the limbo feed couldn't be verified ({result.why}); --verify-feed require")
             warn(f"limbowatch: couldn't verify the limbo feed ({result.why}); using it unverified")
+    try:
+        doc = json.loads(watchlist)
+    except (ValueError, RecursionError) as e:
+        for url, _ in files:
+            _forget(cache, url)
+        raise RuntimeError(f"the limbo feed's watchlist isn't readable JSON: {type(e).__name__}") from e
+    for url, (body, etag, fresh) in got.items():
+        if fresh:
+            _store(cache, url, body, etag)
+    doc = doc if isinstance(doc, dict) else {}
     generated = _parse_time(doc.get("generated_at"))
     if generated is not None and (now or datetime.now(UTC)) - generated > STALE_FEED:
         warn(f"limbowatch: the limbo feed is from {doc['generated_at']}, more than {STALE_FEED.days} days ago: "
              "newer advisories in limbo aren't in it")  # fmt: skip
     return feed, doc
+
+
+def _cached(cache: Path | None, url: str) -> tuple[bytes, str | None] | None:
+    """The cached copy of `url` and its ETag, or None (best effort: an unreadable cache is no cache)."""
+    if cache is None:
+        return None
+    f, t = cache / Path(url).name, cache / (Path(url).name + ".etag")
+    try:
+        return (f.read_bytes(), t.read_text().strip() or None) if f.exists() and t.exists() else None
+    except OSError:
+        return None
+
+
+def _store(cache: Path | None, url: str, body: bytes, etag: str | None) -> None:
+    """Keep a verified download (best effort: a cache that can't be written costs a download next time)."""
+    if cache is None:
+        return
+    with contextlib.suppress(OSError):
+        cache.mkdir(parents=True, exist_ok=True)
+        (cache / Path(url).name).write_bytes(body)
+        (cache / (Path(url).name + ".etag")).write_text(etag or "")
 
 
 def _parse_time(value: object) -> datetime | None:

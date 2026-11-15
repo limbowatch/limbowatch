@@ -126,7 +126,7 @@ FEED, WATCHLIST = b"the feed", b'{"generated_at": "2026-11-15T06:00:00Z", "repos
 
 async def test_verified_once_then_from_the_cache(tmp_path: Path) -> None:
     with respx.mock() as router:
-        route = router.get(url(sha(FEED))).mock(return_value=httpx.Response(200, json=answer_for(FEED, WATCHLIST)))
+        route = router.get(url(sha(WATCHLIST))).mock(return_value=httpx.Response(200, json=answer_for(FEED, WATCHLIST)))
         async with HttpClient(sleep=no_waiting) as http:
             assert (await feedtrust.verify(http, FEED, WATCHLIST, tmp_path)).verdict is Verdict.VERIFIED
             assert (await feedtrust.verify(http, FEED, WATCHLIST, tmp_path)).why == "verified earlier"
@@ -135,13 +135,16 @@ async def test_verified_once_then_from_the_cache(tmp_path: Path) -> None:
 
 
 async def test_an_older_genuine_feed_with_a_newer_watchlist_is_refused(tmp_path: Path) -> None:
-    """Rollback: every build's attestation stays valid, so the pair must come from one build (F-194)."""
-    old_watchlist = b'{"generated_at": "2026-10-01T06:00:00Z", "repos": {}}'
+    """Rollback: every build's attestation stays valid, so the pair must come from one build (F-194, F-195)."""
     with respx.mock() as router:
-        router.get(url(sha(FEED))).mock(return_value=httpx.Response(200, json=answer_for(FEED, old_watchlist)))
+        # GitHub's statement for today's watchlist lists today's all.zip, not the old one being served
+        router.get(url(sha(WATCHLIST))).mock(
+            return_value=httpx.Response(200, json=answer_for(b"today's all.zip", WATCHLIST))
+        )
         async with HttpClient(sleep=no_waiting) as http:
             r = await feedtrust.verify(http, FEED, WATCHLIST, tmp_path)
-    assert (r.verdict, r.mixed, r.why) == (Verdict.REJECTED, True, "its watchlist.json comes from a different build")
+    assert (r.verdict, r.mixed) == (Verdict.REJECTED, True)
+    assert r.why == "its all.zip and watchlist.json come from different builds"
     assert not (tmp_path / feedtrust.VERIFIED_FILE).exists()
 
 
@@ -156,7 +159,7 @@ async def test_no_attestation_is_a_rejection_and_trouble_is_unknown(tmp_path: Pa
     ]
     for answer, want in cases:
         with respx.mock() as router:
-            router.get(url(sha(FEED))).mock(return_value=answer)
+            router.get(url(sha(WATCHLIST))).mock(return_value=answer)
             async with HttpClient(sleep=no_waiting) as http:
                 assert (await feedtrust.verify(http, FEED, WATCHLIST, tmp_path)).verdict is want, answer.status_code
 
@@ -164,7 +167,7 @@ async def test_no_attestation_is_a_rejection_and_trouble_is_unknown(tmp_path: Pa
 async def test_one_attempt_no_waiting_when_github_is_unreachable_or_failing(tmp_path: Path) -> None:
     for answer in (httpx.ConnectTimeout("blocked"), httpx.Response(503)):
         with respx.mock() as router:
-            route = router.get(url(sha(FEED))).mock(side_effect=[answer] * 6)
+            route = router.get(url(sha(WATCHLIST))).mock(side_effect=[answer] * 6)
             async with HttpClient(sleep=no_waiting) as http:
                 assert (await feedtrust.verify(http, FEED, WATCHLIST, tmp_path)).verdict is Verdict.UNKNOWN
         assert route.call_count == 1
@@ -173,14 +176,14 @@ async def test_one_attempt_no_waiting_when_github_is_unreachable_or_failing(tmp_
 async def test_a_refused_token_is_retried_without_it_but_a_404_is_final(tmp_path: Path) -> None:
     body = answer_for(FEED, WATCHLIST)
     with respx.mock() as router:
-        route = router.get(url(sha(FEED))).mock(
+        route = router.get(url(sha(WATCHLIST))).mock(
             side_effect=lambda req: httpx.Response(401 if "authorization" in req.headers else 200, json=body)
         )
         async with HttpClient("expired-token", sleep=no_waiting) as http:
             assert (await feedtrust.verify(http, FEED, WATCHLIST, tmp_path)).verdict is Verdict.VERIFIED
     assert route.call_count == 2
     with respx.mock() as router:
-        route = router.get(url(sha(FEED))).mock(return_value=httpx.Response(404))
+        route = router.get(url(sha(WATCHLIST))).mock(return_value=httpx.Response(404))
         async with HttpClient("good-token", sleep=no_waiting) as http:
             assert (await feedtrust.verify(http, FEED, WATCHLIST, tmp_path / "fresh")).verdict is Verdict.REJECTED
     assert route.call_count == 1  # GitHub's "none" with a working token isn't asked again (F-194)
@@ -194,7 +197,7 @@ async def test_a_read_only_or_damaged_cache_never_fails_the_scan(tmp_path: Path)
     ro.chmod(0o500)
     try:
         with respx.mock() as router:
-            router.get(url(sha(FEED))).mock(return_value=httpx.Response(200, json=answer_for(FEED, WATCHLIST)))
+            router.get(url(sha(WATCHLIST))).mock(return_value=httpx.Response(200, json=answer_for(FEED, WATCHLIST)))
             async with HttpClient(sleep=no_waiting) as http:
                 assert (await feedtrust.verify(http, FEED, WATCHLIST, ro)).verdict is Verdict.VERIFIED
     finally:
@@ -242,7 +245,7 @@ async def test_load_feed_refuses_what_github_doesnt_vouch_for(tmp_path: Path) ->
     for mode, answer, outcome in (
         ("auto", httpx.Response(404), r"failed verification \(GitHub has no attestation for it\)"),
         ("require", httpx.Response(404), "failed verification"),
-        ("auto", httpx.Response(200, json=answer_for(ZIP, b"another watchlist")), "comes from a different build"),
+        ("auto", httpx.Response(200, json=answer_for(b"another all.zip", WATCHLIST)), "come from different builds"),
         ("require", httpx.Response(500), r"couldn't be verified \(GitHub's attestation API answered 500\)"),
     ):
         cache = tmp_path / f"{mode}-{answer.status_code}"
@@ -270,25 +273,60 @@ async def test_load_feed_warns_once_when_github_cant_be_asked(tmp_path: Path) ->
         assert (await load(tmp_path / "off", "off", warnings))[0] == ZIP  # off: GitHub isn't asked at all
 
 
-async def test_a_mix_this_run_caused_by_falling_back_to_the_cache_is_a_warning(tmp_path: Path) -> None:
-    """The watchlist download failed and yesterday's cached copy stood in: genuine, but from another build."""
-    old = b'{"generated_at": "2026-11-14T06:00:00Z", "repos": {}}'
-    (tmp_path / "watchlist.json").write_bytes(old)
-    (tmp_path / "watchlist.json.etag").write_text('"old"')
-    warnings: list[str] = []
+async def test_a_failed_download_falls_back_to_the_cached_pair_never_a_mix(tmp_path: Path) -> None:
+    """If either download fails, both cached files stand in: the last pair that went together and was verified.
+    An attacker who fails one download on purpose can't get a new file used next to an old one (F-195)."""
+    old_wl = b'{"generated_at": "2026-11-14T06:00:00Z", "repos": {}}'
+    (tmp_path / "all.zip").write_bytes(ZIP)
+    (tmp_path / "all.zip.etag").write_text('"z"')
+    (tmp_path / "watchlist.json").write_bytes(old_wl)
+    (tmp_path / "watchlist.json.etag").write_text('"w"')
+    forged_zip = feed_zip_with("GHSA-forged")
+    for zip_answer, wl_answer in (
+        (httpx.Response(503), httpx.Response(200, content=b'{"forged": true}')),  # forged watchlist after a failed zip
+        (httpx.Response(200, content=forged_zip), httpx.Response(503)),  # an old or forged zip, watchlist failed
+    ):
+        warnings: list[str] = []
+        with respx.mock(assert_all_called=False) as router:  # after a failed zip, the watchlist isn't even fetched
+            router.get(watch_scan.FEED_URL).mock(return_value=zip_answer)
+            router.get(watch_scan.WATCHLIST_URL).mock(return_value=wl_answer)
+            router.get(url(sha(old_wl))).mock(return_value=httpx.Response(200, json=answer_for(ZIP, old_wl)))
+            async with HttpClient(sleep=_no_op) as http:
+                got, doc = await watch_scan.load_feed(http, tmp_path, "require", warnings.append, NOW)
+        assert (got, doc["generated_at"]) == (ZIP, "2026-11-14T06:00:00Z")  # the cached pair, verified, both files
+        assert warnings[0].endswith("using the cached copy of the feed")
+        assert (tmp_path / "all.zip").read_bytes() == ZIP  # nothing new was cached
+
+
+async def test_without_a_cached_pair_a_failed_download_is_an_error(tmp_path: Path) -> None:
+    (tmp_path / "all.zip").write_bytes(ZIP)
+    (tmp_path / "all.zip.etag").write_text('"z"')
     with respx.mock() as router:
-        router.get(watch_scan.FEED_URL).mock(return_value=httpx.Response(200, content=ZIP))
-        router.get(watch_scan.WATCHLIST_URL).mock(side_effect=httpx.ConnectError("down"))
-        router.get(url(sha(ZIP))).mock(return_value=httpx.Response(200, json=answer_for(ZIP, WATCHLIST)))
+        router.get(watch_scan.FEED_URL).mock(return_value=httpx.Response(304))
+        router.get(watch_scan.WATCHLIST_URL).mock(return_value=httpx.Response(503))
         async with HttpClient(sleep=_no_op) as http:
-            got, doc = await watch_scan.load_feed(http, tmp_path, "auto", warnings.append, NOW)
-            assert got == ZIP and doc["generated_at"] == "2026-11-14T06:00:00Z"
-            with pytest.raises(RuntimeError, match="different build"):  # require: still refused
-                await watch_scan.load_feed(http, tmp_path, "require", warnings.append, NOW)
-    assert warnings == [
-        "limbowatch: couldn't download all of the limbo feed; "
-        "the older cached feed/watchlist.json is from another build"
-    ]
+            with pytest.raises(RuntimeError, match=r"couldn't download https://limbo\.watch/feed/watchlist\.json"):
+                await watch_scan.load_feed(http, tmp_path, "auto", lambda _: None, NOW)
+
+
+async def test_the_cache_is_written_only_after_the_pair_passes(tmp_path: Path) -> None:
+    with respx.mock() as router:
+        mock_feed(router, httpx.Response(404))
+        with pytest.raises(RuntimeError, match="failed verification"):
+            await load(tmp_path / "refused", "auto", [])
+    assert not (tmp_path / "refused").exists() or not any((tmp_path / "refused").iterdir())
+    with respx.mock() as router:
+        mock_feed(router, httpx.Response(200, json=answer_for(ZIP, WATCHLIST)))
+        await load(tmp_path / "ok", "auto", [])
+    assert (tmp_path / "ok" / "all.zip").read_bytes() == ZIP
+    assert (tmp_path / "ok" / "watchlist.json").read_bytes() == WATCHLIST
+
+
+def feed_zip_with(ghsa: str) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr(f"{ghsa}.json", json.dumps({"id": ghsa, "affected": []}))
+    return buf.getvalue()
 
 
 async def test_an_old_feed_is_a_warning(tmp_path: Path) -> None:
@@ -364,7 +402,7 @@ async def test_a_damaged_feed_is_a_clean_error() -> None:
         router.get(watch_scan.FEED_URL).mock(return_value=httpx.Response(200, content=ZIP))
         router.get(watch_scan.WATCHLIST_URL).mock(return_value=httpx.Response(200, content=b"<html>"))
         async with HttpClient() as http:
-            with pytest.raises(RuntimeError, match="watchlist isn't JSON"):
+            with pytest.raises(RuntimeError, match="watchlist isn't readable JSON"):
                 await watch_scan.load_feed(http, None, "off", lambda _: None, NOW)
 
 

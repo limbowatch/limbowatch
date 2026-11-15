@@ -2986,6 +2986,27 @@ Answered:
 - **Implication:** the checks are ready for 0.1.0a15.
 - **Sources:** the review, runs and tests above.
 
+### F-195
+- **Date:** 2026-11-15 · **Status:** confirmed (independent re-review; fixed and tested on Python 3.12, 3.13, 3.14; live runs)
+- **Question:** Does the same-build check in [F-194](#f-194) hold against someone who controls limbo.watch?
+- **Method:**
+  - The same reviewer re-read commit bc66c02.
+  - After the fix: the full test suite on Python 3.12, 3.13 and 3.14.
+  - Live scans of limbowatch/limbo-poc: a fresh cache, the cached pair under `require`, a cached `all.zip` with one advisory removed, the next run, and `off`.
+- **Result:**
+  - **Hole:** F-194's exception (a mixed pair is only a warning when this run fell back to a cached copy) could be triggered at will. limbo.watch answers 503 for one file and serves a forged or old other file, and the mix got in with a warning. A forged watchlist could also mark every repo as freshly checked, which skips the watcher's own checks, and hide the age warning.
+  - **Fixed:** the two files are one pair.
+    - Downloads stay in memory and go to the cache only after the pair verifies.
+    - If either download fails, the cached pair stands in, both files: the last pair that went together. One new file is never used next to an old one.
+    - Every mixed pair is refused, in `auto` too.
+  - **Lookup by the watchlist's digest, not all.zip's.** With stable `modified` dates, `all.zip` can be byte-identical across builds, each attesting it with a different watchlist; past 100 builds the right statement might not be on the first page. The watchlist carries its build time, so its answer is that one build's statement, which must also list the `all.zip`.
+  - The watchlist is parsed after verification. A broken one is removed from the cache, and deeply nested JSON (RecursionError) is a clean error.
+  - Tests: 410 pass on 3.12, 3.13 and 3.14. New cases: a forged watchlist after a failed zip download, and a forged zip after a failed watchlist download, both answered from the cached pair; no cached pair means a clean error; the cache is untouched by a refused pair.
+  - Live: fresh cache exit 1, 103 findings, no warning. Cached pair under `require` exit 1. Altered cached zip exit 2: "its all.zip and watchlist.json come from different builds". The next run exit 1. `off` exit 1.
+- **Caveats:** a pair from one old build verifies; it's only warned about after 3 days (F-194).
+- **Implication:** someone who controls limbo.watch can make scans fail (exit 2) or, by serving one old build, warn after 3 days. They can't make a scan quietly use a feed the build didn't make.
+- **Sources:** the review, tests and runs above.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

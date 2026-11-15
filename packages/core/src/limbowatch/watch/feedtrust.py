@@ -1,12 +1,13 @@
 """Are the downloaded feed files ones that limbowatch/limbowatch's site workflow built from main, in one build?
-(FINDINGS F-191, F-192, F-193, F-194)
+(FINDINGS F-191 to F-195)
 
 Each build attests its feed files together (`actions/attest`, SLSA provenance signed through Sigstore): one signed
-statement lists the SHA-256 of `all.zip`, `watchlist.json` and the rest. The watcher looks up `all.zip`'s digest in
-GitHub's attestation API for this repository and accepts the pair only if a statement made by `.github/workflows/
-site.yml` on `refs/heads/main` names `all.zip` and also names the `watchlist.json` it downloaded. So a feed swapped on
-limbo.watch, its host or Cloudflare is refused, and so is an older genuine `all.zip` served next to a newer watchlist:
-only a run of that workflow in this repository can add an attestation, and the pair must come from the same run.
+statement lists the SHA-256 of `all.zip`, `watchlist.json` and the rest. The watcher looks up `watchlist.json`'s
+digest in GitHub's attestation API for this repository and accepts the pair only if a statement made by `.github/
+workflows/site.yml` on `refs/heads/main` names that watchlist and also names the `all.zip` it downloaded. So a
+feed swapped on limbo.watch, its host or Cloudflare is refused, and so is an older genuine `all.zip` served next to a
+newer watchlist: only a run of that workflow in this repository can add an attestation, and the pair must come from
+the same run.
 
 It trusts GitHub's API, over TLS, to have checked the signature when the attestation was stored. `gh attestation verify`
 also checks the Sigstore certificate and transparency log itself; WATCHER.md shows how.
@@ -122,17 +123,17 @@ def _remember(cache: Path | None, pair: str) -> None:
 
 
 async def verify(http: HttpClient, feed: bytes, watchlist: bytes, cache: Path | None) -> Result:
-    """Look the feed's `all.zip` up in GitHub's attestation API, and check that `watchlist` was attested in the same
-    build. One request at most (a pair verified before isn't asked again), one attempt, a short timeout.
+    """Look the watchlist up in GitHub's attestation API and check that the same build's statement also lists
+    `feed`. One request at most (a pair verified before isn't asked again), one attempt, a short timeout.
 
-    REJECTED when GitHub vouches for neither, or for `all.zip` but not with this watchlist (a mix of builds: an older
-    feed next to a newer watchlist, say). The caller decides whether a mix it caused itself, by falling back to a
-    cached copy, is an error."""
+    The watchlist is unique to its build (it carries the build time), so its answer has that one build's statement,
+    while a byte-identical all.zip can be attested by many builds (F-195). REJECTED when GitHub vouches for neither, or
+    for the watchlist but not with this all.zip: a mix of builds, such as an older feed next to a newer watchlist."""
     zd, wd = hashlib.sha256(feed).hexdigest(), hashlib.sha256(watchlist).hexdigest()
     pair = f"{zd}:{wd}"
     if pair in _known(cache):
         return Result(Verdict.VERIFIED, "verified earlier")
-    url = ATTESTATIONS.format(digest=zd)
+    url = ATTESTATIONS.format(digest=wd)
     r = await http.get(url, patient=False)
     if r.status in (401, 403) and http.has_github_token:
         # an expired or narrow token can be refused where anyone may read a public repo's attestations. Not on a
@@ -143,10 +144,10 @@ async def verify(http: HttpClient, feed: bytes, watchlist: bytes, cache: Path | 
     if r.status != 200:
         why = "couldn't be reached" if r.status < 0 else f"answered {r.status}"
         return Result(Verdict.UNKNOWN, f"GitHub's attestation API {why}")
-    result = check(r.body, zd)
+    result = check(r.body, wd)
     if result.verdict is not Verdict.VERIFIED:
         return result
-    if wd not in result.together:
-        return Result(Verdict.REJECTED, "its watchlist.json comes from a different build", mixed=True)
+    if zd not in result.together:
+        return Result(Verdict.REJECTED, "its all.zip and watchlist.json come from different builds", mixed=True)
     _remember(cache, pair)
     return result
