@@ -40,16 +40,20 @@ output. Refresh all ten from one run, so the numbers agree with each other and w
      `application_dark-<hash>.css`, and `link[href*="/highlight/themes/"]` between `white-` and `dark-`. Toggle the
      `gl-dark` class on `<html>`. A signed-out page of the same deployment (`fetch('/gitlab-org/gitlab',
      {credentials: 'omit'})`) lists the current hashes.
-   - **Frame like the existing shots:** narrow the element in the page (the diff entry to 784 CSS px, `job-summary` to
-     800, the merge request widgets' container to 743), keep the page at its natural scroll position (scrolling makes
-     the sticky headers overlap), move the pointer away, and capture the region at 2× or more.
+   - **Frame like the existing shots:** narrow the element in the page (the diff entry to 980 CSS px, the narrowest
+     at which GitHub's alert cards fit their "View details" button; `job-summary` to 800; the merge request widgets'
+     container, `.issuable-discussion`, to 743), keep the page at its natural scroll position (scrolling makes the
+     sticky headers overlap), move the pointer away, and capture the region at about 2×.
+   - **Capture in tiles:** the browser extension's region zoom returns at most about 1,570 px wide and 1.2 megapixels,
+     so a whole region comes out at about 1.2×. Zoom two halves of the region (top and bottom, same width), save
+     each, and stack them with Pillow; crop the last tile at a gap between blocks.
 4. **Update the site.** Put the files in `docs/screenshots/`, update their sizes and alt text in `SCREENS`, and check
    the captions in `scan()` against the run's `report.json` (findings, failing findings, advisories per package).
    `uv run pytest tests/test_site.py` catches a size mismatch or a missing variant.
 
-The last refresh: 2026-11-13, on 0.1.0a14, with the action from GitHub Marketplace and the component from the GitLab
-CI/CD Catalog (GitHub run 43420754611, GitLab pipeline 3064386955): 63 advisories in limbo in 5 packages, 8 failing the
-build, 52 for scapy, as on 0.1.0a13. Only the terminal, the HTML report and the job summary were captured again: the job
-summary now shows versions as code (FINDINGS F-164), while the pull request's annotations and the merge request's
-widgets come from SARIF, annotations, Code Quality and JUnit, which 0.1.0a14 didn't change, so the 2026-11-12 shots of
-them still match. The job summary was captured with the browser extension's region zoom, about 1.65×.
+The last refresh: 2026-11-15, on 0.1.0a15, with the action from GitHub Marketplace and the component from the GitLab
+CI/CD Catalog (GitHub run 43693090565, GitLab pipeline 3070036485): 64 advisories in limbo in 4 packages, 7 failing the
+build, 54 for scapy. All ten were captured again. dnspython 2.9.1 no longer has an advisory in limbo (GitHub reviewed it on 2026-11-13, FINDINGS F-199), so the pull
+request shows only the code scanning alerts on the added scapy line, and the To fix list has four upgrades. The
+browser shots were captured in two tiles each (the pull request diff about 1.6×, the job summary and the merge
+request widgets about 2×).

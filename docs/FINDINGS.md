@@ -3061,6 +3061,18 @@ Answered:
 - **Implication:** 0.1.0a15 shipped as tested.
 - **Sources:** PyPI JSON API; `docker buildx imagetools inspect`; GitLab and GitHub run lists; the runs named above.
 
+### F-199
+- **Date:** 2026-11-15 · **Status:** confirmed (direct observation)
+- **Question:** Do the demo runs on 0.1.0a15 match the scan page's screenshots and captions?
+- **Method:** the demo pull request and merge request after bumping both demos to 0.1.0a15 (GitHub run 43693090565, GitLab pipeline 3070036485, 08:08 UTC, live feed built 07:41 UTC); the run's `report.json`; `gh api /advisories/GHSA-vvf4-9x63-8xvv` and OSV's `/v1/vulns/GHSA-vvf4-9x63-8xvv`.
+- **Result:**
+  - Both runs: 81 dependencies, 64 advisories in limbo in 4 packages (scapy 54, undici 6, pgx 3, chi 1), 7 high failing the build, exit 1. The feed verified without a warning on both hosts.
+  - On 0.1.0a14 (2026-11-13) it was 63 in 5 packages, 8 failing. dnspython's one advisory, GHSA-vvf4-9x63-8xvv (high), left limbo: GitHub reviewed it at 2026-11-13 20:19 UTC and OSV has it since 20:30 UTC. scapy gained 2 low or medium advisories (52 to 54).
+  - GitLab shows "Code Quality scans found 54 new findings" and "Test summary: 7 failed, 64 total tests".
+- **Caveats:** the demo's numbers move as advisories are reviewed or published; the captions are dated by this entry.
+- **Implication:** all ten screenshots and their captions were refreshed (docs/SCREENSHOTS.md). The [F-198](#f-198) caveat about 0.1.0a14 screenshots no longer holds.
+- **Sources:** the runs above; GitHub Advisory Database API; OSV API.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

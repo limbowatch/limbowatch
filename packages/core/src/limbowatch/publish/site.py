@@ -1785,34 +1785,34 @@ COMPONENT = "0.1.0-alpha.15"  # the same release in the GitLab CI/CD Catalog, wh
 SCREENS = {
     "terminal": (
         2035,
-        1770,
-        "Terminal output of limbowatch scan 0.1.0a14: a table of findings per lockfile with severity, package, "
-        "installed and fixed version and advisory; a To fix list of five upgrades; and the verdict FAILED, "
-        "8 findings at or above high.",
+        1686,
+        "Terminal output of limbowatch scan 0.1.0a15: a table of findings per lockfile with severity, package, "
+        "installed and fixed version and advisory; a To fix list of four upgrades; and the verdict FAILED, "
+        "7 findings at or above high.",
     ),
     "github-pr-inline": (
-        1148,
-        965,
-        "A GitHub pull request diff adding scapy==2.7.0 to requirements.txt. Line 2, dnspython 2.9.1, has an "
-        "annotation: 1 advisory in limbo, upgrade to 2.9.2. The added line has a code scanning alert: "
-        "GHSA-f6x2-gmgm-25p8, published advisory not yet in GitHub's database or OSV.",
+        1568,
+        1031,
+        "A GitHub pull request diff adding scapy==2.7.0 to requirements.txt. The added line has code scanning "
+        "alerts: GHSA-f6x2-gmgm-25p8 and GHSA-c547-xwrv-q9jm, each a published advisory not yet in GitHub's "
+        "database or OSV, high, fixed in 2.8.0.",
     ),
     "github-job-summary": (
-        1316,
-        812,
-        "The GitHub Actions job summary: Failed, 8 findings at or above high; 63 advisories in "
-        "limbo; a To fix list of five upgrades; and the heading of the table of findings that fail the build.",
+        1568,
+        901,
+        "The GitHub Actions job summary: Failed, 7 findings at or above high; 64 advisories in "
+        "limbo; a To fix list of four upgrades; and the heading of the table of findings that fail the build.",
     ),
     "gitlab-mr-widgets": (
-        1456,
-        821,
-        "A GitLab merge request: the pipeline's Limbowatch report artifact, 'Code Quality scans found 52 "
-        "new findings', and 'Test summary: 8 failed, 63 total tests'.",
+        1490,
+        842,
+        "A GitLab merge request: the pipeline's Limbowatch report artifact, 'Code Quality scans found 54 "
+        "new findings', and 'Test summary: 7 failed, 64 total tests'.",
     ),
     "html-report": (
         1600,
         1456,
-        "The standalone HTML report: Failed, 8 findings at or above high; a To fix list; and a table "
+        "The standalone HTML report: Failed, 7 findings at or above high; a To fix list; and a table "
         "per lockfile with severity badges, versions, advisory links and affected ranges.",
     ),
 }
@@ -1938,7 +1938,7 @@ verdict. This is the <a href="{DEMO_PR}">demo pull request</a> that adds <span c
 {
         shot(
             "terminal",
-            "52 advisories in limbo for scapy alone: the table shows the 4 high ones and folds the rest; "
+            "54 advisories in limbo for scapy alone: the table shows the 4 high ones and folds the rest; "
             "<span class='mono'>-v</span> lists all of them.",
         )
     }</section>
@@ -1948,7 +1948,7 @@ affected package without it, and adds a summary to the run.</p>
 <div class="shots2">{
         shot(
             "github-pr-inline",
-            "A code scanning alert on the line the pull request adds, and an annotation with the upgrade on a package already there.",
+            "Code scanning alerts on the line the pull request adds, one per advisory.",
         )
     }
 {
@@ -1961,7 +1961,7 @@ affected package without it, and adds a summary to the run.</p>
 {
         shot(
             "gitlab-mr-widgets",
-            "Code Quality shows the 52 new findings, the test summary the 8 that fail the build, and "
+            "Code Quality shows the 54 new findings, the test summary the 7 that fail the build, and "
             "“Limbowatch report” links every report.",
             narrow=True,
         )
