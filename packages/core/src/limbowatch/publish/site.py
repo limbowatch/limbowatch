@@ -1729,7 +1729,11 @@ advisory, one per line. Names only, for trackers that poll repos.</p></div></div
 <h2 class="xs" style="margin-top:48px">Use it</h2><ol class="steps" style="display:flex;flex-direction:column;gap:20px">
 <li><span class="num">1</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">Download and unpack the feed</p>
 <pre>curl -O https://limbo.watch/feed/all.zip
-unzip -q all.zip -d limbo</pre></div></li>
+unzip -q all.zip -d limbo</pre>
+<p class="ink2" style="margin:10px 0 0;font-size:var(--fs-m)">To check that the file is exactly what our build made from
+<span class="mono">main</span>, signed through GitHub and Sigstore rather than by this website:
+<span class="mono">gh attestation verify all.zip --repo limbowatch/limbowatch</span>. The same works for
+<span class="mono">watchlist.json</span>, <span class="mono">index.json</span> and the OSV zips.</p></div></li>
 <li><span class="num">2</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">Look for your packages</p>
 <pre>jq -r 'select(.affected[].package.name == "sanitize-html") | .id' limbo/*.json</pre></div></li>
 <li><span class="num">3</span><div style="flex:1;min-width:0"><p style="margin:2px 0 10px;font-weight:600">Or scan with OSV-Scanner</p>

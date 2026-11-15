@@ -29,6 +29,13 @@ jobs:
     runs-on: ubuntu-latest
     # Holds the R2 upload credentials; only main may deploy to it (docs/HOSTING_PLAN.md, "Credentials").
     environment: site
+    # Signs build provenance for the feed files (F-191): id-token mints the Sigstore certificate, attestations
+    # stores the attestation, artifact-metadata its record.
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -47,6 +54,17 @@ jobs:
         run: |
           uv run limbowatch publish --state tracker-data/state --out "$RUNNER_TEMP/site" \
             --previous-feed "$RUNNER_TEMP/previous-all.zip"
+      # Anyone can check that a downloaded feed file is exactly what this workflow built from main, independently of
+      # limbo.watch and Cloudflare: gh attestation verify <file> --repo limbowatch/limbowatch (docs/WATCHER.md).
+      - name: Attest the feed
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            ${{ runner.temp }}/site/feed/all.zip
+            ${{ runner.temp }}/site/feed/watchlist.json
+            ${{ runner.temp }}/site/feed/index.json
+            ${{ runner.temp }}/site/osv/limbo-db.zip
+            ${{ runner.temp }}/site/osv/*/all.zip
       - name: Upload to R2
         env:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}

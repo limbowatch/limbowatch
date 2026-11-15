@@ -38,11 +38,12 @@ def spec() -> dict[str, Any]:
 def test_hostnames_are_filled_in_and_www_is_optional() -> None:
     d = cf_rules.desired(spec(), ["next.limbo.watch"], [])
     assert set(d) == set(PHASES)
-    assert [r["ref"] for r in d["http_request_dynamic_redirect"]] == ["limbowatch-slash"]
+    assert [r["ref"] for r in d["http_request_dynamic_redirect"]] == ["limbowatch-https", "limbowatch-slash"]
+    assert d["http_request_dynamic_redirect"][0]["expression"] == 'http.host in {"next.limbo.watch"} and not ssl'
     assert all("$" not in r["expression"] for rules in d.values() for r in rules)
     assert d["http_request_transform"][0]["expression"].startswith('http.host in {"next.limbo.watch"} and ')
     d = cf_rules.desired(spec(), ["limbo.watch", "next.limbo.watch"], ["www.limbo.watch"])
-    www = d["http_request_dynamic_redirect"][0]
+    www = next(r for r in d["http_request_dynamic_redirect"] if r["ref"] == "limbowatch-www")
     assert www["ref"] == "limbowatch-www" and www["expression"] == 'http.host in {"www.limbo.watch"}'
     assert d["http_request_cache_settings"][0]["expression"] == 'http.host in {"limbo.watch" "next.limbo.watch"}'
 

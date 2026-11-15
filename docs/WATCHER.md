@@ -302,6 +302,7 @@ A GitHub token, when there is one, goes only to api.github.com; a tracker token 
 **How to verify it.**
 - **Read it.** The code is open source (Apache-2.0). Limbowatch's own requests all go through one module, `limbowatch.http`, the only one that imports an HTTP client; OSV-Scanner and git run as separate programs, with the options above.
 - **Pin what you read.** Pin the action to a commit SHA rather than a tag. Its default image is pinned by digest and attested by this repository: `gh attestation verify oci://ghcr.io/limbowatch/limbowatch:<tag> --owner limbowatch`. The PyPI packages are published with trusted publishing and carry build attestations: `gh attestation verify <file> -R limbowatch/limbowatch`.
+- **Check what it downloads.** The feed comes from limbo.watch over HTTPS only. Each build's `feed/all.zip`, `feed/watchlist.json`, `feed/index.json` and OSV zips carry a build attestation, signed through GitHub and Sigstore by the workflow that made them. That proof doesn't depend on the website, its host or Cloudflare. To verify a downloaded copy, or the one the scan cached under `~/.cache/limbowatch`: `gh attestation verify all.zip --repo limbowatch/limbowatch --signer-workflow limbowatch/limbowatch/.github/workflows/site.yml --source-ref refs/heads/main --deny-self-hosted-runners` (FINDINGS F-191).
 - **Watch it.** Run it once behind a logging proxy (`HTTPS_PROXY`; Limbowatch, OSV-Scanner and git all honour it) and compare the hosts with the table above.
 
 **How to lock it down.**
