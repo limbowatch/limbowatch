@@ -20,7 +20,8 @@ Checks:
    from the repo's tags as `git ls-remote` lists them now, equal the feed's, and none is missing a range (F-138, F-142);
 8. GIT packages: every entry has a package; GIT ones name their record's repo and keep the versions as entered;
 9. old watchers: the oldest release and the newest on PyPI read the live feed (F-140).
-10. examples: every example on the home page is still in limbo, live: the repository advisory published, not in
+10. examples: when the home page shows the curated examples (it shows the popular projects' packages otherwise, check
+    12), every example on it is still in limbo, live: the repository advisory published, not in
     GitHub's reviewed database, not in OSV, and at the pinned version no other advisory in OSV (or, for RubyGems, in
     ruby-advisory-db) that a scanner would report (F-157 to F-162). The curated examples not shown are listed.
 11. proof: the proof repository's numbers (on the home page when it doesn't count the popular projects) equal
@@ -28,7 +29,8 @@ Checks:
     left limbo or joined the feed since; and OSV-Scanner, npm audit and pip-audit reported none of them there (F-201).
 12. popular: when the home page counts the popular projects (F-203), its numbers and /popular/data.json equal a recount
     of the latest showcase artifact against the live feed, every project in tracker/showcase/projects.txt was tried,
-    and every critical or high advisory counted is live still unreviewed and not in OSV.
+    the cards are its most widely pinned packages, and every critical or high advisory counted is live still
+    unreviewed and not in OSV.
 
 Exit 1 if a check fails. The report is Markdown (stdout, or --out).
 """
@@ -534,6 +536,10 @@ def check_examples(rep: Report, st: State) -> None:
     from limbowatch.publish.site import EXAMPLES
 
     home = http.get(f"{SITE}/", params=NOCACHE).text
+    if 'href="/popular/"' in home:  # the cards are the popular projects' packages, checked by check 12
+        rep.check("examples", True, "the home page shows the popular projects' packages (check 12), not the curated "
+                  f"examples; {len(EXAMPLES)} curated ones kept for when it falls back")  # fmt: skip
+        return
     shown = set(re.findall(r'<a class="exc" href="/advisory/(GHSA-[\w-]+)/"', home))
     repos = {g: a["repo"] for g, a in st.adv.items()}
 
@@ -627,6 +633,7 @@ def check_proof(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
 
 def check_popular(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
     from limbowatch.publish.showcase import counts
+    from limbowatch.publish.site import SHOWN_PACKAGES
 
     home = http.get(f"{SITE}/", params=NOCACHE).text
     if 'href="/popular/"' not in home:
@@ -651,6 +658,10 @@ def check_popular(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
     got = (int(shown[1].replace(",", "")), int(shown[2].replace(",", ""))) if shown else None
     if got != (len(sc.serious), len(sc.ids)):
         problems.append(f"home page shows {got}, the artifact against the live feed gives {(len(sc.serious), len(sc.ids))}")
+    cards = re.findall(r'<a class="exc" href="/advisory/(GHSA-[\w-]+)/"', home)
+    want = [k.worst_id for k in sc.packages[:SHOWN_PACKAGES]]
+    if cards != want:
+        problems.append(f"the cards link {cards}, the recount's top packages {want}")
     live = http.get(f"{SITE}/popular/data.json", params=NOCACHE).json()
     per = {p.repo: sorted(p.ids) for p in sc.projects}
     if {x["repo"]: x["advisories"] for x in live["projects"]} != per:
