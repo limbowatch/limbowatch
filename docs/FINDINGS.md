@@ -3088,6 +3088,21 @@ Answered:
 - **Implication:** No sign that GitHub is closing the gap: outflow is about 250 to 300 a week against about 900 a week of new advisories in reviewable ecosystems in the watched repos alone. Q12 stays open for the per-ecosystem view; the answer to "is it shrinking" is no as of this date.
 - **Sources:** GitHub Advisory Database REST API; `tracker-data` reports 2026-11-01 to 11-14; https://github.com/github/advisory-database/issues/10425; https://github.com/orgs/community/discussions/189802.
 
+### F-201
+- **Date:** 2026-11-15 · **Status:** confirmed (direct observation)
+- **Question:** The home page compared "0" scanner findings against "7" for the proof repository, typed in by hand. What does `limbowatch scan` report there today, and can the site compute it daily?
+- **Method:**
+  - The proof repository's run 43692013227 (2026-11-15 07:54 UTC, action v0.1.0a15): its `evidence` artifact (`limbowatch.json`, `osv-scanner.json`, `npm-audit.json`, `pip-audit.json`, `bundler-audit.json`).
+  - `limbowatch.publish.proof.counts`: the live `feed/all.zip` through the watcher's own matching (`watch.match`) for the 7 pins in limbo-poc's `proof/packages.json`, counting certain findings with a fixed version.
+- **Result:**
+  - The run: 103 findings in 7 packages (critical 6, high 32, medium 36, low 29). One is only "possibly affected": GHSA-724w-jvcm-4c58 names `github.com/nats-io/nats-server` without `/v2`. Certain: **102, of them 37 critical or high** (nats-server 40, scapy 54, go-openapi/spec 4, one each for typebox, go-toml, mustache, rubyntlm).
+  - `counts` on the live feed gives the same 102 IDs, 0 different.
+  - OSV-Scanner, npm audit and pip-audit report none of the 103. bundler-audit reports one, rubyntlm's GHSA-cx24-f932-rr55, from ruby-advisory-db (the README already says so); the home page doesn't name bundler-audit.
+  - The hand-typed 7 counted one advisory per package; it could have gone stale without notice if GitHub reviewed one.
+- **Caveats:** the proof repository runs at 06:17 UTC on the previous build's feed; the site is rebuilt after the tracker, so the two can differ by the day's changes. The audit accepts a difference only for advisories that left limbo or changed since.
+- **Implication:** the home page now shows the critical and high count from each build's feed (37 today), with the total (102) beside it, and drops the comparison if none is left. `scripts/audit.py` check 11 compares it with the live feed and the proof repository's latest run.
+- **Sources:** limbowatch/limbo-poc run 43692013227 and `proof/packages.json`; https://limbo.watch/feed/all.zip.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

@@ -1,0 +1,55 @@
+{
+ "about": "The packages the public proof repository pins at versions with advisories in limbo (limbowatch/limbo-poc, proof/packages.json). The home page shows what `limbowatch scan` reports for them, from the day's feed (FINDINGS F-201). scripts/audit.py checks this copy against the proof repository.",
+ "proof": "https://github.com/limbowatch/limbo-poc",
+ "pins": [
+  {
+   "ecosystem": "npm",
+   "name": "@sinclair/typebox",
+   "version": "0.34.51",
+   "repo": "sinclairzx81/sinclair-typebox",
+   "file": "node/package-lock.json"
+  },
+  {
+   "ecosystem": "Go",
+   "name": "github.com/nats-io/nats-server/v2",
+   "version": "v2.12.6",
+   "repo": "nats-io/nats-server",
+   "file": "go/go.mod"
+  },
+  {
+   "ecosystem": "Go",
+   "name": "github.com/go-openapi/spec",
+   "version": "v0.22.4",
+   "repo": "go-openapi/spec",
+   "file": "go/go.mod"
+  },
+  {
+   "ecosystem": "Go",
+   "name": "github.com/pelletier/go-toml/v2",
+   "version": "v2.4.2",
+   "repo": "pelletier/go-toml",
+   "file": "go/go.mod"
+  },
+  {
+   "ecosystem": "RubyGems",
+   "name": "mustache",
+   "version": "1.1.2",
+   "repo": "mustache/mustache",
+   "file": "ruby/Gemfile.lock"
+  },
+  {
+   "ecosystem": "RubyGems",
+   "name": "rubyntlm",
+   "version": "0.6.5",
+   "repo": "winrb/rubyntlm",
+   "file": "ruby/Gemfile.lock"
+  },
+  {
+   "ecosystem": "PyPI",
+   "name": "scapy",
+   "version": "2.7.0",
+   "repo": "secdev/scapy",
+   "file": "python/requirements.txt"
+  }
+ ]
+}

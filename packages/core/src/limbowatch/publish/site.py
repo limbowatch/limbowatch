@@ -29,6 +29,7 @@ from limbowatch.csvsafe import cell
 from limbowatch.ecosystems import PackageName, info, package_name, reviewable
 from limbowatch.models import AdvisoryPackage, CveLabel, Status
 from limbowatch.publish import ATTRIBUTION, Item, check, days_since, eco_label, fixes_text
+from limbowatch.publish.proof import Proof
 from limbowatch.publish.quality import NAME, Problem, problems
 from limbowatch.versions import fixed_versions, no_fix, osv_ranges
 
@@ -1163,7 +1164,22 @@ report none, and Dependabot raised 95 alerts there on old packages and none on t
 soon as GitHub reviews its advisory.</p></section>"""
 
 
-def home(items: list[Item], m: dict[str, Any], now: datetime) -> str:
+def proof_pair(proof: Proof | None) -> str:
+    """Dependabot and the rest against `limbowatch scan` on the proof repository, from the day's feed (F-201). Left out
+    when there's nothing to show, rather than claiming a stale number."""
+    if proof is None or not proof.serious:
+        return ""
+    n = len(proof.serious)
+    return f"""<figure class="pair"><div class="res quiet"><p class="rt">Dependabot, OSV-Scanner, npm audit, pip-audit</p><p class="rv">0</p>
+<p class="rd">of {n:,} high and critical advisories, each with a released fix</p></div>
+<div class="res loud"><p class="rt">limbowatch scan</p><p class="rv">{n:,}</p>
+<p class="rd">of {n:,}, with the upgrade that clears each one ({proof.total:,} in all, counting medium and low)</p></div>
+<figcaption>The same files in a <a href="{POC_URL}">public proof repository</a>, pinning {proof.packages} real packages such
+as nats-server, typebox and scapy. Counted from today’s feed. Every scanner there reports the old control packages, so
+none is broken. <a href="{POC_RUNS}">See today’s run</a></figcaption></figure>"""
+
+
+def home(items: list[Item], m: dict[str, Any], now: datetime, proof: Proof | None = None) -> str:
     li, cov = m["in_limbo"], m["coverage"]
     flow = m.get("flow_7d") or {}
     pend = pending(items)
@@ -1207,13 +1223,7 @@ the databases Dependabot, npm audit and OSV-Scanner read. <a href="/tracker/?fix
 Until GitHub reviews them, nothing alerts you, so nothing gets upgraded. Limbowatch finds the ones in your dependencies.</p>
 <div class="hx-cta"><a class="btn light" href="#fix">Add it to your CI</a><a class="btn ghost" href="/check/">Check a package</a></div>
 <p class="hx-meta">Live count, re-checked daily, updated {E(updated)}.</p></div>
-<figure class="pair"><div class="res quiet"><p class="rt">Dependabot, OSV-Scanner, npm audit, pip-audit</p><p class="rv">0</p>
-<p class="rd">of 7 high and critical advisories, each with a released fix</p></div>
-<div class="res loud"><p class="rt">limbowatch scan</p><p class="rv">7</p>
-<p class="rd">of 7, with the upgrade that clears each one</p></div>
-<figcaption>The same files in a <a href="{POC_URL}">public proof repository</a>, pinning real packages such as
-nats-server, typebox and scapy. Every scanner there reports the old control packages, so none is broken.
-<a href="{POC_RUNS}">See today’s run</a></figcaption></figure>
+{proof_pair(proof)}
 </section></div>
 <main>
 {examples_section(items, now)}
@@ -2646,6 +2656,7 @@ def build(
     events: list[dict[str, Any]] | None = None,
     sample: dict[str, Any] | None = None,
     analytics_id: str | None = None,
+    proof: Proof | None = None,
 ) -> dict[str, str]:
     """Every page of the site, keyed by its path under the output directory. With a GA4 measurement ID,
     every page loads Google Analytics behind a consent banner."""
@@ -2661,7 +2672,7 @@ def build(
     was_in_limbo = {e["ghsa_id"] for e in events if e["event"].startswith("in limbo -> ")}
     with_page = [i for i in items if i.assessment.status is Status.LIMBO or i.adv.ghsa_id in was_in_limbo]
     out = {
-        "index.html": home(items, metrics, now),
+        "index.html": home(items, metrics, now, proof),
         "tracker/index.html": tracker(metrics, data),
         "tracker/data.json": json.dumps(data, separators=(",", ":")),
         "check/index.html": check_page(metrics),

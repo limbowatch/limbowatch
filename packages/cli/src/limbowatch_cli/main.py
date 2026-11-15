@@ -32,6 +32,7 @@ from limbowatch.inventory import upstream as upstream_inventory
 from limbowatch.models import Inventory, Unchecked
 from limbowatch.publish import all_events, dumps, items, metrics, repos_with_advisories, watchlist
 from limbowatch.publish import feed as feed_mod
+from limbowatch.publish import proof as proof_mod
 from limbowatch.publish import report as report_mod
 from limbowatch.publish import site as site_mod
 from limbowatch.sources import osv as osv_source
@@ -245,7 +246,13 @@ def publish(
     with_ranges = [r for r in records if r["id"] in pending and any("ranges" in a for a in r["affected"])]
     sample = max(with_ranges, key=lambda r: r.get("published") or "", default=None)
     for path, text in site_mod.build(
-        all_items, m, now, events=all_events(store), sample=sample, analytics_id=analytics_id or None
+        all_items,
+        m,
+        now,
+        events=all_events(store),
+        sample=sample,
+        analytics_id=analytics_id or None,
+        proof=proof_mod.counts(records),
     ).items():
         (out / path).parent.mkdir(parents=True, exist_ok=True)
         (out / path).write_text(text)

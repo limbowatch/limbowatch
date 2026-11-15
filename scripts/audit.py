@@ -23,6 +23,9 @@ Checks:
 10. examples: every example on the home page is still in limbo, live: the repository advisory published, not in
     GitHub's reviewed database, not in OSV, and at the pinned version no other advisory in OSV (or, for RubyGems, in
     ruby-advisory-db) that a scanner would report (F-157 to F-162). The curated examples not shown are listed.
+11. proof: the home page's numbers equal `limbowatch scan`'s certain findings for the proof repository's pins in the
+    live feed; the pins equal the proof repository's; its latest run found the same advisories, apart from ones that
+    left limbo or joined the feed since; and OSV-Scanner, npm audit and pip-audit reported none of them there (F-201).
 
 Exit 1 if a check fails. The report is Markdown (stdout, or --out).
 """
@@ -30,6 +33,7 @@ Exit 1 if a check fails. The report is Markdown (stdout, or --out).
 from __future__ import annotations
 
 import argparse
+import base64
 import io
 import json
 import random
@@ -567,6 +571,55 @@ def check_examples(rep: Report, st: State) -> None:
         rep.note(f"not shown (left limbo by the tracker's state): {', '.join(hidden)}")
 
 
+def check_proof(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
+    from limbowatch.publish.proof import PINS, counts
+
+    ours = counts(recs.values())
+    home = http.get(f"{SITE}/", params=NOCACHE).text
+    shown = re.search(r'<p class="rv">([\d,]+)</p>\s*<p class="rd">of [\d,]+, with the upgrade.*?\(([\d,]+) in all', home, re.S)
+    shown_n = (int(shown[1].replace(",", "")), int(shown[2].replace(",", ""))) if shown else None
+    problems = []
+    if shown_n != (len(ours.serious), ours.total):
+        problems.append(f"home page shows {shown_n}, the live feed gives {(len(ours.serious), ours.total)}")
+    s, f = gh("/repos/limbowatch/limbo-poc/contents/proof/packages.json")
+    theirs = [{k: x[k] for k in ("ecosystem", "name", "version", "repo", "file")}
+              for x in json.loads(base64.b64decode(f["content"]))["limbo"]] if s == 200 else None  # fmt: skip
+    if theirs != PINS:
+        problems.append("proof.json differs from limbo-poc's proof/packages.json")
+    s, runs = gh("/repos/limbowatch/limbo-poc/actions/workflows/proof.yml/runs?status=success&per_page=1")
+    run = (runs or {}).get("workflow_runs", [None])[0] if s == 200 else None
+    explained = 0
+    if run is None:
+        problems.append("no successful proof run")
+    else:
+        with tempfile.TemporaryDirectory() as tmp:
+            subprocess.run(["gh", "run", "download", str(run["id"]), "-R", "limbowatch/limbo-poc", "-D", tmp],
+                           check=True, capture_output=True)  # fmt: skip
+            ev = next(Path(tmp).rglob("limbowatch.json")).parent
+            lw = json.loads((ev / "limbowatch.json").read_text())
+            seen = {x["ghsa_id"] for x in lw["findings"] if x["affected"] is True and x.get("fixed")}
+            since = lw.get("feed_generated_at") or ""
+            for g in seen - ours.ids:  # it left limbo since that run's feed
+                if g in recs:
+                    problems.append(f"{g} found by the proof run but not counted")
+                else:
+                    explained += 1
+            for g in ours.ids - seen:  # it joined the feed, or changed, since
+                if (recs[g].get("modified") or "") > since:
+                    explained += 1
+                else:
+                    problems.append(f"{g} counted but not found by the proof run of {since}")
+            for name in ("osv-scanner.json", "npm-audit.json", "pip-audit.json"):
+                hit = set(re.findall(r"GHSA-\w{4}-\w{4}-\w{4}", (ev / name).read_text())) & ours.ids
+                if hit:
+                    problems.append(f"{name} in run {run['id']} reports {', '.join(sorted(hit))}")
+    rep.check("proof", not problems, f"home page shows {len(ours.serious)} high or critical of {ours.total} in "
+              f"{ours.packages} pinned packages, as the live feed gives; the proof run "
+              f"{run['id'] if run else '–'} agrees ({explained} changed since it ran)")  # fmt: skip
+    for p in problems:
+        rep.note(p)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--sample", type=int, default=300, help="advisories in limbo to verify live (others scale)")
@@ -594,6 +647,7 @@ def main() -> None:
         check_git_packages(rep, recs)
         check_old_watchers(rep, z)
         check_examples(rep, st)
+        check_proof(rep, recs)
     rep.lines.append(f"\n{'All checks passed.' if not rep.failed else 'Failed: ' + ', '.join(rep.failed)}")
     text = "\n".join(rep.lines) + "\n"
     if a.out:
