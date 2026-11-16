@@ -103,6 +103,11 @@ def split_url(url: str, default_base: str | None = None) -> tuple[str, str]:
         return f"{parts.scheme}://{parts.netloc}", safe_path(parts.path.removeprefix("/groups/"))
     if parts.scheme or parts.netloc or not default_base:
         raise SourceError(f"want https://host/path or a path with a base URL, got {redact(url)!r}")
+    base = urlsplit(default_base)  # --gitlab-url, --github-url or the CI job's server: checked like a full URL
+    if base.scheme not in ("http", "https") or not base.netloc:
+        raise SourceError(f"want an https:// base URL, got {redact(default_base)!r}")
+    if base.username or base.password:
+        raise SourceError(f"put credentials in LIMBOWATCH_SOURCE_TOKEN, not in the URL: {redact(default_base)}")
     return default_base.rstrip("/"), safe_path(url)
 
 

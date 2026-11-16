@@ -127,6 +127,12 @@ def test_source_urls_and_paths() -> None:
     assert split_url("https://gitlab.example.com/acme/backend") == ("https://gitlab.example.com", "acme/backend")
     assert split_url("https://gitlab.com/groups/acme") == ("https://gitlab.com", "acme")  # the group page's URL
     assert split_url("acme/backend", "https://gitlab.com/") == ("https://gitlab.com", "acme/backend")
+    # the base a bare path takes (--gitlab-url, CI_SERVER_URL) is checked like a full URL
+    for bad_base, says in (("https://u:pw@gitlab.example.com", "LIMBOWATCH_SOURCE_TOKEN"), ("http://[::1", "not a URL"),
+                           ("gitlab.example.com", "base URL")):  # fmt: skip
+        with pytest.raises(SourceError, match=says) as e:
+            split_url("acme", bad_base)
+        assert "pw" not in str(e.value)
     for bad in ("acme/../etc", "https://u:secret@gitlab.com/acme", "acme"):
         with pytest.raises(SourceError) as e:
             split_url(bad) if bad != "acme" else split_url(bad, None)
