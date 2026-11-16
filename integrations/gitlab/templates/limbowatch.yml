@@ -58,7 +58,7 @@ spec:
       default: ""
       description: More `limbowatch scan` options, e.g. `--ignore GHSA-xxxx-xxxx-xxxx` or `--ignore-file .limbowatch-ignore`.
     image:
-      default: registry.gitlab.com/limbowatch/limbowatch-component:0.1.0a15@sha256:637702af9cac1a51f4a2d27ace6ea31f1c8d25a97964f254e8b2980121ba26ad
+      default: registry.gitlab.com/limbowatch/limbowatch-component:0.1.0a16@sha256:034d8c3f629538bba9c8ba4c673058976d260f3b5dea42328bc5872f793fe65e
       description: >-
         Limbowatch image with OSV-Scanner, pinned by digest in each component release. A copy of
         ghcr.io/limbowatch/limbowatch with the same digest; mirror it to your own registry if you need to.
