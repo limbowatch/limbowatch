@@ -2,7 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org). The PyPI packages `limbowatch` and `limbowatch-cli`, the GitLab CI/CD component and the Actions action share one version number.
 
-## Unreleased
+## 0.1.0a16 (2026-11-16)
+
+Still an **alpha**. On PyPI it's `0.1.0a16`; the GitHub tag and the action's ref are `v0.1.0a16`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a16`; the GitLab CI/CD component is `0.1.0-alpha.16`. Security fixes from two outside reviews and seven rounds of an independent one (F-207 to F-211), a repository's advisories that could be cut off silently, and faster scans of large projects. Upgrade from 0.1.0a15 and earlier.
+
+**If your GitLab, Gitea or Forgejo is served only over plain `http://`** (not on this machine), `watch` with a source token and `--issues` now stop before sending the token (exit 2) and say why. Use https, or set `LIMBOWATCH_ALLOW_INSECURE_HTTP=1` (or `--allow-insecure-http`) to send it anyway.
 
 - **Tokens are never sent over plain `http://` to another machine** unless you allow it. `limbowatch watch` with `LIMBOWATCH_SOURCE_TOKEN`, and `--issues` with `LIMBOWATCH_ISSUES_TOKEN`, used to send the token to an `http://` group, organization, git URL or tracker (including a `CI_SERVER_URL` on http), where anyone on the network could read it. Such a run is now refused before anything is sent (exit 2). `http://` to this machine (localhost, 127.0.0.1, ::1) still works, and so do public sources over http without a token. For a self-managed instance served only over http, `--allow-insecure-http` (or `LIMBOWATCH_ALLOW_INSECURE_HTTP=1`, which the action passes into its container) sends it anyway. **Upgrade note:** a scheduled `watch` or an issues job against an http-only instance needs that variable.
 - **Hardened lookups from build files and host APIs** (FINDINGS F-207). Bazel module, vcpkg port and Conan names and versions, the vcpkg baseline, and Maven coordinates (including a parent POM's) go into registry URLs only as plain path segments, and the baseline must be a full commit hash. A `../` in a build file could otherwise point a lookup at another repository on the same host and spoof that dependency's upstream; such an entry is now reported with the reason. Registry downloads stop at 5 MB. In org-wide mode, a clone URL from a host's API is used only if it's on that host with the same scheme (never `file://`, `ssh://` or another host); otherwise it's built from the host's address. A pinned ref that starts with `-` is never passed to git, and the upstream clone puts `--` before its URL.
