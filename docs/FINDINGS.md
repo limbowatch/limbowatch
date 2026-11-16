@@ -3224,6 +3224,29 @@ Answered:
 - **Implication:** the image installs Debian's security updates at build time; the Worker's test tooling is pinned past the advisories; the Go ones leave with OSV-Scanner's next release (bump the pinned 2.7.1 then). Limbowatch found the undici and ws advisories that OSV-Scanner, run on the same lockfile, didn't.
 - **Sources:** the scans and registry metadata above.
 
+### F-212
+- **Date:** 2026-11-16 · **Status:** confirmed (direct observation)
+- **Question:** Release 0.1.0a16: did every artifact ship as tested?
+- **Method:** the release checklist after the checks and reviews of [F-207](#f-207) to [F-211](#f-211).
+  - Commits: version commit fa7cf60, image built on main (`sha-fa7cf60`), pin commit 49d5f6a.
+  - Before tagging:
+    - the audit, at 08:43 UTC (all 12 checks passed), and earlier the same day on each fix;
+    - the integration check in a container; the Gitea, GitLab, GitHub and upstream end-to-end tests;
+    - 451 tests on Python 3.12, 3.13 and 3.14, and CI;
+    - a tracker run on a copy of the live state (306 repos polled, 26,116 OSV, 90 CVE and 3 NVD requests);
+    - the image's attestation (SLSA provenance from image.yml on main), version and zlib;
+    - the component pipeline on its split 4a7516d;
+    - the action from the pin commit in the private e2e repository (run 43835024059, issues on).
+  - Then the signed tag `v0.1.0a16`; the component's signed tag `0.1.0-alpha.16` on gitlab.com; the action split fd1a8e3 with its self-test, signed tag and pre-release; the org profile; the proof repository's run on the published action (limbowatch/limbo-poc run 43836234449); the e2e repository on the published action (run 43836259175).
+- **Result:**
+  - PyPI serves 0.1.0a16 for both packages, and a fresh install reports `limbowatch 0.1.0a16`. The GitHub pre-release has its 4 files. `ghcr.io/limbowatch/limbowatch:0.1.0a16` resolves to `sha256:034d8c3f…`, the digest pinned in `action.yml` and the GitLab template; inside it zlib is `1:1.3.dfsg+really1.3.1-1+deb13u1`.
+  - The component's pipelines passed on `main` and on the tag (`limbowatch-ultimate-gate` fails by design and may fail, as before), and its release `0.1.0-alpha.16` exists. Its description said "(verify with )": the pipeline's description goes through a shell, which ran the backticked `gh attestation verify …` (with `<digest>` as a redirection) and substituted nothing; 0.1.0-alpha.15 has the same. Fixed by hand for alpha.16 through the API, and in `.gitlab-ci.yml` for the next release.
+  - The action's self-test passed on Linux (image) and macOS (`install: python`). The Marketplace listed v0.1.0a11 to v0.1.0a15 (latest a15) before the release; a16 sorts after a15 as text, so ticking it makes it latest with nothing to untick.
+  - The e2e and proof runs on the published action read the live feed without a warning. Proof run: 103 findings in all 7 example packages; the other scanners report only the controls (bundler-audit reports rubyntlm from the Ruby advisory database, as the day before; it is in neither GitHub's reviewed database nor OSV).
+- **Caveats:** the Marketplace tick is the owner's; `LIMBOWATCH_ALLOW_INSECURE_HTTP` passing into the action's container was not exercised by a run (the same `-e` pass-through as `LIMBOWATCH_VERIFY_FEED`, tested in 0.1.0a15).
+- **Implication:** 0.1.0a16 shipped as tested.
+- **Sources:** the runs above; PyPI; ghcr.io; gitlab.com/limbowatch/limbowatch-component.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
