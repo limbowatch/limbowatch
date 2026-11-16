@@ -104,12 +104,14 @@ def redact(url: str) -> str:
 
 
 def next_link(link: str | None, base_url: str) -> str | None:
-    """The `rel="next"` URL of a Link header, if it's on the same host: the token goes with it."""
+    """The `rel="next"` URL of a Link header, if it's on the same host with the same scheme: the token goes with it,
+    so an https listing never follows an http:// page link (a proxy that hides https from the server sends those)."""
     for part in (link or "").split(","):
         url, _, rel = part.partition(";")
         if 'rel="next"' in rel:
             url = url.strip().strip("<>")
-            if urlsplit(url).netloc != urlsplit(base_url).netloc:
+            n, b = urlsplit(url), urlsplit(base_url)
+            if (n.scheme, n.netloc.lower()) != (b.scheme, b.netloc.lower()):
                 raise SourceError(f"pagination left {base_url}: {redact(url)}")
             return url
     return None
@@ -143,8 +145,12 @@ def _loopback(host: str) -> bool:
 
 def cleartext(url: str) -> bool:
     """Plain http to another machine: whatever is sent there, a token included, crosses the network readable."""
-    p = urlsplit(url)
-    return p.scheme == "http" and not _loopback(p.hostname or "")
+    try:
+        p = urlsplit(url)
+        host = p.hostname or ""
+    except ValueError as e:  # http://[::1 and the like; not shown, since it can't be redacted
+        raise SourceError("not a URL that can be read (a tracker or source URL)") from e
+    return p.scheme == "http" and not _loopback(host)
 
 
 def refuse_cleartext(urls: list[str], token_name: str, allow: bool) -> None:

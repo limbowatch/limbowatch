@@ -108,6 +108,16 @@ def test_tokens_are_refused_over_plain_http(monkeypatch: pytest.MonkeyPatch, tmp
             "--issues-project", "a/b"]  # fmt: skip
     r = CliRunner().invoke(app, scan)
     assert r.exit_code == 2 and "LIMBOWATCH_ISSUES_TOKEN would be sent over plain http" in _plain(r.output)
+    # GitHub: the token goes to the API Actions names (GITHUB_API_URL), checked as well as the server
+    gh_env = {"GITHUB_SERVER_URL": "https://ghe.example", "GITHUB_API_URL": "http://ghe.example/api/v3"}
+    r = CliRunner().invoke(app, ["scan", str(tmp_path), "--issues", "github", "--issues-url", "https://ghe.example",
+                                 "--issues-project", "a/b"], env=gh_env)  # fmt: skip
+    assert r.exit_code == 2 and "http://ghe.example/api/v3" in _plain(r.output)
+    r = CliRunner().invoke(app, ["watch", "--github-org", "acme"], env=gh_env)
+    assert r.exit_code == 2 and "http://ghe.example/api/v3" in _plain(r.output) and "secret" not in r.output
+    r = CliRunner().invoke(app, ["scan", str(tmp_path), "--issues", "gitlab", "--issues-url", "http://[::1",
+                                 "--issues-project", "a/b"])  # fmt: skip
+    assert r.exit_code == 2 and "not a URL" in _plain(r.output)
     # allowed, or this machine: past the check (the run then stops at OSV-Scanner, which isn't there)
     for args, env in ((["watch", "--git", "http://git.example.org/a/b.git", "--allow-insecure-http"], {}),
                       (["watch", "--git", "http://git.example.org/a/b.git"], {"LIMBOWATCH_ALLOW_INSECURE_HTTP": "1"}),

@@ -511,8 +511,10 @@ def scan(
     if issues and not tracker_token and not issues_dry_run:
         raise typer.BadParameter("set LIMBOWATCH_ISSUES_TOKEN to a token that can write issues", param_hint="--issues")
     if issues and tracker_token and (target := _issues_url(issues, issues_url)):
+        # for github the token goes to the API, which Actions may name apart from the server (GITHUB_API_URL)
+        sent_to = [target, github_host.api_url(target, _actions_api())] if issues == "github" else [target]
         try:
-            hosts.refuse_cleartext([target], "LIMBOWATCH_ISSUES_TOKEN", allow_insecure_http)
+            hosts.refuse_cleartext(sent_to, "LIMBOWATCH_ISSUES_TOKEN", allow_insecure_http)
         except hosts.SourceError as e:
             raise typer.BadParameter(str(e), param_hint="--issues-url") from e
     cache = cache or _cache_dir()
@@ -893,6 +895,7 @@ def watch(
     if issues and not issues_token and not issues_dry_run:
         raise typer.BadParameter("set LIMBOWATCH_ISSUES_TOKEN to a token that can write issues", param_hint="--issues")
     bases = [b for b, _ in groups + orgs + gh_orgs] + [p.base_url for p in git_projects]
+    bases += [github_host.api_url(b, _actions_api()) for b, _ in gh_orgs]  # where a GitHub token actually goes
     try:
         if token:
             name = "LIMBOWATCH_SOURCE_TOKEN" if os.environ.get("LIMBOWATCH_SOURCE_TOKEN") else "LIMBOWATCH_ISSUES_TOKEN"

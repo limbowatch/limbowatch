@@ -77,12 +77,17 @@ async def test_gitlab_listing_errors_are_never_an_empty_group(no_sleep: Any) -> 
 
 
 async def test_pagination_never_leaves_the_host(no_sleep: Any) -> None:
-    with respx.mock(assert_all_mocked=True) as router:
-        away = {"link": '<https://evil.example/x>; rel="next"'}
-        router.get(url__startswith=f"{GL}/api/v4/groups/").mock(return_value=httpx.Response(200, json=[], headers=away))
-        async with HttpClient(sleep=no_sleep) as http:
-            ls = await list_group(http, GL, "g", "tok")
-    assert ls.error and "pagination left" in ls.error  # this source fails; the run goes on
+    # another host, or the same host over plain http (a proxy that hides https): the token would go with it
+    for away in (
+        '<https://evil.example/x>; rel="next"',
+        '<http://gitlab.com/api/v4/groups/g/projects?page=2>; rel="next"',
+    ):
+        with respx.mock(assert_all_mocked=True) as router:
+            router.get(url__startswith=f"{GL}/api/v4/groups/").mock(
+                return_value=httpx.Response(200, json=[], headers={"link": away}))  # fmt: skip
+            async with HttpClient(sleep=no_sleep) as http:
+                ls = await list_group(http, GL, "g", "tok")
+        assert ls.error and "pagination left" in ls.error, away  # this source fails; the run goes on
 
 
 async def test_gitea_org_or_user(no_sleep: Any) -> None:
@@ -130,6 +135,8 @@ def test_tokens_never_go_over_plain_http_to_another_machine() -> None:
     assert "http://b.example/x" in str(e.value) and "--allow-insecure-http" in str(e.value)
     refuse_cleartext(["http://b.example"], "LIMBOWATCH_SOURCE_TOKEN", allow=True)  # the user said so
     refuse_cleartext(["http://127.0.0.1:3000"], "LIMBOWATCH_SOURCE_TOKEN", allow=False)  # this machine
+    with pytest.raises(SourceError, match="not a URL"):
+        cleartext("http://[::1")
 
 
 def test_clone_url_stays_on_the_listed_host() -> None:

@@ -44,7 +44,7 @@ async def repo_advisories(http: HttpClient, repo: str, etag: str | None = None) 
     # the ID names the advisory's page and feed record files: one that isn't a GHSA ID is logged and left out
     ok = [a for a in raw if isinstance(a, dict) and GHSA_ID.fullmatch(str(a.get("ghsa_id") or ""))]
     if len(ok) < len(raw):
-        log.warning("advisories without a GHSA ID left out", extra={"repo": repo, "count": len(raw) - len(ok)})
+        log.warning("%s: %d advisories without a GHSA ID left out", repo, len(raw) - len(ok))
     return RepoPoll(200, [repo_advisory(a, repo) for a in ok], first_etag)
 
 
