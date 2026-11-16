@@ -3247,6 +3247,20 @@ Answered:
 - **Implication:** 0.1.0a16 shipped as tested.
 - **Sources:** the runs above; PyPI; ghcr.io; gitlab.com/limbowatch/limbowatch-component.
 
+### F-213
+- **Date:** 2026-11-16 · **Status:** confirmed (live checks)
+- **Question:** Eight days after [F-112](#f-112), and four after [F-157](#f-157)/[F-162](#f-162), are those advisories still in limbo? (Re-check before naming them in a public post.)
+- **Method:**
+  - **F-112's set:** the 277 distinct advisories behind its 1,080 confirmed findings (`research/2026-11-dependabot-compare/data/2026-11-08/ranges.json`, verdict `confirmed`). For each: `GET /advisories/{ghsa}` (404 means not in GitHub's reviewed database), `GET api.osv.dev/v1/vulns/{ghsa}`; for those still absent from both, `GET /repos/{repo}/security-advisories/{ghsa}` (state, `withdrawn_at`).
+  - **The proof repository's examples:** the same three checks for typebox GHSA-976x-prgx-qv35, nats-server GHSA-38x3-76xf-cq45 and GHSA-qrcv-3558-gj4f, go-openapi/spec GHSA-gqhc-vf4h-h7hg, go-toml GHSA-frc4-6h9q-39fq, mustache GHSA-5hrj-7fc3-cmx9, rubyntlm GHSA-cx24-f932-rr55, scapy GHSA-c547-xwrv-q9jm.
+- **Result:**
+  - **F-112's 277:** 78 reviewed since (200 from GitHub and OSV, both); 199 absent from both. Of those, 198 still published upstream with no `withdrawn_at`; graphql-hive/gateway's GHSA-xrjv-fc7j-8f77 now returns 404 from its repository, so it's left out. **198 still in limbo**: 10 critical, 71 high, 90 medium, 27 low (severity as of 2026-11-08); npm 86, PyPI 41, RubyGems 34, Go 33, crates.io 4.
+  - By project, advisories confirmed on 2026-11-08 → still in limbo: GitLab 110 → 55, n8n 58 → 49, Open WebUI 53 → 49, LangChain 48 → 33, Forgejo 23 → 23, Gitea 22 → 22, GoToSocial 22 → 22, Arti 18 → 9, Gitaly 11 → 9, GitLab Runner 9 → 9, Mobilizon 9 → 9, Kubernetes 3 → 3, Fractal 1 → 1. These are the projects' 2026-11-08 dependency files; they may have upgraded since.
+  - **The 8 example advisories:** all still published, 404 in GitHub's reviewed database, 404 in OSV. Days in limbo on 2026-11-16: nats-server 140, go-toml 132, go-openapi/spec 118, mustache 88, typebox 87, scapy 69, rubyntlm 68.
+- **Caveats:** one day's check; the projects' current HEADs weren't rescanned. Severity is the maintainer's.
+- **Implication:** about 70% of the advisories F-112 found on popular projects are still unreviewed 8 days later; the public examples still hold. Used for the second LinkedIn post (dated 2026-11-16).
+- **Sources:** GitHub REST API (global and repository security advisories); OSV API; raw output in the session scratchpad.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
