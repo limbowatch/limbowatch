@@ -83,6 +83,18 @@ async def test_github_follows_pages(no_sleep: Any) -> None:
     assert res.status == 200 and res.etag == '"e1"' and len(res.advisories or []) == len(raw)
 
 
+async def test_github_leaves_out_an_advisory_without_a_ghsa_id(no_sleep: Any, caplog: pytest.LogCaptureFixture) -> None:
+    """The ID names the advisory's page and feed record: a path in its place is logged and left out."""
+    raw = load("repo_advisories_regexp2.json")[:1]
+    url = f"{github.API}/repos/dlclark/regexp2/security-advisories?state=published&per_page=100"
+    with respx.mock() as r:
+        r.get(url).mock(return_value=httpx.Response(200, json=[*raw, raw[0] | {"ghsa_id": "../../index"}]))
+        async with HttpClient(sleep=no_sleep) as http:
+            res = await github.repo_advisories(http, "dlclark/regexp2")
+    assert [a.ghsa_id for a in res.advisories or []] == [raw[0]["ghsa_id"]]
+    assert "without a GHSA ID" in caplog.text
+
+
 async def test_polling_records_a_renamed_repo_and_stops_at_the_budget(no_sleep: Any) -> None:
     raw = load("repo_advisories_regexp2.json")[:1]  # its html_url names dlclark/regexp2
     with respx.mock() as r:

@@ -339,6 +339,13 @@ OsvCommits = Annotated[
         "sends those commit hashes to OSV."
     ),
 ]
+AllowInsecureHttp = Annotated[
+    bool,
+    typer.Option(
+        envvar="LIMBOWATCH_ALLOW_INSECURE_HTTP",
+        help="Send tokens to http:// URLs on other machines. Refused by default: anyone on the network can read them.",
+    ),
+]
 ResolveMaven = Annotated[
     bool,
     typer.Option(
@@ -484,6 +491,7 @@ def scan(
     issues_confidential: Annotated[bool, typer.Option(help="GitLab: open confidential issues.")] = True,
     issues_max_new: IssuesMaxNew = 50,
     issues_dry_run: Annotated[bool, typer.Option(help="Print the issue changes instead of making them.")] = False,
+    allow_insecure_http: AllowInsecureHttp = False,
 ) -> None:
     """Check a project's dependencies against advisories in limbo.
 
@@ -502,6 +510,11 @@ def scan(
         raise typer.BadParameter(f"--issues wants {', '.join(ISSUE_TRACKERS[:-1])} or {ISSUE_TRACKERS[-1]}")
     if issues and not tracker_token and not issues_dry_run:
         raise typer.BadParameter("set LIMBOWATCH_ISSUES_TOKEN to a token that can write issues", param_hint="--issues")
+    if issues and tracker_token and (target := _issues_url(issues, issues_url)):
+        try:
+            hosts.refuse_cleartext([target], "LIMBOWATCH_ISSUES_TOKEN", allow_insecure_http)
+        except hosts.SourceError as e:
+            raise typer.BadParameter(str(e), param_hint="--issues-url") from e
     cache = cache or _cache_dir()
     inv = load_inventory(path, sbom_file, binary, scan_ignored, resolve_maven)
     for skipped in inv.skipped:
@@ -601,6 +614,13 @@ def _outputs(
     return (stdout[0] if stdout else "table"), files
 
 
+def _issues_url(kind: str, url: str | None) -> str | None:
+    """The tracker's base URL: --issues-url, else the CI job's own server."""
+    if kind == "github":
+        return url or os.environ.get("GITHUB_API_URL") or "https://api.github.com"
+    return url or os.environ.get("CI_SERVER_URL") or os.environ.get("GITHUB_SERVER_URL")
+
+
 async def _sync_issues(
     http: HttpClient,
     res: watch_scan.ScanResult,
@@ -615,11 +635,10 @@ async def _sync_issues(
     dry_run: bool,
 ) -> list[str]:
     """Open, comment on and close issues for this scan's findings (watch.issues)."""
+    url = _issues_url(kind, url)
     if kind == "github":
-        url = url or os.environ.get("GITHUB_API_URL") or "https://api.github.com"
         project = project or os.environ.get("GITHUB_REPOSITORY")
     else:
-        url = url or os.environ.get("CI_SERVER_URL") or os.environ.get("GITHUB_SERVER_URL")
         project = project or os.environ.get("CI_PROJECT_PATH") or os.environ.get("GITHUB_REPOSITORY")
     if not url or not project:
         where = "GITHUB_REPOSITORY" if kind == "github" else "CI_SERVER_URL and CI_PROJECT_PATH"
@@ -841,6 +860,7 @@ def watch(
     issues_confidential: Annotated[bool, typer.Option(help="GitLab: open confidential issues.")] = True,
     issues_max_new: IssuesMaxNew = 50,
     issues_dry_run: Annotated[bool, typer.Option(help="Print the issue changes instead of making them.")] = False,
+    allow_insecure_http: AllowInsecureHttp = False,
 ) -> None:
     """Check every project of GitLab groups, Gitea or Forgejo orgs, GitHub orgs, or git URLs, in one run (org-wide
     mode).
@@ -872,6 +892,15 @@ def watch(
     issues_token = os.environ.get("LIMBOWATCH_ISSUES_TOKEN")
     if issues and not issues_token and not issues_dry_run:
         raise typer.BadParameter("set LIMBOWATCH_ISSUES_TOKEN to a token that can write issues", param_hint="--issues")
+    bases = [b for b, _ in groups + orgs + gh_orgs] + [p.base_url for p in git_projects]
+    try:
+        if token:
+            name = "LIMBOWATCH_SOURCE_TOKEN" if os.environ.get("LIMBOWATCH_SOURCE_TOKEN") else "LIMBOWATCH_ISSUES_TOKEN"
+            hosts.refuse_cleartext(bases, name, allow_insecure_http)
+        if issues and issues_token:
+            hosts.refuse_cleartext(bases, "LIMBOWATCH_ISSUES_TOKEN", allow_insecure_http)
+    except hosts.SourceError as e:
+        raise typer.BadParameter(str(e)) from e
     _check_osv_scanner(binary)
     cache = cache or _cache_dir()
     now = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")

@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any
 from urllib.parse import quote
 
-from limbowatch.hosts import HostKind, Listing, Project, Skip, SourceError, next_link, safe_path
+from limbowatch.hosts import HostKind, Listing, Project, Skip, SourceError, clone_url, next_link, safe_path
 from limbowatch.http import HttpClient
 
 LIMIT = 50
@@ -65,7 +65,7 @@ def _add(out: Listing, base_url: str, p: dict[str, Any], include_archived: bool)
         HostKind.GITEA,
         base_url,
         path,
-        str(p.get("clone_url") or f"{base_url}/{path}.git"),
+        clone_url(base_url, p.get("clone_url"), path),
         str(p.get("html_url") or f"{base_url}/{path}"),
         public=not p.get("private", False) and not p.get("internal", False),
         archived=bool(p.get("archived")),

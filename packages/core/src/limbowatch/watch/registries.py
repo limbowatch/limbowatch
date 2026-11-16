@@ -13,6 +13,11 @@ FINDINGS F-136).
 Files come from bcr.bazel.build, raw.githubusercontent.com (outside GitHub's API rate limit, F-013) and
 center2.conan.io. A name that
 can't be mapped keeps its declaration and says why; it's never dropped.
+
+Names, versions and baselines come from the scanned project's files, and each goes into a URL path. Only plain
+segments are used (`segment`, a full commit hash for a baseline): `../` would otherwise walk the URL to another
+repository on the same host (httpx removes dot segments), and the registry would answer for a file the project
+chose. Every download is capped (MAX_FILE_BYTES).
 """
 
 from __future__ import annotations
@@ -25,7 +30,7 @@ import tarfile
 from collections.abc import Sequence
 from typing import Any
 
-from limbowatch.http import HttpClient
+from limbowatch.http import HttpClient, ResponseTooLarge
 from limbowatch.inventory import upstream as up
 from limbowatch.models import Upstream, UpstreamKind
 from limbowatch.versions import UpstreamVersion
@@ -35,6 +40,14 @@ RAW = "https://raw.githubusercontent.com"
 VCPKG = "microsoft/vcpkg"
 CONAN_REMOTE = "https://center2.conan.io/v2/conans"  # ConanCenter's Conan 2 remote
 MAX_VCPKG_PORTS = 500  # a project's whole vcpkg graph; more is a runaway
+MAX_FILE_BYTES = 5_000_000  # a source.json, baseline.json, portfile or recipe archive; vcpkg's baseline is ~0.2 MB
+_SEGMENT = re.compile(r"[\w+-][\w.+-]*", re.ASCII)  # one URL path segment: no "/", "%", "?", and never "." or ".."
+_COMMIT = re.compile(r"[0-9a-fA-F]{40}")
+
+
+def segment(value: str | None) -> bool:
+    """A registry name or version that is one plain URL path segment."""
+    return bool(value) and _SEGMENT.fullmatch(value or "") is not None
 
 
 def _same(a: str, b: str) -> bool:
@@ -92,7 +105,10 @@ class Registries:
         return await self._text[url]
 
     async def _get(self, url: str) -> str | None:
-        r = await self.http.get(url, raw=True)
+        try:
+            r = await self.http.get(url, raw=True, max_bytes=MAX_FILE_BYTES)
+        except ResponseTooLarge:
+            return None
         return r.body.decode(errors="replace") if r.ok and isinstance(r.body, bytes) else None
 
     async def doc(self, url: str) -> Any:
@@ -122,6 +138,8 @@ class Registries:
     # --- Bazel ------------------------------------------------------------------------------------------------------
 
     async def bazel(self, u: Upstream) -> Upstream:
+        if not (segment(u.name) and segment(u.version)):
+            return u.model_copy(update={"detail": f"{u.name} {u.version} isn't a Bazel module name and version"})
         src = await self.doc(f"{BCR}/{u.name}/{u.version}/source.json")
         if not isinstance(src, dict):
             return u.model_copy(update={"detail": f"{u.name} {u.version} isn't in the Bazel Central Registry"})
@@ -175,6 +193,8 @@ class Registries:
 
     async def vcpkg_graph(self, root: Upstream) -> list[Upstream]:
         sha = root.baseline or ""
+        if not _COMMIT.fullmatch(sha):
+            return [root.model_copy(update={"detail": f"vcpkg baseline {sha!r} isn't a full commit hash"[:200]})]
         base = await self._baseline(sha)
         if not base:
             return [root.model_copy(update={"detail": f"vcpkg baseline {sha} couldn't be read"})]
@@ -184,7 +204,7 @@ class Registries:
         truncated = False
         while queue:
             name = queue.pop(0)
-            if name not in base:
+            if name not in base or not segment(name):
                 continue  # no such port at the baseline (reported on it): nothing to follow
             manifest = await self.doc(f"{RAW}/{VCPKG}/{sha}/ports/{name}/vcpkg.json")
             for dep in _port_deps(manifest):
@@ -206,7 +226,7 @@ class Registries:
 
     async def vcpkg_port(self, u: Upstream, base: dict[str, Any]) -> Upstream:
         sha, entry = u.baseline or "", base.get(u.name)
-        if not isinstance(entry, dict) or "baseline" not in entry:
+        if not isinstance(entry, dict) or "baseline" not in entry or not segment(u.name):
             return u.model_copy(update={"detail": f"no port {u.name} in vcpkg at {sha[:12]}"})
         at_baseline = str(entry["baseline"])
         version = at_baseline
@@ -254,13 +274,20 @@ class Registries:
     async def conan(self, u: Upstream) -> Upstream:
         """The recipe's `conandata.yml` from the ConanCenter remote (in its latest revision's `conan_export.tgz`),
         which serves every version; conan-center-index on GitHub keeps only current ones (F-137)."""
+        if not (segment(u.name) and segment(u.version)):
+            return u.model_copy(update={"detail": f"{u.name}/{u.version} isn't a Conan name and version"})
         base = f"{CONAN_REMOTE}/{u.name}/{u.version}/_/_"
         latest = await self.doc(f"{base}/latest")
         rev = latest.get("revision") if isinstance(latest, dict) else None
-        if not rev:
+        if not isinstance(rev, str) or not segment(rev):
             return u.model_copy(update={"detail": f"{u.name} {u.version} isn't on ConanCenter"})
-        r = await self.http.get(f"{base}/revisions/{rev}/files/conan_export.tgz", raw=True)
-        data = _conandata(r.body) if r.ok and isinstance(r.body, bytes) else None
+        try:
+            r = await self.http.get(
+                f"{base}/revisions/{rev}/files/conan_export.tgz", raw=True, max_bytes=MAX_FILE_BYTES
+            )
+        except ResponseTooLarge:
+            r = None
+        data = _conandata(r.body) if r is not None and r.ok and isinstance(r.body, bytes) else None
         urls = _urls(yaml_block(data or "", "sources", u.version or "") or "")
         url, loc = up.pick_url(urls)
         via = "ConanCenter recipe"

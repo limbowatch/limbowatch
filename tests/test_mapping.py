@@ -71,3 +71,15 @@ def test_hex_pub_swift_versions_are_compared_as_versions() -> None:
     assert affected("erlang", "1.7.10", "< 1.7.14") is True and affected("erlang", "1.7.14", "< 1.7.14") is False
     assert affected("pub", "1.2.0", ">= 1.0.0, < 1.10.0") is True  # 1.2 < 1.10, not as text
     assert affected("swift", "v2.65.0", "< 2.66.0") is True
+
+
+async def test_maven_coordinates_never_walk_the_url(no_sleep: Any) -> None:
+    """A parent POM's coordinates go into a URL path: one with "../" isn't followed (a request to any URL not routed
+    here would fail the test)."""
+    child = """<project><parent><groupId>org.x</groupId><artifactId>p</artifactId>
+               <version>1.0/../../../../evil/x/1.0</version></parent></project>"""
+    with respx.mock(assert_all_called=True) as router:
+        router.get(f"{mapping.MAVEN_CENTRAL}/org/x/c/1.0/c-1.0.pom").mock(return_value=httpx.Response(200, text=child))
+        async with HttpClient(sleep=no_sleep) as http:
+            assert await mapping._maven_scm(http, "org.x:c", "1.0") is None
+            assert await mapping._maven_scm(http, "org.x:c", "[1.0,2.0)") is None  # a range names no POM

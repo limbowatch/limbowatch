@@ -103,6 +103,7 @@ Every format carries the CC BY 4.0 attribution for the advisory data. SARIF 2.1.
 | `--no-osv-commits` | Don't ask OSV about the commits the project pins for its upstream sources |
 | `--scan-ignored` | Also read lockfiles a `.gitignore` excludes, including an enclosing repo's (F-085) |
 | `--verify-feed auto\|require\|off` | Check the feed against its signed build attestation before using it (default `auto`; `LIMBOWATCH_VERIFY_FEED`). [Security and data](#security-and-data) |
+| `--allow-insecure-http` | Send the issues token to an `http://` tracker on another machine. Refused by default ([Security and data](#security-and-data)); `LIMBOWATCH_ALLOW_INSECURE_HTTP=1` |
 | `-v` | Show the evidence for every finding, and every dependency checked by name only |
 
 | Exit code | Meaning |
@@ -203,7 +204,7 @@ limbowatch watch --gitea-org https://codeberg.org/some-org --git https://git.exa
 | `--gitlab-group URL` | `https://host/group/subgroup`, or a path with `--gitlab-url` (default `$CI_SERVER_URL`, else gitlab.com). Repeatable |
 | `--gitea-org URL` | `https://host/org` (or a user). Repeatable |
 | `--github-org NAME` | A GitHub organization or user: `acme`, or `https://github.com/acme`. Repeatable. `--github-url` names an Enterprise Server (default `$GITHUB_SERVER_URL`, else github.com; Enterprise Server is untested) |
-| `--git URL` | Any https git URL. Repeatable. No issues for these: there's no tracker to open them in |
+| `--git URL` | Any https git URL (http without a token, or with `--allow-insecure-http`). Repeatable. No issues for these: there's no tracker to open them in |
 | `--exclude GLOB` | Skip projects whose path (`acme/legacy-*`) or host/path matches. Repeatable |
 | `--include-archived` | Also check archived projects |
 | `--state DIR` | One state file per project, `DIR/<host>/<path>.json`, to report what changed since the last run |
@@ -211,7 +212,7 @@ limbowatch watch --gitea-org https://codeberg.org/some-org --git https://git.exa
 | `--issues` | Open and update issues in each GitLab, Gitea or GitHub project, as `scan --issues` does (`LIMBOWATCH_ISSUES_TOKEN`) |
 | `--jobs N` | Projects cloned and inventoried at a time (default 4) |
 
-`--fail-on`, `--fail-on-unknown`, `--ignore`, `--ignore-file`, `--no-upstream`, `--osv-scanner` and `-v` work as for `scan`.
+`--fail-on`, `--fail-on-unknown`, `--ignore`, `--ignore-file`, `--no-upstream`, `--osv-scanner`, `--allow-insecure-http` and `-v` work as for `scan`.
 
 | Exit code | Meaning |
 |---|---|
@@ -226,7 +227,8 @@ A project that can't be cloned or inventoried is listed under **couldn't be chec
 - GitHub lists only what the token can see and doesn't say more exists (F-147). The report notes a listing that may be partial: without a token (public repos only), with a classic token without `repo` scope, with a fine-grained token (it sees the repos it was given), or with an app installation token in Actions, such as the job's `GITHUB_TOKEN`, which sees public repos and its own repo only.
 - In Actions, the job's own server uses the job's `GITHUB_API_URL`, so Enterprise Server and GHE.com work from their own Actions; elsewhere `--github-url` takes github.com or an Enterprise Server address (`/api/v3`).
 - A token is sent only to its own host (for GitHub, github.com and its API host api.github.com). When the sources span several hosts, run `limbowatch watch` once per host; with a token set, a run that names two hosts is refused.
-- Clones get the token from git's environment, never from the command line or the URL.
+- Clones get the token from git's environment, never from the command line or the URL. A clone URL a host's API returns is used only if it's on that host, with the same scheme; otherwise the clone URL is built from the host's address.
+- A token is never sent over plain `http://` to another machine: a run that would do so is refused before anything is sent (exit 2). `http://` to this machine (localhost, 127.0.0.1, ::1) is fine, as are public sources over http without a token. For a self-managed instance that only serves http, `--allow-insecure-http` (or the CI/CD variable `LIMBOWATCH_ALLOW_INSECURE_HTTP=1`) sends it anyway: anyone on that network can then read the token.
 - Gitea and Forgejo show a private organization as empty to a request without access (F-129). So a source that lists no projects at all is an error, not a pass.
 
 **Scheduled GitLab pipeline.** The image includes git. In a project of its own, with `LIMBOWATCH_SOURCE_TOKEN` and `LIMBOWATCH_GITHUB_TOKEN` as masked CI/CD variables and a pipeline schedule:
@@ -295,7 +297,7 @@ The scan runs where your code already is, in your CI job or on your machine. It 
 | api.osv.dev | Advisory IDs; the commits the project pins for its upstream sources; with `--state`, IDs of findings that went away since the last run | `--no-upstream`, `--no-osv-commits`; no `--state` |
 | Your own GitLab, GitHub, Gitea or Forgejo | Findings, as issues | Leave out `--issues` |
 
-A GitHub token, when there is one, goes only to api.github.com; a tracker token only to your tracker. Every request carries the user agent `limbowatch/<version> (+https://limbo.watch)`.
+A GitHub token, when there is one, goes only to api.github.com; a tracker token only to your tracker, and never over plain `http://` to another machine unless you pass `--allow-insecure-http`. Names, versions and the vcpkg baseline taken from your build files go into those registries' URLs only as plain path segments (a full commit hash for the baseline), so a `../` in a build file can't point a lookup at another repository. Every request carries the user agent `limbowatch/<version> (+https://limbo.watch)`.
 
 **Feed only.** `--no-upstream --no-resolve-maven` (without `--state` or `--issues`) contacts limbo.watch, and api.github.com to verify the feed (add `--verify-feed off` for limbo.watch alone), and nothing else: measured through a logging proxy on a project with npm, Go, Cargo, Python, Maven, Gradle and CMake dependencies (FINDINGS F-166). The price: a `pom.xml` gives only its direct dependencies, upstream sources and repositories the tracker doesn't watch aren't checked, and each is reported as such. Install time is separate: the image comes from ghcr.io (registry.gitlab.com for the GitLab component); `install: python` uses pypi.org and files.pythonhosted.org for the pinned dependencies, and github.com for OSV-Scanner and Limbowatch's own source.
 

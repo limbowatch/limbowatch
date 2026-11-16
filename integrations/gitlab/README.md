@@ -82,6 +82,7 @@ limbowatch:
 |---|---|
 | `LIMBOWATCH_GITHUB_TOKEN` | Masked. Any GitHub token that can read public repositories. The job polls the source repos the live tracker doesn't watch, and GitHub allows 60 requests an hour without a token. Repos it can't poll are reported as checked by name only, never skipped. |
 | `LIMBOWATCH_ISSUES_TOKEN` | Masked and protected, for `issues: true`. A project access token with `api` scope and at least the Reporter role. Project access tokens need Premium or Ultimate on gitlab.com; on Free, use a personal access token of a bot account added to the project. Merge request pipelines never open issues. |
+| `LIMBOWATCH_ALLOW_INSECURE_HTTP` | Set to `1` only if your GitLab is served over plain `http://`. The issues token is never sent over http to another machine otherwise: the job stops (exit 2) and says so, since anyone on the network could read it. |
 
 ## Security and data
 

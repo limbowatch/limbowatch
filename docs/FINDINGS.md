@@ -3171,6 +3171,18 @@ Answered:
 - **Implication:** nothing is near a limit. At about 20,000 Class B a day, a month is about 600,000 (6% of free); cache misses are the long tail of 52,000 pages crawled under a 5-minute cache, which costs reads, not money. The only allowance that can run out is Class A, and only through repeated full uploads (about 52,000 each; about 17 a month on top of the daily 3,100 would pass 1 million). Past a free allowance R2 bills ($4.50 per million Class A) rather than blocking, so the site wouldn't go down; a budget alert on the account would show it. The Worker uses 0.1% of its daily limit and fails open.
 - **Sources:** Cloudflare dashboard for the account and zone (not public).
 
+### F-207
+- **Date:** 2026-11-15 · **Status:** confirmed (direct observation)
+- **Question:** An outside security review said (1) a `../` in a build file's registry name, version or vcpkg baseline could redirect the watcher's registry lookups; (2) a tar header with a false size could make `_conandata` read without bound; (3) org-wide mode sends `LIMBOWATCH_SOURCE_TOKEN` over plain `http://`. Which are true?
+- **Method:** httpx 0.28.1: `httpx.URL()` on registry URLs built with `../` segments. Python's `tarfile`: a gzip tar whose `conandata.yml` header says 5 bytes, followed by 2 MB of data; `extractfile(m).read()`. Code reading of `limbowatch.hosts.git_project`, `split_url` and `hosts.git.environment`.
+- **Result:**
+  - (1) True. httpx removes dot segments before sending: `https://raw.githubusercontent.com/microsoft/vcpkg/../../a/b/main/x` is requested as `https://raw.githubusercontent.com/a/b/main/x`, and `center2.conan.io/v2/conans/z/1.0/../../../q/...` as `center2.conan.io/v2/q/...`. The host never changes, and only api.github.com gets a token. Percent-encoded `%2e%2e` is left as is.
+  - (2) False. `extractfile` reads at most the header's size (5 of 2,000,000 bytes). The download itself, though, had no cap.
+  - (3) True. `git_project` and `split_url` accepted `http://`, and the clone's `extraHeader` and the API calls carried the token to any such URL.
+- **Caveats:** for (1) the scanned project can only misreport its own dependencies; it could already name any repository directly (`git_override`, `FetchContent`).
+- **Implication:** registry names, versions and Maven coordinates must be single plain path segments, and the vcpkg baseline a full commit hash; registry downloads stop at 5 MB. Tokens go over `http://` only to loopback addresses or with `--allow-insecure-http`. A host API's clone URL is used only on the listed host and scheme.
+- **Sources:** the probes above; `tests/test_upstream.py::test_registry_edges`, `tests/test_org.py`, `tests/test_cli.py::test_tokens_are_refused_over_plain_http`.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

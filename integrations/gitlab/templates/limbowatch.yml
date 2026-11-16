@@ -113,8 +113,10 @@ spec:
         set -- "$@" --issues gitlab --issues-min-severity "$LW_ISSUES_MIN"
       fi
       rc=0
-      # shellcheck disable=SC2086 # LW_EXTRA is a list of options
+      # shellcheck disable=SC2086 # LW_EXTRA is a list of options; set -f passes a * or ? in it as typed
+      set -f
       limbowatch scan "$LW_PATH" "$@" $LW_EXTRA || rc=$?
+      set +f
       # 0 passed, 1 findings meet fail_on, 2 the scan couldn't run
       if [ "$rc" = 1 ] && [ "$LW_SECURITY_REPORT" = "true" ]; then
         echo "The ${LW_JOB}-gate job fails the pipeline for these findings; this job passes so GitLab reads the security report."

@@ -430,7 +430,8 @@ async def test_registry_edges(no_sleep: Any, monkeypatch: pytest.MonkeyPatch) ->
     """What each registry says when it can't name a repo and tag: always a reason, never a silent drop."""
     raw = f"{reg.RAW}/{reg.VCPKG}/{BASELINE}"
     base = {"default": {"site": {"baseline": "1.0"}, "pinned": {"baseline": "2.0"}, "graph": {"baseline": "1.0"},
-                        "dep": {"baseline": "1.0"}, "gone": {"baseline": "1.0"}}}  # fmt: skip
+                        "dep": {"baseline": "1.0"}, "gone": {"baseline": "1.0"},
+                        "huge": {"baseline": "1.0"}}}  # fmt: skip
     with respx.mock(assert_all_called=False) as router:
         gitsrc = {"type": "git_repository", "remote": "https://github.com/o/git.git", "commit": "a" * 40}
         router.get(f"{reg.BCR}/git/1.0/source.json").mock(return_value=httpx.Response(200, json=gitsrc))
@@ -441,7 +442,9 @@ async def test_registry_edges(no_sleep: Any, monkeypatch: pytest.MonkeyPatch) ->
         router.get(f"{reg.BCR}/site/1.0/source.json").mock(return_value=httpx.Response(
             200, json={"url": "https://example.org/site-1.0.tar.gz"}))  # fmt: skip
         router.get(f"{reg.BCR}/site/metadata.json").mock(return_value=httpx.Response(404))
-        router.get(f"{reg.RAW}/{reg.VCPKG}/bad/versions/baseline.json").mock(return_value=httpx.Response(404))
+        router.get(f"{reg.RAW}/{reg.VCPKG}/{'c' * 40}/versions/baseline.json").mock(return_value=httpx.Response(404))
+        router.get(f"{raw}/ports/huge/portfile.cmake").mock(return_value=httpx.Response(
+            200, content=b"x" * (reg.MAX_FILE_BYTES + 1)))  # fmt: skip
         router.get(f"{raw}/versions/baseline.json").mock(return_value=httpx.Response(200, json=base))
         dl = 'vcpkg_download_distfile(A URLS "https://example.org/site-${VERSION}.tgz" FILENAME x)'
         router.get(f"{raw}/ports/site/portfile.cmake").mock(return_value=httpx.Response(200, text=dl))
@@ -466,7 +469,11 @@ async def test_registry_edges(no_sleep: Any, monkeypatch: pytest.MonkeyPatch) ->
                 _u(UpstreamKind.BAZEL_MODULE, "git", version="1.0"),
                 _u(UpstreamKind.BAZEL_MODULE, "meta", version="1.0"),
                 _u(UpstreamKind.BAZEL_MODULE, "site", version="1.0"),
-                _u(UpstreamKind.VCPKG, "x", baseline="bad"),
+                _u(UpstreamKind.VCPKG, "x", baseline="c" * 40),
+                _u(UpstreamKind.VCPKG, "walk", baseline="../../attacker/repo/main"),  # a path, not a commit
+                _u(UpstreamKind.VCPKG, "huge", baseline=BASELINE),
+                _u(UpstreamKind.BAZEL_MODULE, "../../x", version="1.0"),
+                _u(UpstreamKind.CONAN, "zlib", version="1.0/../../../other"),
                 _u(UpstreamKind.VCPKG, "site", baseline=BASELINE),
                 _u(UpstreamKind.VCPKG, "pinned", baseline=BASELINE, version="2.0.0"),  # 2.0.0 is the baseline's 2.0
                 _u(UpstreamKind.VCPKG, "missing", baseline=BASELINE),
@@ -484,6 +491,12 @@ async def test_registry_edges(no_sleep: Any, monkeypatch: pytest.MonkeyPatch) ->
     )
     assert "isn't on a forge" in r["site"][0].detail and r["site"][0].repo is None
     assert "couldn't be read" in r["x"][0].detail
+    # names and baselines from the project's files never walk a registry URL elsewhere (`..`): said, not fetched
+    # (a request to any URL not routed above would fail the test)
+    assert "isn't a full commit hash" in r["walk"][0].detail and r["walk"][0].repo is None
+    assert "isn't a Bazel module name" in r["../../x"][0].detail
+    assert "isn't a Conan name and version" in r["zlib"][0].detail
+    assert r["huge"][0].detail == "the port's portfile couldn't be read"  # over MAX_FILE_BYTES
     vsite = next(us for u, us in got.items() if u.kind is UpstreamKind.VCPKG and u.name == "site")[0]
     assert vsite.detail == "the port downloads from a site, not a repository"  # no deps: not truncated
     assert r["pinned"][0].ref == "b" * 40  # 2.0.0 is the same version as the baseline's 2.0 (F-142)

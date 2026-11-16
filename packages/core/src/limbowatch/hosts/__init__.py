@@ -8,6 +8,7 @@ excluded), and a source that can't be listed is an error, never an empty list.
 
 from __future__ import annotations
 
+import ipaddress
 import re
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -120,7 +121,7 @@ def excluded(project: Project, patterns: list[str]) -> bool:
 
 
 def git_project(url: str) -> Project:
-    """A plain git URL (https only, so a token header can be scoped to its host)."""
+    """A plain git URL: https, or http (a token isn't sent over http unless allowed: `refuse_cleartext`)."""
     p = urlsplit(url)
     if p.scheme not in ("https", "http") or not p.netloc:
         raise SourceError(f"--git wants an https:// URL, got {redact(url)!r}")
@@ -129,3 +130,40 @@ def git_project(url: str) -> Project:
     path = safe_path(p.path.removesuffix("/").removesuffix(".git"))
     base = f"{p.scheme}://{p.netloc}"
     return Project(HostKind.GIT, base, path, url, f"{base}/{path}")
+
+
+def _loopback(host: str) -> bool:
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def cleartext(url: str) -> bool:
+    """Plain http to another machine: whatever is sent there, a token included, crosses the network readable."""
+    p = urlsplit(url)
+    return p.scheme == "http" and not _loopback(p.hostname or "")
+
+
+def refuse_cleartext(urls: list[str], token_name: str, allow: bool) -> None:
+    """A token is never sent over plain http to another machine unless the user allows it (--allow-insecure-http);
+    this machine (localhost, 127.0.0.1, ::1) is fine. Raises SourceError naming the URLs."""
+    if allow:
+        return
+    if bad := sorted({redact(u) for u in urls if cleartext(u)}):
+        raise SourceError(
+            f"{token_name} would be sent over plain http to {', '.join(bad)}, where anyone on the network can read it; "
+            "use https, or --allow-insecure-http (LIMBOWATCH_ALLOW_INSECURE_HTTP=1) to send it anyway"
+        )
+
+
+def clone_url(base_url: str, given: object, path: str) -> str:
+    """The clone URL a host's API gives, if it's on the host that was listed (same scheme and host); otherwise the
+    one built from the base URL. The API's answer is never followed to another host or scheme (file://, ssh://)."""
+    built = f"{base_url}/{path}.git"
+    if not isinstance(given, str) or not given:
+        return built
+    g, b = urlsplit(given), urlsplit(base_url)
+    return given if (g.scheme, g.netloc.lower()) == (b.scheme, b.netloc.lower()) else built

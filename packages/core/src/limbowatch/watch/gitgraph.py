@@ -42,9 +42,12 @@ class GitGraph:
         return out
 
     def commit(self, ref: str) -> str | None:
-        """The commit a tag, branch or (abbreviated) commit hash names, if the clone has it."""
+        """The commit a tag, branch or (abbreviated) commit hash names, if the clone has it. A ref from a build file
+        that starts with "-" names nothing: git would read it as an option."""
         if ref in self.tags:
             return self.tags[ref]
+        if ref.startswith("-"):
+            return None
         r = self._git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")
         sha = r.stdout.strip()
         return sha if r.returncode == 0 and re.fullmatch(r"[0-9a-f]{40}", sha) else None
@@ -77,7 +80,7 @@ def _clone(url: str, dest: Path) -> GitGraph | None:
         else:
             dest.parent.mkdir(parents=True, exist_ok=True)
             r = subprocess.run(["git", "-c", "credential.helper=", "clone", "--quiet", "--bare", "--filter=tree:0",
-                                url, str(dest)], capture_output=True, timeout=CLONE_TIMEOUT, env=env)  # fmt: skip
+                                "--", url, str(dest)], capture_output=True, timeout=CLONE_TIMEOUT, env=env)  # fmt: skip
             if r.returncode:
                 return None
         return GitGraph(dest)

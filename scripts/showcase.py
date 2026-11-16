@@ -50,7 +50,11 @@ def projects(path: Path) -> list[str]:
 
 
 def _git(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, timeout=600, check=False)
+    # core.symlinks=false: a symlinked lockfile is checked out as a small file holding its target, so OSV-Scanner
+    # can't read a file outside the checkout into the public showcase (as in limbowatch.hosts.git)
+    return subprocess.run(
+        ["git", "-c", "core.symlinks=false", *args], cwd=cwd, capture_output=True, text=True, timeout=600, check=False
+    )
 
 
 def clone(repo: str, dest: Path) -> str:

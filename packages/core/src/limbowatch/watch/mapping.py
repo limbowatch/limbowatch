@@ -20,6 +20,7 @@ from urllib.parse import quote, urlsplit
 from limbowatch.ecosystems import info
 from limbowatch.http import HttpClient
 from limbowatch.models import Dependency
+from limbowatch.watch.registries import segment
 
 DEPS_DEV = "https://api.deps.dev/v3"
 RUBYGEMS = "https://rubygems.org/api/v1"
@@ -127,6 +128,8 @@ async def _maven_scm(http: HttpClient, name: str, version: str) -> Mapped | None
         return None
     group, artifact = name.split(":")
     for _ in range(POM_PARENTS + 1):
+        if not all(segment(x) for x in (group, artifact, version)):
+            return None  # a coordinate that isn't one plain path segment (a range, "../") names no POM
         url = f"{MAVEN_CENTRAL}/{group.replace('.', '/')}/{artifact}/{version}/{artifact}-{version}.pom"
         r = await http.get(url)
         if r.status != 200 or not isinstance(r.body, str):

@@ -92,6 +92,30 @@ def test_watch_never_sends_one_token_to_two_hosts(monkeypatch: pytest.MonkeyPatc
     assert r.exit_code == 2 and "pw@" not in r.output
 
 
+def test_tokens_are_refused_over_plain_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Over http to another machine a token crosses the network readable: refused unless --allow-insecure-http."""
+    from limbowatch_cli.main import app
+    from typer.testing import CliRunner
+
+    monkeypatch.setenv("LIMBOWATCH_SOURCE_TOKEN", "glpat-secret")
+    monkeypatch.setenv("LIMBOWATCH_ISSUES_TOKEN", "glpat-secret")
+    monkeypatch.delenv("LIMBOWATCH_ALLOW_INSECURE_HTTP", raising=False)
+    r = CliRunner().invoke(app, ["watch", "--gitlab-group", "http://gitlab.example.com/acme"])
+    out = _plain(r.output)
+    assert r.exit_code == 2 and "LIMBOWATCH_SOURCE_TOKEN would be sent over plain http" in out
+    assert "--allow-insecure-http" in out and "secret" not in r.output
+    scan = ["scan", str(tmp_path), "--issues", "gitlab", "--issues-url", "http://gitlab.example.com",
+            "--issues-project", "a/b"]  # fmt: skip
+    r = CliRunner().invoke(app, scan)
+    assert r.exit_code == 2 and "LIMBOWATCH_ISSUES_TOKEN would be sent over plain http" in _plain(r.output)
+    # allowed, or this machine: past the check (the run then stops at OSV-Scanner, which isn't there)
+    for args, env in ((["watch", "--git", "http://git.example.org/a/b.git", "--allow-insecure-http"], {}),
+                      (["watch", "--git", "http://git.example.org/a/b.git"], {"LIMBOWATCH_ALLOW_INSECURE_HTTP": "1"}),
+                      (["watch", "--git", "http://127.0.0.1:3000/a/b.git"], {})):  # fmt: skip
+        r = CliRunner().invoke(app, [*args, "--osv-scanner", "/nonexistent/osv-scanner"], env=env)
+        assert "plain http" not in _plain(r.output), args
+
+
 def test_security_and_data_names_every_host_and_option() -> None:
     """docs/WATCHER.md#security-and-data lists every host the scan can contact, and only options that exist, so the
     promise "nothing else leaves" can't drift from the code."""

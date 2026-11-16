@@ -17,7 +17,20 @@ import httpx
 import pytest
 import respx
 from conftest import load
-from limbowatch.hosts import HostKind, Listing, Project, Skip, SourceError, excluded, git_project, safe_path, split_url
+from limbowatch.hosts import (
+    HostKind,
+    Listing,
+    Project,
+    Skip,
+    SourceError,
+    cleartext,
+    clone_url,
+    excluded,
+    git_project,
+    refuse_cleartext,
+    safe_path,
+    split_url,
+)
 from limbowatch.hosts import git as git_host
 from limbowatch.hosts.gitea import list_org
 from limbowatch.hosts.gitlab import list_group
@@ -106,6 +119,25 @@ def test_source_urls_and_paths() -> None:
     with pytest.raises(SourceError):
         git_project("git@github.com:team/tool.git")  # ssh: no way to scope a token header
     assert excluded(p, ["team/*"]) and excluded(p, ["git.example.org/*"]) and not excluded(p, ["other/*"])
+
+
+def test_tokens_never_go_over_plain_http_to_another_machine() -> None:
+    assert cleartext("http://gitlab.example.com") and cleartext("http://10.0.0.5:8080")
+    for ok in ("https://gitlab.example.com", "http://localhost:3000", "http://127.0.0.1:3000", "http://[::1]"):
+        assert not cleartext(ok), ok
+    with pytest.raises(SourceError) as e:
+        refuse_cleartext(["https://a.example", "http://b.example/x"], "LIMBOWATCH_SOURCE_TOKEN", allow=False)
+    assert "http://b.example/x" in str(e.value) and "--allow-insecure-http" in str(e.value)
+    refuse_cleartext(["http://b.example"], "LIMBOWATCH_SOURCE_TOKEN", allow=True)  # the user said so
+    refuse_cleartext(["http://127.0.0.1:3000"], "LIMBOWATCH_SOURCE_TOKEN", allow=False)  # this machine
+
+
+def test_clone_url_stays_on_the_listed_host() -> None:
+    base = "https://gitlab.example.com"
+    assert clone_url(base, "https://GitLab.example.com/a/b.git", "a/b") == "https://GitLab.example.com/a/b.git"
+    for other in ("file:///home/runner/secret", "ssh://git@gitlab.example.com/a/b.git",
+                  "http://gitlab.example.com/a/b.git", "https://evil.example/a/b.git", None, 3):  # fmt: skip
+        assert clone_url(base, other, "a/b") == "https://gitlab.example.com/a/b.git", other
 
 
 def test_clone_keeps_the_token_off_the_command_line() -> None:

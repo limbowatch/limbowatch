@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import Any
 from urllib.parse import quote, urlsplit
 
-from limbowatch.hosts import HostKind, Listing, Project, Skip, SourceError, next_link, safe_path
+from limbowatch.hosts import HostKind, Listing, Project, Skip, SourceError, clone_url, next_link, safe_path
 from limbowatch.http import BudgetExhausted, HttpClient
 
 PER_PAGE = 100
@@ -115,7 +115,7 @@ def _add(out: Listing, base_url: str, p: dict[str, Any], include_archived: bool)
         HostKind.GITHUB,
         base_url,
         path,
-        str(p.get("clone_url") or f"{base_url}/{path}.git"),
+        clone_url(base_url, p.get("clone_url"), path),
         str(p.get("html_url") or f"{base_url}/{path}"),
         public=visibility == "public",  # internal (Enterprise) counts as private, as on Gitea
         archived=bool(p.get("archived")),

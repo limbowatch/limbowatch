@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any
 from urllib.parse import quote
 
-from limbowatch.hosts import HostKind, Listing, Project, Skip, SourceError, next_link, safe_path
+from limbowatch.hosts import HostKind, Listing, Project, Skip, SourceError, clone_url, next_link, safe_path
 from limbowatch.http import HttpClient
 
 PER_PAGE = 100
@@ -52,12 +52,13 @@ async def _list(
 
 
 def _add(out: Listing, base_url: str, p: dict[str, Any], include_archived: bool) -> None:
+    path = safe_path(str(p["path_with_namespace"]))
     proj = Project(
         HostKind.GITLAB,
         base_url,
-        safe_path(str(p["path_with_namespace"])),
-        str(p.get("http_url_to_repo") or f"{base_url}/{p['path_with_namespace']}.git"),
-        str(p.get("web_url") or f"{base_url}/{p['path_with_namespace']}"),
+        path,
+        clone_url(base_url, p.get("http_url_to_repo"), path),
+        str(p.get("web_url") or f"{base_url}/{path}"),
         public=p.get("visibility") == "public",
         archived=bool(p.get("archived")),
     )

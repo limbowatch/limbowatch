@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import datetime
 
 from limbowatch.http import HttpClient
+from limbowatch.mdsafe import GHSA_ID
 from limbowatch.models import RepoAdvisory, ReviewedEntry
 from limbowatch.normalize import repo_advisory, reviewed_entry
 
 API = "https://api.github.com"
 _NEXT = re.compile(r'<([^>]+)>;\s*rel="next"')
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -38,7 +41,11 @@ async def repo_advisories(http: HttpClient, repo: str, etag: str | None = None) 
             break
         raw += nxt.body
         link = nxt.link
-    return RepoPoll(200, [repo_advisory(a, repo) for a in raw], first_etag)
+    # the ID names the advisory's page and feed record files: one that isn't a GHSA ID is logged and left out
+    ok = [a for a in raw if isinstance(a, dict) and GHSA_ID.fullmatch(str(a.get("ghsa_id") or ""))]
+    if len(ok) < len(raw):
+        log.warning("advisories without a GHSA ID left out", extra={"repo": repo, "count": len(raw) - len(ok)})
+    return RepoPoll(200, [repo_advisory(a, repo) for a in ok], first_etag)
 
 
 async def reviewed_since(http: HttpClient, since: datetime | None) -> AsyncIterator[ReviewedEntry]:
