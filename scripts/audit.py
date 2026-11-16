@@ -28,9 +28,9 @@ Checks:
     `limbowatch scan`'s certain findings for its pins in the live feed; the pins equal the proof repository's; its latest run found the same advisories, apart from ones that
     left limbo or joined the feed since; and OSV-Scanner, npm audit and pip-audit reported none of them there (F-201).
 12. popular: when the home page counts the popular projects (F-203), its numbers and /popular/data.json equal a recount
-    of the latest showcase artifact against the live feed, every project in tracker/showcase/projects.txt was tried,
-    the cards are its most widely pinned packages, and every critical or high advisory counted is live still
-    unreviewed and not in OSV.
+    of the showcase artifact the site was built from (matched by its scan time) against the live feed, every project
+    in tracker/showcase/projects.txt was tried, the cards are its most widely pinned packages, and every critical or
+    high advisory counted is live still unreviewed and not in OSV.
 
 Exit 1 if a check fails. The report is Markdown (stdout, or --out).
 """
@@ -640,15 +640,24 @@ def check_popular(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
         rep.check("popular", True, "the home page shows the proof repository, not the popular projects")
         return
     problems: list[str] = []
-    s, runs = gh("/repos/limbowatch/limbowatch/actions/workflows/showcase.yml/runs?status=success&branch=main&per_page=1")
-    run = (runs or {}).get("workflow_runs", [None])[0] if s == 200 else None
+    live = http.get(f"{SITE}/popular/data.json", params=NOCACHE).json()
+    # the run the site was built from: the newest successful one may have finished after the site's build, which
+    # takes the newest run finished by then. Matched by the artifact's scan time, which /popular/data.json repeats.
+    s, runs = gh("/repos/limbowatch/limbowatch/actions/workflows/showcase.yml/runs?status=success&branch=main&per_page=10")
+    run, data, newer = None, {}, 0
+    for r in (runs or {}).get("workflow_runs", []) if s == 200 else []:
+        with tempfile.TemporaryDirectory() as tmp:
+            subprocess.run(["gh", "run", "download", str(r["id"]), "-R", "limbowatch/limbowatch", "-n", "showcase",
+                            "-D", tmp], check=True, capture_output=True)  # fmt: skip
+            d = json.loads((Path(tmp) / "showcase.json").read_text())
+        if d.get("scanned_at") == live.get("scanned_at"):
+            run, data = r, d
+            break
+        newer += 1
     if run is None:
-        rep.check("popular", False, "the home page counts popular projects, but there's no successful showcase run")
+        rep.check("popular", False, f"the home page counts popular projects from a scan at {live.get('scanned_at')}, "
+                  "which no recent successful showcase run made")  # fmt: skip
         return
-    with tempfile.TemporaryDirectory() as tmp:
-        subprocess.run(["gh", "run", "download", str(run["id"]), "-R", "limbowatch/limbowatch", "-n", "showcase",
-                        "-D", tmp], check=True, capture_output=True)  # fmt: skip
-        data = json.loads((Path(tmp) / "showcase.json").read_text())
     sc = counts(recs.values(), data)
     listed = [x.split("#", 1)[0].strip() for x in (Path(__file__).resolve().parents[1] / "tracker" / "showcase" /
               "projects.txt").read_text().splitlines()]  # fmt: skip
@@ -662,7 +671,6 @@ def check_popular(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
     want = [k.worst_id for k in sc.packages[:SHOWN_PACKAGES]]
     if cards != want:
         problems.append(f"the cards link {cards}, the recount's top packages {want}")
-    live = http.get(f"{SITE}/popular/data.json", params=NOCACHE).json()
     per = {p.repo: sorted(p.ids) for p in sc.projects}
     if {x["repo"]: x["advisories"] for x in live["projects"]} != per:
         problems.append("/popular/data.json differs from the recount")
@@ -687,6 +695,8 @@ def check_popular(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
         rep.note(p)
     if failed:
         rep.note(f"not read: {', '.join(failed)}")
+    if newer:
+        rep.note(f"{newer} newer showcase run(s) finished after the site's build; the next build shows them")
 
 
 def main() -> None:

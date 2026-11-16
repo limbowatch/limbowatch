@@ -3183,6 +3183,15 @@ Answered:
 - **Implication:** registry names, versions and Maven coordinates must be single plain path segments, and the vcpkg baseline a full commit hash; registry downloads stop at 5 MB. Tokens go over `http://` only to loopback addresses or with `--allow-insecure-http`. A host API's clone URL is used only on the listed host and scheme.
 - **Sources:** the probes above; `tests/test_upstream.py::test_registry_edges`, `tests/test_org.py`, `tests/test_cli.py::test_tokens_are_refused_over_plain_http`.
 
+### F-208
+- **Date:** 2026-11-16 · **Status:** confirmed (direct observation)
+- **Question:** Why did the release audit's `popular` check fail right after a push, when the site and showcase runs had both succeeded?
+- **Method:** `scripts/audit.py` at 2026-11-16 06:26 UTC; the `site` run log for 62c4027 (`showcase: run …`); `gh run download` of showcase runs 43709071028 and 43814254356, diffed per project; `scanned_at` in the live `/popular/data.json`.
+- **Result:** a push starts `site` and `showcase` together. `site` took the newest showcase run finished at 06:04:17, 43709071028 (`scanned_at` 2026-11-15T11:28:29Z, as the live data.json says); the push's own run, 43814254356, finished later. The audit recounted from the newest successful run, so it compared the site with an artifact it was never built from: 665 advisories shown, 659 recounted. The two artifacts differ in 9 projects, each with a new commit, and every project read the same number of files in both.
+- **Caveats:** none; the difference was upstream projects changing their dependencies overnight.
+- **Implication:** the audit now picks the showcase run whose `scanned_at` equals the live data.json's (of the last 10 successful runs) and notes newer runs the site hasn't shown yet. With it, all 12 checks passed at 06:40 UTC.
+- **Sources:** the runs above; `scripts/audit.py` check 12.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
