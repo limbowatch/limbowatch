@@ -115,6 +115,8 @@ def _upstream_line(s: dict[str, int]) -> str:
             f"by the tracker, {s.get('repos_polled', 0):,} polled once for every project")  # fmt: skip
     if s.get("repos_not_polled"):
         line += f", {s['repos_not_polled']:,} not polled (GitHub rate limit)"
+    if s.get("repos_not_read"):
+        line += f", {s['repos_not_read']:,} couldn't be read (GitHub error)"
     return line + "."
 
 

@@ -23,6 +23,7 @@ class Polled:
     candidates: list[Candidate] = field(default_factory=list)
     polled: set[str] = field(default_factory=set)
     not_polled: set[str] = field(default_factory=set)  # stopped by the GitHub rate limit or budget
+    not_read: set[str] = field(default_factory=set)  # GitHub answered with an error (after retries), on any page
     aliases: dict[str, str] = field(default_factory=dict)  # a renamed repo's old name -> the one advisories carry
 
 
@@ -39,6 +40,9 @@ async def poll(http: HttpClient, repos: set[str]) -> Polled:
         except BudgetExhausted:
             stop.set()
             out.not_polled.add(repo)
+            return
+        if res.advisories is None and res.status != 404:  # 404: no such repo, or not public: nothing to see
+            out.not_read.add(repo)
             return
         out.polled.add(repo)
         for adv in res.advisories or []:

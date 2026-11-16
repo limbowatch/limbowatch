@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import zipfile
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -19,6 +20,8 @@ log = logging.getLogger(__name__)
 CVE_API = "https://cveawg.mitre.org/api"
 CVELIST_RAW = "https://raw.githubusercontent.com/CVEProject/cvelistV5/"
 DELTA_LOG = f"{CVELIST_RAW}main/cves/deltaLog.json"
+# a record's own file, as the deltaLog links it (all 101,021 links in a month did, F-209): no "..", no other repo
+_RECORD = re.compile(re.escape(CVELIST_RAW) + r"main/cves/\d{4}/\d+xxx/CVE-\d{4}-\d{4,}\.json")
 
 
 async def lookup(http: HttpClient, cve_id: str) -> CveInfo:
@@ -58,7 +61,7 @@ async def delta_since(http: HttpClient, cursor: str | None) -> list[DeltaEntry]:
 async def record(http: HttpClient, url: str) -> CveInfo | None:
     """A CVE record from the deltaLog's link, which must point into the CVE List repository; anything else is
     treated as unreadable (None), like a failed download."""
-    if not url.startswith(CVELIST_RAW):
+    if not _RECORD.fullmatch(url):
         log.warning("CVE record link outside the CVE List repository, not fetched")
         return None
     r = await http.get(url)

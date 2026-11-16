@@ -248,12 +248,13 @@ async def test_check_reports_what_it_couldnt_check(no_sleep: Any) -> None:
         _u(ref="v1").model_copy(update={"repo": "o/quiet"}),
         _u(),  # no ref or version, with an advisory in limbo
         _u(ref="v1").model_copy(update={"repo": "o/rate-limited"}),
+        _u(ref="v1").model_copy(update={"repo": "o/unreadable"}),  # GitHub answered with an error
     ]
     async with HttpClient(sleep=no_sleep) as http:
-        got = await uc.check(http, ups, index, not_polled={"o/rate-limited"})
+        got = await uc.check(http, ups, index, not_polled={"o/rate-limited"}, not_read={"o/unreadable"})
     reasons = [got[u].unchecked.reason if got[u].unchecked else None for u in ups]
     assert reasons == [Unchecked.UPSTREAM_UNKNOWN, Unchecked.UPSTREAM_OFF_GITHUB, None, Unchecked.UPSTREAM_NO_REF,
-                       Unchecked.REPO_NOT_POLLED]  # fmt: skip
+                       Unchecked.REPO_NOT_POLLED, Unchecked.REPO_NOT_READ]  # fmt: skip
     assert "has 1 advisory in limbo" in (got[ups[3]].unchecked.detail if got[ups[3]].unchecked else "")
 
 

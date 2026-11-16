@@ -164,6 +164,7 @@ async def run(
         "repos_on_watchlist": len(sh.on_watchlist),
         "repos_polled": len(sh.polled),
         "repos_not_polled": len(sh.not_polled),
+        "repos_not_read": len(sh.not_read),
         "feed_advisories": len(sh.index.ids),
     }
     return out

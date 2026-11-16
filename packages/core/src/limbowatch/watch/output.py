@@ -33,7 +33,7 @@ ATTRIBUTION = (
     "(https://github.com/advisories, CC BY 4.0), via the limbo feed (https://limbo.watch, CC BY 4.0)."
 )
 SEVERITIES = ("critical", "high", "medium", "low")
-PARTIAL = (Unchecked.NO_REPO, Unchecked.REPO_NOT_POLLED)
+PARTIAL = (Unchecked.NO_REPO, Unchecked.REPO_NOT_POLLED, Unchecked.REPO_NOT_READ)
 SCHEMA_VERSION = 1  # of the JSON output; bumped only for changes that break readers
 WHY = "Published by maintainers on GitHub, not yet in GitHub’s reviewed database or OSV, so scanners that read them don’t report these yet."
 

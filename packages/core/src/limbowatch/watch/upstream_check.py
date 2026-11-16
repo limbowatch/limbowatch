@@ -331,12 +331,20 @@ async def check(
     index: Index,
     *,
     not_polled: set[str],
+    not_read: set[str] | None = None,
     git_cache: Path | None = None,
     osv_commits: bool = True,
     aliases: dict[str, str] | None = None,
 ) -> dict[Upstream, Checked]:
     """Every resolved upstream source against the index (the feed plus repos polled just now)."""
     out: dict[Upstream, Checked] = {}
+
+    def unpolled(u: Upstream) -> UnresolvedDependency | None:
+        """Polling skipped the repo (rate limit) or couldn't read it: then it's partly checked (F-142)."""
+        if u.repo in (not_read or set()):
+            return unchecked(u, Unchecked.REPO_NOT_READ, _where(u))
+        return unchecked(u, Unchecked.REPO_NOT_POLLED, _where(u)) if u.repo in not_polled else None
+
     todo: list[tuple[Upstream, list[Candidate]]] = []
     for u in dict.fromkeys(ups):
         if u.repo is None:
@@ -347,8 +355,7 @@ async def check(
             out[u] = Checked(unchecked=unchecked(u, Unchecked.UPSTREAM_OFF_GITHUB, _where(u)))
         elif not (cands := candidates(u, index, aliases)):
             # nothing in limbo about its code, in the feed or polled now; if polling stopped (rate limit), say so
-            partial = unchecked(u, Unchecked.REPO_NOT_POLLED, _where(u)) if u.repo in not_polled else None
-            out[u] = Checked(unchecked=partial)
+            out[u] = Checked(unchecked=unpolled(u))
         elif not u.ref and not u.version:
             n = len(cands)
             detail = f"{_where(u)} has {n} advisor{'y' if n == 1 else 'ies'} in limbo; " + (
@@ -382,6 +389,5 @@ async def check(
                 continue
             # matched against the feed even when polling stopped (rate limit); then it's also reported as partly
             # checked, since advisories newer than the tracker's last check of the repo weren't seen (F-142)
-            partial = unchecked(u, Unchecked.REPO_NOT_POLLED, _where(u)) if u.repo in not_polled else None
-            out[u] = Checked(findings=findings(u, pn, cands, g, hits.get(pn.commit or "")), unchecked=partial)
+            out[u] = Checked(findings=findings(u, pn, cands, g, hits.get(pn.commit or "")), unchecked=unpolled(u))
     return out

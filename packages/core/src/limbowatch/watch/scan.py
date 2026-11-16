@@ -240,6 +240,7 @@ class Shared:
     on_watchlist: set[str] = field(default_factory=set)
     polled: set[str] = field(default_factory=set)
     not_polled: set[str] = field(default_factory=set)
+    not_read: set[str] = field(default_factory=set)
     upstream_check: bool = True
     # each upstream source (submodule, CMake, Bazel, vcpkg, ...) → itself resolved, then what it pulls in
     upstreams: dict[Upstream, list[Upstream]] = field(default_factory=dict)
@@ -277,7 +278,9 @@ async def prepare(
         for c in polled.candidates:
             index.add(c)
         sh.on_watchlist, sh.polled, sh.not_polled = repos - due, polled.polled, polled.not_polled
-        sh.checked = await upcheck.check(http, sources, index, not_polled=sh.not_polled, git_cache=git_cache,
+        sh.not_read = polled.not_read
+        sh.checked = await upcheck.check(http, sources, index, not_polled=sh.not_polled, not_read=sh.not_read,
+                                         git_cache=git_cache,
                                          osv_commits=osv_commits, aliases=polled.aliases)  # fmt: skip
     return sh
 
@@ -301,6 +304,8 @@ def assess(inv: Inventory, sh: Shared) -> ScanResult:
                 res.unresolved.append(_partial(d, Unchecked.NO_REPO, m.method))
             elif m.repo in sh.not_polled:
                 res.unresolved.append(_partial(d, Unchecked.REPO_NOT_POLLED, m.repo))
+            elif m.repo in sh.not_read:
+                res.unresolved.append(_partial(d, Unchecked.REPO_NOT_READ, m.repo))
     index = sh.index
     go = [c for cs in index.by_repo.values() for c in cs if any(p.ecosystem == "go" for p in c.adv.packages)]
     per_repo: dict[str, set[tuple[str, str]]] = {}

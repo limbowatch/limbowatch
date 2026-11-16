@@ -84,7 +84,29 @@ async def test_github_pages_and_cve_records_stay_where_they_belong(no_sleep: Any
         async with HttpClient(sleep=no_sleep) as http:
             res = await github.repo_advisories(http, "dlclark/regexp2")
             assert await cve.record(http, "https://evil.example/CVE-2026-1.json") is None
-    assert len(res.advisories or []) == 1
+            # under the prefix, but httpx would resolve ".." to another repository
+            walk = f"{cve.CVELIST_RAW}main/cves/../../../evil/repo/main/cves/2026/1xxx/CVE-2026-1000.json"
+            assert await cve.record(http, walk) is None
+    assert res.advisories is None  # never page 1 alone, taken for the whole list
+
+
+async def test_a_page_that_cant_be_read_gives_no_list_and_the_repo_counts_as_unread(no_sleep: Any) -> None:
+    """Page 1 alone would look complete: the tracker would mark the rest withdrawn and keep page 1's ETag, and the
+    watcher would call the repo checked. So a later page that fails gives no list, and the watcher reports the repo
+    as not read, like a failed first page."""
+    raw = load("repo_advisories_regexp2.json")
+    url = f"{github.API}/repos/dlclark/regexp2/security-advisories?state=published&per_page=100"
+    with respx.mock() as r:
+        r.get(url).mock(return_value=httpx.Response(200, json=raw[:1], headers={
+            "etag": '"e1"', "link": '<https://api.github.com/page2>; rel="next"'}))  # fmt: skip
+        r.get("https://api.github.com/page2").mock(return_value=httpx.Response(500))
+        r.get(url__startswith=f"{github.API}/repos/o/down/").mock(return_value=httpx.Response(502))
+        r.get(url__startswith=f"{github.API}/repos/o/gone/").mock(return_value=httpx.Response(404))
+        async with HttpClient(sleep=no_sleep) as http:
+            res = await github.repo_advisories(http, "dlclark/regexp2")
+            got = await upstream.poll(http, {"dlclark/regexp2", "o/down", "o/gone"})
+    assert (res.status, res.advisories, res.etag) == (-1, None, None)  # a 500 retried, then no answer
+    assert got.not_read == {"dlclark/regexp2", "o/down"} and got.polled == {"o/gone"} and not got.not_polled
 
 
 async def test_nvd(no_sleep: Any) -> None:

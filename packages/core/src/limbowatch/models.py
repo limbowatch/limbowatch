@@ -134,6 +134,9 @@ class Unchecked(StrEnum):
     UPSTREAM_NO_CHECK = "upstream source not checked (--no-upstream)"
     NO_REPO = "source repository unknown; checked against the limbo feed by name only"
     REPO_NOT_POLLED = "source repository not checked (GitHub rate limit); checked against the limbo feed by name only"
+    REPO_NOT_READ = (
+        "source repository's advisories couldn't be read from GitHub; checked against the limbo feed by name only"
+    )
 
 
 class Dependency(Frozen):

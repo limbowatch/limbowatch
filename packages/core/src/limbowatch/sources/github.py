@@ -28,13 +28,16 @@ def _on_api(url: str) -> bool:
 
 @dataclass
 class RepoPoll:
-    status: int  # 200, 304 (unchanged), 404, ...
-    advisories: list[RepoAdvisory] | None  # None when unchanged or unavailable
+    status: int  # 200, 304 (unchanged), 404, ...; on a later page that failed, that page's status (-1: no answer)
+    advisories: list[RepoAdvisory] | None  # None when unchanged or unavailable, or only partly listed
     etag: str | None
 
 
 async def repo_advisories(http: HttpClient, repo: str, etag: str | None = None) -> RepoPoll:
-    """All published advisories of one repository. With `etag`, an unchanged repo costs nothing."""
+    """All published advisories of one repository. With `etag`, an unchanged repo costs nothing.
+
+    All or nothing: if a later page can't be read, the result has no advisories (like a failed first page), never
+    the pages read so far, which callers would take for the whole list (and for the others being withdrawn)."""
     url = f"{API}/repos/{repo}/security-advisories?state=published&per_page=100"
     r = await http.get(url, etag=etag)
     if r.status == 304:
@@ -45,10 +48,11 @@ async def repo_advisories(http: HttpClient, repo: str, etag: str | None = None) 
     link = r.link
     while link and (m := _NEXT.search(link)):  # >100 advisories: follow pages (no etag on later pages)
         if not _on_api(m.group(1)):
-            break
+            return RepoPoll(0, None, None)
         nxt = await http.get(m.group(1))
         if not nxt.ok or not isinstance(nxt.body, list):
-            break
+            log.warning("%s: page %d of its advisories couldn't be read (%s)", repo, len(raw) // 100 + 1, nxt.status)
+            return RepoPoll(nxt.status, None, None)
         raw += nxt.body
         link = nxt.link
     # the ID names the advisory's page and feed record files: one that isn't a GHSA ID is logged and left out
