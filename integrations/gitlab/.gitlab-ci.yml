@@ -95,6 +95,8 @@ create-release:
     tag_name: $CI_COMMIT_TAG
     description: >-
       Limbowatch CI/CD component $CI_COMMIT_TAG. The job runs the Limbowatch image pinned by digest in
-      templates/limbowatch.yml, the same image as ghcr.io/limbowatch/limbowatch (verify with
-      `gh attestation verify oci://ghcr.io/limbowatch/limbowatch@<digest> --owner limbowatch`).
+      templates/limbowatch.yml, the same image as ghcr.io/limbowatch/limbowatch (verify with: gh attestation
+      verify oci://ghcr.io/limbowatch/limbowatch@DIGEST --owner limbowatch, DIGEST being the template's sha256).
       Release notes: https://github.com/limbowatch/limbowatch/blob/main/CHANGELOG.md
+    # no backticks or angle brackets: the description goes through a shell, which ran the backticked command
+    # and left "(verify with )" in 0.1.0-alpha.15 and alpha.16 (fixed by hand there, F-212)
