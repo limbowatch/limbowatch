@@ -115,9 +115,13 @@ def test_tokens_are_refused_over_plain_http(monkeypatch: pytest.MonkeyPatch, tmp
     assert r.exit_code == 2 and "http://ghe.example/api/v3" in _plain(r.output)
     r = CliRunner().invoke(app, ["watch", "--github-org", "acme"], env=gh_env)
     assert r.exit_code == 2 and "http://ghe.example/api/v3" in _plain(r.output) and "secret" not in r.output
-    r = CliRunner().invoke(app, ["scan", str(tmp_path), "--issues", "gitlab", "--issues-url", "http://[::1",
-                                 "--issues-project", "a/b"])  # fmt: skip
-    assert r.exit_code == 2 and "not a URL" in _plain(r.output)
+    for kind in ("gitlab", "github"):  # an unreadable URL is a usage error, not a traceback ("Invalid IPv6 URL")
+        r = CliRunner().invoke(app, ["scan", str(tmp_path), "--issues", kind, "--issues-url", "http://[::1",
+                                     "--issues-project", "a/b"])  # fmt: skip
+        assert r.exit_code == 2 and "not a URL" in _plain(r.output), kind
+    for opt in ("--git", "--gitlab-group", "--gitea-org", "--github-org"):
+        r = CliRunner().invoke(app, ["watch", opt, "http://[::1/a/b"])
+        assert r.exit_code == 2 and "not a URL" in _plain(r.output), opt
     # allowed, or this machine: past the check (the run then stops at OSV-Scanner, which isn't there)
     for args, env in ((["watch", "--git", "http://git.example.org/a/b.git", "--allow-insecure-http"], {}),
                       (["watch", "--git", "http://git.example.org/a/b.git"], {"LIMBOWATCH_ALLOW_INSECURE_HTTP": "1"}),

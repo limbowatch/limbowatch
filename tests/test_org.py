@@ -27,6 +27,7 @@ from limbowatch.hosts import (
     clone_url,
     excluded,
     git_project,
+    next_link,
     refuse_cleartext,
     safe_path,
     split_url,
@@ -77,17 +78,31 @@ async def test_gitlab_listing_errors_are_never_an_empty_group(no_sleep: Any) -> 
 
 
 async def test_pagination_never_leaves_the_host(no_sleep: Any) -> None:
-    # another host, or the same host over plain http (a proxy that hides https): the token would go with it
-    for away in (
-        '<https://evil.example/x>; rel="next"',
-        '<http://gitlab.com/api/v4/groups/g/projects?page=2>; rel="next"',
-    ):
-        with respx.mock(assert_all_mocked=True) as router:
-            router.get(url__startswith=f"{GL}/api/v4/groups/").mock(
-                return_value=httpx.Response(200, json=[], headers={"link": away}))  # fmt: skip
-            async with HttpClient(sleep=no_sleep) as http:
-                ls = await list_group(http, GL, "g", "tok")
-        assert ls.error and "pagination left" in ls.error, away  # this source fails; the run goes on
+    with respx.mock(assert_all_mocked=True) as router:
+        away = {"link": '<https://evil.example/x>; rel="next"'}
+        router.get(url__startswith=f"{GL}/api/v4/groups/").mock(return_value=httpx.Response(200, json=[], headers=away))
+        async with HttpClient(sleep=no_sleep) as http:
+            ls = await list_group(http, GL, "g", "tok")
+    assert ls.error and "pagination left" in ls.error  # this source fails; the run goes on
+
+
+async def test_pagination_stays_on_the_listed_scheme(no_sleep: Any) -> None:
+    """Behind a proxy that hides https, GitLab writes http:// page links: the next page comes from the listed https
+    base, so the token never goes over plain http (any http:// request would fail the test)."""
+    page1 = f"{GL}/api/v4/groups/g/projects"
+    with respx.mock(assert_all_mocked=True) as router:
+        router.get(url__startswith=page1, params={"page": "2"}).mock(return_value=httpx.Response(200, json=[]))
+        router.get(url__startswith=page1).mock(return_value=httpx.Response(200, json=[], headers={
+            "link": '<http://GitLab.com/api/v4/groups/g/projects?page=2>; rel="next"'}))  # fmt: skip
+        async with HttpClient(sleep=no_sleep) as http:
+            ls = await list_group(http, GL, "g", "tok")
+        assert (
+            ls.error is None and all(c.request.url.scheme == "https" for c in router.calls) and len(router.calls) == 2
+        )
+    # and an http base the user allowed stays on http, whatever the server's links say
+    assert next_link('<https://gitea.lan/api/v1/orgs/o/repos?page=2>; rel="next"', "http://gitea.lan") == (
+        "http://gitea.lan/api/v1/orgs/o/repos?page=2"
+    )
 
 
 async def test_gitea_org_or_user(no_sleep: Any) -> None:

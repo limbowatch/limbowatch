@@ -511,9 +511,10 @@ def scan(
     if issues and not tracker_token and not issues_dry_run:
         raise typer.BadParameter("set LIMBOWATCH_ISSUES_TOKEN to a token that can write issues", param_hint="--issues")
     if issues and tracker_token and (target := _issues_url(issues, issues_url)):
-        # for github the token goes to the API, which Actions may name apart from the server (GITHUB_API_URL)
-        sent_to = [target, github_host.api_url(target, _actions_api())] if issues == "github" else [target]
         try:
+            hosts.urlsplit(target)  # an unreadable URL is a usage error before api_url reads it
+            # for github the token goes to the API, which Actions may name apart from the server (GITHUB_API_URL)
+            sent_to = [target, github_host.api_url(target, _actions_api())] if issues == "github" else [target]
             hosts.refuse_cleartext(sent_to, "LIMBOWATCH_ISSUES_TOKEN", allow_insecure_http)
         except hosts.SourceError as e:
             raise typer.BadParameter(str(e), param_hint="--issues-url") from e

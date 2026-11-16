@@ -13,7 +13,8 @@ import re
 from dataclasses import dataclass, field
 from enum import StrEnum
 from fnmatch import fnmatchcase
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import SplitResult, urlunsplit
+from urllib.parse import urlsplit as _urlsplit
 
 
 class HostKind(StrEnum):
@@ -67,6 +68,17 @@ class SourceError(ValueError):
     pass
 
 
+def urlsplit(url: str) -> SplitResult:
+    """urllib's urlsplit, with its hostname checked: a URL it can't read (`http://[::1`) is a SourceError, so a
+    usage error, never a traceback. The URL isn't repeated: it can't be redacted."""
+    try:
+        p = _urlsplit(url)
+        _ = p.hostname, p.port
+    except ValueError as e:
+        raise SourceError("not a URL that can be read (a tracker or source URL)") from e
+    return p
+
+
 _SEGMENT = re.compile(r"^[\w.+-]+$")
 
 
@@ -104,16 +116,17 @@ def redact(url: str) -> str:
 
 
 def next_link(link: str | None, base_url: str) -> str | None:
-    """The `rel="next"` URL of a Link header, if it's on the same host with the same scheme: the token goes with it,
-    so an https listing never follows an http:// page link (a proxy that hides https from the server sends those)."""
+    """The `rel="next"` URL of a Link header, if it names the same host; the token goes with it. Its path and query are
+    then requested from the listed base's own scheme and address: behind a proxy that hides https from GitLab or
+    Gitea, the server writes http:// links, and following them would send the token over plain http."""
     for part in (link or "").split(","):
         url, _, rel = part.partition(";")
         if 'rel="next"' in rel:
             url = url.strip().strip("<>")
             n, b = urlsplit(url), urlsplit(base_url)
-            if (n.scheme, n.netloc.lower()) != (b.scheme, b.netloc.lower()):
+            if (n.hostname or "") != (b.hostname or ""):  # hostname is lower-cased
                 raise SourceError(f"pagination left {base_url}: {redact(url)}")
-            return url
+            return urlunsplit((b.scheme, b.netloc, n.path, n.query, ""))
     return None
 
 
@@ -145,12 +158,8 @@ def _loopback(host: str) -> bool:
 
 def cleartext(url: str) -> bool:
     """Plain http to another machine: whatever is sent there, a token included, crosses the network readable."""
-    try:
-        p = urlsplit(url)
-        host = p.hostname or ""
-    except ValueError as e:  # http://[::1 and the like; not shown, since it can't be redacted
-        raise SourceError("not a URL that can be read (a tracker or source URL)") from e
-    return p.scheme == "http" and not _loopback(host)
+    p = urlsplit(url)
+    return p.scheme == "http" and not _loopback(p.hostname or "")
 
 
 def refuse_cleartext(urls: list[str], token_name: str, allow: bool) -> None:
