@@ -20421,43 +20421,379 @@
 {"at":"2026-11-15T14:33:53Z","event":"first seen","ghsa_id":"GHSA-84mg-gmjf-gv2j","id":28380}
 {"at":"2026-11-15T14:33:53Z","event":"first seen","ghsa_id":"GHSA-rpjf-r47f-8jh3","id":28381}
 {"at":"2026-11-15T14:33:53Z","event":"first seen","ghsa_id":"GHSA-826h-qf7w-83mw","id":28382}
+{"at":"2026-11-16T16:30:32Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-24c4-3p7v-29cm","id":28383}
+{"at":"2026-11-16T16:30:32Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-28qf-cpwq-vmc2","id":28384}
+{"at":"2026-11-16T16:30:32Z","event":"CVE-2026-88989 RESERVED -> PUBLISHED","ghsa_id":"GHSA-3qh3-54qg-gpq3","id":28385}
+{"at":"2026-11-16T16:30:32Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-3r8g-jcqq-3p5j","id":28386}
+{"at":"2026-11-16T16:30:32Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-3rp8-rxj8-mvjw","id":28387}
+{"at":"2026-11-16T16:30:32Z","event":"new CVE from another CNA: CVE-2026-129956","ghsa_id":"GHSA-46vh-v2q6-wrcv","id":28388}
+{"at":"2026-11-16T16:30:32Z","event":"cites CVE-2026-128084 (was none)","ghsa_id":"GHSA-4fqr-96q8-xrfx","id":28389}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-hxph-pv7w-8649","id":2838}
+{"at":"2026-11-16T16:30:32Z","event":"CVE-2026-91113 RESERVED -> PUBLISHED","ghsa_id":"GHSA-4qv2-g5vp-wjjw","id":28390}
+{"at":"2026-11-16T16:30:33Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-59f9-gqg8-mqpj","id":28391}
+{"at":"2026-11-16T16:30:33Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-5pv8-vvhc-h7jv","id":28392}
+{"at":"2026-11-16T16:30:33Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-5rmc-48h2-hvcm","id":28393}
+{"at":"2026-11-16T16:30:33Z","event":"new CVE from another CNA: CVE-2026-129864","ghsa_id":"GHSA-5wcf-p378-fmwr","id":28394}
+{"at":"2026-11-16T16:30:33Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-6cf5-gc4q-fm3x","id":28395}
+{"at":"2026-11-16T16:30:33Z","event":"new CVE from another CNA: CVE-2026-129957","ghsa_id":"GHSA-7q68-ch46-pxmc","id":28396}
+{"at":"2026-11-16T16:30:33Z","event":"new CVE from another CNA: CVE-2026-129851, CVE-2026-129852","ghsa_id":"GHSA-939f-xh28-2q48","id":28397}
+{"at":"2026-11-16T16:30:33Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-96x6-fvhx-49hg","id":28398}
+{"at":"2026-11-16T16:30:33Z","event":"CVE-2026-91115 RESERVED -> PUBLISHED","ghsa_id":"GHSA-c94f-87xg-65wf","id":28399}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-pwvq-9w4q-786w","id":2839}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-3rwf-2g6p-c2f9","id":283}
+{"at":"2026-11-16T16:30:33Z","event":"cites CVE-2026-128068 (was none)","ghsa_id":"GHSA-cpgf-5mjf-73p7","id":28400}
+{"at":"2026-11-16T16:30:33Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-f3x9-2chm-73c8","id":28401}
+{"at":"2026-11-16T16:30:33Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-h4cc-hm5h-fmm9","id":28402}
+{"at":"2026-11-16T16:30:33Z","event":"cites CVE-2026-128069 (was none)","ghsa_id":"GHSA-h7wh-q2qr-458c","id":28403}
+{"at":"2026-11-16T16:30:33Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-hf59-9xwc-2g4p","id":28404}
+{"at":"2026-11-16T16:30:33Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-jm3w-gw2p-xjfj","id":28405}
+{"at":"2026-11-16T16:30:33Z","event":"new CVE from another CNA: CVE-2026-129485","ghsa_id":"GHSA-jwh8-j584-79hp","id":28406}
+{"at":"2026-11-16T16:30:33Z","event":"new CVE from another CNA: CVE-2026-129882","ghsa_id":"GHSA-m9h5-c637-cpcg","id":28407}
+{"at":"2026-11-16T16:30:33Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-m9j8-jcmv-hp69","id":28408}
+{"at":"2026-11-16T16:30:33Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-pw86-h8fm-j323","id":28409}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-p2pw-7935-c73j","id":2840}
+{"at":"2026-11-16T16:30:33Z","event":"cites CVE-2026-128085 (was none)","ghsa_id":"GHSA-q7gw-24fr-5p69","id":28410}
+{"at":"2026-11-16T16:30:33Z","event":"CVE-2026-88987 RESERVED -> PUBLISHED","ghsa_id":"GHSA-qqrg-8jpm-8mph","id":28411}
+{"at":"2026-11-16T16:30:33Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-r9jc-w898-3fv6","id":28412}
+{"at":"2026-11-16T16:30:33Z","event":"CVE-2026-91112 RESERVED -> PUBLISHED","ghsa_id":"GHSA-rg72-5958-c65m","id":28413}
+{"at":"2026-11-16T16:30:33Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-rqp5-r3wg-vg35","id":28414}
+{"at":"2026-11-16T16:30:33Z","event":"new CVE from another CNA: CVE-2026-129856","ghsa_id":"GHSA-rr6m-92cx-w69q","id":28415}
+{"at":"2026-11-16T16:30:33Z","event":"cites CVE-2026-128086 (was none)","ghsa_id":"GHSA-rrfc-gjm9-cgrj","id":28416}
+{"at":"2026-11-16T16:30:33Z","event":"cites CVE-2026-128089 (was none)","ghsa_id":"GHSA-vvf4-9x63-8xvv","id":28417}
+{"at":"2026-11-16T16:30:33Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-x2wv-5868-p7v2","id":28418}
+{"at":"2026-11-16T16:30:33Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-xgw8-8ccx-rmqh","id":28419}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-3wgv-fg4w-75x7","id":2841}
+{"at":"2026-11-16T16:30:33Z","event":"in limbo -> reviewed","ghsa_id":"GHSA-xmfg-f9cm-w86q","id":28420}
+{"at":"2026-11-16T16:30:33Z","event":"new CVE from another CNA: CVE-2026-129484","ghsa_id":"GHSA-xp94-px2v-f7f2","id":28421}
+{"at":"2026-11-16T16:30:33Z","event":"CVE-2026-88988 RESERVED -> PUBLISHED","ghsa_id":"GHSA-xwg4-8hqh-79jq","id":28422}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-727f-g7jw-rmc3","id":28423}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-25pm-c39m-65gr","id":28424}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-cfx6-c7xx-c77g","id":28425}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-gwfx-7pfc-xg68","id":28426}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-w5jw-x8fm-533g","id":28427}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-xmq6-3c6q-fr8m","id":28428}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-fcj7-c534-vj7f","id":28429}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-9mxq-4j5g-5wrp","id":2842}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-rx87-p227-hr79","id":28430}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-49m8-xrv9-7gqq","id":28431}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-pj9r-34q6-w8m9","id":28432}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-qh82-x2c9-f2x7","id":28433}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-94f3-j5c2-m8pq","id":28434}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-xcgp-hwgr-q92j","id":28435}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-chpj-828m-9wj6","id":28436}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-cv6g-rxx2-rxhr","id":28437}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-r2p4-9phf-453g","id":28438}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-g78f-3cr8-fhw5","id":28439}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-38rv-8x93-pvrh","id":2843}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-gfq6-89vx-q4j7","id":28440}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-4963-ggxm-v64x","id":28441}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-cm63-4mhh-887h","id":28442}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-8h5j-7c3h-q87j","id":28443}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-2qqv-7cwv-mj8h","id":28444}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-674h-w38j-m49w","id":28445}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-gcpm-8w8q-gp9v","id":28446}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-45cr-g945-4263","id":28447}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-gwcw-8gxq-xwmf","id":28448}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-vghx-gp7m-xpx2","id":28449}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-hrw9-ggg3-3r4r","id":2844}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-h48f-pxp7-c4mj","id":28450}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-q76c-gcvw-89x9","id":28451}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-2v5m-57pq-r9j3","id":28452}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-7w9v-grpc-r2xw","id":28453}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-8rw4-fw83-3rv7","id":28454}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-324w-x2q6-3288","id":28455}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-6pfj-2xp3-j4mm","id":28456}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-35pp-hxhw-x895","id":28457}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-959f-x3mf-g956","id":28458}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-8m75-v66f-m43j","id":28459}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-mvc4-g5pv-4qqq","id":2845}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-wpxm-mwmr-j622","id":28460}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-695m-rr42-6cvc","id":28461}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-qrff-mxg6-5j5c","id":28462}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-j88x-75p9-p684","id":28463}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-6j3v-r5jp-744g","id":28464}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-mgp4-p67f-4wf3","id":28465}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-3m97-hv84-whgc","id":28466}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-xx7m-jjww-jqvw","id":28467}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-7f7v-prxh-g9m9","id":28468}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-8p3f-3g49-2935","id":28469}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-9jh3-fcc3-g6hv","id":2846}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-p42g-h3g9-2m3c","id":28470}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-3c26-hw8g-vvc9","id":28471}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-3jvr-xc3p-xhgr","id":28472}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-xqr5-x7vp-hmg9","id":28473}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-qx98-vrcc-c5w9","id":28474}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-cvhg-qx9x-fv7g","id":28475}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-vhwv-5pg8-hh56","id":28476}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-f5qp-f5cw-2r8f","id":28477}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-p874-xggm-73rv","id":28478}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-pf4h-74fx-87r6","id":28479}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-m479-7frc-gqqg","id":2847}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-mxx8-x4p9-c9c5","id":28480}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-9w4r-xc43-v236","id":28481}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-9543-cj4x-h76q","id":28482}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-54pm-2wm5-hpmg","id":28483}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-j3v4-xfqw-7r96","id":28484}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-rc2w-f9qg-wp4x","id":28485}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-5hp9-7522-fv96","id":28486}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-3g4m-8x4r-93wj","id":28487}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-jq48-63vx-hqr2","id":28488}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-fr7f-8g6p-64vc","id":28489}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-v5g7-46xf-h728","id":2848}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-vjfq-8ph3-j33m","id":28490}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-p863-6mhw-7w5j","id":28491}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-cjc2-76m8-fr3w","id":28492}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-g44v-4432-4r48","id":28493}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-v4gg-562q-9w8j","id":28494}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-ghxj-cq5j-x2hr","id":28495}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-2cmf-5rmp-wp57","id":28496}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-7h2h-f5h3-mjg5","id":28497}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-rrqw-wchp-m748","id":28498}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-jqmj-x82q-f92x","id":28499}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-mxw9-qx4c-6m8v","id":2849}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-9p5c-9cqh-j592","id":284}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-xjv3-h63x-x7h3","id":28500}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-7j5p-664h-jqp4","id":28501}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-2xv9-95g5-6xc3","id":28502}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-mhp5-f6m6-66qx","id":28503}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-39h5-jv66-84p5","id":28504}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-p6v2-4p2w-464j","id":28505}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-3jj6-2crq-r7gv","id":28506}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-fjqg-7q3w-h7x5","id":28507}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-qvcj-c877-39jm","id":28508}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-4crj-r7q3-qxhw","id":28509}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-583f-w9pm-99r2","id":2850}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-9548-23jw-mxww","id":28510}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-284w-8f8v-4fvv","id":28511}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-c34j-hcg4-386m","id":28512}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-p93c-6m6f-h588","id":28513}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-7gg4-cm2v-2p42","id":28514}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-gmhr-r4mc-w935","id":28515}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-r9rg-mfh6-f225","id":28516}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-frjx-8pcw-8c9q","id":28517}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-6m4f-m9vc-7946","id":28518}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-859w-9wv7-c5x9","id":28519}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-54f7-vvj7-545w","id":2851}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-8pmc-9g44-v9gw","id":28520}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-jr33-w6w7-86vj","id":28521}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-74jf-6hjp-549c","id":28522}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-q8pg-ggp9-rm9m","id":28523}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-8cjj-9p56-j54f","id":28524}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-9827-6wh6-634q","id":28525}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-7mr2-v9gc-4467","id":28526}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-wmr3-xg9x-vc55","id":28527}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-wgx7-537g-xfrg","id":28528}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-jrjr-q3rq-f899","id":28529}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-h9x9-4f77-336w","id":2852}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-49c9-hm8q-6rvq","id":28530}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-4p89-xcq8-xfhm","id":28531}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-w87g-xmrp-86v2","id":28532}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-q3q9-39vr-q35j","id":28533}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-9vh6-6hgj-j5m5","id":28534}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-5mx6-8rwm-52wf","id":28535}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-qrrc-h266-v49p","id":28536}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-hwm6-6mhm-83f5","id":28537}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-mp42-892c-m42m","id":28538}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-7m35-g3xw-qc7g","id":28539}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-pvjp-m4f6-q984","id":2853}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-2j3q-h77f-c3pp","id":28540}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-hh9f-h7x6-m8m3","id":28541}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-fmr2-3fr5-78g8","id":28542}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-hrfr-7729-443m","id":28543}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-hmjq-g7pp-rw3x","id":28544}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-wrjp-77xp-jv6f","id":28545}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-qxx6-9833-92r5","id":28546}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-hq2j-cfvm-66rg","id":28547}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-x9jw-j844-v24h","id":28548}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-fxq8-389p-9hp9","id":28549}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-hqjh-hpv8-8r9p","id":2854}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-mw6v-83vp-7c4c","id":28550}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-vc6g-m22x-pm7r","id":28551}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-4q2p-cw9r-mwxm","id":28552}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-fhwj-gwjw-43fj","id":28553}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-m369-45p8-pg8r","id":28554}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-6hf7-c27r-5x8p","id":28555}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-h582-6wq6-7h22","id":28556}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-gm6r-r9vf-hmrf","id":28557}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-5cmj-fjjf-3v8h","id":28558}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-xjc5-923r-gx3h","id":28559}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-mv9g-fxh2-m49m","id":2855}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-hxr9-gr4g-856q","id":28560}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-3r8v-m4f4-g2wj","id":28561}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-rph7-w6j6-2jq3","id":28562}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-982p-ffjg-8646","id":28563}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-8qg6-v67x-pv5p","id":28564}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-89fq-vwcf-wg3m","id":28565}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-9x3h-47wp-hxch","id":28566}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-6pv9-3hf6-ch84","id":28567}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-j9ww-3xr9-wg48","id":28568}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-42c6-wxqw-2rv6","id":28569}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-w8mv-g8qq-36mj","id":2856}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-5p5c-78hg-hwp9","id":28570}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-rqj2-w6q5-vgvh","id":28571}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-j7hf-7jvx-hm98","id":28572}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-vfm4-59w4-g8j9","id":28573}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-7jxx-h8hx-jxxf","id":28574}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-2w9g-5r5g-3cvx","id":28575}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-4p88-4cq9-786r","id":28576}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-8mmg-4qpv-p7x5","id":28577}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-97h8-wpxm-vcqp","id":28578}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-h77h-69jx-2qvj","id":28579}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-6253-qjwm-3q4v","id":2857}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-cch2-977x-6vqj","id":28580}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-cg5x-q2hj-hw3j","id":28581}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-5jwr-95r2-5ch5","id":28582}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-37pw-f446-wpf2","id":28583}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-j82j-jp9w-f75c","id":28584}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-4r7w-68p9-fv43","id":28585}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-wxmp-76j5-f3c9","id":28586}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-8c38-gwr2-p787","id":28587}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-6r95-vw84-9ch9","id":28588}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-59x6-g992-q3fm","id":28589}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-7569-phvm-vwc2","id":2858}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-6795-wmwp-422x","id":28590}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-jhf3-22r2-88hm","id":28591}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-c6jj-w8jm-w235","id":28592}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-wcv6-98jm-hjq5","id":28593}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-ppr9-xgww-564p","id":28594}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-2f3q-8v3v-2392","id":28595}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-cp32-fxxm-95fh","id":28596}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-q48q-3338-9mwh","id":28597}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-cf8w-8983-rvx4","id":28598}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-p4cr-358q-qmjg","id":28599}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-8949-hhfh-j7rj","id":2859}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-2cmp-4xx9-5mq3","id":285}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-wgxx-f8wg-5476","id":28600}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-vmf4-mvgm-7vpv","id":28601}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-4jp4-6w6j-ff4q","id":28602}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-g7xw-4cjw-2247","id":28603}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-x462-9fp3-ghjp","id":28604}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-2gv8-69wg-hv5r","id":28605}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-8vj7-5597-c484","id":28606}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-vvrg-vxmj-qhph","id":28607}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-76c4-7552-ffhv","id":28608}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-j84g-7c58-cx6j","id":28609}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-jgm9-5fw5-pw9p","id":2860}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-ggf9-8488-2364","id":28610}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-jwph-5cmm-5h86","id":28611}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-g6p6-qx76-rw5c","id":28612}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-5gp9-qvpv-q2qj","id":28613}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-4r9c-xv44-cv3j","id":28614}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-cg7x-rpj3-726r","id":28615}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-f5fw-cv46-fjpx","id":28616}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-g834-qffv-4h52","id":28617}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-9cwj-pq39-fhj9","id":28618}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-w7rv-mrpr-c9xg","id":28619}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-5p8g-9xf3-gfrr","id":2861}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-8hhf-m843-q8q2","id":28620}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-52mr-5g7v-6v3j","id":28621}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-92hv-gc9p-783w","id":28622}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-hq4m-r4hr-wcpv","id":28623}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-8rmh-w77w-5fj9","id":28624}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-cw6p-8pjr-qgr3","id":28625}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-rj34-g4mf-jw9r","id":28626}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-pq9f-8f7w-6x8g","id":28627}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-mcc8-ww79-gg9j","id":28628}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-fgph-7mhp-x3gf","id":28629}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-57jj-75fm-9rq5","id":2862}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-8533-frpj-prj8","id":28630}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-jq2x-9778-pg6c","id":28631}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-g479-hvv2-45w7","id":28632}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-rh3v-3ff8-9cwx","id":28633}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-rp9x-qmqg-qcq3","id":28634}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-5rwj-cr58-f77g","id":28635}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-jx67-v38f-gxr3","id":28636}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-p4qf-fmff-f7mr","id":28637}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-p38h-39j7-hffp","id":28638}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-qr82-h9qv-fj9h","id":28639}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-v74w-h496-cgqm","id":2863}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-qcfp-c5xm-562j","id":28640}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-9rgg-8f9w-rqv4","id":28641}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-32wc-5hmh-wj5j","id":28642}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-7fvh-vrjw-pq5r","id":28643}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-m6vf-wm9f-8wr9","id":28644}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-rrqr-28rx-wvxw","id":28645}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-977f-69j9-mxw2","id":28646}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-9mv6-xh2r-xp6h","id":28647}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-8r87-qgfw-x53f","id":28648}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-x2px-93r9-c7q7","id":28649}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-9jp9-m3fv-2vg9","id":2864}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-h2fg-3p95-qpgr","id":28650}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-rvfm-7v66-893j","id":28651}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-r3h2-3g9p-m75q","id":28652}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-x34j-xmwm-3f29","id":28653}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-mjc7-vcp5-jw6g","id":28654}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-jhhv-w9v7-j258","id":28655}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-pp79-gj4p-q4h8","id":28656}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-9cx7-pc3c-3m2f","id":28657}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-6936-rp4g-6qpq","id":28658}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-vrr3-29rc-4236","id":28659}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-q5hm-2x99-mhfq","id":2865}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-hqgh-2xx9-869p","id":28660}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-r33j-65rv-35vp","id":28661}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-6jg7-3848-8xv8","id":28662}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-86j4-vx9q-r49r","id":28663}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-mvcr-mmcq-27xq","id":28664}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-vwqp-f692-7jxq","id":28665}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-524m-vh66-wmxw","id":28666}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-88ww-mrq7-84jm","id":28667}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-x5vq-6793-7jq3","id":28668}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-g9pp-m4jq-g5jr","id":28669}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-v6x5-m838-gqph","id":2866}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-849x-56wc-5rrv","id":28670}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-5jqc-qgm4-c26c","id":28671}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-h9x9-p972-28q9","id":28672}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-v65x-fj5j-4m4g","id":28673}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-4xh5-8hm7-7829","id":28674}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-rxw7-qqf5-2pv8","id":28675}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-2rwm-w499-38rq","id":28676}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-r6wc-chqc-5wq3","id":28677}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-379j-gvff-q6mw","id":28678}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-qc3x-52c6-p5ff","id":28679}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-vf79-2pjx-phpp","id":2867}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-h6gv-2whh-8c86","id":28680}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-cjvx-f3xp-vg55","id":28681}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-w8j4-8pww-wm83","id":28682}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-gj7f-g8j2-wxxr","id":28683}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-r6xv-mvwg-hfrw","id":28684}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-2gwx-67mg-hfr3","id":28685}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-cwvq-x3wg-574h","id":28686}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-4f2v-6gqh-mrrr","id":28687}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-rfx6-xxqx-wfgw","id":28688}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-xwpg-q47q-pg26","id":28689}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-86vw-xprq-939q","id":2868}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-fr24-68fv-4whc","id":28690}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-q9rj-wgm8-fg59","id":28691}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-8g9x-wx4c-x88j","id":28692}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-j6wv-2276-36jq","id":28693}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-hprw-fgvq-rp36","id":28694}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-5mqf-4prf-9r2m","id":28695}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-4gjv-v7fq-ghfp","id":28696}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-8cj9-p42v-64gg","id":28697}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-5jxx-2336-22p8","id":28698}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-26f3-4cp2-gg6m","id":28699}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-h66f-g4vc-vj55","id":2869}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-c285-8v6c-xhjm","id":286}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-x2h4-qj7j-848m","id":28700}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-wc5g-7q4c-9jmw","id":28701}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-wh8h-qr34-3rj3","id":28702}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-2q57-jvxc-h47j","id":28703}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-x578-65c5-rvww","id":28704}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-pvmq-3jr9-v5qh","id":28705}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-7277-55v8-3w5c","id":28706}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-8vch-r2xf-w3gx","id":28707}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-f53v-m7jv-638m","id":28708}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-chg9-78g7-w373","id":28709}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-m4gq-923h-4w8r","id":2870}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-5ppm-jrf6-pgxg","id":28710}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-hchm-85c7-pr3j","id":28711}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-j63f-r6hc-x235","id":28712}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-3p4f-gf68-qcr7","id":28713}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-vxmx-jh52-9qgx","id":28714}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-xc7c-h7w8-rjr5","id":28715}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-5m55-48wq-2q7j","id":28716}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-7rc7-c3pf-w87r","id":28717}
+{"at":"2026-11-16T16:30:33Z","event":"first seen","ghsa_id":"GHSA-f929-hp32-jfhr","id":28718}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-247f-2cq2-v793","id":2871}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-4hrh-34w3-5ww8","id":2872}
 {"at":"2026-10-28T07:27:03Z","event":"first seen","ghsa_id":"GHSA-xqc2-xf4c-x3h3","id":2873}
