@@ -295,6 +295,33 @@ async def test_renamed_repo_does_not_duplicate_advisories(tmp_path: Path, no_sle
     assert regexp2[0].adv.repo == "dlclark/regexp2"  # canonical name from the advisory's URL
 
 
+async def test_a_partly_read_listing_leaves_the_repo_as_it_was(tmp_path: Path, no_sleep: Any) -> None:
+    """A later page that can't be read gives no list (sources.github): the tracker keeps the advisories it had,
+    none marked as no longer listed, and the ETag of the last full read, so the next poll reads it all again."""
+    from limbowatch.sources import github as gh_src
+    from limbowatch.store import Advisory
+    from limbowatch.tracker import RunReport
+
+    seed = tmp_path / "seed.txt"
+    seed.write_text("dlclark/regexp2\n")
+    store = Store()
+    with respx.mock(assert_all_mocked=True, assert_all_called=False) as router:
+        mock_world(router)
+        await run_once(store, seed, no_sleep)
+    with store.session() as s:
+        before = {a.ghsa_id: a.gone_since for a in s.query(Advisory).filter(Advisory.repo == "dlclark/regexp2")}
+        etag = s.get(Repo, "dlclark/regexp2").etag
+    assert before and not any(before.values())
+    async with HttpClient("test-token", sleep=no_sleep) as http:
+        Tracker(store, http, TrackerConfig(seeds=[seed], nvd=False))._record_poll(
+            "dlclark/regexp2", gh_src.RepoPoll(-1, None, None), RunReport(started_at="t")
+        )
+    with store.session() as s:
+        after = {a.ghsa_id: a.gone_since for a in s.query(Advisory).filter(Advisory.repo == "dlclark/regexp2")}
+        repo = s.get(Repo, "dlclark/regexp2")
+        assert after == before and repo.etag == etag and repo.poll_status == -1
+
+
 async def test_tracker_rereads_cve_records_stored_under_an_older_link_rule(tmp_path: Path, no_sleep: Any) -> None:
     """Records stored before F-120 took GHSA IDs from descriptions too. Where such a link would count, the record
     is read again; a lookup that finds no record keeps the stored one."""

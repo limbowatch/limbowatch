@@ -53,6 +53,7 @@ class ScanResult:
     upstreams: list[Upstream] = field(default_factory=list)  # with registry names resolved to repos and tags
     upstreams_checked: set[str] = field(default_factory=set)  # host/repo of upstream sources checked in full
     stats: dict[str, int] = field(default_factory=dict)
+    unread: set[str] = field(default_factory=set)  # repos not polled (rate limit) or not read (an error) this run
 
 
 async def fetch(
@@ -287,7 +288,7 @@ async def prepare(
 
 def assess(inv: Inventory, sh: Shared) -> ScanResult:
     """One project's findings against the shared feed, polls and mappings. No I/O."""
-    res = ScanResult(inventory=inv, unresolved=list(inv.unresolved))
+    res = ScanResult(inventory=inv, unresolved=list(inv.unresolved), unread=sh.not_polled | sh.not_read)
     deps = list(inv.dependencies)
     keys = {(d.ecosystem, d.name, d.version) for d in deps}
     mapped = {k: m for k, m in sh.mapped.items() if k in keys}

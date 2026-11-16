@@ -541,11 +541,11 @@ def scan(
             res = await watch_scan.scan(inv, http, feed_zip=feed, watchlist=dict(wl_doc.get("repos") or {}),
                                         now=datetime.now(UTC), upstream_check=upstream, git_cache=cache,
                                         osv_commits=osv_commits)  # fmt: skip
-            gone = sorted(watch_state.vanished(old, res.findings))
+            gone = sorted(watch_state.vanished(old, res.findings, res.unread))
             seen = await asyncio.gather(*(osv_source.present(http, g) for g in gone))
             visible = {g for g, v in zip(gone, seen, strict=True) if v}
             if state_file is not None:
-                new_state, changes = watch_state.diff(old, res.findings, now, visible)
+                new_state, changes = watch_state.diff(old, res.findings, now, visible, res.unread)
                 state_file.parent.mkdir(parents=True, exist_ok=True)
                 state_file.write_text(json.dumps(new_state, indent=1, sort_keys=True) + "\n")
             if issues:
@@ -938,7 +938,7 @@ def watch(
                     g
                     for c in w.checked
                     if c.result
-                    for g in watch_state.vanished(olds[c.project.name], c.result.findings)
+                    for g in watch_state.vanished(olds[c.project.name], c.result.findings, c.result.unread)
                 }
             )
             seen = await asyncio.gather(*(osv_source.present(http, g) for g in gone))
@@ -950,7 +950,9 @@ def watch(
                     continue
                 changes: list[watch_state.Change] | None = None
                 if state_dir is not None:
-                    new_state, changes = watch_state.diff(olds[c.project.name], c.result.findings, now, visible)
+                    new_state, changes = watch_state.diff(
+                        olds[c.project.name], c.result.findings, now, visible, c.result.unread
+                    )
                     f = _state_path(state_dir, c.project)
                     f.parent.mkdir(parents=True, exist_ok=True)
                     f.write_text(json.dumps(new_state | {"project": c.project.web_url, "commit": c.commit},

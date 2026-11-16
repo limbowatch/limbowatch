@@ -100,13 +100,16 @@ async def test_a_page_that_cant_be_read_gives_no_list_and_the_repo_counts_as_unr
         r.get(url).mock(return_value=httpx.Response(200, json=raw[:1], headers={
             "etag": '"e1"', "link": '<https://api.github.com/page2>; rel="next"'}))  # fmt: skip
         r.get("https://api.github.com/page2").mock(return_value=httpx.Response(500))
+        r.get(url__startswith=f"{github.API}/repos/o/big/").mock(return_value=httpx.Response(200, json=raw[:1],
+            headers={"link": '<https://api.github.com/big2>; rel="next"'}))  # fmt: skip
+        r.get("https://api.github.com/big2").mock(return_value=httpx.Response(404))  # not "no such repo"
         r.get(url__startswith=f"{github.API}/repos/o/down/").mock(return_value=httpx.Response(502))
         r.get(url__startswith=f"{github.API}/repos/o/gone/").mock(return_value=httpx.Response(404))
         async with HttpClient(sleep=no_sleep) as http:
             res = await github.repo_advisories(http, "dlclark/regexp2")
-            got = await upstream.poll(http, {"dlclark/regexp2", "o/down", "o/gone"})
-    assert (res.status, res.advisories, res.etag) == (-1, None, None)  # a 500 retried, then no answer
-    assert got.not_read == {"dlclark/regexp2", "o/down"} and got.polled == {"o/gone"} and not got.not_polled
+            got = await upstream.poll(http, {"dlclark/regexp2", "o/down", "o/gone", "o/big"})
+    assert (res.status, res.advisories, res.etag) == (-1, None, None)  # whatever a later page said
+    assert got.not_read == {"dlclark/regexp2", "o/down", "o/big"} and got.polled == {"o/gone"} and not got.not_polled
 
 
 async def test_nvd(no_sleep: Any) -> None:

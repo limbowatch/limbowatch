@@ -28,7 +28,7 @@ def _on_api(url: str) -> bool:
 
 @dataclass
 class RepoPoll:
-    status: int  # 200, 304 (unchanged), 404, ...; on a later page that failed, that page's status (-1: no answer)
+    status: int  # 200, 304 (unchanged), 404, ...; -1: no answer, or a later page couldn't be read
     advisories: list[RepoAdvisory] | None  # None when unchanged or unavailable, or only partly listed
     etag: str | None
 
@@ -47,12 +47,13 @@ async def repo_advisories(http: HttpClient, repo: str, etag: str | None = None) 
     first_etag, raw = r.etag, list(r.body)
     link = r.link
     while link and (m := _NEXT.search(link)):  # >100 advisories: follow pages (no etag on later pages)
+        # -1 whatever the page said: a later page's 404 isn't "no such repo", nor a 200 that isn't a list a success
         if not _on_api(m.group(1)):
-            return RepoPoll(0, None, None)
+            return RepoPoll(-1, None, None)
         nxt = await http.get(m.group(1))
         if not nxt.ok or not isinstance(nxt.body, list):
             log.warning("%s: page %d of its advisories couldn't be read (%s)", repo, len(raw) // 100 + 1, nxt.status)
-            return RepoPoll(nxt.status, None, None)
+            return RepoPoll(-1, None, None)
         raw += nxt.body
         link = nxt.link
     # the ID names the advisory's page and feed record files: one that isn't a GHSA ID is logged and left out

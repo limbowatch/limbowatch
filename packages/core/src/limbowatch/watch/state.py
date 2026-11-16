@@ -44,6 +44,7 @@ def entries(findings: list[Finding], now: str, old: dict[str, Any] | None = None
             {
                 "ghsa_id": f.ghsa_id,
                 "url": f.url,
+                "repo": f.repo,  # the advisory's repo: kept as it was while that repo can't be read (`diff`)
                 "ecosystem": f.dependency.ecosystem,
                 "package": f.dependency.name,
                 "severity": f.severity,
@@ -69,12 +70,22 @@ def entries(findings: list[Finding], now: str, old: dict[str, Any] | None = None
     return out
 
 
+def _unseen(old: dict[str, Any] | None, findings: list[Finding], unread: set[str]) -> dict[str, dict[str, Any]]:
+    """Old findings not found now, except those whose advisory's repo couldn't be read or polled this run: those
+    aren't known to be gone (an entry from before entries named their repo is taken as gone, as it always was)."""
+    cur = {f.key for f in findings}
+    prev: dict[str, dict[str, Any]] = (old or {}).get("findings", {})
+    return {k: p for k, p in prev.items() if k not in cur and p.get("repo") not in unread}
+
+
 def diff(
-    old: dict[str, Any] | None, findings: list[Finding], now: str, visible: set[str]
+    old: dict[str, Any] | None, findings: list[Finding], now: str, visible: set[str], unread: set[str] | None = None
 ) -> tuple[dict[str, Any], list[Change]]:
-    """The new state, and what changed. `visible`: advisory IDs of vanished findings that are in OSV now."""
+    """The new state, and what changed. `visible`: advisory IDs of vanished findings that are in OSV now.
+    `unread`: repos whose advisories couldn't be read or polled this run; their old findings are kept unchanged."""
     cur = entries(findings, now, old)
     prev: dict[str, dict[str, Any]] = (old or {}).get("findings", {})
+    gone = _unseen(old, findings, unread or set())
     changes: list[Change] = []
     for key, e in cur.items():
         pkg = f"{e['ecosystem']}:{e['package']}"
@@ -95,14 +106,17 @@ def diff(
         if details:
             changes.append(Change(key, ChangeKind.CHANGED, e["ghsa_id"], pkg, details, e))
     for key, p in prev.items():
-        if key not in cur:
+        if key in cur:
+            continue
+        if key in gone:
             kind = ChangeKind.VISIBLE if p["ghsa_id"] in visible else ChangeKind.FIXED
             changes.append(Change(key, kind, p["ghsa_id"], f"{p['ecosystem']}:{p['package']}", entry=p))
+        else:
+            cur[key] = p  # not seen because its repo wasn't read: neither fixed nor visible, kept as it was
     state = {"version": STATE_VERSION, "scanned_at": now, "findings": cur}
     return state, sorted(changes, key=lambda c: (list(ChangeKind).index(c.kind), c.ghsa_id, c.package))
 
 
-def vanished(old: dict[str, Any] | None, findings: list[Finding]) -> set[str]:
+def vanished(old: dict[str, Any] | None, findings: list[Finding], unread: set[str] | None = None) -> set[str]:
     """Advisory IDs of findings in the old state that aren't found now (to check against OSV)."""
-    cur = {f.key for f in findings}
-    return {p["ghsa_id"] for k, p in (old or {}).get("findings", {}).items() if k not in cur}
+    return {p["ghsa_id"] for p in _unseen(old, findings, unread or set()).values()}

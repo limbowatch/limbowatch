@@ -3201,6 +3201,15 @@ Answered:
 - **Implication:** `sources.cve.record` fetches only links under that prefix and treats any other as unreadable (logged), like a failed download. If CVEProject changes the form, CVE updates stop being read and the log says why, rather than the tracker fetching from wherever the log points.
 - **Sources:** the deltaLog above.
 
+### F-210
+- **Date:** 2026-11-16 · **Status:** confirmed (direct observation)
+- **Question:** Before fcf9f9b, a repository listing whose later page failed was stored as complete: advisories past page 1 got `gone_since` and page 1's ETag was kept (so they'd stay marked). Did that ever happen in the live tracker?
+- **Method:** `git archive origin/tracker-data state` (commit 15eda5a, the run of 2026-11-15T14:03Z); `repos.jsonl` and `advisories.jsonl`, read locally.
+- **Result:** 67,591 repos, 43,494 advisories. 45 repos list 100 or more advisories (more than one page; bottlerocket-os/bottlerocket 517, discourse/discourse 340, freerdp/freerdp 338, …); **none has an advisory with `gone_since`**. Only 1 advisory in the whole state has `gone_since`, in graphql-hive/gateway, a one-page repo. Poll statuses: 200 57,152, 304 8,757, 404 1,681, 451 1.
+- **Caveats:** a cut-off listing repaired by a later full read (page 1 changed) leaves no trace; this shows the state is clean now, not that it never happened.
+- **Implication:** nothing in the live state needs repairing. From fcf9f9b on, a partly read listing leaves the repo as it was (and the scan reports it as not read).
+- **Sources:** the tracker-data state above.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

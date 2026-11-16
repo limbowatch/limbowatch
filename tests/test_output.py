@@ -47,6 +47,23 @@ def test_state_diff_reports_new_changed_visible_and_fixed() -> None:
     assert ch3 == []
 
 
+def test_state_keeps_findings_whose_repo_couldnt_be_read() -> None:
+    """A finding missing because its advisory's repo wasn't read (an error) or polled (rate limit) this run isn't
+    known to be gone: it's kept as it was, neither fixed nor looked up in OSV. One from an older state that doesn't
+    name its repo is taken as gone, as before."""
+    a, b = finding(), finding(name="qs", ghsa="GHSA-1111-2222-3333")
+    s1, _ = state.diff(None, [a, b], "t1", set())
+    assert s1["findings"][a.key]["repo"] == "o/r"
+    assert state.vanished(s1, [b], unread={"o/r"}) == set()
+    s2, ch2 = state.diff(s1, [b], "t2", set(), unread={"o/r"})
+    assert ch2 == [] and s2["findings"][a.key] == s1["findings"][a.key]  # not refreshed either
+    _, ch3 = state.diff(s2, [b], "t3", set())  # read again, and it's gone: fixed now
+    assert [(x.kind, x.ghsa_id) for x in ch3] == [(state.ChangeKind.FIXED, "GHSA-aaaa-bbbb-cccc")]
+    legacy = {"findings": {k: {f: v for f, v in e.items() if f != "repo"} for k, e in s1["findings"].items()}}
+    _, ch4 = state.diff(legacy, [b], "t2", set(), unread={"o/r"})
+    assert [x.kind for x in ch4] == [state.ChangeKind.FIXED]
+
+
 def test_gate() -> None:
     assert output.gate(report(finding(sev="low")), "low")
     assert not output.gate(report(finding(sev="low")), "high")
