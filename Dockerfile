@@ -38,7 +38,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1
 # git: `limbowatch watch` clones each project of a group (org-wide mode). From the base image's Debian release.
+# upgrade: Debian's security fixes published since the base image was built (it can lag by weeks: zlib's
+# deb13u1 on 2026-11-16, for three CVEs, was in trixie-security but not in the newest python:3.14-slim).
 RUN apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
  && apt-get install -y --no-install-recommends git \
  && rm -rf /var/lib/apt/lists/*
 RUN --mount=type=bind,from=build,source=/dist,target=/dist \

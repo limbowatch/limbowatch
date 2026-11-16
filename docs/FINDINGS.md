@@ -3210,6 +3210,20 @@ Answered:
 - **Implication:** nothing in the live state needs repairing. From fcf9f9b on, a partly read listing leaves the repo as it was (and the scan reports it as not read).
 - **Sources:** the tracker-data state above.
 
+### F-211
+- **Date:** 2026-11-16 · **Status:** confirmed (direct observation)
+- **Question:** Which known vulnerabilities do Limbowatch's own dependencies and its published image have, and can they be upgraded away?
+- **Method:** OSV-Scanner 2.7.1 `scan source --lockfile` on uv.lock, deploy/worker/package-lock.json, integrations/action/requirements.txt and deploy/cloudflare/requirements.txt; `limbowatch scan` (ec718b5) on the same files; `osv-scanner scan image ghcr.io/limbowatch/limbowatch:0.1.0a15`; `apt-cache policy zlib1g` in the pinned python:3.14-slim; OSV-Scanner's go.mod at v2.7.1 and on main. Dependabot alerts are disabled for the repository (API 403), so they were not a source.
+- **Result:**
+  - **OSV-Scanner on the lockfiles:** no issues in any of the four (48, 165, 30 and 7 packages).
+  - **Limbowatch on the same files:** 7 advisories in limbo, all in the Worker's test tooling (`@cloudflare/vitest-plugin` → miniflare 5.20261113.0-beta, which pins them exactly, in its newest release too): undici 7.30.1 (6, one high, fixed in 7.30.2) and ws 8.21.0 (GHSA-37g9-w4hg-h9qr, high, no CVE, fixed in 8.23.0). Not in the deployed Worker (no runtime dependencies). Fixed with npm `overrides`; the Worker's 22 tests pass.
+  - **The 0.1.0a15 image:** 194 advisory–package pairs. With a fix available: Debian zlib 1:1.3.dfsg+really1.3.1-1+b1 (3 CVEs, up to 8.3; `+deb13u1` is in trixie-security, not yet in the newest python:3.14-slim, whose digest the Dockerfile already pins), and in the OSV-Scanner binary go.opentelemetry.io/otel/trace 1.45.0 (GHSA-q7gw-24fr-5p69, 5.3) and golang.org/x/crypto 0.58.0 (GO-2026-5932), both indirect, both already bumped on OSV-Scanner's main (1.47.0, 0.59.0). The rest are Debian packages with no fix.
+  - **Rebuilt with `apt-get upgrade`:** 191 pairs; the 3 zlib ones gone, none new.
+  - **Python:** nothing vulnerable; 5 newer versions (semver 3.1.2 at runtime; coverage, grimp, pytest-asyncio, ruff for development).
+- **Caveats:** reachability of the two Go advisories in OSV-Scanner wasn't checked (govulncheck wasn't run). Image results are for linux/arm64 locally and the published multi-arch image as pulled on an arm64 host.
+- **Implication:** the image installs Debian's security updates at build time; the Worker's test tooling is pinned past the advisories; the Go ones leave with OSV-Scanner's next release (bump the pinned 2.7.1 then). Limbowatch found the undici and ws advisories that OSV-Scanner, run on the same lockfile, didn't.
+- **Sources:** the scans and registry metadata above.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
