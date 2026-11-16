@@ -112,8 +112,10 @@ def _showcase(path: Path | None, records: list[dict[str, Any]]) -> showcase_mod.
     return sc
 
 
-def _load(state: Path) -> Store:
+def _load(state: Path, ctx: typer.Context) -> Store:
+    """The state, closed when the command ends (on an error too)."""
     store = Store()
+    ctx.call_on_close(store.close)
     if state.exists():
         store.import_jsonl(state)
     return store
@@ -121,6 +123,7 @@ def _load(state: Path) -> Store:
 
 @app.command()
 def track(
+    ctx: typer.Context,
     state: StateDir = Path("tracker/state"),
     seed: Annotated[list[Path] | None, typer.Option(help="Seed file(s): one owner/repo per line.")] = None,
     budget: Annotated[int, typer.Option(help="Max GitHub requests this run (304s are free).")] = 4000,
@@ -146,7 +149,7 @@ def track(
 ) -> None:
     """Run the tracker once: sync reviews and CVEs, poll repos within the budget, record changes."""
     logging.basicConfig(level=logging.INFO if verbose else logging.WARNING, format="%(levelname)s %(name)s %(message)s")
-    store = _load(state)
+    store = _load(state, ctx)
     maven = read_maven_packages(maven_packages.read_text()) if maven_packages else {}
     cfg = TrackerConfig(seeds=seed or [], nvd=nvd, max_nvd=max_nvd, checkpoint=lambda: store.export_jsonl(state),
                         max_new=max_new, releases=releases,
@@ -188,6 +191,7 @@ def _previous_feed(path: Path) -> dict[str, tuple[str, str]] | None:
 
 @app.command()
 def publish(
+    ctx: typer.Context,
     state: StateDir = Path("tracker/state"),
     out: Annotated[Path, typer.Option(help="Output directory for the site and feed.")] = Path("tracker/site"),
     assets: Annotated[Path, typer.Option(help="Brand assets to copy (favicon, avatar).")] = Path("brand/assets"),
@@ -218,7 +222,7 @@ def publish(
     ] = None,
 ) -> None:
     """Write the site, feed (all.zip, index.json, one JSON per record) and metrics.json from the state."""
-    store = _load(state)
+    store = _load(state, ctx)
     now = datetime.now(UTC)
     all_items = items(store)
     m = metrics(store, now, json.loads(top_packages.read_text()) if top_packages.exists() else None)
@@ -301,6 +305,7 @@ def publish(
 
 @app.command()
 def report(
+    ctx: typer.Context,
     state: StateDir = Path("tracker/state"),
     out: Annotated[Path, typer.Option(help="Directory for reports (YYYY-MM-DD.md and latest.md).")] = Path(
         "tracker/reports"
@@ -313,7 +318,7 @@ def report(
     ] = "https://github.com/limbowatch/limbowatch/blob/tracker-data/reports/{date}.md",
 ) -> None:
     """Write the daily Markdown report: current numbers and everything that changed since the last report."""
-    store = _load(state)
+    store = _load(state, ctx)
     rep = report_mod.build(store)
     out.mkdir(parents=True, exist_ok=True)
     (out / f"{rep.date}.md").write_text(rep.markdown)

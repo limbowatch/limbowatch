@@ -140,9 +140,21 @@ TABLES: list[type[Base]] = [
 
 
 class Store:
+    """The tracker's state in SQLite (in memory by default). Close it when done: `with Store() as store`, or
+    `close()`; an in-memory engine keeps a connection open per thread until then."""
+
     def __init__(self, url: str = "sqlite://") -> None:
         self.engine = create_engine(url)
         Base.metadata.create_all(self.engine)
+
+    def close(self) -> None:
+        self.engine.dispose()
+
+    def __enter__(self) -> Store:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
 
     @contextmanager
     def session(self) -> Iterator[Session]:
