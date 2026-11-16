@@ -53,7 +53,10 @@ def delta_log() -> list[dict[str, Any]]:
             "fetchTime": "2099-01-01T00:00:00.000Z",
             "numberOfChanges": 1,
             "new": [
-                {"cveId": "CVE-2026-110858", "githubLink": "https://raw.githubusercontent.com/cve/CVE-2026-110858.json"}
+                {
+                    "cveId": "CVE-2026-110858",
+                    "githubLink": "https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves/2026/110xxx/CVE-2026-110858.json",
+                }
             ],
             "updated": [],
             "error": [],
@@ -90,9 +93,9 @@ def mock_world(router: respx.MockRouter, *, regexp2_reviewed: bool = False) -> N
     router.get("https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves/deltaLog.json").mock(
         return_value=httpx.Response(200, json=delta_log())
     )
-    router.get("https://raw.githubusercontent.com/cve/CVE-2026-110858.json").mock(
-        return_value=httpx.Response(200, json=load("cve_CVE-2026-110858.json"))
-    )
+    router.get(
+        "https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves/2026/110xxx/CVE-2026-110858.json"
+    ).mock(return_value=httpx.Response(200, json=load("cve_CVE-2026-110858.json")))
     router.get("https://cveawg.mitre.org/api/cve/CVE-2026-77299").mock(
         return_value=httpx.Response(404, json=load("cve_not_found.json"))
     )

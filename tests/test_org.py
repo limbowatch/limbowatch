@@ -163,7 +163,8 @@ def test_tokens_never_go_over_plain_http_to_another_machine() -> None:
 def test_clone_url_stays_on_the_listed_host() -> None:
     base = "https://gitlab.example.com"
     assert clone_url(base, "https://GitLab.example.com/a/b.git", "a/b") == "https://GitLab.example.com/a/b.git"
-    for other in ("file:///home/runner/secret", "ssh://git@gitlab.example.com/a/b.git",
+    for other in ("file:///home/runner/secret", "ssh://git@gitlab.example.com/a/b.git", "http://[::1",
+                  "https://gitlab.example.com/a/b.git?x=1", "https://gitlab.example.com/a/b.git#f",
                   "http://gitlab.example.com/a/b.git", "https://evil.example/a/b.git", None, 3):  # fmt: skip
         assert clone_url(base, other, "a/b") == "https://gitlab.example.com/a/b.git", other
 

@@ -3192,6 +3192,15 @@ Answered:
 - **Implication:** the audit now picks the showcase run whose `scanned_at` equals the live data.json's (of the last 10 successful runs) and notes newer runs the site hasn't shown yet. With it, all 12 checks passed at 06:40 UTC.
 - **Sources:** the runs above; `scripts/audit.py` check 12.
 
+### F-209
+- **Date:** 2026-11-16 · **Status:** confirmed (direct observation)
+- **Question:** Do the CVE List's deltaLog `githubLink` URLs always point into CVEProject/cvelistV5, so the tracker can refuse any other link?
+- **Method:** `GET https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves/deltaLog.json` at 2026-11-16 07:40 UTC; every `new` and `updated` item's `githubLink`.
+- **Result:** 3,149 entries (fetch times 2026-10-17T06:30Z to 2026-11-16T06:11Z), 101,021 links; **all** start with `https://raw.githubusercontent.com/CVEProject/cvelistV5/`, as `…/main/cves/<year>/<n>xxx/<CVE-ID>.json`.
+- **Caveats:** one month of the log; CVEProject could change the form.
+- **Implication:** `sources.cve.record` fetches only links under that prefix and treats any other as unreadable (logged), like a failed download. If CVEProject changes the form, CVE updates stop being read and the log says why, rather than the tracker fetching from wherever the log points.
+- **Sources:** the deltaLog above.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

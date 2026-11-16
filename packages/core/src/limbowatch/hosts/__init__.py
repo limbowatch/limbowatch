@@ -185,5 +185,9 @@ def clone_url(base_url: str, given: object, path: str) -> str:
     built = f"{base_url}/{path}.git"
     if not isinstance(given, str) or not given:
         return built
-    g, b = urlsplit(given), urlsplit(base_url)
-    return given if (g.scheme, g.netloc.lower()) == (b.scheme, b.netloc.lower()) else built
+    try:
+        g, b = urlsplit(given), urlsplit(base_url)
+    except SourceError:  # an unreadable URL from the API: the built one
+        return built
+    same = (g.scheme, g.netloc.lower()) == (b.scheme, b.netloc.lower()) and not g.query and not g.fragment
+    return given if same else built

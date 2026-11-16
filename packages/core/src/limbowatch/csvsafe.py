@@ -13,6 +13,6 @@ _CALLS = re.compile(r"[()|!\"'&\[\]{}$\t\r\n]")  # what a formula needs to call 
 
 
 def cell(v: str) -> str:
-    if v[:1] in ("=", "\t", "\r") or (v[:1] in ("+", "-", "@") and _CALLS.search(v)):
+    if v[:1] in ("=", "\t", "\r", "\n") or (v[:1] in ("+", "-", "@") and _CALLS.search(v)):
         return f"'{v}"
     return v

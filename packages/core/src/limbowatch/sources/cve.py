@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import zipfile
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -13,8 +14,11 @@ from limbowatch.http import HttpClient
 from limbowatch.models import CveInfo
 from limbowatch.normalize import cve_record
 
+log = logging.getLogger(__name__)
+
 CVE_API = "https://cveawg.mitre.org/api"
-DELTA_LOG = "https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves/deltaLog.json"
+CVELIST_RAW = "https://raw.githubusercontent.com/CVEProject/cvelistV5/"
+DELTA_LOG = f"{CVELIST_RAW}main/cves/deltaLog.json"
 
 
 async def lookup(http: HttpClient, cve_id: str) -> CveInfo:
@@ -52,6 +56,11 @@ async def delta_since(http: HttpClient, cursor: str | None) -> list[DeltaEntry]:
 
 
 async def record(http: HttpClient, url: str) -> CveInfo | None:
+    """A CVE record from the deltaLog's link, which must point into the CVE List repository; anything else is
+    treated as unreadable (None), like a failed download."""
+    if not url.startswith(CVELIST_RAW):
+        log.warning("CVE record link outside the CVE List repository, not fetched")
+        return None
     r = await http.get(url)
     body: Any = r.body
     return cve_record(body) if r.ok and isinstance(body, dict) else None

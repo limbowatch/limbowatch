@@ -29,6 +29,7 @@ def test_csv_cells_cannot_start_a_formula() -> None:
     assert cell("= 1.2.3") == "'= 1.2.3"
     assert cell("@SUM(1+1)*cmd|' /C calc'!A0") == "'@SUM(1+1)*cmd|' /C calc'!A0"
     assert cell("+cmd|x") == "'+cmd|x"
+    assert cell("\n=1+1") == "'\n=1+1"  # a leading line feed, like a tab or carriage return
     # nothing to call: left as entered
     assert cell("@scope/pkg") == "@scope/pkg"
     assert cell("@sync-in/server; syncin/server") == "@sync-in/server; syncin/server"

@@ -14,7 +14,7 @@ import pytest
 import respx
 from conftest import load
 from limbowatch.http import BudgetExhausted, HttpClient
-from limbowatch.sources import github, gitrefs, nvd, osv
+from limbowatch.sources import cve, github, gitrefs, nvd, osv
 from limbowatch.watch import upstream
 
 GIT_ENV = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1",
@@ -56,6 +56,35 @@ async def test_osv(no_sleep: Any) -> None:
             assert await osv.by_commit(http, ["a" * 40, "b" * 40]) == {"a" * 40: {"CVE-2"}, "b" * 40: set()}
             assert await osv.by_commit(http, ["a" * 40]) is None  # a short answer isn't trusted
     assert q.call_count == 2 and b.call_count == 2
+
+
+async def test_credentials_go_over_https_only(no_sleep: Any) -> None:
+    """The GitHub token and NVD key go only to their hosts over https; a plain-http URL (a page link, a
+    misconfiguration) gets the request without them."""
+    with respx.mock() as r:
+        gh = r.get(url__startswith="http://api.github.com/").mock(return_value=httpx.Response(200, json=[]))
+        nv = r.get(url__startswith="http://services.nvd.nist.gov/").mock(return_value=httpx.Response(200, json={}))
+        ok = r.get(url__startswith="https://api.github.com/").mock(return_value=httpx.Response(200, json=[]))
+        async with HttpClient("ghp_secret", sleep=no_sleep, nvd_api_key="nvdkey") as http:
+            await http.get("http://api.github.com/x")
+            await http.get("http://services.nvd.nist.gov/x")
+            await http.get("https://api.github.com/x")
+    assert "authorization" not in gh.calls[0].request.headers and "apikey" not in nv.calls[0].request.headers
+    assert ok.calls[0].request.headers["authorization"] == "Bearer ghp_secret"
+
+
+async def test_github_pages_and_cve_records_stay_where_they_belong(no_sleep: Any) -> None:
+    """A next-page link off GitHub's API ends the listing; a CVE record link outside the CVE List isn't fetched
+    (any request not routed here would fail the test)."""
+    raw = load("repo_advisories_regexp2.json")
+    url = f"{github.API}/repos/dlclark/regexp2/security-advisories?state=published&per_page=100"
+    with respx.mock() as r:
+        r.get(url).mock(return_value=httpx.Response(200, json=raw[:1], headers={
+            "link": '<http://api.github.com/page2>; rel="next"'}))  # fmt: skip
+        async with HttpClient(sleep=no_sleep) as http:
+            res = await github.repo_advisories(http, "dlclark/regexp2")
+            assert await cve.record(http, "https://evil.example/CVE-2026-1.json") is None
+    assert len(res.advisories or []) == 1
 
 
 async def test_nvd(no_sleep: Any) -> None:

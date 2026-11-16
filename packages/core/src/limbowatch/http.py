@@ -150,21 +150,22 @@ class HttpClient:
         leaves the GitHub token out.
         """
         self._check_deadline()
-        host = urlsplit(url).hostname or ""
+        parts = urlsplit(url)
+        host, secure = parts.hostname or "", parts.scheme == "https"  # the GitHub token and NVD key go over https only
         is_gh = host == GITHUB_API
         if is_gh and (left := self.budget_left()) is not None and left <= 0:
             raise BudgetExhausted
         headers: dict[str, str] = {}
         if is_gh:
             headers.update({"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"})
-            if self._token and not anonymous:
+            if self._token and not anonymous and secure:
                 headers["Authorization"] = f"Bearer {self._token}"
             if etag:
                 headers["If-None-Match"] = etag
         elif raw and etag:
             headers["If-None-Match"] = etag
         if host == "services.nvd.nist.gov":
-            if self._nvd_key:
+            if self._nvd_key and secure:
                 headers["apiKey"] = self._nvd_key
             async with self._nvd_lock:  # NVD: one request per spacing interval
                 wait = self._nvd_last + self._nvd_spacing - time.monotonic()

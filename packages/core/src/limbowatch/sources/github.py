@@ -18,6 +18,14 @@ _NEXT = re.compile(r'<([^>]+)>;\s*rel="next"')
 log = logging.getLogger(__name__)
 
 
+def _on_api(url: str) -> bool:
+    """A next-page link the token may follow: on GitHub's API, over https. Anything else ends the listing, logged."""
+    if url.startswith(f"{API}/"):
+        return True
+    log.warning("next page link isn't on %s; stopped there", API)
+    return False
+
+
 @dataclass
 class RepoPoll:
     status: int  # 200, 304 (unchanged), 404, ...
@@ -36,6 +44,8 @@ async def repo_advisories(http: HttpClient, repo: str, etag: str | None = None) 
     first_etag, raw = r.etag, list(r.body)
     link = r.link
     while link and (m := _NEXT.search(link)):  # >100 advisories: follow pages (no etag on later pages)
+        if not _on_api(m.group(1)):
+            break
         nxt = await http.get(m.group(1))
         if not nxt.ok or not isinstance(nxt.body, list):
             break
@@ -65,4 +75,4 @@ async def reviewed_since(http: HttpClient, since: datetime | None) -> AsyncItera
                 return
             yield e
         m = _NEXT.search(r.link or "")
-        url = m.group(1) if m else None
+        url = m.group(1) if m and _on_api(m.group(1)) else None
