@@ -49,8 +49,8 @@ concurrency:
 env:
   # The Limbowatch release this feed is built with: its image (attested: gh attestation verify
   # oci://ghcr.io/limbowatch/limbowatch:<tag> --owner limbowatch) and its seed lists.
-  LIMBOWATCH_IMAGE: ghcr.io/limbowatch/limbowatch:0.1.0a16@sha256:034d8c3f629538bba9c8ba4c673058976d260f3b5dea42328bc5872f793fe65e
-  LIMBOWATCH_REF: v0.1.0a16
+  LIMBOWATCH_IMAGE: ghcr.io/limbowatch/limbowatch:0.1.0a17@sha256:1c99aecc337b163bdb341f24e9135b697a3b273ccb911797360e3e858b99a4c9
+  LIMBOWATCH_REF: v0.1.0a17
   WATCH: ${{ vars.LIMBO_FEED_WATCH || 'popular' }}
   PUBLISH: ${{ vars.LIMBO_FEED_PUBLISH || 'pages' }}
 
