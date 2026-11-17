@@ -18,6 +18,8 @@ Pick the pipeline for your CI and copy it into a repository or project of your o
 | GitHub Actions | [deploy/own-feed/github/limbo-feed.yml](../deploy/own-feed/github/limbo-feed.yml) → `.github/workflows/limbo-feed.yml` | `https://<owner>.github.io/<repo>/feed/` (GitHub Pages) |
 | GitLab CI | [deploy/own-feed/gitlab/.gitlab-ci.yml](../deploy/own-feed/gitlab/.gitlab-ci.yml) → `.gitlab-ci.yml`, plus a daily pipeline schedule | Your Pages URL with `/feed/` (Deploy → Pages; new projects get a unique domain such as `https://<project>-<id>.gitlab.io`) |
 
+Both run in the Limbowatch image. For pipelines with no image, only the command line, see [CLI only](#cli-only).
+
 The comments at the top of each file list what to set. In short:
 - **A GitHub token** (`LIMBOWATCH_GITHUB_TOKEN`): a fine-grained token with read access to public repositories. GitHub allows 5,000 requests an hour with one. Without one, GitHub Actions' job token allows 1,000, and GitLab CI has only GitHub's anonymous 60, which is too few.
 - **Your own seeds** (optional): `tracker-seeds/*.txt` in the same repository, one `owner/repo` per line, such as the source repositories of the dependencies you care about most.
@@ -32,6 +34,21 @@ Each run:
 5. Saves the state and publishes the feed. On GitHub, it also attests the feed files with the workflow's build provenance. In a private repository that works only if your GitHub plan includes attestations for private repositories: on the Free plan, GitHub refuses ("Feature not available … upgrade the billing plan, or make this repository public"), so the step warns and the feed is published unattested. GitHub Pages for a private repository also depends on the plan; the `branch` option works on any plan.
 
 Everything runs in the Limbowatch image of the release you pin, by digest, the same image the scanner uses. To verify the image first: `gh attestation verify oci://ghcr.io/limbowatch/limbowatch:<tag> --owner limbowatch`.
+
+## CLI only
+
+Two simpler pipelines need no Limbowatch image, only the command line:
+
+| CI | File | Feed |
+|---|---|---|
+| GitHub Actions | [deploy/own-feed/github/limbo-feed-cli.yml](../deploy/own-feed/github/limbo-feed-cli.yml) → `.github/workflows/limbo-feed.yml` | The `limbo-feed` branch of the same repository |
+| GitLab CI | [deploy/own-feed/gitlab/.gitlab-ci.cli.yml](../deploy/own-feed/gitlab/.gitlab-ci.cli.yml) → `.gitlab-ci.yml`, plus a daily pipeline schedule | GitLab Pages |
+
+Each installs `limbowatch-cli` from PyPI at the pinned version and OSV-Scanner from its GitHub release, checked against that release's SHA-256 sums. Then it runs the same commands you would on your own machine (`repos`, `track --only-seeds`, `publish --feed-only`). The GitHub one uses no actions at all: the runner's `pipx`, `git`, `gh` and `curl`. The GitLab one runs in the `python:3.12` image.
+
+They build only a focused feed, of your own projects' dependencies ([Popular or focused](#popular-or-focused)), and skip the extras: no attestation and no Maven release checks. The state is kept the same way: a `limbo-feed-state` branch on GitHub, the package registry on GitLab. Set the same variables: `LIMBO_FEED_ORGS` (GitHub) or `FOCUS_GROUPS` (GitLab), a GitHub token, and `LIMBOWATCH_SOURCE_TOKEN` for private projects.
+
+What you give up: pip resolves the CLI's dependencies when it installs them, so they aren't pinned by hash. The image the other pipelines run is pinned by digest and attested, and every package in it is fixed. Pick the image pipelines if that matters to you, the CLI ones for the fewest moving parts.
 
 ## Popular or focused
 

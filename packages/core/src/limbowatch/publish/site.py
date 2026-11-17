@@ -378,6 +378,8 @@ ul.kit{margin:16px 0 0;padding:0;list-style:none}ul.kit a{display:inline-flex;mi
 .toc a:hover{color:var(--amber-text)}
 .prose{max-width:720px}.prose section{padding:8px 0 32px;border-bottom:1px solid var(--line2);margin-bottom:24px;scroll-margin-top:16px}
 .prose h2{margin-bottom:12px}.prose p,.prose li{color:var(--ink2);line-height:1.7}.prose strong{color:var(--ink)}.prose ul{padding-left:20px}
+@media (max-width:900px){nav.main .gh{display:none}}
+.ways .card{display:flex;flex-direction:column}.ways .card .links{margin-top:auto}.ways ul{margin:0 0 16px;padding-left:18px;color:var(--ink2);line-height:1.6}.ways h3 .pill{margin-left:6px;vertical-align:middle}
 .prose pre{margin:12px 0 16px;white-space:pre-wrap;overflow-wrap:anywhere}.prose h3{margin:24px 0 8px;font-size:var(--fs-l)}.prose ol{padding-left:20px}.prose .hostw{margin:16px 0}.prose table.hosts td:last-child{white-space:normal}
 @media (max-width:640px){table.cmp th[scope=row]{display:block;padding:0 0 6px;color:var(--ink);font-weight:600}
 table.hosts.cmp td,table.hosts.cmp td:first-child{font-weight:400;font-size:var(--fs-m)}
@@ -563,8 +565,8 @@ LEARN = [("compliance", "/compliance/", "For compliance leads"), ("why", "/why/"
 
 
 def header(active: str) -> str:
-    links = [("scan", "/scan/", "Scan your project"), ("tracker", "/tracker/", "Tracker"),
-             ("check", "/check/", "Check a package")]  # fmt: skip
+    links = [("scan", "/scan/", "Use it"), ("standalone", "/scan/standalone/", "Standalone"),
+             ("tracker", "/tracker/", "Tracker"), ("check", "/check/", "Check a package")]  # fmt: skip
     current = ' aria-current="page"'
 
     def a(key: str, href: str, label: str) -> str:
@@ -573,7 +575,7 @@ def header(active: str) -> str:
     main = "".join(a(*x) for x in links)
     learn = "".join(a(*x) for x in LEARN)
     on = " on" if any(k == active for k, _, _ in LEARN) else ""
-    github = f'<a href="{REPO_URL}">GitHub ↗</a>'
+    github = f'<a class="gh" href="{REPO_URL}">GitHub ↗</a>'
     nav = (
         f'{main}<details class="learn{on}"><summary>Learn</summary><div class="learn-menu">{learn}</div></details>'
         f"{github}"
@@ -592,7 +594,7 @@ def header(active: str) -> str:
 
 def footer(extra: str = "") -> str:
     cols = [
-        ("Use it", [("/tracker/", "Tracker"), ("/scan/", "Scan your project"), ("/scan/standalone/", "Run it standalone"), ("/feed/", "Limbo feed (OSV)"),
+        ("Use it", [("/tracker/", "Tracker"), ("/scan/", "Use it in CI"), ("/scan/standalone/", "Run it standalone"), ("/feed/", "Limbo feed (OSV)"),
                     ("/feed/critical.atom", "Atom: new critical and high"), ("/quality/", "Data quality")]),
         ("Learn", [("/compliance/", "For compliance leads"), ("/methodology/", "Methodology"),
                    (REPORT_URL, "October 2026 report"), ("/why/", "Why I built it"), (POC_URL, "Proof repository"),
@@ -1418,8 +1420,10 @@ the test summary in GitLab merge requests, and a job summary with the upgrade th
 <li><strong>Issues that keep up.</strong> One issue per advisory and package in GitLab, GitHub, Gitea or Forgejo, updated when a CVE
 is assigned or GitHub reviews it, and closed once you’ve upgraded.</li>
 <li><strong>Private.</strong> Your lockfiles are read inside the job, and the limbo feed is downloaded whole, so limbo.watch
-learns nothing about your project. New: <a href="/scan/standalone/">run it without limbo.watch</a>, with no feed or your own.</li>
-<li><strong>Open source, alpha.</strong> Release {RELEASE}, Apache-2.0. <a href="/scan/">See every output</a> or
+learns nothing about your project.</li>
+<li><strong>Standalone, if your company needs it.</strong> New: no feed at all, or a feed you build on your own CI, with
+nothing from limbo.watch. <a href="/scan/standalone/">Run it standalone</a></li>
+<li><strong>Open source, alpha.</strong> Release {RELEASE}, Apache-2.0. <a href="/scan/#choose">Every way to run it</a> or
 <a href="{WATCHER_DOC}">read the guide</a>.</li></ul></div>
 {shot("github-pr-inline", "A GitHub pull request on the demo app: the line that adds scapy 2.7.0 gets a code scanning alert for an advisory in limbo.", narrow=True)}
 </section>
@@ -2115,6 +2119,33 @@ looks, and tells you which upgrade clears it.</p></div>
 limbowatch scan .</pre><p class="small" style="margin:12px 0 0">Needs <a href="https://google.github.io/osv-scanner/installation/">OSV-Scanner</a>
 2.7.1. <a href="{WATCHER_DOC}">Guide</a></p><p class="small" style="margin:8px 0 0"><span class="pill"><i></i>New</span>
 <a href="/scan/standalone/">Run it without limbo.watch</a></p></div></div>
+<nav class="links" aria-label="On this page"><a href="#choose">Choose how to run it</a><a href="#use">Set it up</a>
+<a href="#see">What you see</a><a href="#reports">Reports</a><a href="#data">Your data</a></nav>
+
+<section class="s" id="choose"><h2>Three ways to run it</h2><p class="sub">The same scan, the same reports and the same
+exit codes in all three. Only where the advisory data comes from differs.</p>
+<div class="cards3 ways">
+<div class="card"><h3>With the limbo feed</h3><p>Nothing to set up. Each scan downloads limbo.watch’s daily feed of the {
+        li["count"]:,} advisories in limbo, whole, so limbo.watch learns nothing about your project.</p>
+<ul class="small"><li>About 67,000 repositories watched</li><li>Checked against limbo.watch’s build attestation</li></ul>
+<p class="links"><a href="#use">Set it up</a></p></div>
+<div class="card"><h3>Standalone: no feed <span class="pill"><i></i>New</span></h3><p>Nothing from limbo.watch. Each
+scan reads the published advisories of your dependencies’ source repositories on GitHub itself.</p>
+<ul class="small"><li>One option: <span class="mono">--feed none</span></li><li>One GitHub request per source repository, so give it a
+token</li><li>Doesn’t detect duplicates or CVEs an advisory doesn’t cite</li></ul>
+<p class="links"><a href="/scan/standalone/#no-feed">No feed, step by step</a></p></div>
+<div class="card"><h3>Standalone: your own feed <span class="pill"><i></i>New</span></h3><p>For companies. A daily
+pipeline on your own CI builds the feed from GitHub, the CVE List and OSV, and your scans read it.</p>
+<ul class="small"><li>GitHub Actions or GitLab CI, with the Limbowatch image or the CLI only</li><li>A feed of your own
+dependencies: complete after one run of about 10 minutes</li><li>Scans then need almost no GitHub requests</li></ul>
+<p class="links"><a href="/scan/standalone/#own-feed">Your own feed, step by step</a></p></div></div></section>
+
+<section class="s" id="use"><h2>Set it up where you run it</h2><p class="sub">Pinned to release {RELEASE}, an alpha:
+options and formats may change before 0.1.0. <a href="{WATCHER_DOC}">Full guide</a> ·
+<a href="{REPO_URL}/blob/main/CHANGELOG.md">Changelog</a></p>
+<div class="use">{ci_tabs(use_tabs(), "Where you run it")}</div>
+<p class="sub" style="margin-top:16px"><strong>Standalone:</strong> in any of these, set <span class="mono">LIMBOWATCH_FEED</span>
+to <span class="mono">none</span>, or to your own feed’s URL or directory. <a href="/scan/standalone/">How</a></p></section>
 <div class="fixbar"><p><strong>See it on real packages.</strong> Our <a href="{
         POC_URL
     }">public proof repository</a> pins
@@ -2122,7 +2153,7 @@ nats-server, typebox, go-openapi/spec, mustache, scapy and others at versions wi
 <a href="{POC_RUNS}">daily run</a> shows Limbowatch reporting every one, while OSV-Scanner, npm audit, pip-audit and
 Dependabot stay silent on them and report the old control packages.</p></div>
 
-<section class="s"><h2>In your terminal</h2><p class="sub">One table per lockfile, the upgrade that clears each package, and a
+<section class="s" id="see"><h2>In your terminal</h2><p class="sub">One table per lockfile, the upgrade that clears each package, and a
 verdict. This is the <a href="{DEMO_PR}">demo pull request</a> that adds <span class="mono">scapy==2.7.0</span>.</p>
 {
         shot(
@@ -2156,7 +2187,7 @@ affected package without it, and adds a summary to the run.</p>
         )
     }</section>
 
-<section class="s"><div class="two"><div><h2 class="sm">Every report from one scan</h2>
+<section class="s" id="reports"><div class="two"><div><h2 class="sm">Every report from one scan</h2>
 <p class="sub">Write as many as you need: <span class="mono">-o table -o sarif=x.sarif -o junit=junit.xml -o html=report.html</span>.
 Exit codes: 0 passed, 1 a finding meets <span class="mono">--fail-on</span>, 2 the scan couldn’t run.</p>
 <table class="eco fmts"><tbody>{formats}</tbody></table></div>
@@ -2178,11 +2209,6 @@ GitHub.</p></div></div>
 <p class="links"><a href="{COMPARE}">The 13-project comparison</a><a href="{
         POC_RUNS
     }">Today’s proof run</a></p></section>
-
-<section class="s" id="use"><h2>Use it</h2><p class="sub">The same scan and the same reports everywhere. Pinned to
-release {RELEASE}, an alpha: options and formats may change before 0.1.0. <a href="{WATCHER_DOC}">Full guide</a> ·
-<a href="{REPO_URL}/blob/main/CHANGELOG.md">Changelog</a></p>
-<div class="use">{ci_tabs(use_tabs(), "Where you run it")}</div></section>
 
 <section class="s" id="data"><h2>Your code stays on your runner</h2><p class="sub">The scan runs in your CI job or on your
 machine. It reads lockfiles and, for C/C++, the build files that declare upstream sources. It never uploads files or
@@ -2215,9 +2241,9 @@ possible, never silently passed.</li>
 </ul></div></section></main>
 {footer()}{CI_TABS_JS}"""
     return page(
-        "Scan your dependencies for unreviewed advisories in CI · limbo.watch",
-        "See what Limbowatch shows in your terminal, GitHub pull requests and GitLab merge requests: security advisories "
-        "your scanner can’t see yet, and the upgrade that clears them.",
+        "Use Limbowatch in CI, on the command line, or standalone · limbo.watch",
+        "Scan your dependencies for security advisories your scanner can’t see yet: with limbo.watch’s feed, with no feed, "
+        "or with a feed you build on your own CI. GitHub, GitLab, Gitea, Forgejo and the command line.",
         body,
         "/scan/",
     )
@@ -2227,6 +2253,8 @@ STANDALONE_SINCE = "0.1.0a17"  # the first release with --feed none and --feed <
 OWN_FEED_DOC = f"{REPO_URL}/blob/main/docs/OWN_FEED.md"
 OWN_FEED_GH = f"{REPO_URL}/blob/main/deploy/own-feed/github/limbo-feed.yml"
 OWN_FEED_GL = f"{REPO_URL}/blob/main/deploy/own-feed/gitlab/.gitlab-ci.yml"
+OWN_FEED_GH_CLI = f"{REPO_URL}/blob/main/deploy/own-feed/github/limbo-feed-cli.yml"  # no image, the CLI only
+OWN_FEED_GL_CLI = f"{REPO_URL}/blob/main/deploy/own-feed/gitlab/.gitlab-ci.cli.yml"
 NO_FEED_CLI = """# needs OSV-Scanner 2.7.1
 pipx install limbowatch-cli=={release}
 # a read-only GitHub token: 5,000 requests an hour instead of 60
@@ -2286,6 +2314,16 @@ def standalone(m: dict[str, Any]) -> str:
     )
     f = FINDINGS_URL
     sections = [
+        ("pick", "Which one?", """<ul>
+<li><strong>Your runners can’t reach limbo.watch, or your policy says vulnerability data must come from systems you
+run:</strong> <a href="#own-feed">your own feed</a>, of your own projects’ dependencies. One pipeline to copy; it’s complete
+after its first run, and scans then need almost no GitHub requests.</li>
+<li><strong>You want nothing to maintain:</strong> <a href="#no-feed">no feed</a>. Add one option to the scan you already
+have and give it a read-only GitHub token.</li>
+<li><strong>limbo.watch is allowed:</strong> the <a href="/scan/#use">limbo feed</a>. Nothing to set up, and it covers
+about 67,000 repositories, not only your own dependencies’.</li></ul>
+<p>You can switch at any time: it’s one setting, <span class="mono">--feed</span> or
+<span class="mono">LIMBOWATCH_FEED</span>, and findings carry over between them.</p>"""),
         ("ways", "Two ways, both new", f"""<p>Scans normally download the limbo feed: {li["count"]:,} advisories in
 limbo that limbo.watch’s tracker collects every day. Since release {STANDALONE_SINCE} a scan doesn’t need it. If your
 policy says vulnerability data must come from systems you run, or your runners can’t reach limbo.watch, pick one:</p>
@@ -2325,6 +2363,9 @@ which advisories. Download the newest one from
 <li>Optional secrets: <span class="mono">LIMBOWATCH_GITHUB_TOKEN</span> for more GitHub requests, and
 <span class="mono">LIMBOWATCH_SOURCE_TOKEN</span> to list private repositories.</li>
 <li>Run it once by hand; it runs daily after that.</li></ol>
+<p><strong>Simpler, with no image:</strong> <a href="{OWN_FEED_GH_CLI}">limbo-feed-cli.yml</a> uses no actions at all. It
+installs the CLI with <span class="mono">pipx</span>, runs the commands above, and keeps the feed in the
+<span class="mono">limbo-feed</span> branch (<a href="{OWN_FEED_DOC}#cli-only">CLI only</a>).</p>
 <p>Scan jobs check the branch out and pass the directory:</p><pre>{E(OWN_FEED_GH_SCAN.format(release=RELEASE))}</pre>
 <p>In a public repository the workflow attests the feed; in a private one, only if your plan includes attestations
 there (<a href="{f}#f-218">F-218</a>).</p>"""),
@@ -2338,7 +2379,10 @@ read access to public repositories. Without it GitHub allows 60 requests an hour
 <li>Keep the package registry on: the tracker’s state lives there between runs, read and written with the job’s own
 token, on every tier (<a href="{f}#f-220">F-220</a>).</li></ol>
 <p>The feed is served by GitLab Pages, at the domain under Deploy → Pages. Scans must reach it without signing in, so check
-Pages’ visibility under Settings → General. Then:</p><pre>{E(OWN_FEED_GL_SCAN.format(component=COMPONENT))}</pre>"""),
+Pages’ visibility under Settings → General. Then:</p><pre>{E(OWN_FEED_GL_SCAN.format(component=COMPONENT))}</pre>
+<p><strong>Simpler, with no Limbowatch image:</strong> <a href="{OWN_FEED_GL_CLI}">.gitlab-ci.cli.yml</a> runs in
+<span class="mono">python:3.12</span>, installs the CLI with <span class="mono">pip</span> and runs the same commands
+(<a href="{OWN_FEED_DOC}#cli-only">CLI only</a>).</p>"""),
         ("changes", "What changes in the reports", """<ul>
 <li><strong>They name the feed.</strong> The table’s header and the JSON’s <span class="mono">feed</span> say which
 feed was read; with no feed it’s <span class="mono">null</span>. The attribution, in reports and issues alike, says where the
@@ -2359,7 +2403,7 @@ per scan instead of up to about 500 with limbo.watch’s feed, in 1.6 to 7.5 sec
     ]  # fmt: skip
     toc = "".join(f'<li><a href="#{k}">{E(t)}</a></li>' for k, t, _ in sections)
     secs = "".join(f'<section id="{k}"><h2 class="sm">{E(t)}</h2>{b}</section>' for k, t, b in sections)
-    body = f"""<header class="top">{header("scan")}</header>
+    body = f"""<header class="top">{header("standalone")}</header>
 <main class="wrap"><div class="doc">
 <div><p class="pill"><i></i>New in {STANDALONE_SINCE}</p><h1 class="page">Run it without limbo.watch</h1>
 <p class="sub">No feed at all, or a feed you build on your own CI. Same scan, same reports.</p>

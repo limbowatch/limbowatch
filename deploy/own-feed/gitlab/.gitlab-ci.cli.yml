@@ -1,0 +1,87 @@
+# Your own limbo feed with the Limbowatch command line only: no Limbowatch image, just Python
+# (docs/OWN_FEED.md#cli-only). It builds a feed of your own projects' dependencies and serves it with GitLab Pages.
+#
+# Copy this file to .gitlab-ci.yml in a project of yours (an empty one is fine), then:
+#   - Build → Pipeline schedules: a daily schedule on the default branch (or Build → Pipelines → Run pipeline);
+#   - a masked CI/CD variable LIMBOWATCH_GITHUB_TOKEN: a GitHub fine-grained token with read access to public
+#     repositories (without it GitHub allows 60 requests an hour, too few);
+#   - optional: FOCUS_GROUPS (below), and a masked LIMBOWATCH_SOURCE_TOKEN to list the groups' private projects (a group
+#     access token with read_api and read_repository);
+#   - keep the package registry on (Settings → General → Visibility): the tracker's state lives there between runs.
+# Scans then use `--feed <your Pages URL>/feed/` (or LIMBOWATCH_FEED). Deploy → Pages shows the URL; scans must reach it
+# without signing in (Settings → General → Visibility: Pages).
+#
+# What it installs: limbowatch-cli from PyPI at the version below, and OSV-Scanner from its GitHub release, checked
+# against that release's SHA-256 sums. For every dependency pinned by hash, use .gitlab-ci.yml from the same folder:
+# it runs the Limbowatch image, pinned by digest.
+
+variables:
+  LIMBOWATCH_VERSION: 0.1.0a20
+  OSV_SCANNER_VERSION: 2.7.1
+  FOCUS_GROUPS: $CI_PROJECT_NAMESPACE # space-separated GitLab groups whose projects' dependencies to watch
+  BUDGET: "3500" # GitHub requests a run
+
+pages:
+  image: python:3.12
+  timeout: 75m
+  resource_group: limbo-feed # one run at a time: each starts from the last one's state
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "web"
+  script:
+    - |
+      set -eu
+      pip install --quiet --root-user-action=ignore "limbowatch-cli==$LIMBOWATCH_VERSION"
+      base="https://github.com/google/osv-scanner/releases/download/v$OSV_SCANNER_VERSION"
+      curl -sSfLO --retry 3 "$base/osv-scanner_linux_amd64"
+      curl -sSfL --retry 3 "$base/osv-scanner_SHA256SUMS" | grep ' osv-scanner_linux_amd64$' | sha256sum -c -
+      install -m 755 osv-scanner_linux_amd64 /usr/local/bin/osv-scanner
+      limbowatch --version
+
+      # the state, from this project's package registry: none on the first run. The job token goes to GitLab only;
+      # a redirect to object storage is followed without it.
+      state_url="$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/limbo-feed-state/1/state.tar.gz"
+      got=$(curl -sS -o state.tar.gz -w '%{http_code} %{redirect_url}' -H "JOB-TOKEN: $CI_JOB_TOKEN" "$state_url")
+      case "$got" in
+        200*) tar -xzf state.tar.gz state ;;
+        30[1278]*) curl -sSfL -o state.tar.gz "${got#* }" && tar -xzf state.tar.gz state ;;
+        404*) echo "no saved state: starting a new one" ;;
+        *) echo "couldn't read the saved state: HTTP $got"; exit 1 ;;
+      esac
+      mkdir -p state
+
+      # your projects' dependencies' source repositories: the repositories to watch
+      set --
+      for g in $FOCUS_GROUPS; do set -- "$@" --gitlab-group "$g"; done
+      limbowatch repos "$@" --out repos.txt
+      set -- --seed repos.txt --only-seeds
+      # first run only: the CVE List's newest bulk export (about 650 MB), keeping its dated file name
+      if ! grep -q '"cve_bulk"' state/cursors.jsonl 2>/dev/null; then
+        auth=""; [ -n "${LIMBOWATCH_GITHUB_TOKEN:-}" ] && auth="Authorization: Bearer $LIMBOWATCH_GITHUB_TOKEN"
+        name=$(curl -sSf ${auth:+-H "$auth"} "https://api.github.com/repos/CVEProject/cvelistV5/releases?per_page=10" \
+          | grep -o '"browser_download_url": *"[^"]*_all_CVEs_at_midnight\.zip\.zip"' | head -1 | grep -o 'https://[^"]*')
+        curl -sSfL --retry 3 -o "$(basename "$name")" "$name"
+        set -- "$@" --cve-list "$(basename "$name")"
+      fi
+      limbowatch track --state state --budget "$BUDGET" --minutes 50 "$@"
+      limbowatch publish --state state --out public --feed-only
+
+      # save the state for the next run, then keep only the two newest copies
+      tar -czf state.tar.gz state
+      curl -sSf -o /dev/null -H "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file state.tar.gz "$state_url"
+      python3 - <<'PY' || echo "warning: older saved states not deleted"
+      import json, os, urllib.request
+      api = f"{os.environ['CI_API_V4_URL']}/projects/{os.environ['CI_PROJECT_ID']}/packages"
+      head = {"JOB-TOKEN": os.environ["CI_JOB_TOKEN"]}
+      def call(url, method="GET"):
+          with urllib.request.urlopen(urllib.request.Request(url, headers=head, method=method), timeout=60) as r:
+              return json.loads(r.read() or b"null")
+      for pkg in call(f"{api}?package_type=generic&package_name=limbo-feed-state"):
+          if pkg["name"] == "limbo-feed-state":
+              files = [f for f in call(f"{api}/{pkg['id']}/package_files?per_page=100") if f["file_name"] == "state.tar.gz"]
+              for f in sorted(files, key=lambda f: f["id"])[:-2]:
+                  call(f"{api}/{pkg['id']}/package_files/{f['id']}", "DELETE")
+      PY
+  artifacts:
+    paths:
+      - public # GitLab Pages serves this
+    expire_in: 30 days

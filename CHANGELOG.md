@@ -4,6 +4,8 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+- **Own-feed pipelines with the command line only** (docs/OWN_FEED.md#cli-only). `deploy/own-feed/github/limbo-feed-cli.yml` and `deploy/own-feed/gitlab/.gitlab-ci.cli.yml` need no Limbowatch image. They install `limbowatch-cli` from PyPI and OSV-Scanner from its release, checked against its SHA-256 sums, then run `repos`, `track --only-seeds` and `publish --feed-only`. The GitHub one uses no actions at all and keeps the feed in a `limbo-feed` branch; the GitLab one runs in `python:3.12` and serves the feed with Pages. Both build a feed of your own projects' dependencies (FINDINGS F-223).
+- **Website reorganised around how you run it.** The header now has *Use it* and *Standalone*. `/scan/` starts with the three ways to run Limbowatch: with the limbo feed, with no feed, or with your own feed. Setup for each place you run it follows, then what you see, the reports and your data, with jump links at the top. `/scan/standalone/` starts with which one to pick, and links the CLI-only pipelines. The home page's CI section points to the standalone setups.
 - **Website: [limbo.watch/scan/standalone/](https://limbo.watch/scan/standalone/)**, marked new. It explains running Limbowatch without limbo.watch, with no feed or with a feed built on your own CI: the command line, GitHub Actions and GitLab CI set-ups, what changes in the reports, and what we measured. Linked from /scan/, the home page and the footer.
 
 ## 0.1.0a20 (2026-11-17)

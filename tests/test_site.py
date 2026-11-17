@@ -174,7 +174,8 @@ def test_standalone_page_is_linked_and_marked_new() -> None:
     html = site.standalone(m)
     assert f"New in {site.STANDALONE_SINCE}" in html and "26,165 advisories" in html
     for text in ("--feed none", "limbowatch repos", "--only-seeds", "--feed-only", "LIMBOWATCH_FEED",
-                 f"limbowatch-cli=={site.RELEASE}", site.OWN_FEED_GH, site.OWN_FEED_GL):  # fmt: skip
+                 f"limbowatch-cli=={site.RELEASE}", site.OWN_FEED_GH, site.OWN_FEED_GL, site.OWN_FEED_GH_CLI,
+                 site.OWN_FEED_GL_CLI):  # fmt: skip
         assert text in html, text
     for anchor in ("ways", "no-feed", "own-feed", "cli", "github", "gitlab", "changes", "measured"):
         assert f'href="#{anchor}"' in html and f'id="{anchor}"' in html

@@ -219,3 +219,41 @@ def test_own_feed_pipelines_build_only_the_feed_and_keep_their_state() -> None:
     for s in steps:
         if "run" in s:
             subprocess.run(["bash", "-n"], input=s["run"], text=True, check=True)
+
+
+OWN_FEED_GITHUB_CLI = ROOT / "deploy/own-feed/github/limbo-feed-cli.yml"
+OWN_FEED_GITLAB_CLI = ROOT / "deploy/own-feed/gitlab/.gitlab-ci.cli.yml"
+
+
+def test_own_feed_cli_pipelines_install_the_release_and_no_image() -> None:
+    """The CLI-only own-feed pipelines (docs/OWN_FEED.md#cli-only): limbowatch-cli from PyPI at this release,
+    OSV-Scanner checked against its release's sums, no Limbowatch image and, on GitHub, no actions at all. Bumped with
+    each release."""
+    from limbowatch import __version__
+
+    gh = yaml.safe_load(OWN_FEED_GITHUB_CLI.read_text())
+    gl = yaml.safe_load(OWN_FEED_GITLAB_CLI.read_text())
+    assert gh["env"]["LIMBOWATCH_VERSION"] == gl["variables"]["LIMBOWATCH_VERSION"] == __version__
+    steps = gh["jobs"]["build"]["steps"]
+    run = "\n".join(s["run"] for s in steps)
+    script = "\n".join(gl["pages"]["script"])
+    for text in (run, script):
+        assert '"limbowatch-cli==$LIMBOWATCH_VERSION"' in text and "sha256sum -c -" in text
+        assert "limbowatch repos" in text and "--only-seeds" in text and "--feed-only" in text
+        assert "limbowatch/limbowatch" not in text.replace("limbowatch/limbowatch-", "")  # no image, no seed lists
+    assert all("uses" not in s for s in steps) and "docker" not in run
+    assert 'push -q "$remote" limbo-feed-state' in run and 'push -q --force "$remote" limbo-feed' in run
+    assert gl["pages"]["image"] == "python:3.12" and gl["pages"]["artifacts"]["paths"] == ["public"]
+    # state in the package registry; the job token only to GitLab (a redirect is followed without it)
+    assert (
+        "/packages/generic/limbo-feed-state/1/state.tar.gz" in script
+        and "-L" not in script.split("state_url")[1].split("\n")[1]
+    )
+    assert '30[1278]*) curl -sSfL -o state.tar.gz "${got#* }"' in script and "[:-2]" in script
+    import subprocess
+
+    subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+    for s in steps:
+        subprocess.run(["bash", "-n"], input=s["run"], text=True, check=True)
+    for py in re.findall(r"python3 - [^\n]*<<'PY'[^\n]*\n(.*?)\nPY\n", script, re.S):
+        compile(py, "<.gitlab-ci.cli.yml>", "exec")

@@ -1,0 +1,102 @@
+# Your own limbo feed with the Limbowatch command line only: no container image, no other actions
+# (docs/OWN_FEED.md#cli-only). It builds a feed of your own projects' dependencies and keeps it in the `limbo-feed`
+# branch of this repository, for your scan jobs to check out.
+#
+# Copy this file to .github/workflows/limbo-feed.yml in a repository of yours (an empty one is fine), then:
+#   - repository variable LIMBO_FEED_ORGS: the GitHub organizations or users whose repositories' dependencies to
+#     watch, space-separated (default: this repository's owner);
+#   - optional secret LIMBOWATCH_GITHUB_TOKEN: a fine-grained token with read access to public repositories, for
+#     5,000 GitHub requests an hour instead of the job token's 1,000;
+#   - optional secret LIMBOWATCH_SOURCE_TOKEN: reads the organizations' private repositories (Metadata, Contents).
+# Run it once by hand (Actions → limbo-feed → Run workflow); it runs daily after that.
+#
+# Scan jobs then check out the branch and use it:
+#   - uses: actions/checkout@<commit>
+#     with: {ref: limbo-feed, path: limbo-feed}
+#   - run: limbowatch scan . --feed limbo-feed/feed    # or the action, with env LIMBOWATCH_FEED: limbo-feed/feed
+#
+# What it installs: limbowatch-cli from PyPI at the version below, and OSV-Scanner (which reads lockfiles) from its
+# GitHub release, checked against that release's SHA-256 sums. For every dependency pinned by hash, use
+# limbo-feed.yml instead: it runs the Limbowatch image, pinned by digest, and attests the feed.
+name: limbo-feed
+
+on:
+  schedule:
+    - cron: "23 5 * * *" # daily
+  workflow_dispatch:
+
+permissions:
+  contents: write # the tracker's state (limbo-feed-state branch) and the feed (limbo-feed branch)
+
+concurrency:
+  group: limbo-feed
+  cancel-in-progress: false
+
+env:
+  LIMBOWATCH_VERSION: 0.1.0a20
+  OSV_SCANNER_VERSION: 2.7.1
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Install Limbowatch and OSV-Scanner
+        run: |
+          pipx install --quiet "limbowatch-cli==$LIMBOWATCH_VERSION"
+          mkdir -p "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP/bin"
+          base="https://github.com/google/osv-scanner/releases/download/v$OSV_SCANNER_VERSION"
+          curl -sSfLO --retry 3 "$base/osv-scanner_linux_amd64"
+          curl -sSfL --retry 3 "$base/osv-scanner_SHA256SUMS" | grep ' osv-scanner_linux_amd64$' | sha256sum -c -
+          mv osv-scanner_linux_amd64 osv-scanner && chmod +x osv-scanner
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          limbowatch --version
+
+      - name: Restore the state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}"
+          if git ls-remote --exit-code --heads "$remote" limbo-feed-state >/dev/null; then
+            git clone -q --depth 1 --branch limbo-feed-state "$remote" state
+          else
+            mkdir state && git -C state init -q -b limbo-feed-state   # the first run
+          fi
+          mkdir -p state/state
+
+      - name: Build the feed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LIMBOWATCH_GITHUB_TOKEN: ${{ secrets.LIMBOWATCH_GITHUB_TOKEN || github.token }}
+          LIMBOWATCH_SOURCE_TOKEN: ${{ secrets.LIMBOWATCH_SOURCE_TOKEN }}
+          ORGS: ${{ vars.LIMBO_FEED_ORGS || github.repository_owner }}
+          BUDGET: ${{ secrets.LIMBOWATCH_GITHUB_TOKEN && '3500' || '900' }}
+        run: |
+          # your projects' dependencies' source repositories: the repositories to watch
+          orgs=(); for org in $ORGS; do orgs+=(--github-org "$org"); done
+          limbowatch repos "${orgs[@]}" --out repos.txt
+          # first run only: the CVE List's newest bulk export, so CVEs that name an advisory are known
+          cve=()
+          if ! grep -q '"cve_bulk"' state/state/cursors.jsonl 2>/dev/null; then
+            tag=$(gh api 'repos/CVEProject/cvelistV5/releases?per_page=10' \
+              --jq '[.[] | select(any(.assets[]; .name | endswith("_all_CVEs_at_midnight.zip.zip")))][0].tag_name')
+            gh release download "$tag" --repo CVEProject/cvelistV5 --pattern '*_all_CVEs_at_midnight.zip.zip' --dir cvelist
+            cve=(--cve-list cvelist/*_all_CVEs_at_midnight.zip.zip)
+          fi
+          limbowatch track --state state/state --seed repos.txt --only-seeds --budget "$BUDGET" --minutes 50 "${cve[@]}"
+          limbowatch publish --state state/state --out site --feed-only
+
+      - name: Save the state and publish the feed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}"
+          who=(-c user.name=limbo-feed -c user.email=limbo-feed@users.noreply.github.com)
+          git -C state add state
+          git -C state "${who[@]}" commit -q -m "state $(date -u +%F)" && git -C state push -q "$remote" limbo-feed-state
+          # the feed: one commit, replaced each run (a history would grow the repository by about 28 MB a day)
+          mkdir -p out/feed
+          cp site/feed/all.zip site/feed/watchlist.json site/feed/index.json site/feed/SHA256SUMS.txt out/feed/
+          git -C out init -q -b limbo-feed && git -C out add feed
+          git -C out "${who[@]}" commit -q -m "limbo feed $(jq -r .generated_at site/feed/index.json)"
+          git -C out push -q --force "$remote" limbo-feed
