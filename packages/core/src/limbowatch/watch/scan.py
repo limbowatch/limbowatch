@@ -33,6 +33,8 @@ from limbowatch.watch.match import match
 from limbowatch.watch.registries import Registries
 
 FEED_URL = "https://limbo.watch/feed/all.zip"
+FEED_DEFAULT = "limbo.watch"  # --feed's default: the limbo feed, verified against its build attestation
+NO_FEED = "none"  # --feed none: no feed; every dependency's source repo is read on GitHub instead
 WATCHLIST_URL = "https://limbo.watch/feed/watchlist.json"
 # Download caps (FINDINGS F-192): on 2026-11-14 the feed was 25 MB and the watchlist 3 MB.
 FEED_MAX_BYTES = 500_000_000
@@ -54,6 +56,9 @@ class ScanResult:
     upstreams_checked: set[str] = field(default_factory=set)  # host/repo of upstream sources checked in full
     stats: dict[str, int] = field(default_factory=dict)
     unread: set[str] = field(default_factory=set)  # repos not polled (rate limit) or not read (an error) this run
+    # With no feed (--feed none): the repos whose advisories were read this run. An earlier finding from any other
+    # repo isn't known to be gone, so state keeps it. None: the feed covers the rest.
+    read: set[str] | None = None
 
 
 async def fetch(
@@ -243,6 +248,7 @@ class Shared:
     not_polled: set[str] = field(default_factory=set)
     not_read: set[str] = field(default_factory=set)
     upstream_check: bool = True
+    feedless: bool = False  # --feed none: only the repos polled now
     # each upstream source (submodule, CMake, Bazel, vcpkg, ...) → itself resolved, then what it pulls in
     upstreams: dict[Upstream, list[Upstream]] = field(default_factory=dict)
     checked: dict[Upstream, upcheck.Checked] = field(default_factory=dict)  # each resolved one's outcome
@@ -252,7 +258,7 @@ async def prepare(
     deps: list[Dependency],
     http: HttpClient,
     *,
-    feed_zip: bytes,
+    feed_zip: bytes | None,
     watchlist: dict[str, str],
     now: datetime,
     upstream_check: bool = True,
@@ -260,14 +266,20 @@ async def prepare(
     git_cache: Path | None = None,
     osv_commits: bool = True,
 ) -> Shared:
+    """`feed_zip` None (--feed none): no feed, so every dependency's source repo is polled, whatever the watchlist."""
     index = Index()
-    try:
-        candidates = from_feed_zip(feed_zip)
-    except (FeedTooLarge, FeedUnreadable, zipfile.BadZipFile) as e:  # a clean error (exit 2), not a traceback
-        raise RuntimeError(f"the limbo feed couldn't be read: {e}") from e
-    for c in candidates:
-        index.add(c)
-    sh = Shared(index, upstream_check=upstream_check)
+    if feed_zip is None:
+        if not upstream_check:
+            raise ValueError("with no feed, only the upstream check finds anything")
+        watchlist = {}
+    else:
+        try:
+            candidates = from_feed_zip(feed_zip)
+        except (FeedTooLarge, FeedUnreadable, zipfile.BadZipFile) as e:  # a clean error (exit 2), not a traceback
+            raise RuntimeError(f"the limbo feed couldn't be read: {e}") from e
+        for c in candidates:
+            index.add(c)
+    sh = Shared(index, upstream_check=upstream_check, feedless=feed_zip is None)
     if upstream_check:
         sh.upstreams = await Registries(http).resolve(upstreams)
         sh.mapped = await mapping.map_all(http, deps)
@@ -288,7 +300,13 @@ async def prepare(
 
 def assess(inv: Inventory, sh: Shared) -> ScanResult:
     """One project's findings against the shared feed, polls and mappings. No I/O."""
-    res = ScanResult(inventory=inv, unresolved=list(inv.unresolved), unread=sh.not_polled | sh.not_read)
+    res = ScanResult(inventory=inv, unresolved=list(inv.unresolved), unread=sh.not_polled | sh.not_read,
+                     read=set(sh.polled) if sh.feedless else None)  # fmt: skip
+    no_repo, not_polled, not_read = (
+        (Unchecked.NO_REPO_NO_FEED, Unchecked.REPO_NOT_POLLED_NO_FEED, Unchecked.REPO_NOT_READ_NO_FEED)
+        if sh.feedless
+        else (Unchecked.NO_REPO, Unchecked.REPO_NOT_POLLED, Unchecked.REPO_NOT_READ)
+    )
     deps = list(inv.dependencies)
     keys = {(d.ecosystem, d.name, d.version) for d in deps}
     mapped = {k: m for k, m in sh.mapped.items() if k in keys}
@@ -302,11 +320,11 @@ def assess(inv: Inventory, sh: Shared) -> ScanResult:
         for d in deps:
             m = mapped[(d.ecosystem, d.name, d.version)]
             if m.repo is None:
-                res.unresolved.append(_partial(d, Unchecked.NO_REPO, m.method))
+                res.unresolved.append(_partial(d, no_repo, m.method))
             elif m.repo in sh.not_polled:
-                res.unresolved.append(_partial(d, Unchecked.REPO_NOT_POLLED, m.repo))
+                res.unresolved.append(_partial(d, not_polled, m.repo))
             elif m.repo in sh.not_read:
-                res.unresolved.append(_partial(d, Unchecked.REPO_NOT_READ, m.repo))
+                res.unresolved.append(_partial(d, not_read, m.repo))
     index = sh.index
     go = [c for cs in index.by_repo.values() for c in cs if any(p.ecosystem == "go" for p in c.adv.packages)]
     per_repo: dict[str, set[tuple[str, str]]] = {}
@@ -369,7 +387,7 @@ async def scan(
     inv: Inventory,
     http: HttpClient,
     *,
-    feed_zip: bytes,
+    feed_zip: bytes | None,
     watchlist: dict[str, str],
     now: datetime,
     upstream_check: bool = True,

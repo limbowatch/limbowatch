@@ -31,12 +31,12 @@ It can keep one issue per finding up to date in GitLab, Gitea/Forgejo or GitHub.
    Each gives the upstream repo and the commit or tag it builds from. Registry names are looked up when scanning: a Bazel module's source archive in the Bazel Central Registry, a vcpkg port's version in the baseline and its repo and tag in the port's portfile, and a Conan package's source URL in its ConanCenter recipe. On 85 popular C/C++ projects, 763 of the 857 upstream sources found end with a repo and a tag or commit (FINDINGS F-137). Directories copied into `third_party/`, `3rdparty/`, `vendor/`, `external/` and the like, recognised by a license file, are reported as **vendored**: nothing says which version was copied. A C/C++ project that declares no dependency this way (libraries from the system, through `find_package` or pkg-config) is reported as such; an SBOM (`--sbom`) covers it.
 
    Nothing is dropped.
-2. **Matching.** Each dependency is matched against the [limbo feed](https://limbo.watch/feed/):
+2. **Matching.** Each dependency is matched against the [limbo feed](https://limbo.watch/feed/) (or, with `--feed none`, only against what step 3 reads from GitHub: [No feed](#no-feed)):
    - **By package and version.** If the advisory's range can't be evaluated exactly, or contradicts its own fixed version, the finding is *possible*, never a silent pass.
    - **Go: by module.** A Go advisory can name a module, or a package inside one. The feed says which module contains the path, as the Go module proxy reports it, so `go.opentelemetry.io/otel/baggage` matches the `go.opentelemetry.io/otel` module, and `github.com/aws/aws-sdk-go-v2/service/kinesis` (a module of its own) never matches `github.com/aws/aws-sdk-go-v2`. Where the module isn't known, as for advisories polled directly from a repo, a path below the dependency's module is a *possible* finding (F-113).
    - **By source repository,** when the advisory's package name is unusable. In a monorepo the name has to mention the package.
    - **Upstream sources, by repository.** Most advisories in limbo name no package OSV has an ecosystem for (C/C++ and `other`: 60% of the feed, F-135); they're about the repo's own code, so they're matched to every upstream source built from that repo. Advisories that name a registry package (an npm binding of the same repo) are left to that package. Whether the pinned version is affected comes from the repo's history: a commits-only clone (`git clone --bare --filter=tree:0`, 0.4 MB for zlib, 22 MB for gRPC) says whether the commit contains the fix release's tag for its own line (fixed), is in the history of a release that's in the affected range (affected, unless the range's lower bound says it's older still), lies between the last affected release and the fix release (*possible*: the fix commit may be in it), or is on a branch with neither (*possible*). Where the commit can't be placed, its version (the tag's, the registry's, or the nearest tag's) is compared with the advisory's range. OSV is also asked which of its records include the commit; when it lists one under a CVE the advisory cites, the source is affected (F-138).
-3. **Upstream check.** Each dependency's source repo comes from the Go module path or Swift package URL, rubygems.org (RubyGems), Packagist (Composer), ecosyste.ms (Hex, Pub) or deps.dev; for Maven, when deps.dev names none, from the POM's `<scm>`, following parent POMs (F-103). Repos the live tracker doesn't watch, or hasn't checked in 10 days, are polled on GitHub directly. Dependencies with no known repo, or whose repo couldn't be polled, are reported as **checked by name only**.
+3. **Upstream check.** Each dependency's source repo comes from the Go module path or Swift package URL, rubygems.org (RubyGems), Packagist (Composer), ecosyste.ms (Hex, Pub) or deps.dev; for Maven, when deps.dev names none, from the POM's `<scm>`, following parent POMs (F-103). Repos the live tracker doesn't watch, or hasn't checked in 10 days, are polled on GitHub directly; with `--feed none`, every repo is. Dependencies with no known repo, or whose repo couldn't be polled, are reported as **checked by name only** (with `--feed none`, as **not checked**: there's no feed to check names against).
 4. **Change detection** (`--state FILE`). Each finding is keyed by ecosystem, package and advisory, so upgrading within the affected range keeps the same key. Each run reports what's:
    - **new**;
    - **changed** (CVE, severity, versions);
@@ -102,6 +102,7 @@ Every format carries the CC BY 4.0 attribution for the advisory data. SARIF 2.1.
 | `--no-resolve-maven` | Don't send a `pom.xml`'s dependencies to deps.dev and Maven Central to resolve its transitive ones |
 | `--no-osv-commits` | Don't ask OSV about the commits the project pins for its upstream sources |
 | `--scan-ignored` | Also read lockfiles a `.gitignore` excludes, including an enclosing repo's (F-085) |
+| `--feed limbo.watch\|none` | Where advisories in limbo come from (`LIMBOWATCH_FEED`): the limbo feed (default), or `none`, no feed: every dependency's source repo is read on GitHub during the scan. [No feed](#no-feed) |
 | `--verify-feed auto\|require\|off` | Check the feed against its signed build attestation before using it (default `auto`; `LIMBOWATCH_VERIFY_FEED`). [Security and data](#security-and-data) |
 | `--allow-insecure-http` | Send the issues token to an `http://` tracker on another machine. Refused by default ([Security and data](#security-and-data)); `LIMBOWATCH_ALLOW_INSECURE_HTTP=1` |
 | `-v` | Show the evidence for every finding, and every dependency checked by name only |
@@ -276,6 +277,18 @@ LIMBOWATCH_ISSUES_TOKEN=… limbowatch scan . --state state.json --issues github
 
 In CI, `--issues-url` and `--issues-project` default to `CI_SERVER_URL` / `GITHUB_SERVER_URL` and `CI_PROJECT_PATH` / `GITHUB_REPOSITORY`; for `github`, the URL defaults to `GITHUB_API_URL`, else api.github.com (github.com and an Enterprise Server's address are also taken). The integrations only write issues on a push to the default branch, a schedule or a manual run, never from merge or pull requests. They were tested end to end against a local Gitea (F-083), in a container (F-084), on gitlab.com (F-087) and on GitHub in a private repo, from the command line and from the action with the job's token (F-148).
 
+## No feed
+
+`--feed none` (or `LIMBOWATCH_FEED=none`) is for teams that can't, or won't, take advisory data from limbo.watch. The scan downloads nothing from limbo.watch. Instead it reads every dependency's source repository's published advisories on GitHub, from your runner, and checks each one as the tracker does: not withdrawn, not in OSV (so scanners don't see it yet), and the state of a CVE it cites. In the action, set `LIMBOWATCH_FEED: none` in the step's `env` (or `extra-args: --feed none`); on GitLab, as a CI/CD variable or in `extra_args`.
+
+On four projects it found every advisory the feed found (F-214). What it costs, and what it can't do:
+- **Time and requests.** About twice as long (34 to 51 s instead of 22 to 29 s on Gitea, Mastodon and Open WebUI), one GitHub request per source repository (800 to 1,200 on those projects) and one OSV lookup per advisory they have. Set a GitHub token: without one, GitHub allows 60 requests an hour. In org-wide mode each repository is read once for all projects.
+- **No name-only check.** A dependency whose source repository isn't known can't be checked by name, so it's reported as **not checked** (56 of 1,993 on Open WebUI).
+- **No CVE List facts.** A CVE the advisory doesn't cite isn't found (3 of 210 findings showed "no CVE anywhere" instead), and an advisory whose CVE is already reviewed under another ID isn't recognised as a duplicate, so it can show as a finding the feed leaves out (1 *possible* finding on Mastodon).
+- **Only GitHub.** As with the feed, advisories are read from GitHub repositories; dependencies whose code is elsewhere are reported as not checked.
+
+Reports say which way they were made: the table's header reads "no feed", the JSON's `feed` is `null`, and the attribution says the advisories were read from GitHub. `--state` keeps a finding from an earlier run unless its repository was read this run, so switching between modes doesn't report findings as fixed.
+
 ## Security and data
 
 The scan runs where your code already is, in your CI job or on your machine. It doesn't upload files or source code, and nothing here asks you to take that on trust: every point below is something you can check or enforce yourself.
@@ -286,18 +299,20 @@ The scan runs where your code already is, in your CI job or on your machine. It 
 
 | Host | What it receives | Turn it off |
 |---|---|---|
-| limbo.watch | Nothing about the project: the feed and the watchlist are downloaded whole | Can't: it's the advisory data |
+| limbo.watch | Nothing about the project: the feed and the watchlist are downloaded whole | `--feed none` ([No feed](#no-feed)) |
 | api.deps.dev, rubygems.org, repo.packagist.org, packages.ecosyste.ms, repo1.maven.org | Package names and versions, to find each package's source repository | `--no-upstream` |
 | api.deps.dev, repo.maven.apache.org, repo1.maven.org (from OSV-Scanner) | A `pom.xml`'s dependencies, to resolve the transitive ones | `--no-resolve-maven` |
 | bcr.bazel.build, raw.githubusercontent.com, center2.conan.io | Bazel module, vcpkg port and Conan package names (and the vcpkg baseline commit) | `--no-upstream` |
 | api.github.com | The SHA-256 of the feed and watchlist just downloaded, to check their build attestation (once per new feed) | `--verify-feed off` |
-| api.github.com | Names of source repositories the tracker hasn't checked in 10 days, to read their published advisories | `--no-upstream` |
+| api.github.com | Names of source repositories the tracker hasn't checked in 10 days (with `--feed none`, of every one), to read their published advisories | `--no-upstream` |
 | github.com | Clones, commits and tags only, of upstream repositories that have advisories in limbo | `--no-upstream` |
 | cveawg.mitre.org | CVE IDs those repositories' advisories cite, to read their state | `--no-upstream` |
 | api.osv.dev | Advisory IDs; the commits the project pins for its upstream sources; with `--state`, IDs of findings that went away since the last run | `--no-upstream`, `--no-osv-commits`; no `--state` |
 | Your own GitLab, GitHub, Gitea or Forgejo | Findings, as issues | Leave out `--issues` |
 
 A GitHub token, when there is one, goes only to api.github.com; a tracker token only to your tracker, and never over plain `http://` to another machine unless you pass `--allow-insecure-http`. Names, versions and the vcpkg baseline taken from your build files go into those registries' URLs only as plain path segments (a full commit hash for the baseline), so a `../` in a build file can't point a lookup at another repository. Every request carries the user agent `limbowatch/<version> (+https://limbo.watch)`.
+
+**Without limbo.watch.** `--feed none` contacts every host in the table except limbo.watch, and api.github.com only to read repositories' advisories ([No feed](#no-feed)).
 
 **Feed only.** `--no-upstream --no-resolve-maven` (without `--state` or `--issues`) contacts limbo.watch, and api.github.com to verify the feed (add `--verify-feed off` for limbo.watch alone), and nothing else: measured through a logging proxy on a project with npm, Go, Cargo, Python, Maven, Gradle and CMake dependencies (FINDINGS F-166). The price: a `pom.xml` gives only its direct dependencies, upstream sources and repositories the tracker doesn't watch aren't checked, and each is reported as such. Install time is separate: the image comes from ghcr.io (registry.gitlab.com for the GitLab component); `install: python` uses pypi.org and files.pythonhosted.org for the pinned dependencies, and github.com for OSV-Scanner and Limbowatch's own source.
 
@@ -327,7 +342,7 @@ Report a security problem in Limbowatch itself as [SECURITY.md](../SECURITY.md) 
 
 ## Limits
 
-- **Only as fresh as the tracker** for watched repos: quiet repos are checked weekly. Advisories published since the tracker's last check of a repo are missed until its next run.
+- **Only as fresh as the tracker** for watched repos: quiet repos are checked weekly. Advisories published since the tracker's last check of a repo are missed until its next run. With `--feed none` every repo is read during the scan, at the cost described in [No feed](#no-feed).
 - **Only what the lockfiles list.** The inventory runs offline, so a `requirements.txt` gives its direct entries only; plain OSV-Scanner resolves Python's transitive dependencies online (F-088). Pin them with `pip-compile` or `uv pip compile` to have them checked.
 - **Maven resolution is close to Maven's, not identical** (F-132):
   - profiles that activate by JDK version, OS or property aren't evaluated, so their dependencies are missed (9 test dependencies of commons-text);

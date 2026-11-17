@@ -369,3 +369,44 @@ def test_a_vcpkg_port_pulled_in_twice_is_one_dependency() -> None:
     sh.upstreams = {root: [root, z1], other: [other, z2]}
     res = assess(Inventory(upstreams=(root, other)), sh)
     assert sorted(u.name for u in res.upstreams) == ["curl", "libpng", "zlib"]
+
+
+# --- no feed (--feed none, F-214) ------------------------------------------------------------------------------------
+
+
+def test_with_no_feed_the_scan_never_asks_limbo_watch(world: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every upstream repo is read on GitHub; limbo.watch isn't contacted (respx fails any request not mocked)."""
+    from limbowatch_cli import main as cli
+    from test_cli import _plain
+
+    monkeypatch.setattr(cli, "_token", lambda: None)  # no token, not even from gh
+    p = project(world["tmp"], world["tags"]["v1.1.0"])
+    gh = {"id": 1, "ghsa_id": "GHSA-c000-0000-0001", "cve_id": "CVE-2026-1001", "state": "published",
+          "severity": "high", "published_at": "2026-11-01T00:00:00Z", "withdrawn_at": None,
+          "html_url": "https://github.com/acme/lib/security/advisories/GHSA-c000-0000-0001",
+          "vulnerabilities": [{"package": {"ecosystem": "other", "name": "lib"},
+                               "vulnerable_version_range": "< 1.2.0", "patched_versions": "1.2.0"}]}  # fmt: skip
+    with respx.mock(assert_all_called=False) as router:
+        lib = router.get(url__startswith="https://api.github.com/repos/acme/lib/security-advisories").mock(
+            return_value=httpx.Response(200, json=[gh]))  # fmt: skip
+        router.get(url__startswith="https://api.github.com/repos/acme/lib2/security-advisories").mock(
+            return_value=httpx.Response(200, json=[]))  # fmt: skip
+        router.get("https://api.osv.dev/v1/vulns/GHSA-c000-0000-0001").mock(return_value=httpx.Response(404))
+        router.get(url__startswith="https://cveawg.mitre.org/api/cve").mock(return_value=httpx.Response(404, json={}))
+        router.post("https://api.osv.dev/v1/querybatch").mock(return_value=httpx.Response(200, json={
+            "results": [{"vulns": []}]}))  # fmt: skip
+        r = run(["scan", str(p), "--cache", str(world["cache"]), "--feed", "none", "--format", "json"])
+    assert lib.called
+    rep = json.loads(r.stdout)
+    assert r.exit_code == 1, r.output
+    assert [(f["ghsa_id"], f["source"]) for f in rep["findings"]] == [("GHSA-c000-0000-0001", "github")]
+    assert rep["feed"] is None and rep["feed_generated_at"] is None
+    assert "read from GitHub by this scan" in rep["attribution"]
+    assert "allows 60 requests an hour without a token" in r.stderr  # the fixture runs with no GitHub token
+    assert not (world["cache"] / "all.zip").exists()
+
+    monkeypatch.setenv("LIMBOWATCH_FEED", "none")  # the same from the environment, as the integrations pass it
+    r = run(["scan", str(p), "--no-upstream"])
+    assert r.exit_code == 2 and "--no-upstream would leave nothing to check" in _plain(r.output)
+    r = run(["scan", str(p), "--feed", "https://feed.example/"])
+    assert r.exit_code == 2 and "--feed wants limbo.watch or none" in _plain(r.output)

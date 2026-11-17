@@ -2,6 +2,10 @@
 
 Versions follow [semantic versioning](https://semver.org). The PyPI packages `limbowatch` and `limbowatch-cli`, the GitLab CI/CD component and the Actions action share one version number.
 
+## Unreleased
+
+- **Scan without the limbo feed: `--feed none`** (FINDINGS F-214). For teams that can't, or won't, take advisory data from limbo.watch. The scan then downloads nothing from limbo.watch and reads each dependency's source repository's published advisories on GitHub itself, from your runner, with the same checks the tracker makes: not in OSV (so scanners don't see it yet), not withdrawn, and the state of any CVE it cites. Also `LIMBOWATCH_FEED=none`, which the action passes into its container and the GitLab component's job inherits as a CI/CD variable. What it costs: GitHub requests on every scan (set a GitHub token; without one GitHub allows 60 an hour), and what only the feed has. A dependency whose source repository isn't known can't be checked by name, so it's reported as not checked, with a new reason, instead of "checked by name only". Advisories that cite no CVE but have one in the CVE List, and duplicates, aren't detected. Reports say where their advisories came from: a new `feed` field in the JSON (`null` with `--feed none`), the table's header, and the attribution. With `--state`, a finding from an earlier run is kept unless its repository was read this run, so switching modes doesn't report findings as fixed. `--feed none` with `--no-upstream` is refused, because nothing would be checked.
+
 ## 0.1.0a16 (2026-11-16)
 
 Still an **alpha**. On PyPI it's `0.1.0a16`; the GitHub tag and the action's ref are `v0.1.0a16`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a16`; the GitLab CI/CD component is `0.1.0-alpha.16`. Security fixes from two outside reviews and seven rounds of an independent one (F-207 to F-211), a repository's advisories that could be cut off silently, and faster scans of large projects. Upgrade from 0.1.0a15 and earlier.

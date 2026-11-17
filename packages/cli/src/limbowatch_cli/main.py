@@ -84,6 +84,35 @@ def _color(mode: str) -> tuple[bool, bool]:
 
 
 StateDir = Annotated[Path, typer.Option(help="Directory of JSONL state files (read, then rewritten).")]
+FeedOption = Annotated[
+    str,
+    typer.Option(
+        envvar="LIMBOWATCH_FEED",
+        help="Where advisories in limbo come from: limbo.watch (the limbo feed, checked against its build attestation) "
+        "or none (no feed: each dependency's source repo is read on GitHub; set a GitHub token).",
+    ),
+]
+
+
+def _feed_mode(feed: str, upstream: bool) -> str:
+    if feed not in (watch_scan.FEED_DEFAULT, watch_scan.NO_FEED):
+        raise typer.BadParameter(f"--feed wants {watch_scan.FEED_DEFAULT} or {watch_scan.NO_FEED}, not {feed!r}")
+    if feed == watch_scan.NO_FEED and not upstream:
+        raise typer.BadParameter("--feed none checks source repos only, so --no-upstream would leave nothing to check")
+    return feed
+
+
+async def _load_feed(
+    http: HttpClient, feed: str, cache: Path, verify: str
+) -> tuple[bytes | None, dict[str, Any], str | None]:
+    """The feed, its watchlist document and where it came from (None: no feed, --feed none)."""
+    if feed == watch_scan.NO_FEED:
+        if not http.has_github_token:
+            _warn("limbowatch: --feed none reads each dependency's source repo on GitHub, which allows 60 requests an "
+                  "hour without a token; set LIMBOWATCH_GITHUB_TOKEN")  # fmt: skip
+        return None, {}, None
+    zipped, doc = await watch_scan.load_feed(http, cache, verify, _warn)
+    return zipped, doc, output.LIMBO_FEED
 
 
 def _token() -> str | None:
@@ -467,6 +496,7 @@ def scan(
     ignore_file: Annotated[Path | None, typer.Option(help="File of accepted IDs, one per line, # comments.")] = None,
     upstream: Annotated[bool, typer.Option(help="Also check source repos the tracker doesn't cover.")] = True,
     cache: Annotated[Path | None, typer.Option(help="Where the feed is cached [default: ~/.cache/limbowatch].")] = None,
+    feed: FeedOption = watch_scan.FEED_DEFAULT,
     verify_feed: Annotated[
         str,
         typer.Option(
@@ -504,6 +534,7 @@ def scan(
     """
     if verify_feed not in watch_scan.VERIFY_MODES:
         raise typer.BadParameter(f"--verify-feed wants {', '.join(watch_scan.VERIFY_MODES)}, not {verify_feed!r}")
+    _feed_mode(feed, upstream)
     if fail_on not in (*output.SEVERITIES, "none"):
         raise typer.BadParameter(f"--fail-on wants one of {', '.join((*output.SEVERITIES, 'none'))}, not {fail_on!r}")
     if color not in ("auto", "always", "never"):
@@ -534,18 +565,18 @@ def scan(
     log_lines: list[str] = []
     issues_error: list[str] = []
 
-    async def run() -> tuple[watch_scan.ScanResult, str | None]:
+    async def run() -> tuple[watch_scan.ScanResult, str | None, str | None]:
         nonlocal changes
         async with HttpClient(_token()) as http:
-            feed, wl_doc = await watch_scan.load_feed(http, cache, verify_feed, _warn)
-            res = await watch_scan.scan(inv, http, feed_zip=feed, watchlist=dict(wl_doc.get("repos") or {}),
+            zipped, wl_doc, source = await _load_feed(http, feed, cache, verify_feed)
+            res = await watch_scan.scan(inv, http, feed_zip=zipped, watchlist=dict(wl_doc.get("repos") or {}),
                                         now=datetime.now(UTC), upstream_check=upstream, git_cache=cache,
                                         osv_commits=osv_commits)  # fmt: skip
-            gone = sorted(watch_state.vanished(old, res.findings, res.unread))
+            gone = sorted(watch_state.vanished(old, res.findings, res.unread, res.read))
             seen = await asyncio.gather(*(osv_source.present(http, g) for g in gone))
             visible = {g for g, v in zip(gone, seen, strict=True) if v}
             if state_file is not None:
-                new_state, changes = watch_state.diff(old, res.findings, now, visible, res.unread)
+                new_state, changes = watch_state.diff(old, res.findings, now, visible, res.unread, res.read)
                 state_file.parent.mkdir(parents=True, exist_ok=True)
                 state_file.write_text(json.dumps(new_state, indent=1, sort_keys=True) + "\n")
             if issues:
@@ -556,16 +587,17 @@ def scan(
                 except (trackers.TrackerError, RuntimeError) as e:  # the scan's reports are still written
                     issues_error.append(str(e))
                     log_lines.extend(_unsent_lines(changes or []))
-            return res, wl_doc.get("generated_at")
+            return res, wl_doc.get("generated_at"), source
 
     issue_policy = watch_issues.Policy(issues_min_severity, issues_public, issues_max_new)
     try:
-        res, feed_at = asyncio.run(run())
+        res, feed_at, source = asyncio.run(run())
     except (RuntimeError, OSError) as e:
         raise typer.Exit(_fail(str(e))) from e
     base = _base(path) if sbom_file is None else ""
     rep = output.Report(res.findings, res.unresolved, res.stats, inv.tool, feed_at, changes, accepted, base,
-                        fail_on, fail_on_unknown, now, str(sbom_file or path.resolve().name or path))  # fmt: skip
+                        fail_on, fail_on_unknown, now, str(sbom_file or path.resolve().name or path),
+                        source)  # fmt: skip
 
     for name, dest in targets:
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -700,7 +732,8 @@ async def _sync_issues(
             gone[key] = watch_issues.Gone.FIXED
         elif verdict is True and ids:
             gone[key] = watch_issues.Gone.VISIBLE
-    actions = watch_issues.plan(current, one, existing, changes, gone, policy, tracker.public)
+    credit = output.attribution(None if res.read is not None else output.LIMBO_FEED)
+    actions = watch_issues.plan(current, one, existing, changes, gone, policy, tracker.public, credit)
     lines = [note] if note else []
     warning = getattr(tracker, "warning", None)
     if dry_run and warning and any(a.kind in ("create", "later") for a in actions):
@@ -844,6 +877,7 @@ def watch(
     ignore_file: Annotated[Path | None, typer.Option(help="File of accepted IDs, one per line, # comments.")] = None,
     upstream: Annotated[bool, typer.Option(help="Also check source repos the tracker doesn't cover.")] = True,
     cache: Annotated[Path | None, typer.Option(help="Where the feed is cached [default: ~/.cache/limbowatch].")] = None,
+    feed: FeedOption = watch_scan.FEED_DEFAULT,
     verify_feed: Annotated[
         str,
         typer.Option(
@@ -879,6 +913,7 @@ def watch(
     """
     if verify_feed not in watch_scan.VERIFY_MODES:
         raise typer.BadParameter(f"--verify-feed wants {', '.join(watch_scan.VERIFY_MODES)}, not {verify_feed!r}")
+    _feed_mode(feed, upstream)
     if fail_on not in (*output.SEVERITIES, "none"):
         raise typer.BadParameter(f"--fail-on wants one of {', '.join((*output.SEVERITIES, 'none'))}, not {fail_on!r}")
     if color not in ("auto", "always", "never"):
@@ -924,8 +959,8 @@ def watch(
     async def run() -> org_output.OrgReport:
         async with HttpClient(_token()) as http:
             listings = await _list_sources(http, groups, orgs, gh_orgs, git or [], token, include_archived)
-            feed, wl_doc = await watch_scan.load_feed(http, cache, verify_feed, _warn)
-            w = await org_mod.run(listings, http, feed_zip=feed, watchlist=dict(wl_doc.get("repos") or {}),
+            zipped, wl_doc, source = await _load_feed(http, feed, cache, verify_feed)
+            w = await org_mod.run(listings, http, feed_zip=zipped, watchlist=dict(wl_doc.get("repos") or {}),
                                   now=datetime.now(UTC), inventory=take, token=token, exclude=exclude or [],
                                   upstream_check=upstream, jobs=jobs, git_cache=cache,
                                   osv_commits=osv_commits)  # fmt: skip
@@ -938,7 +973,9 @@ def watch(
                     g
                     for c in w.checked
                     if c.result
-                    for g in watch_state.vanished(olds[c.project.name], c.result.findings, c.result.unread)
+                    for g in watch_state.vanished(
+                        olds[c.project.name], c.result.findings, c.result.unread, c.result.read
+                    )
                 }
             )
             seen = await asyncio.gather(*(osv_source.present(http, g) for g in gone))
@@ -951,7 +988,7 @@ def watch(
                 changes: list[watch_state.Change] | None = None
                 if state_dir is not None:
                     new_state, changes = watch_state.diff(
-                        olds[c.project.name], c.result.findings, now, visible, c.result.unread
+                        olds[c.project.name], c.result.findings, now, visible, c.result.unread, c.result.read
                     )
                     f = _state_path(state_dir, c.project)
                     f.parent.mkdir(parents=True, exist_ok=True)
@@ -959,7 +996,7 @@ def watch(
                                             indent=1, sort_keys=True) + "\n")  # fmt: skip
                 rep = output.Report(c.result.findings, c.result.unresolved, c.result.stats, c.result.inventory.tool,
                                     wl_doc.get("generated_at"), changes, accepted, "", fail_on, fail_on_unknown, now,
-                                    c.project.name)  # fmt: skip
+                                    c.project.name, source)  # fmt: skip
                 entries.append(org_output.Entry(c.project, rep, c.commit))
                 if issues and c.project.kind is not hosts.HostKind.GIT:
                     if c.project.host in rate_limited:
@@ -982,7 +1019,7 @@ def watch(
                 if n_git:
                     log_lines.append(f"issues: {n_git} plain git project(s) have no issue tracker; none opened")
             return org_output.OrgReport(entries, listings, w.skipped, w.stats, wl_doc.get("generated_at"), now,
-                                        fail_on)  # fmt: skip
+                                        fail_on, source)  # fmt: skip
 
     try:
         rep = asyncio.run(run())

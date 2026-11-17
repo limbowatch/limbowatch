@@ -70,7 +70,7 @@ def title(e: dict[str, Any]) -> str:
     return f"[limbo] {e['ghsa_id']}: {e['ecosystem']} {e['package']} {', '.join(e['versions'])} ({sev})"
 
 
-def body(e: dict[str, Any], f: dict[str, Any]) -> str:
+def body(e: dict[str, Any], f: dict[str, Any], attribution: str = ATTRIBUTION) -> str:
     """`e`: the state entry; `f`: one of its findings (as JSON), for range, fix and evidence. Every field that comes
     from an advisory or a lockfile is a code span, so it shows as typed and can't add links or mentions (F-164)."""
     cves = ", ".join(e.get("cves") or [])
@@ -110,7 +110,7 @@ def body(e: dict[str, Any], f: dict[str, Any]) -> str:
         "Limbowatch comments here when a CVE is assigned or the advisory reaches scanners, "
         "and closes this issue when the project is no longer affected.",
         "",
-        f"_{ATTRIBUTION}_",
+        f"_{attribution}_",
         "",
         marker(
             {
@@ -139,6 +139,7 @@ def plan(
     gone: dict[str, Gone],
     policy: Policy,
     public: bool,
+    attribution: str = ATTRIBUTION,
 ) -> list[Action]:
     """`current`: state entries by key; `findings`: one finding (JSON) per key; `gone`: open issues whose
     finding isn't found now, with what happened to it."""
@@ -153,7 +154,7 @@ def plan(
             labels.append(POSSIBLE_LABEL)
         if issue is None:
             if _wanted(e, policy) and (policy.allow_public or not public):
-                new.append((_priority(e), Action("create", key, title(e), body(e, findings[key]), labels)))
+                new.append((_priority(e), Action("create", key, title(e), body(e, findings[key], attribution), labels)))
         elif not issue.open:
             found = ", ".join(code(loc, table=False) for loc in e["locations"])
             acts.append(Action("reopen", key, body=f"Found again in {found}.", issue=issue))

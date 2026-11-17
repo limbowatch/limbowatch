@@ -3262,6 +3262,30 @@ Answered:
 - **Implication:** about 70% of the advisories F-112 found on popular projects are still unreviewed 8 days later; the public examples still hold. Used for the second LinkedIn post (dated 2026-11-16).
 - **Sources:** GitHub REST API (global and repository security advisories); OSV API; raw output in the session scratchpad.
 
+### F-214
+- **Date:** 2026-11-16 · **Status:** confirmed (live runs, 4 projects)
+- **Question:** Without the limbo feed (`limbowatch scan --feed none`: every dependency's source repo read on GitHub during the scan), what does a scan find, miss and cost, compared with the feed? (A company can't fetch limbo.watch, by network or policy.)
+- **Method:** shallow clones of `limbowatch/limbo-poc` (8f1ed9f), `open-webui/open-webui` (b0e6098), `go-gitea/gitea` (8b48b45) and `mastodon/mastodon` (43126b2). Each scanned twice back to back, `--feed limbo.watch` then `--feed none`, each mode with its own empty cache, a GitHub token, OSV-Scanner 2.7.1, `--fail-on none -o json`. Requests counted per host by wrapping `httpx.AsyncClient.send` in-process. Findings compared on (package, version, advisory, certain/possible), then field by field per finding key.
+- **Result:**
+
+  | Project | Deps | Repos | Feed: s / GitHub req | No feed: s / GitHub / OSV / CVE Services req | Findings feed / no feed |
+  |---|---:|---:|---|---|---|
+  | limbo-poc | 14 | 13 | 4.9 / 1 | 20.8 / 13 / 203 / 20 | 103 / 103 |
+  | Open WebUI | 1,993 | 1,165 | 28.9 / 600 | 50.6 / 1,165 / 1,048 / 22 | 70 / 70 |
+  | Gitea | 1,152 | 801 | 22.3 / 494 | 34.3 / 801 / 392 / 13 | 21 / 21 |
+  | Mastodon | 1,731 | 1,025 | 25.6 / 482 | 46.2 / 1,026 / 658 / 13 | 16 / 17 |
+
+  - **No finding was lost.** Every finding with the feed was found without it, with the same severity, range, fixed version and verdict.
+  - **One extra, possible finding without the feed:** nokogiri 1.19.7, GHSA-qwq9-89rg-ww72 (high, "JRuby only"). Its CVE-2022-34169 is reviewed under GHSA-9339-86wc-4qgf (Xalan-J), so the tracker counts it as a duplicate and the feed leaves it out (live: `GET /advisories?cve_id=CVE-2022-34169`); the scan's own poll can't see duplicates.
+  - **CVE labels:** 3 of the shared findings (2 in limbo-poc, 1 in Open WebUI) lose "CVE published by another CNA, not cited" (CVE-2026-128237, -128238, -114062) and read "no CVE anywhere": uncited CVEs come from the CVE List, which only the tracker reads.
+  - **Unchecked dependencies:** the same ones (1, 56, 44 and 14 with no known source repo; 2 local packages); without the feed their reason is "not checked" instead of "checked by name only".
+  - **Cost:** 1.4 to 4 times as long (12 to 22 s more on the large projects); GitHub requests rise from 482–600 to 801–1,165, one per source repo; plus one OSV lookup per published advisory of those repos (392–1,048), to tell reviewed from not. With the feed, about half the repos were polled anyway (not on the watchlist, or checked more than 10 days ago).
+  - limbo.watch got 2 requests per feed run and 0 without; with the feed, api.github.com got one attestation lookup on the first run.
+- **Caveats:** one run per mode, back to back on 2026-11-16, so the tracker's state and GitHub's could differ by minutes. One transient HTTP error (Mastodon, no feed) was retried; no repo went unread. GitHub's 5,000 requests an hour per token bound a no-feed org-wide run to a few thousand repos per hour (each repo is polled once for all projects, F-130).
+- **Status of the feature:** `--feed none` / `LIMBOWATCH_FEED=none` (Unreleased).
+- **Implication:** without the feed, a scan finds the same advisories in limbo at roughly twice the time and one GitHub request per source repo. It loses CVE List facts (uncited CVEs, duplicates) and name-only checks of dependencies whose repo isn't known, and reports those as not checked. Good enough for teams that can't use limbo.watch; a self-built feed (next) gives them everything back.
+- **Sources:** GitHub REST API (repository advisories, global advisories by CVE); OSV API; CVE Services; raw output in the session scratchpad.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

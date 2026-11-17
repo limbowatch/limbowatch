@@ -137,6 +137,12 @@ class Unchecked(StrEnum):
     REPO_NOT_READ = (
         "source repository's advisories couldn't be read from GitHub; checked against the limbo feed by name only"
     )
+    # The same three with --feed none: there is no feed to check names against, so not checked at all.
+    NO_REPO_NO_FEED = "source repository unknown; not checked (--feed none: no feed to check by name)"
+    REPO_NOT_POLLED_NO_FEED = "source repository not checked (GitHub rate limit); --feed none: no feed to check by name"
+    REPO_NOT_READ_NO_FEED = (
+        "source repository's advisories couldn't be read from GitHub; --feed none: no feed to check by name"
+    )
 
 
 class Dependency(Frozen):

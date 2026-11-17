@@ -114,7 +114,7 @@ async def run(
     listings: list[Listing],
     http: HttpClient,
     *,
-    feed_zip: bytes,
+    feed_zip: bytes | None,
     watchlist: dict[str, str],
     now: datetime,
     inventory: InventoryFn,

@@ -64,6 +64,35 @@ def test_state_keeps_findings_whose_repo_couldnt_be_read() -> None:
     assert [x.kind for x in ch4] == [state.ChangeKind.FIXED]
 
 
+def test_state_with_no_feed_keeps_findings_from_repos_not_read() -> None:
+    """--feed none reads only the dependencies' own repos: a finding from any other repo (an earlier run matched it
+    against the feed by name) isn't known to be gone, so it's kept, and so is an old entry that names no repo."""
+    a, b = finding(), finding(name="qs", ghsa="GHSA-1111-2222-3333")
+    s1, _ = state.diff(None, [a, b], "t1", set())
+    assert state.vanished(s1, [b], read={"x/y"}) == set()
+    s2, ch2 = state.diff(s1, [b], "t2", set(), read={"x/y"})
+    assert ch2 == [] and s2["findings"][a.key] == s1["findings"][a.key]
+    _, ch3 = state.diff(s1, [b], "t2", set(), read={"o/r"})  # its repo was read, and it's gone
+    assert [(x.kind, x.ghsa_id) for x in ch3] == [(state.ChangeKind.FIXED, "GHSA-aaaa-bbbb-cccc")]
+    legacy = {"findings": {k: {f: v for f, v in e.items() if f != "repo"} for k, e in s1["findings"].items()}}
+    assert state.diff(legacy, [b], "t2", set(), read={"o/r"})[1] == []
+
+
+def test_a_report_with_no_feed_says_where_its_advisories_came_from() -> None:
+    r = report(finding())
+    text = output.table(r)
+    assert "via the limbo feed (https://limbo.watch" in text and "limbo feed of 2026-11-05" in text
+    assert json.loads(output.as_json(r))["feed"] == "https://limbo.watch/feed/"
+    r.feed, r.feed_generated_at = None, None
+    text = output.table(r)
+    assert "no feed: source repos read on GitHub" in text and "limbo.watch" not in text
+    assert "read from GitHub by this scan (--feed none)" in text
+    doc = json.loads(output.as_json(r))
+    assert doc["feed"] is None and "limbo.watch" not in doc["attribution"]
+    for fmt in ("markdown", "html", "sarif", "junit", "cyclonedx"):
+        assert "via the limbo feed" not in output.FORMATS[fmt](r), fmt
+
+
 def test_gate() -> None:
     assert output.gate(report(finding(sev="low")), "low")
     assert not output.gate(report(finding(sev="low")), "high")

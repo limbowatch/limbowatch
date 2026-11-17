@@ -28,10 +28,30 @@ from limbowatch.models import Finding, MatchKind, Unchecked, UnresolvedDependenc
 from limbowatch.versions import applicable_fix, fixed_versions, highest
 from limbowatch.watch.state import Change
 
-ATTRIBUTION = (
+LIMBO_FEED = "https://limbo.watch/feed/"
+_DATA = (
     "Advisory data: GitHub repository security advisories and the GitHub Advisory Database "
-    "(https://github.com/advisories, CC BY 4.0), via the limbo feed (https://limbo.watch, CC BY 4.0)."
+    "(https://github.com/advisories, CC BY 4.0)"
 )
+
+
+def attribution(feed: str | None = LIMBO_FEED) -> str:
+    """The credit line for where the advisories came from: the limbo feed, or GitHub directly (`feed` None)."""
+    if feed is None:
+        return f"{_DATA}, read from GitHub by this scan (--feed none)."
+    return f"{_DATA}, via the limbo feed (https://limbo.watch, CC BY 4.0)."
+
+
+ATTRIBUTION = attribution()
+
+
+def feed_note(feed: str | None, generated_at: str | None) -> str:
+    """For the table's header line: which feed, of when."""
+    if feed is None:
+        return " · no feed: source repos read on GitHub"
+    return f" · limbo feed of {generated_at[:16].replace('T', ' ')} UTC" if generated_at else ""
+
+
 SEVERITIES = ("critical", "high", "medium", "low")
 PARTIAL = (Unchecked.NO_REPO, Unchecked.REPO_NOT_POLLED, Unchecked.REPO_NOT_READ)
 SCHEMA_VERSION = 1  # of the JSON output; bumped only for changes that break readers
@@ -54,6 +74,11 @@ class Report:
     fail_on_unknown: bool = True
     generated_at: str = ""  # when the scan ran, ISO 8601
     target: str = "."  # what was scanned, as given
+    feed: str | None = LIMBO_FEED  # where the advisories came from; None: no feed, every repo read on GitHub
+
+    @property
+    def attribution(self) -> str:
+        return attribution(self.feed)
 
     def path(self, f: Finding) -> str:
         """The lockfile's path from the repo root: Code Quality and SARIF resolve paths there, not from
@@ -266,8 +291,7 @@ def table(r: Report, verbose: bool = False, paint: Paint | None = None, embedded
     also = f" and {_plural(n_sources, 'upstream source')}" if n_sources else ""
     head = (f"limbowatch {__version__} · {_plural(r.stats.get('dependencies', 0), 'dependency', 'dependencies')}{also} "
             f"scanned ({r.tool})")  # fmt: skip
-    if r.feed_generated_at:
-        head += f" · limbo feed of {r.feed_generated_at[:16].replace('T', ' ')} UTC"
+    head += feed_note(r.feed, r.feed_generated_at)
     out = [] if embedded else [p("2", head), ""]
     if not act:
         out.append("No dependency is affected by an advisory in limbo.")
@@ -356,7 +380,7 @@ def table(r: Report, verbose: bool = False, paint: Paint | None = None, embedded
         if part and not verbose:
             out.append(p("2", "  (-v lists the ones checked by name only)"))
     failed, why = verdict(r)
-    out += [] if embedded else ["", p("2", ATTRIBUTION)]
+    out += [] if embedded else ["", p("2", r.attribution)]
     out += ["", (p("1;31", "FAILED") if failed else p("1;32", "PASSED")) + "  " + why]
     return "\n".join(out) + "\n"
 
@@ -370,6 +394,7 @@ def as_json(r: Report) -> str:
         "tool": {"name": "limbowatch", "version": __version__, "inventory": r.tool},
         "target": r.target,
         "generated_at": r.generated_at or None,
+        "feed": r.feed,
         "feed_generated_at": r.feed_generated_at,
         "summary": summary(r),
         "gate": gate_result(r),
@@ -395,7 +420,7 @@ def as_json(r: Report) -> str:
             {"key": c.key, "kind": c.kind.value, "ghsa_id": c.ghsa_id, "package": c.package, "details": c.details}
             for c in r.changes or []
         ],
-        "attribution": ATTRIBUTION,
+        "attribution": r.attribution,
     }
     return json.dumps(doc, indent=1) + "\n"
 
@@ -463,7 +488,7 @@ def markdown(r: Report) -> str:
         out += [f"- {code(f'{u.source}:{u.line}', table=False)} {code(f'{u.name} {u.version}'.strip() or '(whole file)', table=False)}: "
                 f"{_md(u.reason.value)}" for u in full]  # fmt: skip
         out += ["", "</details>"]
-    out += ["", f"_{ATTRIBUTION}_", ""]
+    out += ["", f"_{r.attribution}_", ""]
     return "\n".join(out)
 
 
@@ -535,7 +560,7 @@ def as_html(r: Report) -> str:
         body.append(
             f"<h2>Not checked</h2><p>{e(_unchecked_line(len(full), len(r.unresolved) - len(full)))}</p><ul>{lis}</ul>"
         )
-    body.append(f"<footer>{e(ATTRIBUTION)}</footer>")
+    body.append(f"<footer>{e(r.attribution)}</footer>")
     title = f"Limbowatch: {_plural(len(act), 'finding')}" if act else "Limbowatch: no findings"
     return (
         f'<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" '
@@ -560,7 +585,7 @@ def sarif(r: Report) -> str:
             "name": "AdvisoryInLimbo",
             "shortDescription": {"text": f"{f.ghsa_id}: published advisory not yet in GitHub's database or OSV"},
             "helpUri": f.url,
-            "help": {"text": f"{f.url}\n\n{ATTRIBUTION}", "markdown": f"[{f.ghsa_id}]({f.url})\n\n_{ATTRIBUTION}_"},
+            "help": {"text": f"{f.url}\n\n{r.attribution}", "markdown": f"[{f.ghsa_id}]({f.url})\n\n_{r.attribution}_"},
             # GitLab files a SARIF finding as dependency scanning when a tag is a CVE, as SAST otherwise; it keeps
             # 10 tags per rule (F-106)
             "properties": {"security-severity": _SARIF_SCORE.get(sev, "5.0"),
@@ -585,7 +610,7 @@ def sarif(r: Report) -> str:
                                 "informationUri": "https://limbo.watch", "rules": list(rules.values())}},
             "invocations": [{"executionSuccessful": True}],
             "results": results,
-            "properties": {"attribution": ATTRIBUTION},
+            "properties": {"attribution": r.attribution},
         }],
     }  # fmt: skip
     return json.dumps(doc, indent=1) + "\n"
@@ -640,7 +665,7 @@ def junit(r: Report) -> str:
                      f'file="{_x(path)}" line="{f.dependency.line}" time="0"')  # fmt: skip
             detail = (f"{f.dependency.name} {f.dependency.version} is {'affected' if f.affected else 'possibly affected'} "
                       f"by {f.ghsa_id} ({_sev(f)}). Affected: {f.vulnerable_range or 'not stated'}. Fixed in: {_fix(f)}. "
-                      f"CVE: {', '.join(f.cves) or 'none'}. {f.url}\n{f.evidence}\n{ATTRIBUTION}")  # fmt: skip
+                      f"CVE: {', '.join(f.cves) or 'none'}. {f.url}\n{f.evidence}\n{r.attribution}")  # fmt: skip
             if r.is_ignored(f):
                 inner, kind = '<skipped message="accepted (ignored)"/>', "skipped"
             elif r.gated(f):
@@ -742,7 +767,7 @@ def cyclonedx(r: Report) -> str:
         "metadata": {
             "tools": {"components": [{"type": "application", "name": "limbowatch", "version": __version__,
                                       "externalReferences": [{"type": "website", "url": "https://limbo.watch"}]}]},
-            "properties": [{"name": "limbowatch:attribution", "value": ATTRIBUTION}],
+            "properties": [{"name": "limbowatch:attribution", "value": r.attribution}],
         } | ({"timestamp": r.generated_at} if r.generated_at else {}),
         "components": list(comps.values()),
         "vulnerabilities": list(vulns.values()),

@@ -16,7 +16,7 @@ from typing import Any
 from limbowatch import __version__
 from limbowatch.hosts import Listing, Project, Skip
 from limbowatch.watch import output
-from limbowatch.watch.output import ATTRIBUTION, PARTIAL, Paint, Report
+from limbowatch.watch.output import LIMBO_FEED, PARTIAL, Paint, Report, attribution, feed_note
 
 SCHEMA_VERSION = 1
 
@@ -38,6 +38,11 @@ class OrgReport:
     feed_generated_at: str | None = None
     generated_at: str = ""
     fail_on: str = "low"
+    feed: str | None = LIMBO_FEED  # None: no feed (--feed none)
+
+    @property
+    def attribution(self) -> str:
+        return attribution(self.feed)
 
     @property
     def failing(self) -> list[Entry]:
@@ -124,8 +129,7 @@ def table(r: OrgReport, verbose: bool = False, paint: Paint | None = None) -> st
     p = paint or Paint()
     head = (f"limbowatch {__version__} · watch · {_plural(len(r.listings), 'source')}, "
             f"{_plural(len(r.entries), 'project')} checked")  # fmt: skip
-    if r.feed_generated_at:
-        head += f" · limbo feed of {r.feed_generated_at[:16].replace('T', ' ')} UTC"
+    head += feed_note(r.feed, r.feed_generated_at)
     out = [p("2", head), ""]
     rows = [("PROJECT", "DEPENDENCIES", "FINDINGS", "UNCHECKED", "SINCE LAST RUN")]
     for e in r.entries:
@@ -161,7 +165,7 @@ def table(r: OrgReport, verbose: bool = False, paint: Paint | None = None) -> st
         out.append(output.table(e.report, verbose, p, embedded=True).rstrip("\n"))
     word, why = verdict(r)
     color = {"FAILED": "1;31", "PASSED": "1;32", "ERROR": "1;31"}[word]
-    out += ["", p("2", ATTRIBUTION), "", p(color, word) + "  " + why]
+    out += ["", p("2", r.attribution), "", p(color, word) + "  " + why]
     return "\n".join(out) + "\n"
 
 
@@ -175,6 +179,7 @@ def as_json(r: OrgReport) -> str:
         "schema_version": SCHEMA_VERSION,
         "tool": {"name": "limbowatch", "version": __version__, "mode": "watch"},
         "generated_at": r.generated_at or None,
+        "feed": r.feed,
         "feed_generated_at": r.feed_generated_at,
         "summary": {
             "projects": len(r.entries),
@@ -210,7 +215,7 @@ def as_json(r: OrgReport) -> str:
             for e in r.entries
         ],
         "not_checked": [{"project": pr.name, "url": pr.web_url, "reason": why.value} for pr, why in r.skipped],
-        "attribution": ATTRIBUTION,
+        "attribution": r.attribution,
     }
     return json.dumps(doc, indent=1) + "\n"
 
@@ -246,9 +251,9 @@ def markdown(r: OrgReport) -> str:
         if e.report is None or not (e.report.active or e.report.changes):
             continue
         body = output.markdown(e.report).split("\n")[1:]  # without its "## Advisories in limbo" heading
-        body = [("#" + ln) if ln.startswith("### ") else ln for ln in body if not ln.startswith(f"_{ATTRIBUTION}")]
+        body = [("#" + ln) if ln.startswith("### ") else ln for ln in body if not ln.startswith(f"_{r.attribution}")]
         out += ["", f"### [{md(e.project.name)}]({e.project.web_url})", *body]
-    out += ["", f"_{ATTRIBUTION}_", ""]
+    out += ["", f"_{r.attribution}_", ""]
     return "\n".join(out)
 
 

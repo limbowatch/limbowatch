@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+import pytest
 import respx
 from conftest import load
 from limbowatch.http import HttpClient
@@ -186,6 +187,56 @@ async def test_scan_polls_only_repos_the_tracker_doesnt_cover(no_sleep: Any) -> 
     }
     assert [(u.reason, u.name) for u in res.unresolved] == [(Unchecked.NO_REPO, "unmapped")]
     assert res.stats["repos_polled"] == 1 and res.stats["repos_on_watchlist"] == 1
+
+
+async def test_with_no_feed_every_repo_is_polled_and_unmapped_ones_arent_checked(no_sleep: Any) -> None:
+    """--feed none: no feed, so the watchlist doesn't matter and every dependency's repo is read on GitHub. A
+    dependency with no known repo has nothing to be checked against (F-214)."""
+    inv = Inventory(
+        dependencies=(
+            dep("npm", "lodash", "4.17.20"),
+            dep("go", "github.com/dlclark/regexp2", "1.11.5"),
+            dep("npm", "unmapped", "1.0.0"),
+        )
+    )
+    with respx.mock(assert_all_mocked=True, assert_all_called=False) as router:
+        source = {"projectKey": {"id": "github.com/lodash/lodash"}, "relationProvenance": "UNVERIFIED_METADATA",
+                  "relationType": "SOURCE_REPO"}  # fmt: skip
+        router.get(url__startswith="https://api.deps.dev/v3/systems/npm/packages/lodash/").mock(
+            return_value=httpx.Response(200, json={"relatedProjects": [source]})
+        )
+        router.get(url__startswith="https://api.deps.dev/v3/systems/npm/packages/unmapped/").mock(
+            return_value=httpx.Response(404, json={})
+        )
+        lodash = router.get(url__startswith=f"{GH}/repos/lodash/lodash/security-advisories").mock(
+            return_value=httpx.Response(200, json=[])
+        )
+        router.get(url__startswith=f"{GH}/repos/dlclark/regexp2/security-advisories").mock(
+            return_value=httpx.Response(200, json=load("repo_advisories_regexp2.json"))
+        )
+        router.get(url__startswith="https://api.osv.dev/v1/vulns/").mock(return_value=httpx.Response(404, json={}))
+        router.get("https://cveawg.mitre.org/api/cve/CVE-2026-77299").mock(
+            return_value=httpx.Response(404, json=load("cve_not_found.json"))
+        )
+        router.get("https://cveawg.mitre.org/api/cve-id/CVE-2026-77299").mock(
+            return_value=httpx.Response(200, json=load("cve_id_CVE-2026-77299.json"))
+        )
+        async with HttpClient(sleep=no_sleep) as http:
+            res = await scan(inv, http, feed_zip=None, watchlist={"lodash/lodash": "2026-11-04T13:00:00Z"}, now=NOW)
+    assert lodash.called  # fresh on the watchlist, polled anyway: there's no feed to cover it
+    assert [(f.dependency.name, f.ghsa_id, f.source) for f in res.findings] == [
+        ("github.com/dlclark/regexp2", "GHSA-wq9v-j77v-qr26", "github")
+    ]
+    assert [(u.reason, u.name) for u in res.unresolved] == [(Unchecked.NO_REPO_NO_FEED, "unmapped")]
+    assert res.read == {"lodash/lodash", "dlclark/regexp2"}
+    assert res.stats["repos_polled"] == 2 and res.stats["repos_on_watchlist"] == 0
+    assert res.stats["feed_advisories"] == 1  # the one polled just now
+
+
+async def test_no_feed_needs_the_upstream_check(no_sleep: Any) -> None:
+    async with HttpClient(sleep=no_sleep) as http:
+        with pytest.raises(ValueError, match="no feed"):
+            await scan(Inventory(), http, feed_zip=None, watchlist={}, now=NOW, upstream_check=False)
 
 
 async def test_fetch_reuses_the_cached_feed(tmp_path: Any, no_sleep: Any) -> None:
