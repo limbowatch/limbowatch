@@ -932,6 +932,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/kubeedge/kubeedge","path":"github.com/kubeedge/kubeedge"}
 {"checked_at":"2026-11-10T01:23:11Z","module":"github.com/kubeflow/spark-operator","path":"github.com/kubeflow/spark-operator"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/kubernetes-sigs/aws-load-balancer-controller","path":"github.com/kubernetes-sigs/aws-load-balancer-controller"}
+{"checked_at":"2026-11-17T16:41:50Z","module":"github.com/kubeshark/kubeshark","path":"github.com/kubeshark/kubeshark"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/kubetail-org/kubetail/modules/cli","path":"github.com/kubetail-org/kubetail/modules/cli"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/kubetail-org/kubetail/modules/dashboard","path":"github.com/kubetail-org/kubetail/modules/dashboard"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/kubewarden/adm-controller","path":"github.com/kubewarden/adm-controller"}
@@ -1130,6 +1131,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/prometheus/prometheus","path":"github.com/prometheus/prometheus"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/pterodactyl/wings","path":"github.com/pterodactyl/wings"}
 {"checked_at":"2026-11-09T16:52:05Z","module":null,"path":"github.com/px-org/PanIndex"}
+{"checked_at":"2026-11-17T16:41:50Z","module":"github.com/qbee-io/qbee-agent","path":"github.com/qbee-io/qbee-agent"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/quic-go/quic-go","path":"github.com/quic-go/quic-go"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/quic-go/quic-go","path":"github.com/quic-go/quic-go/http3"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/quic-go/webtransport-go","path":"github.com/quic-go/webtransport-go"}
@@ -1154,6 +1156,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/safedep/vet","path":"github.com/safedep/vet"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/sagernet/sing-box","path":"github.com/sagernet/sing-box"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/sap/cloud-security-client-go","path":"github.com/sap/cloud-security-client-go"}
+{"checked_at":"2026-11-17T16:41:50Z","module":"github.com/saracen/fastzip","path":"github.com/saracen/fastzip"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/schollz/croc","path":"github.com/schollz/croc"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/schollz/croc/v10","path":"github.com/schollz/croc/v10"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/seaweedfs/seaweedfs","path":"github.com/seaweedfs/seaweedfs"}
@@ -1255,6 +1258,8 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/zalando/skipper","path":"github.com/zalando/skipper"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/zarf-dev/zarf","path":"github.com/zarf-dev/zarf"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/zarf-dev/zarf","path":"github.com/zarf-dev/zarf/src/pkg/archive"}
+{"checked_at":"2026-11-17T16:41:50Z","module":"github.com/zer0tonin/Mikochi","path":"github.com/zer0tonin/Mikochi"}
+{"checked_at":"2026-11-17T16:41:50Z","module":"github.com/zer0tonin/mikochi","path":"github.com/zer0tonin/mikochi"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/zeromicro/go-zero","path":"github.com/zeromicro/go-zero"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/zhenorzz/goploy","path":"github.com/zhenorzz/goploy"}
 {"checked_at":"2026-11-10T00:03:23Z","module":"github.com/zitadel/oidc/v3","path":"github.com/zitadel/oidc/v3/pkg/oidc"}
@@ -1301,6 +1306,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.podman.io/buildah","path":"go.podman.io/buildah/copier"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.podman.io/podman/v6","path":"go.podman.io/podman/v6"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.probo.inc/probo","path":"go.probo.inc/probo"}
+{"checked_at":"2026-11-17T16:41:50Z","module":"go.qbee.io/agent","path":"go.qbee.io/agent"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.qbee.io/transport","path":"go.qbee.io/transport"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.rgst.io/stencil/v2","path":"go.rgst.io/stencil/v2"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.senan.xyz/gonic","path":"go.senan.xyz/gonic"}
