@@ -3344,6 +3344,38 @@ Answered:
 - **Implication:** for a team's own scans, a focused feed loses nothing against the limbo feed. It cuts GitHub requests per scan from hundreds to almost none and scan time by 3 to 4 times, and it builds in one run instead of weeks. Shipped as `limbowatch repos`, `track --only-seeds` and the pipelines' `focused` option (Unreleased).
 - **Sources:** GitHub REST API; OSV API; CVE Services; CVE List (cvelistV5); deps.dev, rubygems.org; raw output in the session scratchpad.
 
+### F-217
+- **Date:** 2026-11-17 · **Status:** confirmed (direct observation)
+- **Question:** Release 0.1.0a17 (`--feed none`, your own feed, focused feeds: [F-214](#f-214) to [F-216](#f-216)): did the checks find anything, and did every artifact ship as tested?
+- **Method:** the release checklist.
+  - Before the version commit:
+    - the audit at 05:11 UTC, then again at 05:14 after a fix to the audit itself (below): all 13 checks passed, 520 verdicts sampled live, 0 wrong, 5 changed after the run;
+    - the Gitea, GitHub and GitLab issue end-to-end tests, the upstream end-to-end test and the integration check in a container;
+    - an independent review (a fresh agent given the diff since v0.1.0a16, read-only), in three rounds, each on the newest commit, until a round found nothing;
+    - 470 tests on Python 3.12, 3.13 and 3.14, and CI.
+  - Commits: version commit 6fec7a1, image built on main (`sha-6fec7a1`), pin commit 16f7bec. Before tagging: the component pipeline on its split 278cb38, and the action from the pin commit in the private e2e repository (run 44025700558, issues on).
+  - Then the signed tag `v0.1.0a17`; the component's signed tag `0.1.0-alpha.17`; the action split 78890b1 with its self-test, signed tag and pre-release; the org profile; the proof repository on the published action (run 44026480410); the e2e repository on the published action (run 44026510615).
+- **Result:**
+  - **The audit's popular check failed on a false alarm:** 3 of the home page's 278 high or critical advisories were reviewed at 18:45 and 22:11 UTC, after the 16:00 tracker run the site was built from. The verdict check already sets such changes aside ([F-169](#f-169)); the popular check now does too (fcef5d9).
+  - **Round 1 of the review found four problems in the unreleased code, all fixed before the release (3698fe6):**
+    - with `--feed none`, state kept a finding unless its repo was polled that run, so a removed dependency's finding, or one from a repo GitHub had renamed, was never reported as no longer affected;
+    - issues opened from your own feed credited the limbo feed;
+    - the "checked by name only" reasons named the limbo feed whatever the feed;
+    - the docs called a focused feed complete, although it can hardly ever match a dependency with no GitHub repository by name. A minor point was fixed too: `limbowatch repos` didn't list the projects it skipped.
+  - **Round 2** found that the new state rule compared package names as written, not normalized as finding keys are (`PyYAML` vs `pyyaml`); fixed in f021a82. **Round 3** found nothing.
+  - **Release:**
+    - PyPI serves 0.1.0a17, and a fresh install reports `limbowatch 0.1.0a17`. The GitHub pre-release has its 4 files.
+    - `ghcr.io/limbowatch/limbowatch:0.1.0a17` resolves to `sha256:1c99aecc…`, the digest pinned in `action.yml`, the GitLab template and both own-feed pipelines.
+    - The component's pipelines passed on `main` and on the tag. Its release description now shows the verify command (the d5b6c9f fix).
+    - The action's self-test passed.
+  - **Runs on the published action:**
+    - The e2e run used the pinned image and reopened, then left, its issue.
+    - The proof run found 103 findings in all 7 example packages, with no feed warning; the other scanners report only the controls (bundler-audit reports rubyntlm, as before).
+  - **Marketplace:** before the release it listed v0.1.0a11 to v0.1.0a16 (latest a16). a17 sorts after a16 as text.
+- **Caveats:** the own-feed pipelines haven't run in real CI yet (Pages, attestation, the job tokens); their steps were run locally in the image ([F-215](#f-215), [F-216](#f-216)). The Marketplace tick is the owner's.
+- **Implication:** 0.1.0a17 shipped as tested. An independent review loop caught real defects again: three rounds, five fixes.
+- **Sources:** the runs above; PyPI; ghcr.io; gitlab.com/limbowatch/limbowatch-component.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
