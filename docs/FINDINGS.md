@@ -3399,6 +3399,27 @@ Answered:
 - **Implication:** the GitHub pipeline works as documented in public repositories. As released in 0.1.0a17, it failed in private repositories on plans without attestations, and that is fixed on main. The branch option and the scan snippet work as documented.
 - **Sources:** the runs above; GitHub REST API; docs.github.com/en/actions/concepts/security/artifact-attestations.
 
+### F-219
+- **Date:** 2026-11-17 · **Status:** confirmed (direct observation)
+- **Question:** Release 0.1.0a18 (the own-feed pipeline fix of [F-218](#f-218)): did it ship as tested, and does the released pipeline publish from a private repository?
+- **Method:** the release checklist.
+  - Before tagging:
+    - the audit at 07:13 UTC: all 13 checks passed;
+    - 470 tests on Python 3.12, 3.13 and 3.14, and CI.
+    - No scanner code changed since 0.1.0a17, so there was no review loop and no issue end-to-end tests.
+  - Commits: version commit 7f20a31, image `sha-7f20a31`, pin commit 190ed45.
+  - The component pipeline on its split 36555a2, and the action from the pin commit in the private e2e repository (run 44038538487).
+  - Then the signed tags `v0.1.0a18` and `0.1.0-alpha.18`; the action split 9ebdf40 with its self-test, signed tag and pre-release; the org profile; the proof run (44039094410); the e2e run on the published action (44039124414).
+  - The released `limbo-feed.yml` in both scratch repositories of F-218: runs 44039105209 (public, Pages) and 44039115739 (private, branch). Their daily schedules were turned off again afterwards.
+- **Result:**
+  - PyPI serves 0.1.0a18, and the GitHub pre-release has its 4 files. `ghcr.io/limbowatch/limbowatch:0.1.0a18` resolves to `sha256:036a7dc5…`, the pinned digest. The component release `0.1.0-alpha.18` exists, and the action's self-test passed.
+  - The e2e run used the pinned image and reopened its issue (closed afterwards). The proof run found 103 findings.
+  - The public scratch repository built and deployed. The private one logged the same attestation refusal, carried on, and replaced the `limbo-feed` branch with one commit ("limbo feed 2026-11-17T07:30:37Z", 163 advisories). With `continue-on-error`, the step shows as succeeded, and the error stays in the log as an annotation.
+  - Marketplace: latest was v0.1.0a17 before the owner's tick for a18.
+- **Caveats:** the Marketplace tick is the owner's.
+- **Implication:** 0.1.0a18 shipped as tested, and its GitHub pipeline publishes from a private repository on the Free plan.
+- **Sources:** the runs above; PyPI; ghcr.io; gitlab.com/limbowatch/limbowatch-component.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
