@@ -52,6 +52,7 @@ DELTA_BOOTSTRAP = timedelta(days=2)  # first run: only this much of the CVE delt
 # The CVE List's deltaLog.json holds about 30 days of changes (3,230 entries from 2026-10-18 to 2026-11-17, F-220).
 # A bulk export younger than this starts the delta there; an older one leaves a gap.
 DELTA_LOG_SPAN = timedelta(days=29)
+DELTA_BATCH = 200  # CVE records read between cursor updates
 BULK_OVERLAP = timedelta(hours=1)  # the export is the List as of 00:00 UTC; re-read the hour before it
 RESERVED_RECHECK = timedelta(hours=20)
 NVD_RECHECK = timedelta(days=7)
@@ -215,24 +216,34 @@ class Tracker:
 
     # ------------------------------------------------------------------ 2. CVE delta log
     async def sync_cve_delta(self, report: RunReport) -> None:
+        """The CVE records changed since the cursor, one request each, in batches of whole deltaLog entries: the
+        cursor moves after each batch, so a run that stops at its deadline keeps what it read and the next run goes
+        on from there (with one cursor update at the end, a long delta could stop every run at the same place)."""
         cursor = self.store.cursor("cve_delta")
         if cursor is None:
             cursor = _iso(datetime.now(UTC) - DELTA_BOOTSTRAP)
         entries = await cve_src.delta_since(self.http, cursor)
-        latest: dict[str, cve_src.DeltaEntry] = {e.cve_id: e for e in entries}  # last change per CVE
+        last = {e.cve_id: e.fetch_time for e in entries}  # each CVE is read once, at its last change
         sem = asyncio.Semaphore(8)
 
         async def fetch(e: cve_src.DeltaEntry) -> CveInfo | None:
             async with sem:
                 return await cve_src.record(self.http, e.record_url)
 
-        infos = await asyncio.gather(*(fetch(e) for e in latest.values()))
-        keep = [i for i in infos if i is not None and i.ghsa_refs]
-        report.cve_records_seen = len(latest)
-        self._merge([Cve(cve_id=i.cve_id, data=i.model_dump(mode="json"), fetched_at=now_iso()) for i in keep])
-        self.add_repos(_cna_repos([i.model_dump() for i in keep if i.cna == GITHUB_CNA]), "github-cna-cve")
-        if entries:
-            self.store.set_cursor("cve_delta", entries[-1].fetch_time)
+        batch: list[cve_src.DeltaEntry] = []
+        for i, e in enumerate(entries):
+            if last[e.cve_id] == e.fetch_time:  # (twice in one entry, new and updated: read once below)
+                batch.append(e)
+            at_boundary = i + 1 == len(entries) or entries[i + 1].fetch_time != e.fetch_time
+            if at_boundary and (len(batch) >= DELTA_BATCH or i + 1 == len(entries)):
+                todo = list({b.cve_id: b for b in batch}.values())
+                infos = await asyncio.gather(*(fetch(b) for b in todo))
+                keep = [x for x in infos if x is not None and x.ghsa_refs]
+                report.cve_records_seen += len(todo)
+                self._merge([Cve(cve_id=x.cve_id, data=x.model_dump(mode="json"), fetched_at=now_iso()) for x in keep])
+                self.add_repos(_cna_repos([x.model_dump() for x in keep if x.cna == GITHUB_CNA]), "github-cna-cve")
+                self.store.set_cursor("cve_delta", e.fetch_time)
+                batch = []
 
     # ------------------------------------------------------------------ 3. polling
     def poll_order(self) -> list[Repo]:

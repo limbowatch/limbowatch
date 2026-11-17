@@ -207,6 +207,10 @@ def test_own_feed_pipelines_build_only_the_feed_and_keep_their_state() -> None:
     assert "/packages/generic/limbo-feed-state/1/state.tar.gz" in script and "JOB-TOKEN" in script
     assert script.index("no saved state") < script.index("limbowatch track") < script.index('method="PUT"')
     assert "[:-2]" in script and 'filter="data"' in script and "jobs/artifacts" not in script
+    assert "SameHostToken" in script  # urllib would send the job token on to object storage on a redirect
+    for py in re.findall(r"python3 - [^\n]*<<'PY'\n(.*?)\nPY\n", script, re.S):  # every embedded script compiles
+        compile(py, "<.gitlab-ci.yml>", "exec")
+    assert len(re.findall(r"<<'PY'", script)) == 3
     # the shell parts are valid sh / bash
     import subprocess
 

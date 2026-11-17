@@ -50,10 +50,17 @@ pages:
       # the newest saved state, from this project's package registry: none on the first run
       export STATE_URL="$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/limbo-feed-state/1/state.tar.gz"
       python3 - <<'PY'
-      import io, os, tarfile, urllib.error, urllib.request
+      import io, os, tarfile, urllib.error, urllib.parse, urllib.request
+      class SameHostToken(urllib.request.HTTPRedirectHandler):
+          # a download may be redirected to object storage: the job token goes to GitLab only
+          def redirect_request(self, req, fp, code, msg, headers, newurl):
+              new = super().redirect_request(req, fp, code, msg, headers, newurl)
+              if new is not None and urllib.parse.urlsplit(newurl).netloc != urllib.parse.urlsplit(req.full_url).netloc:
+                  new.remove_header("Job-token")
+              return new
       req = urllib.request.Request(os.environ["STATE_URL"], headers={"JOB-TOKEN": os.environ["CI_JOB_TOKEN"]})
       try:
-          data = urllib.request.urlopen(req, timeout=300).read()
+          data = urllib.request.build_opener(SameHostToken).open(req, timeout=300).read()
       except urllib.error.HTTPError as e:
           if e.code != 404:
               raise

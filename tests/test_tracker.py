@@ -15,11 +15,12 @@ import httpx
 import pytest
 import respx
 from conftest import load
+from limbowatch import tracker as tracker_mod
 from limbowatch.http import HttpClient
 from limbowatch.models import CveLabel, Status
 from limbowatch.publish import all_events, feed, items, metrics, site
 from limbowatch.store import Event, Repo, Store
-from limbowatch.tracker import Tracker, TrackerConfig
+from limbowatch.tracker import RunReport, Tracker, TrackerConfig
 
 GH = "https://api.github.com"
 ETAG_REGEXP2 = '"etag-regexp2"'
@@ -497,3 +498,46 @@ def _items_for_rank() -> list[Any]:
     from types import SimpleNamespace
 
     return [SimpleNamespace(adv=SimpleNamespace(severity="high", ghsa_id="GHSA-aaaa-bbbb-cccc"))]
+
+
+async def test_cve_delta_moves_its_cursor_in_batches(monkeypatch: pytest.MonkeyPatch, no_sleep: Any) -> None:
+    """A delta longer than a run's deadline (a new tracker reading from a bulk export days old) keeps what it read:
+    the cursor moves after each batch, so the next run goes on from there instead of starting over every time
+    (review of 0.1.0a19). A CVE changed twice is read once, at its last change."""
+    import time
+
+    from limbowatch.http import DeadlineReached
+    from limbowatch.sources.cve import DELTA_LOG
+
+    monkeypatch.setattr(tracker_mod, "DELTA_BATCH", 2)
+    url = "https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves/2026/1000xxx/CVE-2026-100{d:02d}.json"
+    log = [{"fetchTime": f"2026-11-{d:02d}T12:00:00.000Z", "updated": [],
+            "new": [{"cveId": f"CVE-2026-100{d:02d}", "githubLink": url.format(d=d)}]}
+           for d in range(1, 11)]  # fmt: skip
+    log[2]["new"].append({"cveId": "CVE-2026-10009", "githubLink": url.format(d=9)})  # changed again on the 9th
+    store = Store()
+    store.set_cursor("cve_delta", "2026-10-31T23:00:00Z")
+    seen: list[str] = []
+    for stop_at in (5, None):
+        with respx.mock() as router:
+            router.get(DELTA_LOG).mock(return_value=httpx.Response(200, json=log))
+            async with HttpClient(sleep=no_sleep) as http:
+
+                def record(
+                    request: httpx.Request, http: HttpClient = http, stop_at: int | None = stop_at
+                ) -> httpx.Response:
+                    seen.append(request.url.path.rsplit("/", 1)[-1])
+                    if stop_at and len(seen) == stop_at:
+                        http.deadline = time.monotonic() - 1  # the run's minutes are up
+                    return httpx.Response(404)
+
+                router.get(url__startswith=url.split("CVE-2026-")[0]).mock(side_effect=record)
+                report = RunReport(started_at="x")
+                if stop_at:
+                    with pytest.raises(DeadlineReached):
+                        await Tracker(store, http, TrackerConfig()).sync_cve_delta(report)
+                    assert store.cursor("cve_delta") == "2026-11-04T12:00:00.000Z"  # two batches kept
+                else:
+                    await Tracker(store, http, TrackerConfig()).sync_cve_delta(report)
+    assert store.cursor("cve_delta") == "2026-11-10T12:00:00.000Z"
+    assert seen.count("CVE-2026-10009.json") == 1 and "CVE-2026-10001.json" in seen
