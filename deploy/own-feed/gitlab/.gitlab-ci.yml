@@ -20,8 +20,8 @@
 variables:
   # The Limbowatch release this feed is built with: its image (a copy of ghcr.io/limbowatch/limbowatch, same digest)
   # and its seed lists.
-  LIMBOWATCH_IMAGE: registry.gitlab.com/limbowatch/limbowatch-component:0.1.0a17@sha256:1c99aecc337b163bdb341f24e9135b697a3b273ccb911797360e3e858b99a4c9
-  LIMBOWATCH_REF: v0.1.0a17
+  LIMBOWATCH_IMAGE: registry.gitlab.com/limbowatch/limbowatch-component:0.1.0a18@sha256:036a7dc5e5f6823285bced65b4d85e15b4a67776bd1d30d24a0b4393a345df61
+  LIMBOWATCH_REF: v0.1.0a18
   # popular: the release's seed lists, about 67,000 repositories behind the most-used packages, like limbo.watch.
   # focused: only the source repositories of your own projects' dependencies (`limbowatch repos` over FOCUS_GROUPS,
   # refreshed each run), a few thousand at most, so runs are fast; what it can't match is in
