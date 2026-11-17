@@ -2,7 +2,9 @@
 
 Versions follow [semantic versioning](https://semver.org). The PyPI packages `limbowatch` and `limbowatch-cli`, the GitLab CI/CD component and the Actions action share one version number.
 
-## Unreleased
+## 0.1.0a20 (2026-11-17)
+
+Still an **alpha**. On PyPI it's `0.1.0a20`; the GitHub tag and the action's ref are `v0.1.0a20`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a20`; the GitLab CI/CD component is `0.1.0-alpha.20`. One fix to the own-feed GitLab pipeline's first run. Scans and the tracker are unchanged from 0.1.0a19.
 
 - **Own-feed pipeline on GitLab: the shorter first run** (FINDINGS F-221). 0.1.0a19's GitLab pipeline saved the CVE List's bulk export as `cvelist.zip.zip`, without the date the tracker reads from the file name, so a new tracker still read two days of CVE changes (2,284 records, 17 minutes). It now keeps the export's own name: 183 records, 8.7 minutes. The GitHub pipeline already kept it. The image is unchanged; copy `deploy/own-feed/gitlab/.gitlab-ci.yml` again.
 
