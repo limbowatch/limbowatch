@@ -170,7 +170,7 @@ def test_own_feed_pipelines_build_with_the_release_the_action_pins() -> None:
     action = yaml.safe_load(ACTION.read_text())
     image, ref = action["inputs"]["image"]["default"], action["inputs"]["limbowatch-ref"]["default"]
     gh = yaml.safe_load(OWN_FEED_GITHUB.read_text())
-    assert gh["env"] == {"LIMBOWATCH_IMAGE": image, "LIMBOWATCH_REF": ref}
+    assert (gh["env"]["LIMBOWATCH_IMAGE"], gh["env"]["LIMBOWATCH_REF"]) == (image, ref)
     gl = yaml.safe_load(OWN_FEED_GITLAB.read_text())
     assert gl["variables"]["LIMBOWATCH_IMAGE"].split("@")[1] == image.split("@")[1]
     assert gl["variables"]["LIMBOWATCH_IMAGE"].startswith("registry.gitlab.com/limbowatch/limbowatch-component:")
@@ -189,6 +189,13 @@ def test_own_feed_pipelines_build_only_the_feed_and_keep_their_state() -> None:
     attest = next(s for s in steps if "actions/attest@" in s.get("uses", ""))
     assert set(attest["with"]["subject-path"].split()) == {"site/feed/all.zip", "site/feed/watchlist.json",
                                                            "site/feed/index.json"}  # fmt: skip
+    # focused: `limbowatch repos` over the orgs, then only those repos; branch: one commit, force-pushed
+    focus = next(s for s in steps if s.get("if") == "env.WATCH == 'focused'")
+    assert "limbowatch repos" in focus["run"] and "--out focus/repos.txt" in focus["run"]
+    assert "--only-seeds --seed /work/focus/repos.txt" in run
+    branch = next(s for s in steps if s.get("if") == "env.PUBLISH == 'branch'")
+    assert "push -q --force" in branch["run"] and "limbo-feed" in branch["run"] and "SHA256SUMS.txt" in branch["run"]
+    assert gh["jobs"]["deploy"]["if"] == "(vars.LIMBO_FEED_PUBLISH || 'pages') == 'pages'"
     gl = yaml.safe_load(OWN_FEED_GITLAB.read_text())
     job = gl["pages"]
     script = "\n".join(job["script"])

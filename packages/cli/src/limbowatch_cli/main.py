@@ -7,6 +7,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -15,7 +16,8 @@ import time
 import traceback
 import zipfile
 from collections.abc import Collection
-from datetime import UTC, datetime
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Any
 from urllib.parse import urlsplit
@@ -39,11 +41,12 @@ from limbowatch.publish import site as site_mod
 from limbowatch.sources import osv as osv_source
 from limbowatch.sources.releases import read_maven_packages
 from limbowatch.store import Store
-from limbowatch.tracker import Tracker, TrackerConfig, import_cve_list
+from limbowatch.tracker import DELTA_BOOTSTRAP, Tracker, TrackerConfig, import_cve_list
 from limbowatch.versions import UPSTREAM, norm_name
 from limbowatch.watch import issues as watch_issues
 from limbowatch.watch import org as org_mod
 from limbowatch.watch import org_output, output, trackers
+from limbowatch.watch import repos as repos_mod
 from limbowatch.watch import scan as watch_scan
 from limbowatch.watch import state as watch_state
 
@@ -180,20 +183,34 @@ def track(
     cve_list: Annotated[
         Path | None, typer.Option(help="Bootstrap from a cvelistV5 bulk release (*_all_CVEs_at_midnight.zip.zip).")
     ] = None,
+    only_seeds: Annotated[
+        bool,
+        typer.Option(
+            help="Watch only the repos in the seed files (e.g. from `limbowatch repos`): a feed focused on your own "
+            "dependencies. Reviewed advisories and CVEs are still synced; no other repos are added or polled."
+        ),
+    ] = False,
     verbose: Annotated[bool, typer.Option("--verbose", "-v")] = False,
 ) -> None:
     """Run the tracker once: sync reviews and CVEs, poll repos within the budget, record changes."""
+    if only_seeds and not seed:
+        raise typer.BadParameter("--only-seeds watches the seed files' repos: name at least one --seed")
     logging.basicConfig(level=logging.INFO if verbose else logging.WARNING, format="%(levelname)s %(name)s %(message)s")
     store = _load(state, ctx)
     maven = read_maven_packages(maven_packages.read_text()) if maven_packages else {}
     cfg = TrackerConfig(seeds=seed or [], nvd=nvd, max_nvd=max_nvd, checkpoint=lambda: store.export_jsonl(state),
                         max_new=max_new, releases=releases,
-                        release_min_dependents=release_min_dependents or None, maven_packages=maven)  # fmt: skip
+                        release_min_dependents=release_min_dependents or None, maven_packages=maven,
+                        only_seeds=only_seeds)  # fmt: skip
 
     if cve_list is not None:
         with tempfile.TemporaryDirectory() as tmp:
             n = import_cve_list(store, cve_list, Path(tmp))
         typer.echo(f"imported {n:,} CVE records that reference a GHSA from {cve_list.name}")
+        if (made := _release_date(cve_list.name)) and datetime.now(UTC) - made > DELTA_BOOTSTRAP + timedelta(days=1):
+            typer.echo(f"warning: {cve_list.name} is from {made:%Y-%m-%d}, but a new tracker reads only the last "
+                       f"{DELTA_BOOTSTRAP.days} days of CVE changes: CVEs from the days between are missed. Use the "
+                       "newest bulk export (F-216).", err=True)  # fmt: skip
 
     async def go() -> dict[str, object]:
         async with HttpClient(
@@ -212,6 +229,15 @@ def track(
     typer.echo(json.dumps(report, indent=1, default=str))
     for e in events[:40]:  # type: ignore[index]
         typer.echo(f"  {e}")
+
+
+def _release_date(name: str) -> datetime | None:
+    """The date in a cvelistV5 bulk export's file name (2026-11-17_all_CVEs_at_midnight.zip.zip, cve_2026-10-25_…)."""
+    m = re.search(r"(\d{4})-(\d{2})-(\d{2})", name)
+    try:
+        return datetime(int(m[1]), int(m[2]), int(m[3]), tzinfo=UTC) if m else None
+    except ValueError:
+        return None
 
 
 def _previous_feed(path: Path) -> dict[str, tuple[str, str]] | None:
@@ -775,6 +801,90 @@ def _source_token(hosts: set[str]) -> str | None:
     return token
 
 
+@app.command()
+def repos(
+    paths: Annotated[
+        list[Path] | None, typer.Argument(help="Project directories [default: . without sources].")
+    ] = None,
+    sbom_file: Annotated[list[Path] | None, typer.Option("--sbom", help="CycloneDX or SPDX JSON; repeatable.")] = None,
+    gitlab_group: GitlabGroups = None,
+    gitea_org: GiteaOrgs = None,
+    github_org: GithubOrgs = None,
+    git: GitUrls = None,
+    gitlab_url: GitlabUrl = None,
+    github_url: GithubUrl = None,
+    exclude: Excludes = None,
+    include_archived: IncludeArchived = False,
+    out: Annotated[Path | None, typer.Option("--out", "-o", help="Write the seed file here [default: stdout].")] = None,
+    binary: Annotated[str, typer.Option("--osv-scanner", help="OSV-Scanner executable.")] = "osv-scanner",
+    jobs: Annotated[int, typer.Option(help="Projects cloned and inventoried at a time.")] = 4,
+    scan_ignored: Annotated[bool, typer.Option(help="Also read lockfiles a .gitignore excludes.")] = False,
+    resolve_maven: ResolveMaven = True,
+    allow_insecure_http: AllowInsecureHttp = False,
+) -> None:
+    """List the GitHub source repositories of projects' dependencies, as a seed file for a feed focused on them
+    (`limbowatch track --seed FILE --only-seeds`, docs/OWN_FEED.md).
+
+    Projects are directories, SBOMs, or every project of GitLab groups, Gitea or Forgejo orgs and GitHub orgs (cloned
+    shallowly, as `watch` does). Package names go to deps.dev and the registries, as in `scan`; no advisories are read.
+    Dependencies with no GitHub repository are listed in the file as comments. Exit codes: 0 written, 2 a source
+    couldn't be listed or no project could be read.
+    """
+    src = _org_sources(gitlab_group, gitea_org, github_org, git, gitlab_url, github_url, allow_insecure_http)
+    dirs = list(paths or ([] if src.any or sbom_file else [Path(".")]))
+    if dirs or src.any:
+        _check_osv_scanner(binary)
+    invs: list[tuple[str, Inventory]] = []
+    for d in dirs:
+        invs.append((str(d), load_inventory(d, None, binary, scan_ignored, resolve_maven)))
+    for f in sbom_file or []:
+        invs.append((str(f), load_inventory(Path("."), f, binary)))
+    problems: list[str] = []  # projects that couldn't be cloned or inventoried
+    unlisted: list[str] = []  # sources that couldn't be listed (completely)
+
+    def take(path: Path) -> Inventory:
+        inv = osv_scanner.run(path, binary, resolve_maven=resolve_maven)
+        return upstream_inventory.combine(inv, upstream_inventory.detect_safely(path))
+
+    async def run() -> repos_mod.SourceRepos:
+        async with HttpClient(_token()) as http:
+            if src.any:
+                listings = await _list_sources(http, src.groups, src.orgs, src.gh_orgs, git or [], src.token,
+                                               include_archived)  # fmt: skip
+                unlisted.extend(f"{ls.source}: {ls.error}" for ls in listings if ls.error)
+                todo, _ = org_mod.select(listings, exclude or [])
+                for checked, inv in await org_mod.take_inventories(todo, src.token, take, jobs=jobs):
+                    if checked.error:
+                        problems.append(f"{checked.project.name}: {checked.error}")
+                    elif inv is not None:
+                        invs.append((checked.project.name, inv))
+            deps = [d for _, inv in invs for d in inv.dependencies]
+            ups = [u for _, inv in invs for u in inv.upstreams]
+            return await repos_mod.find(http, deps, ups)
+
+    try:
+        found = asyncio.run(run())
+    except (RuntimeError, OSError, hosts.SourceError) as e:
+        raise typer.Exit(_fail(str(e))) from e
+    names = [n for n, _ in invs]
+    what = names[0] if len(names) == 1 else f"{len(names)} projects"
+    unread = sum(len(inv.unresolved) for _, inv in invs)
+    text = repos_mod.seed_file(found, what, datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"))
+    if out is None:
+        typer.echo(text, nl=False)
+    else:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text)
+    typer.echo(f"repos: {len(found.repos):,} GitHub repositories from {len(names)} project(s); "
+               f"{len(found.unmapped):,} dependencies or upstream sources have none (listed in the file); "
+               f"{unread:,} dependencies couldn't be read at all (limbowatch inventory lists them)",
+               err=True)  # fmt: skip
+    for line in unlisted + problems:
+        typer.echo(f"repos: not read: {line}", err=True)
+    if unlisted or not names:
+        raise typer.Exit(_fail("a source couldn't be listed, or no project could be read"))
+
+
 async def _list_sources(
     http: HttpClient, groups: list[tuple[str, str]], orgs: list[tuple[str, str]], gh_orgs: list[tuple[str, str]],
     git_urls: list[str], token: str | None, include_archived: bool,
@@ -843,37 +953,90 @@ def _state_path(state_dir: Path, project: hosts.Project) -> Path:
     return state_dir / project.host.replace(":", "_") / f"{hosts.safe_path(project.path)}.json"
 
 
+GitlabGroups = Annotated[
+    list[str] | None,
+    typer.Option(
+        "--gitlab-group",
+        help="GitLab group URL (https://gitlab.example.com/group/sub), or a path with --gitlab-url; "
+        "repeatable. Subgroups are included.",
+    ),
+]
+GiteaOrgs = Annotated[
+    list[str] | None,
+    typer.Option(
+        "--gitea-org", help="Gitea or Forgejo organization (or user) URL, e.g. https://codeberg.org/org; repeatable."
+    ),
+]
+GithubOrgs = Annotated[
+    list[str] | None,
+    typer.Option("--github-org", help="GitHub organization or user (https://github.com/name, or a name); repeatable."),
+]
+GitUrls = Annotated[list[str] | None, typer.Option("--git", help="A git repository's https URL; repeatable.")]
+GitlabUrl = Annotated[
+    str | None, typer.Option(help="Base URL for --gitlab-group paths [default: $CI_SERVER_URL or gitlab.com].")
+]
+GithubUrl = Annotated[
+    str | None,
+    typer.Option(
+        help="GitHub server for --github-org names (Enterprise Server) [default: $GITHUB_SERVER_URL or github.com]."
+    ),
+]
+Excludes = Annotated[
+    list[str] | None, typer.Option(help="Skip projects whose path matches this glob (group/legacy-*); repeatable.")
+]
+IncludeArchived = Annotated[bool, typer.Option(help="Also check archived projects.")]
+
+
+@dataclass
+class _OrgSources:
+    groups: list[tuple[str, str]]
+    orgs: list[tuple[str, str]]
+    gh_orgs: list[tuple[str, str]]
+    git_projects: list[hosts.Project]
+    token: str | None  # LIMBOWATCH_SOURCE_TOKEN (or the issues token), for these hosts only
+    bases: list[str]  # where a token would go
+
+    @property
+    def any(self) -> bool:
+        return bool(self.groups or self.orgs or self.gh_orgs or self.git_projects)
+
+
+def _org_sources(
+    gitlab_group: list[str] | None, gitea_org: list[str] | None, github_org: list[str] | None, git: list[str] | None,
+    gitlab_url: str | None, github_url: str | None, allow_insecure_http: bool,
+) -> _OrgSources:  # fmt: skip
+    """The groups, orgs and git URLs named, and the source token, refused over plain http to another machine."""
+    gl_base = gitlab_url or os.environ.get("CI_SERVER_URL") or "https://gitlab.com"
+    try:
+        groups = [hosts.split_url(g, gl_base) for g in gitlab_group or []]
+        orgs = [hosts.split_url(o) for o in gitea_org or []]
+        gh_orgs = [_github_org(o, github_url or os.environ.get("GITHUB_SERVER_URL") or "https://github.com")
+                   for o in github_org or []]  # fmt: skip
+        git_projects = [hosts.git_project(u) for u in git or []]
+    except hosts.SourceError as e:
+        raise typer.BadParameter(str(e)) from e
+    token = _source_token({urlsplit(b).netloc for b, _ in groups + orgs + gh_orgs} | {p.host for p in git_projects})
+    bases = [b for b, _ in groups + orgs + gh_orgs] + [p.base_url for p in git_projects]
+    bases += [github_host.api_url(b, _actions_api()) for b, _ in gh_orgs]  # where a GitHub token actually goes
+    if token:
+        name = "LIMBOWATCH_SOURCE_TOKEN" if os.environ.get("LIMBOWATCH_SOURCE_TOKEN") else "LIMBOWATCH_ISSUES_TOKEN"
+        try:
+            hosts.refuse_cleartext(bases, name, allow_insecure_http)
+        except hosts.SourceError as e:
+            raise typer.BadParameter(str(e)) from e
+    return _OrgSources(groups, orgs, gh_orgs, git_projects, token, bases)
+
+
 @app.command()
 def watch(
-    gitlab_group: Annotated[
-        list[str] | None,
-        typer.Option(
-            help="GitLab group URL (https://gitlab.example.com/group/sub), or a path with --gitlab-url; "
-            "repeatable. Subgroups are included."
-        ),
-    ] = None,
-    gitea_org: Annotated[
-        list[str] | None,
-        typer.Option(help="Gitea or Forgejo organization (or user) URL, e.g. https://codeberg.org/org; repeatable."),
-    ] = None,
-    github_org: Annotated[
-        list[str] | None,
-        typer.Option(help="GitHub organization or user (https://github.com/name, or a name); repeatable."),
-    ] = None,
-    git: Annotated[list[str] | None, typer.Option(help="A git repository's https URL; repeatable.")] = None,
-    gitlab_url: Annotated[
-        str | None, typer.Option(help="Base URL for --gitlab-group paths [default: $CI_SERVER_URL or gitlab.com].")
-    ] = None,
-    github_url: Annotated[
-        str | None,
-        typer.Option(
-            help="GitHub server for --github-org names (Enterprise Server) [default: $GITHUB_SERVER_URL or github.com]."
-        ),
-    ] = None,
-    exclude: Annotated[
-        list[str] | None, typer.Option(help="Skip projects whose path matches this glob (group/legacy-*); repeatable.")
-    ] = None,
-    include_archived: Annotated[bool, typer.Option(help="Also check archived projects.")] = False,
+    gitlab_group: GitlabGroups = None,
+    gitea_org: GiteaOrgs = None,
+    github_org: GithubOrgs = None,
+    git: GitUrls = None,
+    gitlab_url: GitlabUrl = None,
+    github_url: GithubUrl = None,
+    exclude: Excludes = None,
+    include_archived: IncludeArchived = False,
     state_dir: Annotated[
         Path | None, typer.Option("--state", help="Directory of per-project state files: report what changed.")
     ] = None,
@@ -936,27 +1099,14 @@ def watch(
         raise typer.BadParameter("--color wants auto, always or never")
     stdout_fmt, targets = _outputs(fmt, outputs or [], tuple(org_output.FORMATS))
     accepted = _accepted(ignore, ignore_file)
-    gl_base = gitlab_url or os.environ.get("CI_SERVER_URL") or "https://gitlab.com"
-    try:
-        groups = [hosts.split_url(g, gl_base) for g in gitlab_group or []]
-        orgs = [hosts.split_url(o) for o in gitea_org or []]
-        gh_orgs = [_github_org(o, github_url or os.environ.get("GITHUB_SERVER_URL") or "https://github.com")
-                   for o in github_org or []]  # fmt: skip
-        git_projects = [hosts.git_project(u) for u in git or []]
-    except hosts.SourceError as e:
-        raise typer.BadParameter(str(e)) from e
-    if not (groups or orgs or gh_orgs or git_projects):
-        raise typer.BadParameter("name at least one --gitlab-group, --gitea-org, --github-org or --git")
-    token = _source_token({urlsplit(b).netloc for b, _ in groups + orgs + gh_orgs} | {p.host for p in git_projects})
     issues_token = os.environ.get("LIMBOWATCH_ISSUES_TOKEN")
     if issues and not issues_token and not issues_dry_run:
         raise typer.BadParameter("set LIMBOWATCH_ISSUES_TOKEN to a token that can write issues", param_hint="--issues")
-    bases = [b for b, _ in groups + orgs + gh_orgs] + [p.base_url for p in git_projects]
-    bases += [github_host.api_url(b, _actions_api()) for b, _ in gh_orgs]  # where a GitHub token actually goes
+    src = _org_sources(gitlab_group, gitea_org, github_org, git, gitlab_url, github_url, allow_insecure_http)
+    if not src.any:
+        raise typer.BadParameter("name at least one --gitlab-group, --gitea-org, --github-org or --git")
+    groups, orgs, gh_orgs, token, bases = src.groups, src.orgs, src.gh_orgs, src.token, src.bases
     try:
-        if token:
-            name = "LIMBOWATCH_SOURCE_TOKEN" if os.environ.get("LIMBOWATCH_SOURCE_TOKEN") else "LIMBOWATCH_ISSUES_TOKEN"
-            hosts.refuse_cleartext(bases, name, allow_insecure_http)
         if issues and issues_token:
             hosts.refuse_cleartext(bases, "LIMBOWATCH_ISSUES_TOKEN", allow_insecure_http)
     except hosts.SourceError as e:

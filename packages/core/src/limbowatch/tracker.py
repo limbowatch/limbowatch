@@ -78,6 +78,10 @@ class TrackerConfig:
     release_min_dependents: int | None = 100
     # Watched Maven packages (`group:artifact` -> owner/repo), polled on Maven Central once a day (F-108)
     maven_packages: dict[str, str] = field(default_factory=dict)
+    # The watchlist is exactly the seed files (a feed focused on your own dependencies, docs/OWN_FEED.md): repos
+    # from reviewed advisories, GitHub's CVEs and releases aren't added, and those already in the state aren't
+    # polled. The reviewed list and the CVEs are still synced: they're the facts that classify an advisory.
+    only_seeds: bool = False
 
 
 @dataclass
@@ -127,9 +131,12 @@ class Tracker:
     def __init__(self, store: Store, http: HttpClient, cfg: TrackerConfig) -> None:
         self.store, self.http, self.cfg = store, http, cfg
         self._tier: dict[str, str] = {}  # schedule tier per repo, set by poll_order, for RunReport.by_tier
+        self._seeds: set[str] = set()  # this run's seed repos (load_seeds)
 
     # ------------------------------------------------------------------ watchlist
     def add_repos(self, repos: set[str], source: str) -> int:
+        if self.cfg.only_seeds and not source.startswith("seed:"):
+            return 0
         added = 0
         with self.store.session() as s:
             existing = {r.full_name: r for r in s.execute(select(Repo).where(Repo.full_name.in_(repos))).scalars()}
@@ -149,8 +156,16 @@ class Tracker:
                 for ln in path.read_text().splitlines()
                 if ln.strip() and not ln.startswith("#") and ln.count("/") == 1
             }
+            self._seeds |= names
             n = self.add_repos(names, f"seed:{path.stem}")
             log.info("seed loaded", extra={"seed": path.name, "repos": len(names), "new": n})
+
+    def maven_watched(self) -> dict[str, str]:
+        """The Maven packages polled for releases. With only the seeds watched, only their packages: a release of
+        any other can't trigger a check (F-216)."""
+        if not self.cfg.only_seeds:
+            return self.cfg.maven_packages
+        return {k: v for k, v in self.cfg.maven_packages.items() if v.lower() in self._seeds}
 
     def watch_cna_repos(self) -> int:
         """Watch every repo named by a stored GitHub-CNA CVE. The CVE delta sync adds these as CVEs arrive;
@@ -220,6 +235,8 @@ class Tracker:
         now = datetime.now(UTC)
         with self.store.session() as s:
             repos = list(s.execute(select(Repo)).scalars())
+            if self.cfg.only_seeds:
+                repos = [r for r in repos if r.full_name in self._seeds]
             reviewed = set(s.execute(select(Reviewed.ghsa_id)).scalars())
             # repos with an advisory currently in limbo are re-polled first: that's where changes matter
             limbo_repos = {
@@ -470,9 +487,8 @@ class Tracker:
             return _parse(self.store.cursor(f"releases:{name}")) or first
 
         maven_last = _parse(self.store.cursor("releases:maven-central"))
-        maven_due = bool(self.cfg.maven_packages) and (
-            maven_last is None or now - maven_last >= releases.MAVEN_INTERVAL
-        )
+        packages = self.maven_watched()
+        maven_due = bool(packages) and (maven_last is None or now - maven_last >= releases.MAVEN_INTERVAL)
         with self.store.session() as s:
             meta = {
                 m.key.removeprefix("maven:"): (m.etag, m.updated)
@@ -480,13 +496,13 @@ class Tracker:
             } if maven_due else {}  # fmt: skip
 
         async def maven() -> releases.Feed:
-            poll = await releases.maven_central(self.http, self.cfg.maven_packages, meta, maven_last or first)
+            poll = await releases.maven_central(self.http, packages, meta, maven_last or first)
             with self.store.session() as s:
                 for package, (etag, updated) in poll.meta.items():
                     if (etag, updated) != meta.get(package):
                         s.merge(PackageMeta(key=f"maven:{package}", etag=etag, updated=updated))
             report.releases["maven-central:polled"] = {
-                "packages": len(self.cfg.maven_packages), "not_found": poll.not_found, "failed": poll.failed,
+                "packages": len(packages), "not_found": poll.not_found, "failed": poll.failed,
             }  # fmt: skip
             return poll.feed
 
@@ -689,7 +705,8 @@ class Tracker:
             report.stopped_early = report.stopped_early or "DeadlineReached"
         self._checkpoint()
         with self.store.session() as s:
-            report.watchlist = len(list(s.execute(select(Repo.full_name)).scalars()))
+            names = set(s.execute(select(Repo.full_name)).scalars())
+            report.watchlist = len(names & self._seeds if self.cfg.only_seeds else names)
         report.finished_at = now_iso()
         report.http = {
             "requests": self.http.stats.requests,

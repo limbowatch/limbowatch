@@ -500,3 +500,17 @@ def test_feed_source_refuses(tmp_path: Path) -> None:
                      ("", "empty")):  # fmt: skip
         with pytest.raises(ValueError, match=why):
             watch_scan.feed_source(bad)
+
+
+def test_repos_lists_a_projects_source_repositories(world: dict[str, Any]) -> None:
+    """`limbowatch repos` on the project: its two upstream sources' repos; no GitHub request (respx fails any)."""
+    p = project(world["tmp"], world["tags"]["v1.1.0"])
+    out = world["tmp"] / "seeds" / "seeds.txt"
+    with respx.mock():
+        r = run(["repos", str(p), "-o", str(out)])
+    assert r.exit_code == 0, r.output
+    assert [ln for ln in out.read_text().splitlines() if not ln.startswith("#")] == ["acme/lib", "acme/lib2"]
+    assert "repos: 2 GitHub repositories from 1 project(s)" in r.stderr
+    with respx.mock():
+        r = run(["repos", "--git", "http://git.example/acme/app.git", "-o", str(out)])
+    assert r.exit_code == 2  # nothing could be listed or read: an error, not an empty seed file

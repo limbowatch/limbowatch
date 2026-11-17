@@ -3312,6 +3312,38 @@ Answered:
 - **Implication:** a self-built feed works with the same code and the same sources. Scans stay complete while its watchlist is young, because they poll what it doesn't cover, at the cost of GitHub requests, which fall as it grows. Shipped as `publish --feed-only`, `--feed <URL or directory>`, `deploy/own-feed/` and docs/OWN_FEED.md (Unreleased).
 - **Sources:** GitHub REST API (repository and global advisories, releases); OSV API; CVE Services; CVE List (cvelistV5 releases); raw output in the session scratchpad.
 
+### F-216
+- **Date:** 2026-11-17 · **Status:** confirmed (live runs, 3 projects; the pipelines' scripts locally in the image)
+- **Question:** A feed focused on one's own dependencies (`limbowatch repos` → `track --only-seeds`): does it lose findings against the limbo feed, and what does it save per scan?
+- **Method:**
+  - **Seeds:** `limbowatch repos` on F-214's clones of limbo-poc, Mastodon and Gitea.
+  - **Feed:** `limbowatch track --only-seeds` on an empty state with those seeds, `--budget 3000 --max-new 2000`, the CVE List bulk export of 2026-10-25 (`--cve-list`, a local copy), `--maven-packages tracker/seeds/maven-packages.txt`; then `publish --feed-only`. Requests counted per host (as F-214).
+  - **Scans:** the three projects with `--feed <that feed's directory>`, compared with F-214's limbo-feed runs by (package, version, advisory, verdict), then field by field.
+  - **Pipeline:** the GitHub pipeline's focused steps, extracted from its YAML, run in an image built from the working tree with the limbowatch org as the "company" (`ORGS=limbowatch`); the branch step pushed to a local bare repository instead of github.com.
+- **Result:**
+  - **`limbowatch repos`:** 1,511 GitHub repositories from 2,538 package versions in 13.5 s, no GitHub request; 58 package versions have none (listed in the file).
+  - **Focused tracker, first run:** all 1,511 polled; 20.5 min; 1,890 GitHub requests (37,881 reviewed advisories synced), 2,220 to raw.githubusercontent.com, 214 OSV, 24 CVE Services. It stored 1,026 advisories and published 211 in limbo. 7,387 of the 20.5 minutes' requests went to Maven Central for the releases of all 7,387 listed Maven packages; only 16 of them are watched repos' packages. Fixed: with `--only-seeds`, only the watched repos' Maven packages are polled (`Tracker.maven_watched`).
+  - **Scans against it:**
+
+    | Project | Findings limbo feed / focused | GitHub requests limbo feed / focused | Seconds limbo feed / focused |
+    |---|---|---|---|
+    | limbo-poc | 103 / 103 | 1 / 0 | 4.9 / 1.6 |
+    | Mastodon | 16 / 18 | 482 / 4 | 25.6 / 7.5 |
+    | Gitea | 21 / 21 | 494 / 0 | 22.3 / 5.3 |
+
+    - Nothing the limbo feed found was missed. Mastodon's 2 more are puma's GHSA-4v6q-hvv7-49h9 and GHSA-rhww-p99c-hgj9, published after F-214's runs (F-215).
+    - nokogiri's GHSA-qwq9-89rg-ww72, F-214's and F-215's extra, isn't reported: this tracker imported the CVE List, so it knows the duplicate.
+    - Mastodon's 4 polls: jaredwray/file-entry-cache, jaredwray/flat-cache, moove-it/sidekiq-scheduler and substack/node-concat-map, where deps.dev or rubygems.org point; all four answer 404 on GitHub (`GET /repos/{repo}`: gone, or moved without a redirect). The feed's watchlist leaves 404 repos out, so each scan polls them again.
+  - **CVE labels:** 2 limbo-poc findings read "no CVE anywhere" instead of "CVE published by another CNA, not cited" (CVE-2026-128237 and -128238, VulnCheck, published 2026-11-13). The bulk export was from 2026-10-25, and a new tracker reads only 2 days of the CVE delta log, so CVEs from the 19 days between were missed. The pipelines download the newest bulk export, so they have no such gap. `track --cve-list` now warns when the export is older than that window.
+  - **The GitHub pipeline, focused** (limbowatch org as the company, the 2026-10-25 CVE List copy):
+    - the focused step listed the org's 5 projects and wrote 210 repositories in 7 s;
+    - the track step watched and polled exactly those 210 and published 163 advisories, in 11 min (mostly the CVE List import and 2,220 CVE delta requests). GitHub took 589 requests. Maven Central was polled for the 9 watched packages, not 7,387;
+    - the branch step, run twice, left `limbo-feed` with one commit holding `feed/all.zip`, `watchlist.json`, `index.json` and `SHA256SUMS.txt`; `shasum -a 256 -c` passed on a clone;
+    - a scan of limbo-poc against that clone: 103 findings, as with the limbo feed; 0 GitHub requests, 1.7 s.
+- **Caveats:** one run per feed; three projects of one person's choosing; the focused feed was built minutes before the scans, so every repo was fresh (a day later, some due repos would be polled).
+- **Implication:** for a team's own scans, a focused feed loses nothing against the limbo feed. It cuts GitHub requests per scan from hundreds to almost none and scan time by 3 to 4 times, and it builds in one run instead of weeks. Shipped as `limbowatch repos`, `track --only-seeds` and the pipelines' `focused` option (Unreleased).
+- **Sources:** GitHub REST API; OSV API; CVE Services; CVE List (cvelistV5); deps.dev, rubygems.org; raw output in the session scratchpad.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

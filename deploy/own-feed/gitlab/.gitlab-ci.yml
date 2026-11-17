@@ -4,7 +4,10 @@
 #   - Build → Pipeline schedules: a daily schedule on the default branch;
 #   - optional: a masked CI/CD variable LIMBOWATCH_GITHUB_TOKEN, a GitHub fine-grained token with read access to
 #     public repositories. Without it GitHub allows 60 requests an hour, which fills a watchlist very slowly;
-#   - optional: tracker-seeds/*.txt, your own repositories to watch (one owner/repo per line).
+#   - optional: tracker-seeds/*.txt, your own repositories to watch (one owner/repo per line);
+#   - optional: WATCH `focused` (below) to watch only your own projects' dependencies: FOCUS_GROUPS names the groups
+#     (default: this project's group), and a masked CI/CD variable LIMBOWATCH_SOURCE_TOKEN reads their private
+#     projects (a group access token with read_api and read_repository).
 # Scans then use it with `--feed https://<namespace>.gitlab.io/<project>/feed/` (or LIMBOWATCH_FEED), from GitLab
 # Pages; or replace the artifacts with your own hosting.
 #
@@ -19,6 +22,11 @@ variables:
   # and its seed lists.
   LIMBOWATCH_IMAGE: registry.gitlab.com/limbowatch/limbowatch-component:0.1.0a16@sha256:034d8c3f629538bba9c8ba4c673058976d260f3b5dea42328bc5872f793fe65e
   LIMBOWATCH_REF: v0.1.0a16
+  # popular: the release's seed lists, about 67,000 repositories behind the most-used packages, like limbo.watch.
+  # focused: only the source repositories of your own projects' dependencies (`limbowatch repos` over FOCUS_GROUPS,
+  # refreshed each run), a few thousand at most: fast, and complete for your scans.
+  WATCH: popular
+  FOCUS_GROUPS: $CI_PROJECT_NAMESPACE # space-separated GitLab groups, for WATCH focused
   BUDGET: "3500" # GitHub requests a run
   MAX_NEW: "2500" # repositories polled for the first time a run (more fills a new watchlist sooner)
 
@@ -55,8 +63,19 @@ pages:
         https://github.com/limbowatch/limbowatch.git .limbowatch
       git -C .limbowatch sparse-checkout set tracker/seeds
       set --
-      for f in .limbowatch/tracker/seeds/popular-upstreams.txt .limbowatch/tracker/seeds/top100-upstreams.txt \
-               .limbowatch/tracker/seeds/top-packages.txt .limbowatch/tracker/seeds/cpp-upstreams.txt tracker-seeds/*.txt; do
+      if [ "$WATCH" = focused ]; then
+        # your projects' dependencies' source repositories, and only those
+        for g in $FOCUS_GROUPS; do set -- "$@" --gitlab-group "$g"; done
+        mkdir -p focus
+        limbowatch repos "$@" --out focus/repos.txt
+        set -- --only-seeds --seed focus/repos.txt
+      else
+        for f in .limbowatch/tracker/seeds/popular-upstreams.txt .limbowatch/tracker/seeds/top100-upstreams.txt \
+                 .limbowatch/tracker/seeds/top-packages.txt .limbowatch/tracker/seeds/cpp-upstreams.txt; do
+          set -- "$@" --seed "$f"
+        done
+      fi
+      for f in tracker-seeds/*.txt; do
         if [ -f "$f" ]; then set -- "$@" --seed "$f"; fi
       done
       set -- "$@" --maven-packages .limbowatch/tracker/seeds/maven-packages.txt

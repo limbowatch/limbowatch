@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from limbowatch.schedule import Tier, due_order, overdue, tier
 
@@ -71,3 +72,29 @@ def test_coverage_per_ecosystem_counts_watched_and_checked() -> None:
     npm = {"top": 1000, "repos": 3, "watched": 2, "checked": 1, "with_advisories": 1}
     assert cov == {"top": 1000, "generated": "2026-11-07", "ecosystems": {"npm": npm}}
     assert ecosystem_coverage(repos, None) is None
+
+
+def test_only_seeds_watches_exactly_the_seed_files(tmp_path: Path) -> None:
+    """track --only-seeds (a focused feed, docs/OWN_FEED.md): repos from other sources aren't added, and those
+    already in the state from an earlier run aren't polled; the seeds are."""
+    from typing import Any, cast
+
+    from limbowatch.store import Repo, Store
+    from limbowatch.tracker import Tracker, TrackerConfig
+
+    store = Store()
+    old = (datetime.now(UTC) - timedelta(days=31)).isoformat().replace("+00:00", "Z")
+    with store.session() as s:  # watched before, as a reviewed advisory's origin
+        s.add(Repo(full_name="old/origin", sources=["reviewed-origin"], first_seen=old, last_polled_at=old,
+                   poll_status=200))  # fmt: skip
+    seed = tmp_path / "seeds.txt"
+    seed.write_text("# from limbowatch repos\nAcme/Lib\nacme/app\n\n#   npm left-pad 1.0.0: deps.dev 404\n")
+    t = Tracker(store, cast(Any, None), TrackerConfig(seeds=[seed], only_seeds=True))
+    t.load_seeds()
+    assert t.add_repos({"cve/named"}, "github-cna-cve") == 0 and t.add_repos({"rel/pkg"}, "release:npm") == 0
+    assert sorted(r.full_name for r in t.poll_order()) == ["acme/app", "acme/lib"]
+    t.cfg.maven_packages = {"org.acme:lib": "Acme/Lib", "com.other:x": "other/x"}
+    assert t.maven_watched() == {"org.acme:lib": "Acme/Lib"}  # releases only of the packages it watches
+    t.cfg.only_seeds = False  # without it, the old repo is due again and others are added
+    assert t.add_repos({"cve/named"}, "github-cna-cve") == 1
+    assert {r.full_name for r in t.poll_order()} == {"acme/app", "acme/lib", "old/origin", "cve/named"}

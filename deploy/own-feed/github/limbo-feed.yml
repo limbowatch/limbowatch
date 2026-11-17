@@ -1,11 +1,20 @@
 # Your own limbo feed, built daily by Limbowatch in your own GitHub repository (docs/OWN_FEED.md).
 #
-# Copy this file to .github/workflows/limbo-feed.yml in a repository of yours (an empty one is fine), then:
-#   - Settings → Pages → Source: GitHub Actions (or replace the last job with your own hosting);
-#   - optional: a secret LIMBOWATCH_GITHUB_TOKEN, a fine-grained token with read access to public repositories,
-#     for 5,000 GitHub requests an hour instead of the job token's 1,000;
-#   - optional: tracker-seeds/*.txt, your own repositories to watch (one owner/repo per line).
-# Scans then use it with `--feed https://<owner>.github.io/<repo>/feed/` (or LIMBOWATCH_FEED).
+# Copy this file to .github/workflows/limbo-feed.yml in a repository of yours (an empty one is fine). Settings, all
+# optional, as repository variables (Settings → Secrets and variables → Actions → Variables) and secrets:
+#   - LIMBO_FEED_WATCH: `popular` (default): the Limbowatch release's seed lists, about 67,000 repositories behind
+#     the most-used packages, like limbo.watch. `focused`: only the source repositories of your own projects'
+#     dependencies (`limbowatch repos`, refreshed each run), a few thousand at most: fast, and complete for your scans.
+#   - LIMBO_FEED_ORGS: for `focused`, the GitHub organizations or users whose repositories' dependencies to watch,
+#     space-separated (default: this repository's owner). Secret LIMBOWATCH_SOURCE_TOKEN reads their private ones
+#     (fine-grained: Metadata and Contents read).
+#   - LIMBO_FEED_PUBLISH: `pages` (default; Settings → Pages → Source: GitHub Actions) serves the feed at
+#     https://<owner>.github.io/<repo>/feed/. `branch` commits all.zip, watchlist.json, index.json and SHA256SUMS.txt
+#     to the `limbo-feed` branch, replaced by one commit each run; scan jobs check it out (docs/OWN_FEED.md).
+#   - secret LIMBOWATCH_GITHUB_TOKEN: a fine-grained token with read access to public repositories, for 5,000
+#     GitHub requests an hour instead of the job token's 1,000.
+#   - tracker-seeds/*.txt in this repository: more repositories to watch (one owner/repo per line).
+# Scans then use it with `--feed <the feed's URL or checked-out directory>` (or LIMBOWATCH_FEED).
 #
 # What it does: the tracker's state lives on a `limbo-feed-state` branch of this repository; each run reads
 # GitHub's reviewed advisories and new CVEs, polls the watched repositories that are due, and publishes the feed
@@ -41,6 +50,8 @@ env:
   # oci://ghcr.io/limbowatch/limbowatch:<tag> --owner limbowatch) and its seed lists.
   LIMBOWATCH_IMAGE: ghcr.io/limbowatch/limbowatch:0.1.0a16@sha256:034d8c3f629538bba9c8ba4c673058976d260f3b5dea42328bc5872f793fe65e
   LIMBOWATCH_REF: v0.1.0a16
+  WATCH: ${{ vars.LIMBO_FEED_WATCH || 'popular' }}
+  PUBLISH: ${{ vars.LIMBO_FEED_PUBLISH || 'pages' }}
 
 jobs:
   build:
@@ -81,6 +92,20 @@ jobs:
             gh release download "$tag" --repo CVEProject/cvelistV5 --pattern '*_all_CVEs_at_midnight.zip.zip' --dir "$RUNNER_TEMP/cvelist"
             echo "CVE_LIST=$(ls "$RUNNER_TEMP"/cvelist/*.zip.zip)" >> "$GITHUB_ENV"
           fi
+      - name: Your projects' source repositories (focused)
+        if: env.WATCH == 'focused'
+        env:
+          LIMBOWATCH_SOURCE_TOKEN: ${{ secrets.LIMBOWATCH_SOURCE_TOKEN }}
+          PAT: ${{ secrets.LIMBOWATCH_GITHUB_TOKEN }}
+          ORGS: ${{ vars.LIMBO_FEED_ORGS || github.repository_owner }}
+        run: |
+          export LIMBOWATCH_GITHUB_TOKEN="${PAT:-}"
+          args=()
+          for org in $ORGS; do args+=(--github-org "$org"); done
+          mkdir -p focus
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e LIMBOWATCH_SOURCE_TOKEN -e LIMBOWATCH_GITHUB_TOKEN \
+            -e GITHUB_SERVER_URL -e GITHUB_API_URL -v "$PWD:/work" -w /work "$LIMBOWATCH_IMAGE" \
+            limbowatch repos "${args[@]}" --out focus/repos.txt
       - name: Track and publish
         env:
           PAT: ${{ secrets.LIMBOWATCH_GITHUB_TOKEN }}
@@ -92,7 +117,14 @@ jobs:
           if [ -n "$PAT" ]; then export LIMBOWATCH_GITHUB_TOKEN="$PAT"; budget="${BUDGET:-3500}"
           else export LIMBOWATCH_GITHUB_TOKEN="$JOB_TOKEN"; budget="${BUDGET:-900}"; fi
           seeds=()
-          for f in .limbowatch/tracker/seeds/{popular-upstreams,top100-upstreams,top-packages,cpp-upstreams}.txt tracker-seeds/*.txt; do
+          if [ "$WATCH" = focused ]; then
+            seeds+=(--only-seeds --seed /work/focus/repos.txt)
+          else
+            for f in .limbowatch/tracker/seeds/{popular-upstreams,top100-upstreams,top-packages,cpp-upstreams}.txt; do
+              seeds+=(--seed "/work/$f")
+            done
+          fi
+          for f in tracker-seeds/*.txt; do
             [ -f "$f" ] && seeds+=(--seed "/work/$f")
           done
           extra=()
@@ -119,12 +151,28 @@ jobs:
             site/feed/all.zip
             site/feed/watchlist.json
             site/feed/index.json
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+      - name: Publish to the limbo-feed branch
+        if: env.PUBLISH == 'branch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # one commit, replaced each run: a feed's history would grow the repository by about 28 MB a day
+          out="$RUNNER_TEMP/limbo-feed"
+          mkdir -p "$out/feed"
+          cp site/feed/all.zip site/feed/watchlist.json site/feed/index.json site/feed/SHA256SUMS.txt "$out/feed/"
+          git -C "$out" init -q -b limbo-feed
+          git -C "$out" add feed
+          git -C "$out" -c user.name="limbo-feed" -c user.email="limbo-feed@users.noreply.github.com" \
+            commit -q -m "limbo feed $(jq -r .generated_at site/feed/index.json)"
+          git -C "$out" push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}" limbo-feed
+      - if: env.PUBLISH == 'pages'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: site
 
   deploy:
     needs: build
+    if: (vars.LIMBO_FEED_PUBLISH || 'pages') == 'pages'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

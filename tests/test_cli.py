@@ -151,3 +151,14 @@ def test_security_and_data_names_every_host_and_option() -> None:
     options = {o for p in cli.commands["scan"].params for o in (*p.opts, *p.secondary_opts)}
     for opt in set(re.findall(r"`(--[a-z-]+)", section)):
         assert opt in options, f"{opt} is documented but `limbowatch scan` has no such option"
+
+
+def test_cve_list_release_date_from_its_file_name() -> None:
+    """track warns when the bulk export is older than the CVE delta a new tracker reads (F-216)."""
+    from datetime import UTC, datetime
+
+    from limbowatch_cli.main import _release_date
+
+    assert _release_date("2026-11-17_all_CVEs_at_midnight.zip.zip") == datetime(2026, 11, 17, tzinfo=UTC)
+    assert _release_date("all-cve_2026-10-25_0900Z.zip.zip") == datetime(2026, 10, 25, tzinfo=UTC)
+    assert _release_date("all.zip.zip") is None and _release_date("2026-13-40_all.zip") is None
