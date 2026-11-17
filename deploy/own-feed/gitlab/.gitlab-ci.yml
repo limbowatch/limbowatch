@@ -96,15 +96,17 @@ pages:
       # first run only: the CVE List's bulk export (about 650 MB), for CVEs that name an advisory
       if ! grep -q '"cve_bulk"' state/cursors.jsonl 2>/dev/null; then
         python3 - <<'PY'
-      import json, shutil, urllib.request
-      # the newest release with the bulk export: the end-of-day releases carry only a delta
+      import json, os, re, shutil, urllib.request
+      # the newest release with the bulk export: the end-of-day releases carry only a delta. Its file name keeps its
+      # date: the tracker reads the CVE changes since that date, not the last two days (F-220)
       rels = json.load(urllib.request.urlopen("https://api.github.com/repos/CVEProject/cvelistV5/releases?per_page=10", timeout=60))
-      asset = next(a for r in rels for a in r["assets"] if a["name"].endswith("_all_CVEs_at_midnight.zip.zip"))
-      with urllib.request.urlopen(asset["browser_download_url"], timeout=1800) as r, open("/tmp/cvelist.zip.zip", "wb") as f:
+      asset = next(a for r in rels for a in r["assets"] if re.fullmatch(r"[\w.-]+_all_CVEs_at_midnight\.zip\.zip", a["name"]))
+      os.makedirs("/tmp/cvelist", exist_ok=True)
+      with urllib.request.urlopen(asset["browser_download_url"], timeout=1800) as r, open(f"/tmp/cvelist/{asset['name']}", "wb") as f:
           shutil.copyfileobj(r, f)
       print(f"CVE List: {asset['name']}")
       PY
-        set -- "$@" --cve-list /tmp/cvelist.zip.zip
+        set -- "$@" --cve-list /tmp/cvelist/*_all_CVEs_at_midnight.zip.zip
       fi
       limbowatch track --state state --budget "$BUDGET" --max-new "$MAX_NEW" --minutes 50 "$@"
       limbowatch publish --state state --out public --feed-only

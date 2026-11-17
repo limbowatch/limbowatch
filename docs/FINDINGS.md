@@ -3451,6 +3451,31 @@ Answered:
   - The own-feed docs now name the Pages URL and visibility.
 - **Sources:** the pipelines and probes above; docs.gitlab.com/api/job_artifacts/ and /ci/jobs/ci_job_token/; CVEProject/cvelistV5 `cves/deltaLog.json`.
 
+### F-221
+- **Date:** 2026-11-17 · **Status:** confirmed (direct observation)
+- **Question:** Release 0.1.0a19: what did its review find, did it ship as tested, and do the released own-feed pipelines keep their state and start faster ([F-220](#f-220))?
+- **Method:**
+  - **Before tagging:** the audit at about 08:55 UTC (all checks passed); 472 tests on Python 3.12, 3.13 and 3.14; an independent review of `v0.1.0a18..HEAD` in two rounds; the scratch GitLab project on the fixed pipeline file (pipeline 3077983584).
+  - **Release:** commits 4bf954f (version) and f05de47 (pin, image `sha256:d94e96ab…`). The pre-tag e2e run 44054054610 and the component pipeline on split 7ec8c3e, then the signed tags, the action split 2528908 with its self-test, and the pre-release.
+  - **After tagging:** the proof run 44054712032, the e2e run 44054750737, the GitHub scratch repositories (runs 44054724892 and 44054739717), and two first runs from nothing with the released image: GitLab pipeline 3078064076 (released file), then 3078138589 (file fixed below), and GitHub `own-feed-test` run 44057603734, after deleting its `limbo-feed-state` branch.
+- **Result:**
+  - **Review round 1 found a stall.** Reading the CVE delta from a bulk export days old can take longer than a run, and `sync_cve_delta` moved its cursor only at the end. A run that hit its deadline kept nothing and skipped polling; the next run stopped at the same place (reproduced with a scripted deadline). Fixed in f9421bc: the delta is read in batches of whole deltaLog entries (200 CVEs), with the cursor saved after each.
+  - **Also fixed in f9421bc:** urllib forwards custom headers on redirects, so the GitLab restore could have sent the job token to object storage. A redirect to another host now drops it, checked for 301, 302, 303, 307 and 308. Round 2 found nothing.
+  - **Release:**
+    - PyPI serves 0.1.0a19 (its JSON API showed 0.1.0a18 for a few minutes after the release). The GitHub pre-release has 4 files, and `ghcr.io/limbowatch/limbowatch:0.1.0a19` resolves to the pinned digest.
+    - The component release `0.1.0-alpha.19` exists. Marketplace's latest is v0.1.0a19 after the owner's tick.
+    - The proof run found 103 findings; the e2e run passed.
+  - **First runs from nothing:**
+    - GitHub (`focused`, 210 repositories): 183 CVE records read instead of 2,220 ([F-218](#f-218)); 11.0 min instead of 18.5.
+    - GitLab with the released file: 2,284 records, 17 min. It saved the export as `/tmp/cvelist.zip.zip`, and the tracker reads the export's date from the file name, so it fell back to two days.
+    - GitLab with the export's own name: 183 records, 8.7 min, state saved. The fix (Unreleased) keeps the asset name, checked against `[\w.-]+_all_CVEs_at_midnight\.zip\.zip`.
+  - **State between GitLab runs** (scratch pipeline 3077983584, before the release): restored from the package registry, 2 copies kept.
+- **Caveats:** one first run per pipeline. The remaining first-run time wasn't broken down.
+- **Implication:**
+  - 0.1.0a19 shipped as tested, and its GitHub pipeline gets the shorter first run.
+  - Its GitLab pipeline keeps its state between runs but still has the long first run until the file is copied from main (Unreleased).
+- **Sources:** the runs above; PyPI; ghcr.io; gitlab.com/limbowatch/limbowatch-component and limbowatch/own-feed-test.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

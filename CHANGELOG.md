@@ -2,6 +2,10 @@
 
 Versions follow [semantic versioning](https://semver.org). The PyPI packages `limbowatch` and `limbowatch-cli`, the GitLab CI/CD component and the Actions action share one version number.
 
+## Unreleased
+
+- **Own-feed pipeline on GitLab: the shorter first run** (FINDINGS F-221). 0.1.0a19's GitLab pipeline saved the CVE List's bulk export as `cvelist.zip.zip`, without the date the tracker reads from the file name, so a new tracker still read two days of CVE changes (2,284 records, 17 minutes). It now keeps the export's own name: 183 records, 8.7 minutes. The GitHub pipeline already kept it. The image is unchanged; copy `deploy/own-feed/gitlab/.gitlab-ci.yml` again.
+
 ## 0.1.0a19 (2026-11-17)
 
 Still an **alpha**. On PyPI it's `0.1.0a19`; the GitHub tag and the action's ref are `v0.1.0a19`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a19`; the GitLab CI/CD component is `0.1.0-alpha.19`. Fixes from running the own-feed pipelines in real GitLab CI: the GitLab pipeline now keeps its state between runs, and a new tracker's first run is about 15 minutes shorter. Scans are unchanged. If you build your own feed on GitLab, copy the pipeline file again.
