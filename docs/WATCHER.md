@@ -102,7 +102,7 @@ Every format carries the CC BY 4.0 attribution for the advisory data. SARIF 2.1.
 | `--no-resolve-maven` | Don't send a `pom.xml`'s dependencies to deps.dev and Maven Central to resolve its transitive ones |
 | `--no-osv-commits` | Don't ask OSV about the commits the project pins for its upstream sources |
 | `--scan-ignored` | Also read lockfiles a `.gitignore` excludes, including an enclosing repo's (F-085) |
-| `--feed limbo.watch\|none` | Where advisories in limbo come from (`LIMBOWATCH_FEED`): the limbo feed (default), or `none`, no feed: every dependency's source repo is read on GitHub during the scan. [No feed](#no-feed) |
+| `--feed limbo.watch\|URL\|DIR\|none` | Where advisories in limbo come from (`LIMBOWATCH_FEED`): the limbo feed (default); a feed you build and host yourself, by https URL or directory ([OWN_FEED.md](OWN_FEED.md)); or `none`, no feed: every dependency's source repo is read on GitHub during the scan ([No feed](#no-feed)) |
 | `--verify-feed auto\|require\|off` | Check the feed against its signed build attestation before using it (default `auto`; `LIMBOWATCH_VERIFY_FEED`). [Security and data](#security-and-data) |
 | `--allow-insecure-http` | Send the issues token to an `http://` tracker on another machine. Refused by default ([Security and data](#security-and-data)); `LIMBOWATCH_ALLOW_INSECURE_HTTP=1` |
 | `-v` | Show the evidence for every finding, and every dependency checked by name only |
@@ -279,7 +279,7 @@ In CI, `--issues-url` and `--issues-project` default to `CI_SERVER_URL` / `GITHU
 
 ## No feed
 
-`--feed none` (or `LIMBOWATCH_FEED=none`) is for teams that can't, or won't, take advisory data from limbo.watch. The scan downloads nothing from limbo.watch. Instead it reads every dependency's source repository's published advisories on GitHub, from your runner, and checks each one as the tracker does: not withdrawn, not in OSV (so scanners don't see it yet), and the state of a CVE it cites. In the action, set `LIMBOWATCH_FEED: none` in the step's `env` (or `extra-args: --feed none`); on GitLab, as a CI/CD variable or in `extra_args`.
+`--feed none` (or `LIMBOWATCH_FEED=none`) is for teams that can't, or won't, take advisory data from limbo.watch. The other way is to build the feed yourself, with the same tracker, on your own CI: [OWN_FEED.md](OWN_FEED.md). The scan downloads nothing from limbo.watch. Instead it reads every dependency's source repository's published advisories on GitHub, from your runner, and checks each one as the tracker does: not withdrawn, not in OSV (so scanners don't see it yet), and the state of a CVE it cites. In the action, set `LIMBOWATCH_FEED: none` in the step's `env` (or `extra-args: --feed none`); on GitLab, as a CI/CD variable or in `extra_args`.
 
 On four projects it found every advisory the feed found (F-214). What it costs, and what it can't do:
 - **Time and requests.** About twice as long (34 to 51 s instead of 22 to 29 s on Gitea, Mastodon and Open WebUI), one GitHub request per source repository (800 to 1,200 on those projects) and one OSV lookup per advisory they have. Set a GitHub token: without one, GitHub allows 60 requests an hour. In org-wide mode each repository is read once for all projects.
@@ -299,7 +299,7 @@ The scan runs where your code already is, in your CI job or on your machine. It 
 
 | Host | What it receives | Turn it off |
 |---|---|---|
-| limbo.watch | Nothing about the project: the feed and the watchlist are downloaded whole | `--feed none` ([No feed](#no-feed)) |
+| limbo.watch | Nothing about the project: the feed and the watchlist are downloaded whole | `--feed none` ([No feed](#no-feed)), or `--feed` with a feed of your own ([OWN_FEED.md](OWN_FEED.md)) |
 | api.deps.dev, rubygems.org, repo.packagist.org, packages.ecosyste.ms, repo1.maven.org | Package names and versions, to find each package's source repository | `--no-upstream` |
 | api.deps.dev, repo.maven.apache.org, repo1.maven.org (from OSV-Scanner) | A `pom.xml`'s dependencies, to resolve the transitive ones | `--no-resolve-maven` |
 | bcr.bazel.build, raw.githubusercontent.com, center2.conan.io | Bazel module, vcpkg port and Conan package names (and the vcpkg baseline commit) | `--no-upstream` |

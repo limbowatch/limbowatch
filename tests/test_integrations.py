@@ -159,3 +159,45 @@ def test_action_python_install_is_pinned_with_uv_lock_hashes() -> None:
     assert all(h for _, h in reqs.values()), "every requirement has hashes"
     install = (ACTION.parent / "install.sh").read_text()
     assert '--require-hashes -r "$(dirname "$0")/requirements.txt"' in install and "--no-build-isolation" in install
+
+
+OWN_FEED_GITHUB = ROOT / "deploy/own-feed/github/limbo-feed.yml"
+OWN_FEED_GITLAB = ROOT / "deploy/own-feed/gitlab/.gitlab-ci.yml"
+
+
+def test_own_feed_pipelines_build_with_the_release_the_action_pins() -> None:
+    """docs/OWN_FEED.md: the same image (digest) and the same release's seed lists as the action, bumped with it."""
+    action = yaml.safe_load(ACTION.read_text())
+    image, ref = action["inputs"]["image"]["default"], action["inputs"]["limbowatch-ref"]["default"]
+    gh = yaml.safe_load(OWN_FEED_GITHUB.read_text())
+    assert gh["env"] == {"LIMBOWATCH_IMAGE": image, "LIMBOWATCH_REF": ref}
+    gl = yaml.safe_load(OWN_FEED_GITLAB.read_text())
+    assert gl["variables"]["LIMBOWATCH_IMAGE"].split("@")[1] == image.split("@")[1]
+    assert gl["variables"]["LIMBOWATCH_IMAGE"].startswith("registry.gitlab.com/limbowatch/limbowatch-component:")
+    assert gl["variables"]["LIMBOWATCH_REF"] == ref
+    for line in OWN_FEED_GITHUB.read_text().splitlines():
+        if "uses:" in line:
+            assert re.search(r"@[0-9a-f]{40} # v", line), line
+
+
+def test_own_feed_pipelines_build_only_the_feed_and_keep_their_state() -> None:
+    gh = yaml.safe_load(OWN_FEED_GITHUB.read_text())
+    steps = gh["jobs"]["build"]["steps"]
+    run = "\n".join(s.get("run", "") for s in steps)
+    assert "limbowatch publish --state state/state --out site --feed-only" in run and "limbo.watch" not in run
+    assert "git push" in run and "limbo-feed-state" in run
+    attest = next(s for s in steps if "actions/attest@" in s.get("uses", ""))
+    assert set(attest["with"]["subject-path"].split()) == {"site/feed/all.zip", "site/feed/watchlist.json",
+                                                           "site/feed/index.json"}  # fmt: skip
+    gl = yaml.safe_load(OWN_FEED_GITLAB.read_text())
+    job = gl["pages"]
+    script = "\n".join(job["script"])
+    assert "limbowatch publish --state state --out public --feed-only" in script and "limbo.watch" not in script
+    assert job["artifacts"]["paths"] == ["public", "state"] and job["resource_group"]
+    # the shell parts are valid sh / bash
+    import subprocess
+
+    subprocess.run(["sh", "-n"], input=script, text=True, check=True)
+    for s in steps:
+        if "run" in s:
+            subprocess.run(["bash", "-n"], input=s["run"], text=True, check=True)

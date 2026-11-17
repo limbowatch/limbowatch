@@ -1,0 +1,134 @@
+# Your own limbo feed, built daily by Limbowatch in your own GitHub repository (docs/OWN_FEED.md).
+#
+# Copy this file to .github/workflows/limbo-feed.yml in a repository of yours (an empty one is fine), then:
+#   - Settings → Pages → Source: GitHub Actions (or replace the last job with your own hosting);
+#   - optional: a secret LIMBOWATCH_GITHUB_TOKEN, a fine-grained token with read access to public repositories,
+#     for 5,000 GitHub requests an hour instead of the job token's 1,000;
+#   - optional: tracker-seeds/*.txt, your own repositories to watch (one owner/repo per line).
+# Scans then use it with `--feed https://<owner>.github.io/<repo>/feed/` (or LIMBOWATCH_FEED).
+#
+# What it does: the tracker's state lives on a `limbo-feed-state` branch of this repository; each run reads
+# GitHub's reviewed advisories and new CVEs, polls the watched repositories that are due, and publishes the feed
+# (all.zip, watchlist.json, index.json, SHA256SUMS.txt and OSV-Scanner zips), attested by this workflow.
+# Everything runs in the Limbowatch image, pinned by digest; it contacts only public sources (GitHub, OSV, CVE
+# Services, the Go module proxy, ecosyste.ms, Packagist, Maven Central; NVD with NVD_API_KEY), never limbo.watch.
+name: limbo-feed
+
+on:
+  schedule:
+    - cron: "23 5 * * *" # daily
+  workflow_dispatch:
+    inputs:
+      budget:
+        description: "GitHub requests this run (blank: 3500 with LIMBOWATCH_GITHUB_TOKEN, 900 without)"
+        default: ""
+      max-new:
+        description: "Repositories polled for the first time this run (more fills a new watchlist sooner)"
+        default: "2500"
+
+permissions:
+  contents: write # the tracker's state, on the limbo-feed-state branch
+  id-token: write # attest the feed (Sigstore)
+  attestations: write
+  pages: write
+
+concurrency:
+  group: limbo-feed
+  cancel-in-progress: false
+
+env:
+  # The Limbowatch release this feed is built with: its image (attested: gh attestation verify
+  # oci://ghcr.io/limbowatch/limbowatch:<tag> --owner limbowatch) and its seed lists.
+  LIMBOWATCH_IMAGE: ghcr.io/limbowatch/limbowatch:0.1.0a16@sha256:034d8c3f629538bba9c8ba4c673058976d260f3b5dea42328bc5872f793fe65e
+  LIMBOWATCH_REF: v0.1.0a16
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Seed lists of this Limbowatch release
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: limbowatch/limbowatch
+          ref: ${{ env.LIMBOWATCH_REF }}
+          path: .limbowatch
+          sparse-checkout: tracker/seeds
+          persist-credentials: false
+      - name: State
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}"
+          if git ls-remote --exit-code --heads "$remote" limbo-feed-state >/dev/null; then
+            git clone -q --depth 1 --branch limbo-feed-state "$remote" state
+          else
+            mkdir state && git -C state init -q -b limbo-feed-state
+          fi
+          mkdir -p state/state
+      - name: CVE List (first run only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! grep -q '"cve_bulk"' state/state/cursors.jsonl 2>/dev/null; then
+            mkdir -p "$RUNNER_TEMP/cvelist"
+            # the newest release with the bulk export: the end-of-day releases carry only a delta
+            tag=$(gh api 'repos/CVEProject/cvelistV5/releases?per_page=10' \
+              --jq '[.[] | select(any(.assets[]; .name | endswith("_all_CVEs_at_midnight.zip.zip")))][0].tag_name')
+            gh release download "$tag" --repo CVEProject/cvelistV5 --pattern '*_all_CVEs_at_midnight.zip.zip' --dir "$RUNNER_TEMP/cvelist"
+            echo "CVE_LIST=$(ls "$RUNNER_TEMP"/cvelist/*.zip.zip)" >> "$GITHUB_ENV"
+          fi
+      - name: Track and publish
+        env:
+          PAT: ${{ secrets.LIMBOWATCH_GITHUB_TOKEN }}
+          JOB_TOKEN: ${{ github.token }}
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          BUDGET: ${{ inputs.budget }}
+          MAX_NEW: ${{ inputs.max-new || '2500' }}
+        run: |
+          if [ -n "$PAT" ]; then export LIMBOWATCH_GITHUB_TOKEN="$PAT"; budget="${BUDGET:-3500}"
+          else export LIMBOWATCH_GITHUB_TOKEN="$JOB_TOKEN"; budget="${BUDGET:-900}"; fi
+          seeds=()
+          for f in .limbowatch/tracker/seeds/{popular-upstreams,top100-upstreams,top-packages,cpp-upstreams}.txt tracker-seeds/*.txt; do
+            [ -f "$f" ] && seeds+=(--seed "/work/$f")
+          done
+          extra=()
+          [ -n "${CVE_LIST:-}" ] && extra+=(--cve-list "/cvelist/$(basename "$CVE_LIST")")
+          [ -f .limbowatch/tracker/seeds/maven-packages.txt ] && extra+=(--maven-packages /work/.limbowatch/tracker/seeds/maven-packages.txt)
+          mkdir -p "$RUNNER_TEMP/cvelist"
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e LIMBOWATCH_GITHUB_TOKEN -e NVD_API_KEY \
+            -v "$PWD:/work" -v "$RUNNER_TEMP/cvelist:/cvelist" -w /work "$LIMBOWATCH_IMAGE" bash -euc '
+              limbowatch track --state state/state --budget "$0" --max-new "$1" --minutes 50 "${@:2}"
+              limbowatch publish --state state/state --out site --feed-only
+            ' "$budget" "$MAX_NEW" "${seeds[@]}" "${extra[@]}"
+      - name: Save state
+        working-directory: state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git add state
+          git -c user.name="limbo-feed" -c user.email="limbo-feed@users.noreply.github.com" commit -q -m "state $(date -u +%F)" || exit 0
+          git push -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}" limbo-feed-state
+      - name: Attest the feed
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            site/feed/all.zip
+            site/feed/watchlist.json
+            site/feed/index.json
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}feed/
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

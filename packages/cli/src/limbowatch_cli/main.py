@@ -88,31 +88,37 @@ FeedOption = Annotated[
     str,
     typer.Option(
         envvar="LIMBOWATCH_FEED",
-        help="Where advisories in limbo come from: limbo.watch (the limbo feed, checked against its build attestation) "
-        "or none (no feed: each dependency's source repo is read on GitHub; set a GitHub token).",
+        help="Where advisories in limbo come from: limbo.watch (the limbo feed, checked against its build "
+        "attestation), a feed you build (an https URL or a directory holding all.zip and watchlist.json; "
+        "docs/OWN_FEED.md), or none (no feed: each dependency's source repo is read on GitHub; set a GitHub token).",
     ),
 ]
 
 
-def _feed_mode(feed: str, upstream: bool) -> str:
-    if feed not in (watch_scan.FEED_DEFAULT, watch_scan.NO_FEED):
-        raise typer.BadParameter(f"--feed wants {watch_scan.FEED_DEFAULT} or {watch_scan.NO_FEED}, not {feed!r}")
-    if feed == watch_scan.NO_FEED and not upstream:
+def _feed_mode(feed: str, upstream: bool, verify: str) -> watch_scan.FeedSource | None:
+    """--feed, read: the feed's source, or None for none."""
+    try:
+        source = watch_scan.feed_source(feed)
+    except ValueError as e:
+        raise typer.BadParameter(str(e), param_hint="--feed") from e
+    if source is None and not upstream:
         raise typer.BadParameter("--feed none checks source repos only, so --no-upstream would leave nothing to check")
-    return feed
+    if source is not None and not source.limbo and verify == "require":
+        raise typer.BadParameter("--verify-feed require checks the limbo feed's attestation; a feed you build has none")
+    return source
 
 
 async def _load_feed(
-    http: HttpClient, feed: str, cache: Path, verify: str
+    http: HttpClient, source: watch_scan.FeedSource | None, cache: Path, verify: str
 ) -> tuple[bytes | None, dict[str, Any], str | None]:
     """The feed, its watchlist document and where it came from (None: no feed, --feed none)."""
-    if feed == watch_scan.NO_FEED:
+    if source is None:
         if not http.has_github_token:
             _warn("limbowatch: --feed none reads each dependency's source repo on GitHub, which allows 60 requests an "
                   "hour without a token; set LIMBOWATCH_GITHUB_TOKEN")  # fmt: skip
         return None, {}, None
-    zipped, doc = await watch_scan.load_feed(http, cache, verify, _warn)
-    return zipped, doc, output.LIMBO_FEED
+    zipped, doc = await watch_scan.load_feed(http, cache, verify, _warn, source=source)
+    return zipped, doc, source.base
 
 
 def _token() -> str | None:
@@ -249,6 +255,13 @@ def publish(
             "repository."
         ),
     ] = None,
+    feed_only: Annotated[
+        bool,
+        typer.Option(
+            help="Write only the feed (feed/, osv/ and metrics.json), not the website: for a feed you build and host "
+            "yourself (docs/OWN_FEED.md)."
+        ),
+    ] = False,
 ) -> None:
     """Write the site, feed (all.zip, index.json, one JSON per record) and metrics.json from the state."""
     store = _load(state, ctx)
@@ -297,6 +310,9 @@ def publish(
         )
     for r in records:
         (out / "feed" / f"{r['id']}.json").write_text(dumps(r))
+    if feed_only:
+        typer.echo(f"published {len(records)} advisories in limbo to {out / 'feed'} (feed only)")
+        return
     # the feed page shows a real record: the newest pending one with a machine-readable range
     pending = {i.adv.ghsa_id: i for i in all_items if not i.assessment.likely_permanent}
     with_ranges = [r for r in records if r["id"] in pending and any("ranges" in a for a in r["affected"])]
@@ -534,7 +550,7 @@ def scan(
     """
     if verify_feed not in watch_scan.VERIFY_MODES:
         raise typer.BadParameter(f"--verify-feed wants {', '.join(watch_scan.VERIFY_MODES)}, not {verify_feed!r}")
-    _feed_mode(feed, upstream)
+    source = _feed_mode(feed, upstream, verify_feed)
     if fail_on not in (*output.SEVERITIES, "none"):
         raise typer.BadParameter(f"--fail-on wants one of {', '.join((*output.SEVERITIES, 'none'))}, not {fail_on!r}")
     if color not in ("auto", "always", "never"):
@@ -568,7 +584,7 @@ def scan(
     async def run() -> tuple[watch_scan.ScanResult, str | None, str | None]:
         nonlocal changes
         async with HttpClient(_token()) as http:
-            zipped, wl_doc, source = await _load_feed(http, feed, cache, verify_feed)
+            zipped, wl_doc, label = await _load_feed(http, source, cache, verify_feed)
             res = await watch_scan.scan(inv, http, feed_zip=zipped, watchlist=dict(wl_doc.get("repos") or {}),
                                         now=datetime.now(UTC), upstream_check=upstream, git_cache=cache,
                                         osv_commits=osv_commits)  # fmt: skip
@@ -587,17 +603,17 @@ def scan(
                 except (trackers.TrackerError, RuntimeError) as e:  # the scan's reports are still written
                     issues_error.append(str(e))
                     log_lines.extend(_unsent_lines(changes or []))
-            return res, wl_doc.get("generated_at"), source
+            return res, wl_doc.get("generated_at"), label
 
     issue_policy = watch_issues.Policy(issues_min_severity, issues_public, issues_max_new)
     try:
-        res, feed_at, source = asyncio.run(run())
+        res, feed_at, label = asyncio.run(run())
     except (RuntimeError, OSError) as e:
         raise typer.Exit(_fail(str(e))) from e
     base = _base(path) if sbom_file is None else ""
     rep = output.Report(res.findings, res.unresolved, res.stats, inv.tool, feed_at, changes, accepted, base,
                         fail_on, fail_on_unknown, now, str(sbom_file or path.resolve().name or path),
-                        source)  # fmt: skip
+                        label)  # fmt: skip
 
     for name, dest in targets:
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -913,7 +929,7 @@ def watch(
     """
     if verify_feed not in watch_scan.VERIFY_MODES:
         raise typer.BadParameter(f"--verify-feed wants {', '.join(watch_scan.VERIFY_MODES)}, not {verify_feed!r}")
-    _feed_mode(feed, upstream)
+    source = _feed_mode(feed, upstream, verify_feed)
     if fail_on not in (*output.SEVERITIES, "none"):
         raise typer.BadParameter(f"--fail-on wants one of {', '.join((*output.SEVERITIES, 'none'))}, not {fail_on!r}")
     if color not in ("auto", "always", "never"):
@@ -959,7 +975,7 @@ def watch(
     async def run() -> org_output.OrgReport:
         async with HttpClient(_token()) as http:
             listings = await _list_sources(http, groups, orgs, gh_orgs, git or [], token, include_archived)
-            zipped, wl_doc, source = await _load_feed(http, feed, cache, verify_feed)
+            zipped, wl_doc, label = await _load_feed(http, source, cache, verify_feed)
             w = await org_mod.run(listings, http, feed_zip=zipped, watchlist=dict(wl_doc.get("repos") or {}),
                                   now=datetime.now(UTC), inventory=take, token=token, exclude=exclude or [],
                                   upstream_check=upstream, jobs=jobs, git_cache=cache,
@@ -996,7 +1012,7 @@ def watch(
                                             indent=1, sort_keys=True) + "\n")  # fmt: skip
                 rep = output.Report(c.result.findings, c.result.unresolved, c.result.stats, c.result.inventory.tool,
                                     wl_doc.get("generated_at"), changes, accepted, "", fail_on, fail_on_unknown, now,
-                                    c.project.name, source)  # fmt: skip
+                                    c.project.name, label)  # fmt: skip
                 entries.append(org_output.Entry(c.project, rep, c.commit))
                 if issues and c.project.kind is not hosts.HostKind.GIT:
                     if c.project.host in rate_limited:
@@ -1019,7 +1035,7 @@ def watch(
                 if n_git:
                     log_lines.append(f"issues: {n_git} plain git project(s) have no issue tracker; none opened")
             return org_output.OrgReport(entries, listings, w.skipped, w.stats, wl_doc.get("generated_at"), now,
-                                        fail_on, source)  # fmt: skip
+                                        fail_on, label)  # fmt: skip
 
     try:
         rep = asyncio.run(run())

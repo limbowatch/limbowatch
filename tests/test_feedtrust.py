@@ -395,7 +395,7 @@ async def test_a_damaged_feed_is_a_clean_error() -> None:
         candidates.from_feed_zip(buf.getvalue())
     async with HttpClient() as http:
         for data in (buf.getvalue(), b"not a zip"):
-            with pytest.raises(RuntimeError, match="the limbo feed couldn't be read"):
+            with pytest.raises(RuntimeError, match="the feed couldn't be read"):
                 await watch_scan.prepare([], http, feed_zip=data, watchlist={}, now=NOW)
     with respx.mock() as router:
         router.get(watch_scan.FEED_URL).mock(return_value=httpx.Response(200, content=ZIP))

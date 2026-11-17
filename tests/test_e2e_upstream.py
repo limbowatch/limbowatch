@@ -228,11 +228,9 @@ def test_watch_checks_upstream_sources_across_projects(world: dict[str, Any], mo
     assert proj["report"]["summary"]["upstreams"] == 2 and rep["summary"]["findings"] == 1
 
 
-def test_publish_and_report_from_a_small_state(tmp_path: Path) -> None:
-    """The tracker's `publish` and `report` on a state with one C advisory: the feed gives it a GIT package and GIT
-    ranges from the resolved tags (F-138, F-140), and older watchers' reader takes it."""
+def small_state(tmp_path: Path) -> Path:
+    """A tracker state with one C advisory in limbo, for acme/lib below 1.2.0, its tags resolved."""
     from limbowatch.store import Advisory, FactSnapshot, GitTag, Store
-    from limbowatch.watch.candidates import from_feed_zip
 
     store = Store()
     pkg = AdvisoryPackage(ecosystem="c", name="lib", vulnerable_version_range="< 1.2.0", patched_versions="1.2.0")
@@ -245,8 +243,16 @@ def test_publish_and_report_from_a_small_state(tmp_path: Path) -> None:
                        last_seen=NOW))  # fmt: skip
         s.add(FactSnapshot(ghsa_id=adv.ghsa_id, facts=facts.model_dump(mode="json"), facts_hash="h", observed_at=NOW))
         s.add(GitTag(repo="acme/lib", versions={"1.2.0": ["v1.2.0", "f" * 40]}, checked_at=NOW))
-    state, out = tmp_path / "state", tmp_path / "site"
-    store.export_jsonl(state)
+    store.export_jsonl(tmp_path / "state")
+    return tmp_path / "state"
+
+
+def test_publish_and_report_from_a_small_state(tmp_path: Path) -> None:
+    """The tracker's `publish` and `report` on a state with one C advisory: the feed gives it a GIT package and GIT
+    ranges from the resolved tags (F-138, F-140), and older watchers' reader takes it."""
+    from limbowatch.watch.candidates import from_feed_zip
+
+    state, out = small_state(tmp_path), tmp_path / "site"
     r = run(["publish", "--state", str(state), "--out", str(out)])
     assert r.exit_code == 0, r.output
     z = zipfile.ZipFile(out / "feed" / "all.zip")
@@ -408,5 +414,89 @@ def test_with_no_feed_the_scan_never_asks_limbo_watch(world: dict[str, Any], mon
     monkeypatch.setenv("LIMBOWATCH_FEED", "none")  # the same from the environment, as the integrations pass it
     r = run(["scan", str(p), "--no-upstream"])
     assert r.exit_code == 2 and "--no-upstream would leave nothing to check" in _plain(r.output)
-    r = run(["scan", str(p), "--feed", "https://feed.example/"])
-    assert r.exit_code == 2 and "--feed wants limbo.watch or none" in _plain(r.output)
+    r = run(["scan", str(p), "--feed", "http://feed.example/"])
+    assert r.exit_code == 2 and "is plain http: use https" in _plain(r.output)
+    r = run(["scan", str(p), "--feed", "https://feed.example/", "--verify-feed", "require"])
+    assert r.exit_code == 2 and "a feed you build has none" in _plain(r.output)
+
+
+# --- a feed of your own (--feed URL or directory, docs/OWN_FEED.md) --------------------------------------------------
+
+
+def _quiet_github(router: respx.MockRouter) -> None:
+    """The project's two upstream repos have no advisories of their own on GitHub; OSV knows no commit."""
+    for repo in ("acme/lib", "acme/lib2"):
+        router.get(url__startswith=f"https://api.github.com/repos/{repo}/security-advisories").mock(
+            return_value=httpx.Response(200, json=[]))  # fmt: skip
+    router.post("https://api.osv.dev/v1/querybatch").mock(return_value=httpx.Response(200, json={
+        "results": [{"vulns": []}]}))  # fmt: skip
+
+
+def test_a_feed_built_with_publish_feed_only_is_scanned_from_a_directory_or_a_url(
+    world: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`publish --feed-only` writes the feed and nothing of the website; `scan --feed` reads it from a directory, or
+    from a URL, with no request to limbo.watch and no attestation lookup (there's none to check)."""
+    state, out = small_state(world["tmp"]), world["tmp"] / "own"
+    r = run(["publish", "--state", str(state), "--out", str(out), "--feed-only"])
+    assert r.exit_code == 0, r.output
+    assert "(feed only)" in r.stdout and not (out / "index.html").exists() and not (out / "assets").exists()
+    for name in ("all.zip", "watchlist.json", "index.json", "SHA256SUMS.txt"):
+        assert (out / "feed" / name).exists(), name
+    assert (out / "osv" / "limbo-db.zip").exists()
+
+    p = project(world["tmp"], world["tags"]["v1.1.0"])
+    with respx.mock(assert_all_called=False) as router:  # anything not mocked, limbo.watch included, fails the test
+        _quiet_github(router)
+        r = run(["scan", str(p), "--cache", str(world["cache"]), "--feed", str(out / "feed"), "--format", "json"])
+    rep = json.loads(r.stdout)
+    assert r.exit_code == 1, r.output
+    assert [(f["ghsa_id"], f["source"]) for f in rep["findings"]] == [("GHSA-c000-0000-0001", "feed")]
+    assert rep["feed"] == str((out / "feed").resolve()) and rep["feed_generated_at"]
+    assert "via a feed built with Limbowatch" in rep["attribution"]
+
+    base = "https://feeds.acme.example/limbo/"
+    monkeypatch.setenv("LIMBOWATCH_VERIFY_FEED", "auto")  # auto still asks nothing of GitHub for an own feed
+    with respx.mock(assert_all_called=False) as router:
+        _quiet_github(router)
+        zipped = router.get(base + "all.zip").mock(
+            return_value=httpx.Response(200, content=(out / "feed" / "all.zip").read_bytes()))  # fmt: skip
+        router.get(base + "watchlist.json").mock(
+            return_value=httpx.Response(200, content=(out / "feed" / "watchlist.json").read_bytes()))  # fmt: skip
+        r = run(["scan", str(p), "--cache", str(world["cache"]), "--feed", base + "all.zip", "-o", "table"])
+    assert zipped.called and r.exit_code == 1, r.output
+    assert f"feed {base} of" in r.stdout and "GHSA-c000-0000-0001" in r.stdout
+    assert not (world["cache"] / "all.zip").exists()  # its own folder: never mixed with the limbo feed's files
+    assert list((world["cache"] / "feeds").glob("*/all.zip"))
+
+    r = run(["scan", str(p), "--cache", str(world["cache"]), "--feed", str(world["tmp"] / "nowhere")])
+    assert r.exit_code == 2 and "publish --feed-only" in r.stderr
+
+
+@pytest.mark.parametrize(
+    ("spec", "base", "local"),
+    [
+        ("limbo.watch", "https://limbo.watch/feed/", False),
+        ("https://limbo.watch/feed/all.zip", "https://limbo.watch/feed/", False),
+        ("https://feeds.acme.example/limbo", "https://feeds.acme.example/limbo/", False),
+        ("https://feeds.acme.example/limbo/all.zip", "https://feeds.acme.example/limbo/", False),
+        ("http://localhost:8080/feed/", "http://localhost:8080/feed/", False),
+    ],
+)
+def test_feed_source(spec: str, base: str, local: bool) -> None:
+    src = watch_scan.feed_source(spec)
+    assert src is not None and (src.base, src.local) == (base, local)
+    assert src.feed == base + "all.zip" and src.watchlist == base + "watchlist.json"
+    assert src.limbo == (base == "https://limbo.watch/feed/")
+
+
+def test_feed_source_refuses(tmp_path: Path) -> None:
+    assert watch_scan.feed_source("none") is None
+    local = watch_scan.feed_source(str(tmp_path / "feed" / "all.zip"))
+    assert local is not None and local.local and local.feed == str((tmp_path / "feed" / "all.zip").resolve())
+    assert local.cache(tmp_path) is not None and local.cache(tmp_path) != tmp_path
+    for bad, why in (("http://feeds.acme.example/", "plain http"), ("ftp://x/feed/", "https:// URL"),
+                     ("https://u:p@feeds.acme.example/", "no credentials"), ("https://x/feed/?t=1", "query"),
+                     ("", "empty")):  # fmt: skip
+        with pytest.raises(ValueError, match=why):
+            watch_scan.feed_source(bad)

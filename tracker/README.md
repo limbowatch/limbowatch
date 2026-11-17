@@ -64,6 +64,7 @@ uv run limbowatch publish --state tracker/state --out tracker/site
 - **Token:** `LIMBOWATCH_GITHUB_TOKEN` or `GITHUB_TOKEN`; locally, `gh auth token` is used.
 - **NVD:** `NVD_API_KEY` is optional; it speeds up lookups from 6.5 s to 0.7 s each.
 - **Interrupted runs:** state is checkpointed after each step and every 500 polls, so a cut-off run keeps its progress.
+- **Your own:** the same tracker builds a feed for your own scans, on your own CI, with `limbowatch publish --feed-only`: [docs/OWN_FEED.md](../docs/OWN_FEED.md).
 
 ## Daily report
 

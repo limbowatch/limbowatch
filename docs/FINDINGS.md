@@ -3286,6 +3286,32 @@ Answered:
 - **Implication:** without the feed, a scan finds the same advisories in limbo at roughly twice the time and one GitHub request per source repo. It loses CVE List facts (uncited CVEs, duplicates) and name-only checks of dependencies whose repo isn't known, and reports those as not checked. Good enough for teams that can't use limbo.watch; a self-built feed (next) gives them everything back.
 - **Sources:** GitHub REST API (repository advisories, global advisories by CVE); OSV API; CVE Services; raw output in the session scratchpad.
 
+### F-215
+- **Date:** 2026-11-17 · **Status:** confirmed (local runs of the pipelines' scripts in the image; live GitHub)
+- **Question:** Can a team build the limbo feed itself (`limbowatch track` + `publish --feed-only`, the `deploy/own-feed/` pipelines) and scan against it (`--feed <URL or directory>`) without losing findings? What does a first run cost?
+- **Method:**
+  - **Fresh tracker, minimal:** `limbowatch track` on an empty state with 100 repos from `popular-upstreams.txt`, `--budget 1500 --no-releases --no-nvd`, no CVE List; then `publish --feed-only`; requests counted per host (as F-214).
+  - **Scans:** limbo-poc, Mastodon and Gitea (F-214's clones) with `--feed <that feed's directory>`, each compared with F-214's limbo-feed run by (package, version, advisory, verdict). The first try ran with an exhausted GitHub token and was redone after the reset.
+  - **Pipelines:** each one's shell extracted from its YAML and run in an image built from the working tree (`docker build`; 0.1.0a16 has no `--feed-only`):
+    - **GitLab:** the `pages` script, `BUDGET` 600, `MAX_NEW` 50, its artifacts API answered by a local server: a 404, then the first run's `public/` and `state/` as a zip;
+    - **GitHub:** the "Track and publish" step, with the October CVE List copy (`cve_2026-10-25`) standing in for the download.
+  - Finally a scan of limbo-poc against the feed the GitLab script built.
+- **Result:**
+  - **Fresh tracker, minimal:** 6.5 min; 562 GitHub requests (37,881 reviewed advisories synced, about 380 of them), 2,172 to raw.githubusercontent.com (two days of the CVE delta log), 328 OSV, 91 CVE Services. Watchlist 3,773 (100 seeds plus the reviewed advisories' origin repos), 183 polled before the budget, 681 advisories stored, 326 in the feed.
+  - **Scans against it:** nothing the limbo feed found was missed (limbo-poc 103 = 103, Gitea 21 = 21, Mastodon 16 of 16). Mastodon had 3 more:
+    - nokogiri GHSA-qwq9-89rg-ww72, the duplicate of F-214; this tracker had no CVE List, so it can't tell either;
+    - puma 8.0.3, GHSA-4v6q-hvv7-49h9 and GHSA-rhww-p99c-hgj9 (medium; fixed in 8.0.4). Published 2026-11-17 00:38 UTC, after F-214's runs: real advisories in limbo, found by the scan's own poll of puma/puma (404 in GitHub's reviewed database and OSV, not on limbo.watch yet).
+    - The feed watched few of the projects' repos (14 and 15 of 1,025 and 801), so the scans polled the rest: 13, 1,011 and 786 GitHub requests; 17, 46 and 36 s.
+  - **With the token exhausted** (first try): 1,091 of Gitea's dependencies were reported as "source repository not checked (GitHub rate limit)" and the scan passed with 0 findings. The gate doesn't count unchecked dependencies, as before.
+  - **GitLab script, first run:** found no earlier state (404) and started a new one. It took the CVE List bulk export (`2026-11-17_all_CVEs_at_midnight`, 663 MB), imported 30,685 CVE records that name an advisory, synced 37,881 reviewed advisories, watched 67,350 repos and polled 50, then published 35 advisories with `feed/` (all.zip, watchlist.json, index.json, SHA256SUMS.txt, repos.txt) and `osv/`. Tracking took 17.5 min, mostly the release checks: 7,387 requests to repo1.maven.org, 429 to api.github.com.
+  - **GitLab script, second run:** restored the first run's 12 state files from the artifacts and skipped the CVE List. 40 s: 41 newly reviewed advisories, 50 more repos polled, 57 advisories published.
+  - **GitHub step:** imported 28,248 CVE records, watched 67,256 repos, polled 50 and published 38 advisories; the state files belong to the runner's user, not root.
+  - **The scan against the GitLab-built feed:** limbo-poc 103 findings, as with the limbo feed; the report names that feed.
+  - **cvelistV5's `releases/latest` was an end-of-day release with only a delta file** (`cve_2026-11-16_at_end_of_day`, published 2026-11-17 00:39 UTC), so the first version of both pipelines found no bulk export. They now take the newest of the last 10 releases that has `*_all_CVEs_at_midnight.zip.zip`. This repository's tracker.yml takes it from the latest release too, but only on its first run, long past.
+- **Caveats:** the real Pages deployments, GitHub's attestation step, the state branch push and GitLab's job token weren't exercised (local runs). Small budgets: a full watchlist takes about 27 daily runs at `MAX_NEW` 2,500.
+- **Implication:** a self-built feed works with the same code and the same sources. Scans stay complete while its watchlist is young, because they poll what it doesn't cover, at the cost of GitHub requests, which fall as it grows. Shipped as `publish --feed-only`, `--feed <URL or directory>`, `deploy/own-feed/` and docs/OWN_FEED.md (Unreleased).
+- **Sources:** GitHub REST API (repository and global advisories, releases); OSV API; CVE Services; CVE List (cvelistV5 releases); raw output in the session scratchpad.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

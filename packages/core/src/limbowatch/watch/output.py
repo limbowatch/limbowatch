@@ -36,9 +36,12 @@ _DATA = (
 
 
 def attribution(feed: str | None = LIMBO_FEED) -> str:
-    """The credit line for where the advisories came from: the limbo feed, or GitHub directly (`feed` None)."""
+    """The credit line for where the advisories came from: the limbo feed, a feed built with Limbowatch elsewhere
+    (docs/OWN_FEED.md), or GitHub directly (`feed` None)."""
     if feed is None:
         return f"{_DATA}, read from GitHub by this scan (--feed none)."
+    if feed != LIMBO_FEED:
+        return f"{_DATA}, via a feed built with Limbowatch ({feed})."
     return f"{_DATA}, via the limbo feed (https://limbo.watch, CC BY 4.0)."
 
 
@@ -49,7 +52,8 @@ def feed_note(feed: str | None, generated_at: str | None) -> str:
     """For the table's header line: which feed, of when."""
     if feed is None:
         return " · no feed: source repos read on GitHub"
-    return f" · limbo feed of {generated_at[:16].replace('T', ' ')} UTC" if generated_at else ""
+    which = "limbo feed" if feed == LIMBO_FEED else f"feed {feed}"
+    return f" · {which} of {generated_at[:16].replace('T', ' ')} UTC" if generated_at else f" · {which}"
 
 
 SEVERITIES = ("critical", "high", "medium", "low")

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
 import json
 import zipfile
 from collections.abc import Awaitable, Callable, Sequence
@@ -15,6 +16,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 from limbowatch.http import HttpClient, ResponseTooLarge
 from limbowatch.models import (
@@ -32,10 +34,81 @@ from limbowatch.watch.candidates import FeedTooLarge, FeedUnreadable, Index, fro
 from limbowatch.watch.match import match
 from limbowatch.watch.registries import Registries
 
-FEED_URL = "https://limbo.watch/feed/all.zip"
 FEED_DEFAULT = "limbo.watch"  # --feed's default: the limbo feed, verified against its build attestation
 NO_FEED = "none"  # --feed none: no feed; every dependency's source repo is read on GitHub instead
-WATCHLIST_URL = "https://limbo.watch/feed/watchlist.json"
+LOOPBACK = {"localhost", "127.0.0.1", "::1"}
+
+
+@dataclass(frozen=True)
+class FeedSource:
+    """Where the feed comes from: the limbo feed, or one built with `limbowatch publish --feed-only` and served from
+    a URL or a directory (docs/OWN_FEED.md). Either way, `all.zip` and `watchlist.json` side by side."""
+
+    base: str  # a URL ending in "/", or a local directory
+    local: bool = False
+
+    @property
+    def limbo(self) -> bool:
+        return self.base == LIMBO_BASE
+
+    def _at(self, name: str) -> str:
+        return str(Path(self.base) / name) if self.local else self.base + name
+
+    @property
+    def feed(self) -> str:
+        return self._at("all.zip")
+
+    @property
+    def watchlist(self) -> str:
+        return self._at("watchlist.json")
+
+    @property
+    def name(self) -> str:
+        return "the limbo feed" if self.limbo else f"the feed at {self.base}"
+
+    def cache(self, cache: Path | None) -> Path | None:
+        """The limbo feed's cache is the cache directory itself, as before; another feed's is a folder of its own,
+        so two feeds' files and verification records never mix."""
+        if cache is None or self.limbo:
+            return cache
+        return cache / "feeds" / hashlib.sha256(self.base.encode()).hexdigest()[:16]
+
+
+LIMBO_BASE = "https://limbo.watch/feed/"
+LIMBO = FeedSource(LIMBO_BASE)
+FEED_URL = LIMBO.feed
+WATCHLIST_URL = LIMBO.watchlist
+
+
+def feed_source(spec: str) -> FeedSource | None:
+    """--feed: `limbo.watch`, `none` (None), an https URL of the folder that holds all.zip and watchlist.json (or of
+    all.zip itself), or a local directory. Plain http only to this machine: anyone on the network could change a
+    feed sent in the clear. ValueError says what's wrong."""
+    if spec == FEED_DEFAULT:
+        return LIMBO
+    if spec == NO_FEED:
+        return None
+    if "://" not in spec:
+        if not spec.strip():
+            raise ValueError("--feed is empty")
+        d = Path(spec).expanduser()
+        return FeedSource(str((d.parent if d.name == "all.zip" else d).resolve()), local=True)
+    try:
+        parts = urlsplit(spec)
+        host = parts.hostname or ""
+    except ValueError as e:
+        raise ValueError(f"--feed {spec!r} isn't a readable URL") from e
+    if parts.scheme not in ("https", "http") or not host:
+        raise ValueError(f"--feed wants an https:// URL or a directory, not {spec!r}")
+    if parts.scheme == "http" and host not in LOOPBACK:
+        raise ValueError(f"--feed {spec!r} is plain http: use https (http only to this machine)")
+    if parts.username or parts.password or parts.query or parts.fragment:
+        raise ValueError(f"--feed {spec!r}: no credentials, query or fragment in the URL")
+    path = parts.path.removesuffix("all.zip")
+    base = urlunsplit((parts.scheme, parts.netloc, path if path.endswith("/") else path + "/", "", ""))
+    return LIMBO if base == LIMBO_BASE else FeedSource(base)
+
+
 # Download caps (FINDINGS F-192): on 2026-11-14 the feed was 25 MB and the watchlist 3 MB.
 FEED_MAX_BYTES = 500_000_000
 WATCHLIST_MAX_BYTES = 100_000_000
@@ -97,6 +170,7 @@ async def load_feed(
     warn: Callable[[str], None],
     now: datetime | None = None,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    source: FeedSource = LIMBO,
 ) -> tuple[bytes, dict[str, Any]]:
     """The feed's all.zip and watchlist, checked against their build attestation (`verify`: auto, require or off).
     GitHub must vouch for the two as files of the same build (FINDINGS F-192 to F-196).
@@ -109,8 +183,19 @@ async def load_feed(
     MIX_RETRY_SECONDS. If it's still mixed, a cached pair verified before is used, with a warning; otherwise it's
     refused. A pair GitHub doesn't vouch for is refused (RuntimeError) and the cache cleared. If GitHub can't be asked,
     `auto` warns and goes on, `require` refuses. A feed older than STALE_FEED is a warning in `auto` and refused in
-    `require`: an old build's pair still verifies."""
-    files = ((FEED_URL, FEED_MAX_BYTES), (WATCHLIST_URL, WATCHLIST_MAX_BYTES))
+    `require`: an old build's pair still verifies.
+
+    Another `source` (a feed of your own, docs/OWN_FEED.md) has no attestation from this repository to check, so
+    `verify` must be auto or off and only its age is checked; a directory is read as it is, without the cache."""
+    if not source.limbo:
+        if verify == "require":
+            raise RuntimeError(f"--verify-feed require checks the limbo feed's attestation; {source.name} has none")
+        verify = "off"
+    if source.local:
+        return _read_local(source, warn, now)
+    cache = source.cache(cache)
+    feed_url, wl_url = source.feed, source.watchlist
+    files = ((feed_url, FEED_MAX_BYTES), (wl_url, WATCHLIST_MAX_BYTES))
     cached = {url: _cached(cache, url) for url, _ in files}
     got: dict[str, tuple[bytes, str | None, bool]] = {}
     result: feedtrust.Result | None = None
@@ -118,12 +203,12 @@ async def load_feed(
         got = await _download_pair(http, files, cached, warn, conditional=attempt == 1)
         if verify == "off":
             break
-        result = await feedtrust.verify(http, got[FEED_URL][0], got[WATCHLIST_URL][0], cache)
+        result = await feedtrust.verify(http, got[feed_url][0], got[wl_url][0], cache)
         if not (result.mixed and attempt == 1):
             break
         await sleep(MIX_RETRY_SECONDS)  # most likely mid-deploy: the other file is a moment away
     if result is not None and result.verdict is feedtrust.Verdict.REJECTED:
-        old = cached[FEED_URL], cached[WATCHLIST_URL]
+        old = cached[feed_url], cached[wl_url]
         if result.mixed and old[0] and old[1] and feedtrust.known_pair(cache, old[0][0], old[1][0]):
             warn("limbowatch: the limbo feed's files on limbo.watch come from different builds (it may be updating); "
                  "using the cached copy verified earlier")  # fmt: skip
@@ -142,27 +227,54 @@ async def load_feed(
         if verify == "require":
             raise RuntimeError(f"the limbo feed couldn't be verified ({result.why}); --verify-feed require")
         warn(f"limbowatch: couldn't verify the limbo feed ({result.why}); using it unverified")
-    feed, watchlist = got[FEED_URL][0], got[WATCHLIST_URL][0]
+    feed, watchlist = got[feed_url][0], got[wl_url][0]
     try:
         doc = json.loads(watchlist)
     except (ValueError, RecursionError) as e:
         for url, _ in files:
             _forget(cache, url)
-        raise RuntimeError(f"the limbo feed's watchlist isn't readable JSON: {type(e).__name__}") from e
+        raise RuntimeError(f"{source.name}'s watchlist isn't readable JSON: {type(e).__name__}") from e
     doc = doc if isinstance(doc, dict) else {}
+    _check_age(source, doc, verify, warn, now)
+    for url, (body, etag, fresh) in got.items():
+        if fresh:
+            _store(cache, url, body, etag)
+    return feed, doc
+
+
+def _check_age(
+    source: FeedSource, doc: dict[str, Any], verify: str, warn: Callable[[str], None], now: datetime | None
+) -> None:
     generated = _parse_time(doc.get("generated_at"))
     if generated is not None and (now or datetime.now(UTC)) - generated > STALE_FEED:
         old_feed = (
-            f"the limbo feed is from {doc['generated_at']}, more than {STALE_FEED.days} days ago: newer advisories in "
+            f"{source.name} is from {doc['generated_at']}, more than {STALE_FEED.days} days ago: newer advisories in "
             "limbo aren't in it"
         )
         if verify == "require":
             raise RuntimeError(f"{old_feed}; --verify-feed require")
         warn(f"limbowatch: {old_feed}")
-    for url, (body, etag, fresh) in got.items():
-        if fresh:
-            _store(cache, url, body, etag)
-    return feed, doc
+
+
+def _read_local(source: FeedSource, warn: Callable[[str], None], now: datetime | None) -> tuple[bytes, dict[str, Any]]:
+    """A feed in a directory: all.zip and watchlist.json, read with the download caps."""
+    got = []
+    for name, cap in ((source.feed, FEED_MAX_BYTES), (source.watchlist, WATCHLIST_MAX_BYTES)):
+        f = Path(name)
+        try:
+            if f.stat().st_size > cap:
+                raise RuntimeError(f"{f} is larger than {cap:,} bytes: far larger than a real feed, so it wasn't used")
+            got.append(f.read_bytes())
+        except OSError as e:
+            raise RuntimeError(f"{source.name}: {f} can't be read ({type(e).__name__}); "
+                               "`limbowatch publish --feed-only` writes it") from e  # fmt: skip
+    try:
+        doc = json.loads(got[1])
+    except (ValueError, RecursionError) as e:
+        raise RuntimeError(f"{source.name}'s watchlist isn't readable JSON: {type(e).__name__}") from e
+    doc = doc if isinstance(doc, dict) else {}
+    _check_age(source, doc, "off", warn, now)
+    return got[0], doc
 
 
 async def _download_pair(
@@ -276,7 +388,7 @@ async def prepare(
         try:
             candidates = from_feed_zip(feed_zip)
         except (FeedTooLarge, FeedUnreadable, zipfile.BadZipFile) as e:  # a clean error (exit 2), not a traceback
-            raise RuntimeError(f"the limbo feed couldn't be read: {e}") from e
+            raise RuntimeError(f"the feed couldn't be read: {e}") from e
         for c in candidates:
             index.add(c)
     sh = Shared(index, upstream_check=upstream_check, feedless=feed_zip is None)
