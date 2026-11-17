@@ -3509,6 +3509,22 @@ Answered:
 - **Implication:** both CLI-only pipelines work as documented in docs/OWN_FEED.md#cli-only.
 - **Sources:** the runs above.
 
+### F-224
+- **Date:** 2026-11-17 · **Status:** confirmed (direct observation)
+- **Question:** Release 0.1.0a21 (the CLI-only own-feed pipelines, [F-223](#f-223), and the reorganised website): did it ship as tested?
+- **Method:**
+  - **Before tagging:** the audit (all checks passed) and 474 tests on Python 3.12, 3.13 and 3.14. No scanner or tracker code had changed since 0.1.0a20, so no review loop ran.
+  - **Release:** commits 9ecf68f (version) and c19588c (pin, image `sha256:375e87f1…`). The pre-tag e2e run 44126920172 and the component pipeline on split 69e6e91, then the signed tags, the action split 26695bc with its self-test, and the pre-release.
+  - **After tagging:** the proof run 44127850294, the e2e run 44127903801, the public scratch repository's image pipeline (44127869745), the private one's CLI-only pipeline (44127889954), and the GitLab scratch project's CLI-only pipeline (3080041816), all on the released files.
+- **Result:**
+  - PyPI serves 0.1.0a21. The GitHub pre-release has 4 files; the image and the component release `0.1.0-alpha.21` exist.
+  - The proof run found 103 findings, and the e2e run passed.
+  - The CLI-only pipelines installed `limbowatch 0.1.0a21` from PyPI and restored their state. GitHub read 553 CVE records changed since its last run 5.5 hours earlier, polled 0 repositories, and published 163 advisories; GitLab published 49, and its scan job passed.
+  - The scratch schedules were turned off again afterwards.
+- **Caveats:** the Marketplace tick for v0.1.0a21 is the owner's.
+- **Implication:** 0.1.0a21 shipped as tested.
+- **Sources:** the runs above; PyPI; ghcr.io; gitlab.com/limbowatch/limbowatch-component.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
