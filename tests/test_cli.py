@@ -157,7 +157,7 @@ def test_cve_list_release_date_from_its_file_name() -> None:
     """track warns when the bulk export is older than the CVE delta a new tracker reads (F-216)."""
     from datetime import UTC, datetime
 
-    from limbowatch_cli.main import _release_date
+    from limbowatch.tracker import bulk_export_date as _release_date
 
     assert _release_date("2026-11-17_all_CVEs_at_midnight.zip.zip") == datetime(2026, 11, 17, tzinfo=UTC)
     assert _release_date("all-cve_2026-10-25_0900Z.zip.zip") == datetime(2026, 10, 25, tzinfo=UTC)

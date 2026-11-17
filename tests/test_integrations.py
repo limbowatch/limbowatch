@@ -201,7 +201,12 @@ def test_own_feed_pipelines_build_only_the_feed_and_keep_their_state() -> None:
     job = gl["pages"]
     script = "\n".join(job["script"])
     assert "limbowatch publish --state state --out public --feed-only" in script and "limbo.watch" not in script
-    assert job["artifacts"]["paths"] == ["public", "state"] and job["resource_group"]
+    assert job["artifacts"]["paths"] == ["public"] and job["resource_group"]
+    # state in the package registry, read and written with the job token: GitLab Free refuses it the job artifacts of
+    # earlier pipelines (F-220); restored before track, saved after publish, two copies kept
+    assert "/packages/generic/limbo-feed-state/1/state.tar.gz" in script and "JOB-TOKEN" in script
+    assert script.index("no saved state") < script.index("limbowatch track") < script.index('method="PUT"')
+    assert "[:-2]" in script and 'filter="data"' in script and "jobs/artifacts" not in script
     # the shell parts are valid sh / bash
     import subprocess
 

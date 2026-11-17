@@ -7,7 +7,6 @@ import asyncio
 import json
 import logging
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -17,7 +16,7 @@ import traceback
 import zipfile
 from collections.abc import Collection
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
 from urllib.parse import urlsplit
@@ -41,7 +40,7 @@ from limbowatch.publish import site as site_mod
 from limbowatch.sources import osv as osv_source
 from limbowatch.sources.releases import read_maven_packages
 from limbowatch.store import Store
-from limbowatch.tracker import DELTA_BOOTSTRAP, Tracker, TrackerConfig, import_cve_list
+from limbowatch.tracker import DELTA_LOG_SPAN, Tracker, TrackerConfig, bulk_export_date, import_cve_list
 from limbowatch.versions import UPSTREAM, norm_name
 from limbowatch.watch import issues as watch_issues
 from limbowatch.watch import org as org_mod
@@ -207,10 +206,10 @@ def track(
         with tempfile.TemporaryDirectory() as tmp:
             n = import_cve_list(store, cve_list, Path(tmp))
         typer.echo(f"imported {n:,} CVE records that reference a GHSA from {cve_list.name}")
-        if (made := _release_date(cve_list.name)) and datetime.now(UTC) - made > DELTA_BOOTSTRAP + timedelta(days=1):
-            typer.echo(f"warning: {cve_list.name} is from {made:%Y-%m-%d}, but a new tracker reads only the last "
-                       f"{DELTA_BOOTSTRAP.days} days of CVE changes: CVEs from the days between are missed. Use the "
-                       "newest bulk export (F-216).", err=True)  # fmt: skip
+        if (made := bulk_export_date(cve_list.name)) and datetime.now(UTC) - made >= DELTA_LOG_SPAN:
+            typer.echo(f"warning: {cve_list.name} is from {made:%Y-%m-%d}, but the CVE List's change log reaches back "
+                       f"only about {DELTA_LOG_SPAN.days + 1} days: CVEs changed between are missed. Use the newest "
+                       "bulk export (F-216, F-220).", err=True)  # fmt: skip
 
     async def go() -> dict[str, object]:
         async with HttpClient(
@@ -229,15 +228,6 @@ def track(
     typer.echo(json.dumps(report, indent=1, default=str))
     for e in events[:40]:  # type: ignore[index]
         typer.echo(f"  {e}")
-
-
-def _release_date(name: str) -> datetime | None:
-    """The date in a cvelistV5 bulk export's file name (2026-11-17_all_CVEs_at_midnight.zip.zip, cve_2026-10-25_…)."""
-    m = re.search(r"(\d{4})-(\d{2})-(\d{2})", name)
-    try:
-        return datetime(int(m[1]), int(m[2]), int(m[3]), tzinfo=UTC) if m else None
-    except ValueError:
-        return None
 
 
 def _previous_feed(path: Path) -> dict[str, tuple[str, str]] | None:

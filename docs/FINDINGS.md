@@ -3420,6 +3420,37 @@ Answered:
 - **Implication:** 0.1.0a18 shipped as tested, and its GitHub pipeline publishes from a private repository on the Free plan.
 - **Sources:** the runs above; PyPI; ghcr.io; gitlab.com/limbowatch/limbowatch-component.
 
+### F-220
+- **Date:** 2026-11-17 · **Status:** confirmed (direct observation)
+- **Question:** Does the own-feed GitLab pipeline (0.1.0a18) work in real GitLab CI, keep its state between runs, and serve a feed scans can use?
+- **Method:** a public scratch project `gitlab.com/limbowatch/own-feed-test` (group `limbowatch`, GitLab Free).
+  - Set-up: the released `.gitlab-ci.yml`, `WATCH=focused` (the group's projects), and a masked, protected `LIMBOWATCH_GITHUB_TOKEN` (fine-grained, public repositories read-only, entered by the owner). A scan job uses component `0.1.0-alpha.18` with `LIMBOWATCH_FEED: public/feed`.
+  - Runs started from the UI ("web"): pipelines 3077738100 and 3077812642 (as released), then 3077874490, 3077915353 and 3077924031 (with the fix below).
+  - Probes in API-started pipelines, from inside a job, printing only status codes:
+    - `GET /projects/:id/jobs/artifacts/main/download?job=pages` with the job token as header and as parameter, and with none;
+    - generic package upload, download, list and delete with the job token.
+  - The CVE List's `deltaLog.json`, read once (3,230 entries).
+- **Result:**
+  - **State was never restored.** The second released run logged "no earlier state: starting a new one", downloaded the CVE List again, and took 9.3 min.
+    - The probe got 404 with the job token (header and parameter) and 200 (2.4 MB) with no token, only because the project is public. A private project would get 404 every run.
+    - GitLab's docs mark the endpoint's `job_token` parameter "Premium and Ultimate only", while listing job artifacts downloads as allowed for job tokens.
+    - The endpoint also picks the newest successful pipeline by creation time. Once a probe pipeline without a `pages` job had succeeded, even an owner's token got 404.
+  - **The package registry works with the job token on Free:** upload 201 (twice), download 200 returning the newest upload, list 200, delete 204. The pipeline now keeps its state there (`limbo-feed-state/1/state.tar.gz`, about 2.1 MB for this focused feed).
+    - The first fixed run started new and saved its state. The second restored 12 files, skipped the CVE List, and took 76 s instead of 594 s. The third left exactly two copies.
+  - **Pages:** the project got a unique domain, `https://own-feed-test-538628.gitlab.io`. The `https://limbowatch.gitlab.io/own-feed-test/` the docs gave, and the unique domain itself, both redirected to sign-in, because the group's projects have Pages visibility `private`. After setting it to "everyone", the feed downloaded, checksums matched (49 advisories), and a local scan of the sample against the URL gave 46 findings with 0 repositories polled.
+  - **The scan job** read `public/feed` from the `pages` job and found 46 findings, 0 polled, crediting "a feed built with Limbowatch".
+  - **First-run time:** 17 of the first run's 18 min went to 2,265 single CVE record downloads from raw.githubusercontent.com: the last two days of the delta, although the bulk export was from that midnight. The delta log spans 2026-10-18 to 2026-11-17 (about 30 days). Changes since the export's midnight less an hour came to 164 records.
+  - **Run report:** with `--only-seeds`, `releases.*.added` showed 216 (npm) and others, while the watchlist stayed at 4. It counted repositories before `add_repos` skipped them.
+- **Caveats:**
+  - The fixed pipeline ran with the 0.1.0a18 image; the faster first run needs the next release's image to be seen in CI.
+  - Only GitLab Free (gitlab.com) was observed.
+  - The registry fix was tested in a public project. The job token's registry access doesn't depend on visibility, but a private project wasn't run.
+- **Implication:**
+  - As released up to 0.1.0a18, the GitLab pipeline rebuilt from nothing every run. In a private project a popular feed would never fill. Fixed on main (Unreleased).
+  - A new tracker reads CVE changes from the bulk export's date.
+  - The own-feed docs now name the Pages URL and visibility.
+- **Sources:** the pipelines and probes above; docs.gitlab.com/api/job_artifacts/ and /ci/jobs/ci_job_token/; CVEProject/cvelistV5 `cves/deltaLog.json`.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

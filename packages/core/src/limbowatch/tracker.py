@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -48,6 +49,10 @@ log = logging.getLogger(__name__)
 
 REVIEW_OVERLAP = timedelta(days=2)  # re-read recent reviews: late edits, ties on the cursor
 DELTA_BOOTSTRAP = timedelta(days=2)  # first run: only this much of the CVE delta log
+# The CVE List's deltaLog.json holds about 30 days of changes (3,230 entries from 2026-10-18 to 2026-11-17, F-220).
+# A bulk export younger than this starts the delta there; an older one leaves a gap.
+DELTA_LOG_SPAN = timedelta(days=29)
+BULK_OVERLAP = timedelta(hours=1)  # the export is the List as of 00:00 UTC; re-read the hour before it
 RESERVED_RECHECK = timedelta(hours=20)
 NVD_RECHECK = timedelta(days=7)
 POLL_WORKERS = 8
@@ -540,15 +545,14 @@ class Tracker:
                 ):
                     new.add(repo)
                     hit[repo] = max(hit.get(repo, rel.published_at), rel.published_at)
-            if new:
-                self.add_repos(new, f"release:{feed.source}")
+            added = self.add_repos(new, f"release:{feed.source}") if new else 0  # none with --only-seeds
             with self.store.session() as s:
                 for row in s.execute(select(Repo).where(Repo.full_name.in_(hit))).scalars():
                     stamp = _iso(hit[row.full_name])
                     if stamp and (row.released_at is None or stamp > row.released_at):
                         row.released_at = stamp
             report.releases[feed.source] = {
-                "releases": len(feed.releases), "watched": len(hit) - len(new), "added": len(new),
+                "releases": len(feed.releases), "watched": len(hit) - len(new), "added": added,
                 "complete": feed.complete, "newest": _iso(feed.newest),  # a stale "newest" means the feed lags
             }  # fmt: skip
             # A complete feed moves on to its own position (now for Packagist); a partial one keeps its place
@@ -726,9 +730,20 @@ class Tracker:
         return report
 
 
-def import_cve_list(store: Store, release_zip: Path, workdir: Path) -> int:
+def bulk_export_date(name: str) -> datetime | None:
+    """The date in a cvelistV5 bulk export's file name (2026-11-17_all_CVEs_at_midnight.zip.zip, cve_2026-10-25_…)."""
+    m = re.search(r"(\d{4})-(\d{2})-(\d{2})", name)
+    try:
+        return datetime(int(m[1]), int(m[2]), int(m[3]), tzinfo=UTC) if m else None
+    except ValueError:
+        return None
+
+
+def import_cve_list(store: Store, release_zip: Path, workdir: Path, now: datetime | None = None) -> int:
     """Bootstrap: every CVE in a bulk CVE List release that references a GHSA. Finds uncited CVEs that
-    other CNAs (mostly VulnCheck) assigned before the tracker started (F-050)."""
+    other CNAs (mostly VulnCheck) assigned before the tracker started (F-050). A new tracker then reads the CVE
+    changes since the export, not the last `DELTA_BOOTSTRAP`: on 2026-11-17 that was 164 records instead of 2,265,
+    one request each (F-220). Only when the delta log still reaches back that far."""
     n = 0
     batch: list[Cve] = []
     for info in cve_src.bulk_records(release_zip, workdir):
@@ -742,4 +757,7 @@ def import_cve_list(store: Store, release_zip: Path, workdir: Path) -> int:
         for row in batch:
             s.merge(row)
     store.set_cursor("cve_bulk", release_zip.name)
+    made = bulk_export_date(release_zip.name)
+    if made and store.cursor("cve_delta") is None and (now or datetime.now(UTC)) - made < DELTA_LOG_SPAN:
+        store.set_cursor("cve_delta", _iso(made - BULK_OVERLAP) or "")
     return n + len(batch)

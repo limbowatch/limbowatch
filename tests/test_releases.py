@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
+import pytest
 import respx
 from limbowatch import schedule
 from limbowatch.http import HttpClient
@@ -89,7 +90,10 @@ async def test_go_index_skips_pseudo_versions_and_packagist_skips_branches(no_sl
     assert [r.package for r in pk.releases] == ["vendor/pkg"] and pk.releases[0].repo is None
 
 
-async def test_tracker_marks_released_repos_and_adds_popular_ones(no_sleep: Any) -> None:
+@pytest.mark.parametrize("only_seeds", [False, True])
+async def test_tracker_marks_released_repos_and_adds_popular_ones(no_sleep: Any, only_seeds: bool) -> None:
+    """With --only-seeds, popular repos that released aren't added, and the run report says so (F-220: it counted
+    them as added)."""
     store = Store()
     with store.session() as s:
         s.add(Repo(full_name="org/watched", sources=["seed"], first_seen=iso(NOW), last_polled_at=iso(NOW)))
@@ -112,16 +116,19 @@ async def test_tracker_marks_released_repos_and_adds_popular_ones(no_sleep: Any)
         router.get(url__startswith=releases.PACKAGIST_CHANGES).mock(return_value=httpx.Response(200, json=changes))
         async with HttpClient(sleep=no_sleep) as http:
             report = RunReport(started_at=iso(NOW))
-            await Tracker(store, http, TrackerConfig(releases=True, release_min_dependents=100)).collect_releases(
-                report
-            )
+            cfg = TrackerConfig(releases=True, release_min_dependents=100, only_seeds=only_seeds)
+            await Tracker(store, http, cfg).collect_releases(report)
     with store.session() as s:
         rows = {r.full_name: r for r in s.query(Repo).all()}
     assert rows["org/watched"].released_at and rows["vendor/pkg"].released_at  # Packagist matched by name
-    assert "big/lib" in rows and rows["big/lib"].sources == ["release:npmjs.org"]  # 5,000 dependents: watched now
+    if only_seeds:
+        assert "big/lib" not in rows
+    else:
+        assert "big/lib" in rows and rows["big/lib"].sources == ["release:npmjs.org"]  # 5,000 dependents: watched
     assert "me/toy" not in rows  # 3 dependents: not added
     assert report.releases["npmjs.org"] == {
-        "releases": 3, "watched": 1, "added": 1, "complete": True, "newest": iso(rel.replace(microsecond=0)),
+        "releases": 3, "watched": 1, "added": 0 if only_seeds else 1, "complete": True,
+        "newest": iso(rel.replace(microsecond=0)),
     }  # fmt: skip
     assert report.releases["proxy.golang.org"]["complete"] is False  # a failing feed is reported, not silent
     assert store.cursor("releases:npmjs.org") and store.cursor("releases:proxy.golang.org") is None

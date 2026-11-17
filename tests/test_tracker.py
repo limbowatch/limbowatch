@@ -371,8 +371,17 @@ def test_cve_list_bootstrap_finds_uncited_cves(tmp_path: Path) -> None:
     store = Store()
     work = tmp_path / "work"
     work.mkdir()
-    assert import_cve_list(store, release, work) == 1
+    assert import_cve_list(store, release, work, now=datetime(2026, 10, 25, 8, tzinfo=UTC)) == 1
     assert store.cursor("cve_bulk") == release.name
+    # a new tracker reads the CVE changes since the export (and the hour before), not the last two days (F-220)
+    assert store.cursor("cve_delta") == "2026-10-24T23:00:00Z"
+    old = Store()
+    import_cve_list(old, release, work, now=datetime(2026, 11, 30, tzinfo=UTC))  # beyond the delta log: as before
+    assert old.cursor("cve_delta") is None
+    kept = Store()
+    kept.set_cursor("cve_delta", "2026-10-26T00:00:00Z")  # a tracker already reading the delta keeps its place
+    import_cve_list(kept, release, work, now=datetime(2026, 10, 27, tzinfo=UTC))
+    assert kept.cursor("cve_delta") == "2026-10-26T00:00:00Z"
 
 
 async def test_daily_report_tracks_changes(tmp_path: Path, no_sleep: Any) -> None:

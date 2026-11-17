@@ -16,16 +16,16 @@ Pick the pipeline for your CI and copy it into a repository or project of your o
 | CI | File | Feed URL |
 |---|---|---|
 | GitHub Actions | [deploy/own-feed/github/limbo-feed.yml](../deploy/own-feed/github/limbo-feed.yml) → `.github/workflows/limbo-feed.yml` | `https://<owner>.github.io/<repo>/feed/` (GitHub Pages) |
-| GitLab CI | [deploy/own-feed/gitlab/.gitlab-ci.yml](../deploy/own-feed/gitlab/.gitlab-ci.yml) → `.gitlab-ci.yml`, plus a daily pipeline schedule | `https://<namespace>.gitlab.io/<project>/feed/` (GitLab Pages) |
+| GitLab CI | [deploy/own-feed/gitlab/.gitlab-ci.yml](../deploy/own-feed/gitlab/.gitlab-ci.yml) → `.gitlab-ci.yml`, plus a daily pipeline schedule | Your Pages URL with `/feed/` (Deploy → Pages; new projects get a unique domain such as `https://<project>-<id>.gitlab.io`) |
 
 The comments at the top of each file list what to set. In short:
 - **A GitHub token** (`LIMBOWATCH_GITHUB_TOKEN`): a fine-grained token with read access to public repositories. GitHub allows 5,000 requests an hour with one. Without one, GitHub Actions' job token allows 1,000, and GitLab CI has only GitHub's anonymous 60, which is too few.
 - **Your own seeds** (optional): `tracker-seeds/*.txt` in the same repository, one `owner/repo` per line, such as the source repositories of the dependencies you care about most.
 - **What to watch:** popular repositories, like limbo.watch, or only your own projects' dependencies. See [Popular or focused](#popular-or-focused).
-- **Hosting:** both pipelines can publish to Pages. On GitHub, the feed can instead be kept in a branch of the same repository, which your scan jobs check out: see [In a repository](#in-a-repository). Any static HTTPS server works too: S3, GCS, or an internal web server. The feed is the `feed/` folder of the output.
+- **Hosting:** both pipelines can publish to Pages. On GitHub, the feed can instead be kept in a branch of the same repository, which your scan jobs check out: see [In a repository](#in-a-repository). Any static HTTPS server works too: S3, GCS, or an internal web server. The feed is the `feed/` folder of the output. On GitLab, Pages follows the project's visibility settings (Settings → General → Visibility → Pages), and scans need to reach it without signing in. In a private project, use a host your scan jobs can reach, or download the feed with a token and pass the directory.
 
 Each run:
-1. Restores the tracker's state from the last successful run: a `limbo-feed-state` branch on GitHub, the job's artifacts on GitLab.
+1. Restores the tracker's state from the last successful run: a `limbo-feed-state` branch on GitHub, a generic package `limbo-feed-state` in the project's package registry on GitLab. On GitLab the job's own token reads and writes it, and only the two newest copies are kept. Job artifacts would be simpler, but on GitLab Free a job's token can't download an earlier pipeline's artifacts (F-220).
 2. On the first run only, downloads the CVE List's bulk export (about 650 MB) so CVEs that name an advisory are known.
 3. Runs `limbowatch track`. It syncs GitHub's reviewed advisories and new CVEs, then polls the watched repositories that are due, within a request budget.
 4. Runs `limbowatch publish --feed-only`. It writes `feed/` (all.zip, watchlist.json, index.json, SHA256SUMS.txt, one JSON per advisory), `osv/` (the same advisories in OSV-Scanner's download layout) and `metrics.json`.
@@ -113,7 +113,7 @@ Each run polls at most `MAX_NEW` (`max-new`) repositories for the first time, 2,
 Measured on 2026-11-17 with the GitLab pipeline's script in the image (FINDINGS F-215):
 - **First run, from nothing:** about 19 minutes. That covers downloading the CVE List (650 MB) and importing its 30,685 CVE records that name an advisory, syncing 37,881 reviewed advisories, and watching 67,350 repositories (with `MAX_NEW` 50, only 50 were polled). Most of the time went to the release checks, mostly 7,387 requests to Maven Central.
 - **Next run:** 40 seconds. It restored the state, took the advisories reviewed since, and polled 50 more repositories.
-- **Focused, first run** (F-216): the GitHub pipeline listed the limbowatch organization's 5 projects (210 repositories, 7 seconds), then polled all 210 in an 11-minute first run, most of it the CVE List import. Scans against a focused feed of three projects' 1,511 repositories found everything the limbo feed did, with 0 to 4 GitHub requests each instead of about 500, in 1.6 to 7.5 seconds.
+- **Focused, first run** (F-216): the GitHub pipeline listed the limbowatch organization's 5 projects (210 repositories, 7 seconds), then polled all 210 in an 11-minute first run, most of it reading 2,220 changed CVE records one request each. From 0.1.0a19 a new tracker reads only the changes since the bulk export it imported (164 records instead of 2,265 on 2026-11-17, F-220). Scans against a focused feed of three projects' 1,511 repositories found everything the limbo feed did, with 0 to 4 GitHub requests each instead of about 500, in 1.6 to 7.5 seconds.
 
 ## Licenses
 
