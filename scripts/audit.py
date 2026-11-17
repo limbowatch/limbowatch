@@ -631,7 +631,9 @@ def check_proof(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
         rep.note(p)
 
 
-def check_popular(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
+def check_popular(rep: Report, recs: dict[str, dict[str, Any]], run_at: datetime | None) -> None:
+    """A shown advisory reviewed or in OSV is an error only when its source dates that before the tracker run the
+    feed was built from (`run_at`); after it, the next build drops it (F-169)."""
     from limbowatch.publish.showcase import counts
     from limbowatch.publish.site import SHOWN_PACKAGES
 
@@ -675,24 +677,33 @@ def check_popular(rep: Report, recs: dict[str, dict[str, Any]]) -> None:
     if {x["repo"]: x["advisories"] for x in live["projects"]} != per:
         problems.append("/popular/data.json differs from the recount")
 
-    def one(g: str) -> str | None:
+    def after(stamp: str | None) -> bool:
+        t = at(stamp)
+        return bool(run_at and t and t > run_at)
+
+    def one(g: str) -> tuple[str, bool] | None:
+        """What took it out of limbo, and whether its source dates that after the tracker run."""
         s2, ga = gh(f"/advisories/{g}")
         if s2 == 200 and ga.get("type") == "reviewed":
-            return f"{g} reviewed at {ga.get('github_reviewed_at')}"
-        if http.get(f"https://api.osv.dev/v1/vulns/{g}").status_code == 200:
-            return f"{g} in OSV"
+            return f"{g} reviewed at {ga.get('github_reviewed_at')}", after(ga.get("github_reviewed_at"))
+        r = http.get(f"https://api.osv.dev/v1/vulns/{g}")
+        if r.status_code == 200:
+            return f"{g} in OSV since {r.json().get('published')}", after(r.json().get("published"))
         return None
 
     with ThreadPoolExecutor(8) as ex:
         seen = [x for x in ex.map(one, sorted(sc.serious)) if x]
-    problems += seen
+    since = [t for t, later in seen if later]
+    problems += [t for t, later in seen if not later]
     failed = [p.repo for p in sc.projects if p.error]
     rep.check("popular", not problems, f"home page shows {len(sc.serious):,} high or critical of {len(sc.ids):,} in "
               f"{len(sc.affected)} of {len(sc.read)} projects read (showcase run {run['id']}, {data.get('scanned_at')}); "
               f"{len(sc.serious) - len(seen)} of {len(sc.serious)} still unreviewed and not in OSV; "
-              f"{len(failed)} project(s) not read")  # fmt: skip
+              f"{len(failed)} project(s) not read; {len(since)} left limbo after the tracker run")  # fmt: skip
     for p in problems:
         rep.note(p)
+    for t in since:
+        rep.note(f"{t} (after the run)")
     if failed:
         rep.note(f"not read: {', '.join(failed)}")
     if newer:
@@ -727,7 +738,7 @@ def main() -> None:
         check_old_watchers(rep, z)
         check_examples(rep, st)
         check_proof(rep, recs)
-        check_popular(rep, recs)
+        check_popular(rep, recs, at(m["last_run"]["started_at"]))
     rep.lines.append(f"\n{'All checks passed.' if not rep.failed else 'Failed: ' + ', '.join(rep.failed)}")
     text = "\n".join(rep.lines) + "\n"
     if a.out:
