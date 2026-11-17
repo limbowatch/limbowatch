@@ -3376,6 +3376,29 @@ Answered:
 - **Implication:** 0.1.0a17 shipped as tested. An independent review loop caught real defects again: three rounds, five fixes.
 - **Sources:** the runs above; PyPI; ghcr.io; gitlab.com/limbowatch/limbowatch-component.
 
+### F-218
+- **Date:** 2026-11-17 · **Status:** confirmed (direct observation)
+- **Question:** Do the own-feed GitHub pipeline (0.1.0a17, [F-215](#f-215), [F-216](#f-216)) and the documented scan snippet work in real GitHub Actions, in a public and a private repository?
+- **Method:** two scratch repositories in the limbowatch organization (Free plan), each with `deploy/own-feed/github/limbo-feed.yml` as released, `LIMBO_FEED_WATCH=focused` (the organization's public repositories; job token only, no secrets):
+  - `limbowatch/own-feed-test`, public, `pages` (Pages source: GitHub Actions). Runs 44032637746 (first) and 44035152170 (second).
+  - `limbowatch/own-feed-test-private`, private, `branch`. Runs 44032642520 (first) and 44035146760 (second, with the fix below). A `scan` workflow there checks out `limbo-feed` and runs `limbowatch/limbowatch-action@v0.1.0a17` with `LIMBOWATCH_FEED: limbo-feed/feed` on limbo-poc's `go/go.mod` (run 44035378424), as docs/OWN_FEED.md shows.
+  - Locally: the Pages feed downloaded, `shasum -c`, `gh attestation verify all.zip --repo limbowatch/own-feed-test`, and scans of limbo-poc against the Pages URL and against limbo.watch.
+- **Result:**
+  - **Public, Pages:** the first run took 18.5 minutes: the CVE List bulk export (2026-11-17), `repos` over the organization, track and publish, state saved, attestation, Pages deploy. The feed had 163 advisories in limbo and a 210-repository watchlist. The second run took about 1 minute: state restored, 0 repositories polled (all fresh), the same 163.
+    - All 3 checksums match. The attestation verifies: one, by `.github/workflows/limbo-feed.yml` on `refs/heads/main`.
+    - limbo-poc against the Pages URL found 103 findings, the same 103 as against limbo.watch, with 0 repositories polled in either.
+  - **Private, branch: the first run failed at the attest step.** "Failed to persist attestation: Feature not available for the limbowatch organization. To enable this feature, please upgrade the billing plan, or make this repository public." The state had already been saved, but the feed was never published.
+    - GitHub's attestation docs name no plan. They say private repositories use GitHub's own Sigstore instance.
+    - Fix: the attest step is `continue-on-error` in private repositories only.
+    - The second run then logged the same error, carried on, and published the branch: one commit holding `feed/all.zip` (154 KB), `watchlist.json`, `index.json` and `SHA256SUMS.txt`, still one commit after two runs.
+  - **Scan from the checked-out branch:** 46 findings, 0 repositories polled, 163 feed advisories. The report credits "a feed built with Limbowatch (…/limbo-feed/feed)". A local scan of the same `go.mod` against limbo.watch also gives 46.
+- **Caveats:**
+  - Only the Free plan was observed; whether Team includes private-repository attestations wasn't checked.
+  - Private repositories' Pages weren't tried, since that depends on the plan.
+  - The GitLab pipeline wasn't run in GitLab CI: it needs a GitHub token as a CI/CD variable.
+- **Implication:** the GitHub pipeline works as documented in public repositories. As released in 0.1.0a17, it failed in private repositories on plans without attestations, and that is fixed on main. The branch option and the scan snippet work as documented.
+- **Sources:** the runs above; GitHub REST API; docs.github.com/en/actions/concepts/security/artifact-attestations.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

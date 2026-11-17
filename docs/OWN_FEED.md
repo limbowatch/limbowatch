@@ -29,7 +29,7 @@ Each run:
 2. On the first run only, downloads the CVE List's bulk export (about 650 MB) so CVEs that name an advisory are known.
 3. Runs `limbowatch track`. It syncs GitHub's reviewed advisories and new CVEs, then polls the watched repositories that are due, within a request budget.
 4. Runs `limbowatch publish --feed-only`. It writes `feed/` (all.zip, watchlist.json, index.json, SHA256SUMS.txt, one JSON per advisory), `osv/` (the same advisories in OSV-Scanner's download layout) and `metrics.json`.
-5. Saves the state and publishes the feed. On GitHub, it also attests the feed files with the workflow's build provenance.
+5. Saves the state and publishes the feed. On GitHub, it also attests the feed files with the workflow's build provenance. In a private repository that works only if your GitHub plan includes attestations for private repositories: on the Free plan, GitHub refuses ("Feature not available … upgrade the billing plan, or make this repository public"), so the step warns and the feed is published unattested. GitHub Pages for a private repository also depends on the plan; the `branch` option works on any plan.
 
 Everything runs in the Limbowatch image of the release you pin, by digest, the same image the scanner uses. To verify the image first: `gh attestation verify oci://ghcr.io/limbowatch/limbowatch:<tag> --owner limbowatch`.
 
@@ -96,7 +96,7 @@ Check the branch out rather than downloading the two files from `raw.githubuserc
 
 What changes from the limbo feed:
 - **The report credits your feed.** The table's header names it, the JSON's `feed` holds its URL or directory, and the attribution reads "via a feed built with Limbowatch".
-- **No attestation check.** The scan verifies limbo.watch's feed against limbo.watch's build attestation, which says nothing about your feed. With your feed, `--verify-feed auto` skips the check and `require` is refused. Your feed lives on your host, inside your trust boundary. On GitHub, check its provenance with `gh attestation verify all.zip --repo <owner>/<repo>`.
+- **No attestation check.** The scan verifies limbo.watch's feed against limbo.watch's build attestation, which says nothing about your feed. With your feed, `--verify-feed auto` skips the check and `require` is refused. Your feed lives on your host, inside your trust boundary. On GitHub, if the run attested it, check its provenance with `gh attestation verify all.zip --repo <owner>/<repo>`.
 - **The same age check.** A feed more than 3 days old gets a warning: it means your pipeline stopped running.
 - **Holes are filled at scan time,** as with the limbo feed. A dependency's source repository that your feed doesn't watch, or hasn't checked in 10 days, is read on GitHub during the scan. A new feed with a small watchlist still gives complete results, at the cost of GitHub requests per scan, and those drop as your watchlist grows.
 

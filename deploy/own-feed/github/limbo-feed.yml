@@ -19,7 +19,9 @@
 #
 # What it does: the tracker's state lives on a `limbo-feed-state` branch of this repository; each run reads
 # GitHub's reviewed advisories and new CVEs, polls the watched repositories that are due, and publishes the feed
-# (all.zip, watchlist.json, index.json, SHA256SUMS.txt and OSV-Scanner zips), attested by this workflow.
+# (all.zip, watchlist.json, index.json, SHA256SUMS.txt and OSV-Scanner zips), attested by this workflow (in a
+# private repository, only if your plan includes attestations there; otherwise the step warns and the feed is
+# published unattested).
 # Everything runs in the Limbowatch image, pinned by digest; it contacts only public sources (GitHub, OSV, CVE
 # Services, the Go module proxy, ecosyste.ms, Packagist, Maven Central; NVD with NVD_API_KEY), never limbo.watch.
 name: limbo-feed
@@ -146,6 +148,9 @@ jobs:
           git -c user.name="limbo-feed" -c user.email="limbo-feed@users.noreply.github.com" commit -q -m "state $(date -u +%F)" || exit 0
           git push -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}" limbo-feed-state
       - name: Attest the feed
+        # In a private repository, GitHub attests only on some plans ("Feature not available ... upgrade the billing
+        # plan, or make this repository public", Free organization, 2026-11-17): the feed is then published unattested.
+        continue-on-error: ${{ github.event.repository.private }}
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |

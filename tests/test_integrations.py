@@ -187,6 +187,7 @@ def test_own_feed_pipelines_build_only_the_feed_and_keep_their_state() -> None:
     assert "limbowatch publish --state state/state --out site --feed-only" in run and "limbo.watch" not in run
     assert "git push" in run and "limbo-feed-state" in run
     attest = next(s for s in steps if "actions/attest@" in s.get("uses", ""))
+    assert attest["continue-on-error"] == "${{ github.event.repository.private }}"  # Free plans: public repos only
     assert set(attest["with"]["subject-path"].split()) == {"site/feed/all.zip", "site/feed/watchlist.json",
                                                            "site/feed/index.json"}  # fmt: skip
     # focused: `limbowatch repos` over the orgs, then only those repos; branch: one commit, force-pushed
