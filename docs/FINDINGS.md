@@ -3490,6 +3490,25 @@ Answered:
 - **Implication:** 0.1.0a20 shipped as tested.
 - **Sources:** the runs above; ghcr.io; gitlab.com/limbowatch/limbowatch-component.
 
+### F-223
+- **Date:** 2026-11-17 · **Status:** confirmed (direct observation)
+- **Question:** Do the CLI-only own-feed pipelines (no Limbowatch image) work in real CI, from nothing and from saved state?
+- **Method:** the files as committed in 73fd8a9, with Limbowatch 0.1.0a20 from PyPI and OSV-Scanner 2.7.1.
+  - **GitHub:** `deploy/own-feed/github/limbo-feed-cli.yml`, in the private scratch repository `limbowatch/own-feed-test-private` (job token only, `LIMBO_FEED_ORGS` unset, so the `limbowatch` organization), after deleting its `limbo-feed-state` branch. Runs 44068646298 (from nothing) and 44071123384.
+  - **GitLab:** `deploy/own-feed/gitlab/.gitlab-ci.cli.yml` plus the scratch scan job, in `limbowatch/own-feed-test`, after deleting its saved state. Pipelines 3078455459 (from nothing) and 3078526109.
+- **Result:**
+  - **Install:** both checked OSV-Scanner against its release's sums (`osv-scanner_linux_amd64: OK`) and reported `limbowatch 0.1.0a20`. GitHub used the runner's `pipx`, `git`, `gh`, `curl` and `jq`, with no actions; GitLab used `python:3.12`.
+  - **GitHub first run (15.7 min):** `repos` listed 210 repositories from 6 projects (9 dependencies or upstream sources with no GitHub repository, 18 not readable, all listed). It imported 30,685 CVE records from the dated bulk export, read 194 changed records, polled 210 repositories, and published 163 advisories to a one-commit `limbo-feed` branch.
+  - **GitHub second run (53 s):** the state restored from `limbo-feed-state`; 1 CVE record, 0 repositories due, the same 163 advisories, and the branch still one commit.
+  - **GitLab first run (13.9 min):** no saved state; 4 repositories from 2 projects; 194 CVE records; 49 advisories; state saved. The scan job read `public/feed`.
+  - **GitLab second run (102 s):** the state restored with curl, 1 CVE record, 0 repositories due, 49 advisories, 2 copies kept.
+  - The CLI-only first runs took longer than the image ones (GitLab 13.9 against 8.7 min, F-221). The time wasn't broken down; installing and downloading the CVE List outside the image are the likely difference.
+- **Caveats:**
+  - One run of each. The GitLab state download returned 200 directly, so the redirect path (followed without the token) wasn't exercised.
+  - The CLI's dependencies come from pip's resolution at install time, not pinned by hash.
+- **Implication:** both CLI-only pipelines work as documented in docs/OWN_FEED.md#cli-only.
+- **Sources:** the runs above.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

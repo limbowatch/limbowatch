@@ -48,6 +48,10 @@ include:
     sarif: limbowatch.sarif
 ```
 
+**Run it standalone** (new): companies whose policy keeps vulnerability data on systems they run can skip limbo.watch entirely.
+- **No feed:** add `--feed none` (or `LIMBOWATCH_FEED: none` in CI). Each scan reads your dependencies' advisories on GitHub itself.
+- **Your own feed:** a daily pipeline on your own CI builds the same feed, for your own projects' dependencies, and your scans read it with `--feed <URL or directory>`. Copy one file, with the Limbowatch image or [the CLI only](docs/OWN_FEED.md#cli-only): [docs/OWN_FEED.md](docs/OWN_FEED.md), [limbo.watch/scan/standalone](https://limbo.watch/scan/standalone/).
+
 What it finds, measured against the live feed:
 
 - **260 critical or high advisories in limbo in the dependency files of 55 popular open-source projects** (625 in all, in 54 of the 55), on 2026-11-15. brace-expansion, ws and vite each pin an affected version in 38 to 43 of them. Recounted daily: [limbo.watch/popular](https://limbo.watch/popular/), [FINDINGS F-203](docs/FINDINGS.md#f-203).
