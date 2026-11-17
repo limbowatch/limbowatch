@@ -24,7 +24,8 @@ variables:
   LIMBOWATCH_REF: v0.1.0a16
   # popular: the release's seed lists, about 67,000 repositories behind the most-used packages, like limbo.watch.
   # focused: only the source repositories of your own projects' dependencies (`limbowatch repos` over FOCUS_GROUPS,
-  # refreshed each run), a few thousand at most: fast, and complete for your scans.
+  # refreshed each run), a few thousand at most, so runs are fast; what it can't match is in
+  # docs/OWN_FEED.md#popular-or-focused.
   WATCH: popular
   FOCUS_GROUPS: $CI_PROJECT_NAMESPACE # space-separated GitLab groups, for WATCH focused
   BUDGET: "3500" # GitHub requests a run

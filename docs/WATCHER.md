@@ -287,7 +287,7 @@ On four projects it found every advisory the feed found (F-214). What it costs, 
 - **No CVE List facts.** A CVE the advisory doesn't cite isn't found (3 of 210 findings showed "no CVE anywhere" instead), and an advisory whose CVE is already reviewed under another ID isn't recognised as a duplicate, so it can show as a finding the feed leaves out (1 *possible* finding on Mastodon).
 - **Only GitHub.** As with the feed, advisories are read from GitHub repositories; dependencies whose code is elsewhere are reported as not checked.
 
-Reports say which way they were made: the table's header reads "no feed", the JSON's `feed` is `null`, and the attribution says the advisories were read from GitHub. `--state` keeps a finding from an earlier run unless its repository was read this run, so switching between modes doesn't report findings as fixed.
+Reports say which way they were made: the table's header reads "no feed", the JSON's `feed` is `null`, and the attribution says the advisories were read from GitHub. With `--state`, a finding from an earlier run is kept while its package is still installed and this scan couldn't have seen it: the package's source repository is unknown or couldn't be read, or the advisory's repository wasn't read (an earlier run with a feed matched it there by name). So switching between modes doesn't report findings as fixed, while a package you removed is still reported as no longer affected.
 
 ## Security and data
 

@@ -370,7 +370,7 @@ def test_scan_rejects_an_unknown_tracker() -> None:
 
 # --- end to end, offline: the CLI against a mocked GitHub ----------------------------------------------------
 
-from test_e2e_upstream import mocked, project, run, world  # noqa: E402,F401  (world is a fixture)
+from test_e2e_upstream import _quiet_github, mocked, project, run, small_state, world  # noqa: E402,F401  (world is a fixture)
 
 
 def _gh_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -415,6 +415,27 @@ def test_scan_issues_github_opens_then_closes(world: dict[str, Any], monkeypatch
     assert r.exit_code == 0, r.output
     assert "close #12" in r.output and note.called
     assert json.loads(close.calls[0].request.content) == {"state": "closed", "state_reason": "completed"}
+
+
+def test_issues_credit_the_feed_the_scan_read(world: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: F811
+    """An issue opened from your own feed credits that feed, as the report does, not limbo.watch's (review of
+    0.1.0a17: issue bodies always named the limbo feed)."""
+    _gh_env(monkeypatch)
+    out = world["tmp"] / "own"
+    assert run(["publish", "--state", str(small_state(world["tmp"])), "--out", str(out), "--feed-only"]).exit_code == 0
+    p = project(world["tmp"], world["tags"]["v1.1.0"])
+    with respx.mock(assert_all_called=False) as router:
+        _quiet_github(router)
+        router.get(REPO).mock(return_value=httpx.Response(200, json={"visibility": "private", "has_issues": True}))
+        router.get(f"{REPO}/issues").mock(return_value=httpx.Response(200, json=[]))
+        create = router.post(f"{REPO}/issues").mock(return_value=httpx.Response(201, json=_issue(
+            12, "", labels=("limbowatch", "security", "severity:high"))))  # fmt: skip
+        r = run(["scan", str(p), "--cache", str(world["cache"]), "--feed", str(out / "feed"), "--fail-on", "none",
+                 "--issues", "github"])  # fmt: skip
+    assert r.exit_code == 0, r.output
+    body = json.loads(create.calls[0].request.content)["body"]
+    assert f"via a feed built with Limbowatch ({(out / 'feed').resolve()})" in body
+    assert "via the limbo feed" not in body
 
 
 def test_scan_issues_github_in_a_public_repo_opens_nothing(

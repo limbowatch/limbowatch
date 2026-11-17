@@ -179,7 +179,7 @@ async def test_scan_polls_only_repos_the_tracker_doesnt_cover(no_sleep: Any) -> 
         )
         async with HttpClient(sleep=no_sleep) as http:
             res = await scan(inv, http, feed_zip=feed, watchlist=watch, now=NOW)
-    assert not lodash.called
+    assert not lodash.called and res.nofeed is None  # with a feed, state needs only `unread`
     got = {(f.dependency.name, f.ghsa_id, f.source, f.cve) for f in res.findings}
     assert got == {
         ("lodash", "GHSA-10", "feed", CveLabel.NONE),
@@ -228,7 +228,9 @@ async def test_with_no_feed_every_repo_is_polled_and_unmapped_ones_arent_checked
         ("github.com/dlclark/regexp2", "GHSA-wq9v-j77v-qr26", "github")
     ]
     assert [(u.reason, u.name) for u in res.unresolved] == [(Unchecked.NO_REPO_NO_FEED, "unmapped")]
-    assert res.read == {"lodash/lodash", "dlclark/regexp2"}
+    assert res.nofeed is not None and res.nofeed.read == {"lodash/lodash", "dlclark/regexp2"}
+    assert res.nofeed.unchecked == {("npm", "unmapped")}  # its old findings are kept in state
+    assert ("npm", "lodash") in res.nofeed.installed
     assert res.stats["repos_polled"] == 2 and res.stats["repos_on_watchlist"] == 0
     assert res.stats["feed_advisories"] == 1  # the one polled just now
 

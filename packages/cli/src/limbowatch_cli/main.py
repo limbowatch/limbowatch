@@ -614,18 +614,18 @@ def scan(
             res = await watch_scan.scan(inv, http, feed_zip=zipped, watchlist=dict(wl_doc.get("repos") or {}),
                                         now=datetime.now(UTC), upstream_check=upstream, git_cache=cache,
                                         osv_commits=osv_commits)  # fmt: skip
-            gone = sorted(watch_state.vanished(old, res.findings, res.unread, res.read))
+            gone = sorted(watch_state.vanished(old, res.findings, res.unread, res.nofeed))
             seen = await asyncio.gather(*(osv_source.present(http, g) for g in gone))
             visible = {g for g, v in zip(gone, seen, strict=True) if v}
             if state_file is not None:
-                new_state, changes = watch_state.diff(old, res.findings, now, visible, res.unread, res.read)
+                new_state, changes = watch_state.diff(old, res.findings, now, visible, res.unread, res.nofeed)
                 state_file.parent.mkdir(parents=True, exist_ok=True)
                 state_file.write_text(json.dumps(new_state, indent=1, sort_keys=True) + "\n")
             if issues:
                 try:
                     log_lines.extend(await _sync_issues(http, res, inv, changes or [], issues, tracker_token or "",
                                                         issues_url, issues_project, issue_policy,
-                                                        issues_confidential, issues_dry_run))  # fmt: skip
+                                                        issues_confidential, issues_dry_run, label))  # fmt: skip
                 except (trackers.TrackerError, RuntimeError) as e:  # the scan's reports are still written
                     issues_error.append(str(e))
                     log_lines.extend(_unsent_lines(changes or []))
@@ -715,8 +715,10 @@ async def _sync_issues(
     policy: watch_issues.Policy,
     confidential: bool,
     dry_run: bool,
+    feed: str | None,
 ) -> list[str]:
-    """Open, comment on and close issues for this scan's findings (watch.issues)."""
+    """Open, comment on and close issues for this scan's findings (watch.issues). `feed`: the feed's label, for the
+    credit line (None: --feed none)."""
     url = _issues_url(kind, url)
     if kind == "github":
         project = project or os.environ.get("GITHUB_REPOSITORY")
@@ -774,7 +776,7 @@ async def _sync_issues(
             gone[key] = watch_issues.Gone.FIXED
         elif verdict is True and ids:
             gone[key] = watch_issues.Gone.VISIBLE
-    credit = output.attribution(None if res.read is not None else output.LIMBO_FEED)
+    credit = output.attribution(feed)
     actions = watch_issues.plan(current, one, existing, changes, gone, policy, tracker.public, credit)
     lines = [note] if note else []
     warning = getattr(tracker, "warning", None)
@@ -841,6 +843,7 @@ def repos(
         invs.append((str(f), load_inventory(Path("."), f, binary)))
     problems: list[str] = []  # projects that couldn't be cloned or inventoried
     unlisted: list[str] = []  # sources that couldn't be listed (completely)
+    skipped: list[tuple[str, str]] = []  # listed projects not read: archived, empty, excluded (each is reported)
 
     def take(path: Path) -> Inventory:
         inv = osv_scanner.run(path, binary, resolve_maven=resolve_maven)
@@ -852,7 +855,8 @@ def repos(
                 listings = await _list_sources(http, src.groups, src.orgs, src.gh_orgs, git or [], src.token,
                                                include_archived)  # fmt: skip
                 unlisted.extend(f"{ls.source}: {ls.error}" for ls in listings if ls.error)
-                todo, _ = org_mod.select(listings, exclude or [])
+                todo, skips = org_mod.select(listings, exclude or [])
+                skipped.extend((p.name, why.value) for p, why in skips)
                 for checked, inv in await org_mod.take_inventories(todo, src.token, take, jobs=jobs):
                     if checked.error:
                         problems.append(f"{checked.project.name}: {checked.error}")
@@ -869,7 +873,8 @@ def repos(
     names = [n for n, _ in invs]
     what = names[0] if len(names) == 1 else f"{len(names)} projects"
     unread = sum(len(inv.unresolved) for _, inv in invs)
-    text = repos_mod.seed_file(found, what, datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"))
+    when = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+    text = repos_mod.seed_file(found, what, when, skipped)
     if out is None:
         typer.echo(text, nl=False)
     else:
@@ -881,6 +886,8 @@ def repos(
                err=True)  # fmt: skip
     for line in unlisted + problems:
         typer.echo(f"repos: not read: {line}", err=True)
+    for name, why in skipped:
+        typer.echo(f"repos: skipped {name}: {why}", err=True)
     if unlisted or not names:
         raise typer.Exit(_fail("a source couldn't be listed, or no project could be read"))
 
@@ -1140,7 +1147,7 @@ def watch(
                     for c in w.checked
                     if c.result
                     for g in watch_state.vanished(
-                        olds[c.project.name], c.result.findings, c.result.unread, c.result.read
+                        olds[c.project.name], c.result.findings, c.result.unread, c.result.nofeed
                     )
                 }
             )
@@ -1154,7 +1161,7 @@ def watch(
                 changes: list[watch_state.Change] | None = None
                 if state_dir is not None:
                     new_state, changes = watch_state.diff(
-                        olds[c.project.name], c.result.findings, now, visible, c.result.unread, c.result.read
+                        olds[c.project.name], c.result.findings, now, visible, c.result.unread, c.result.nofeed
                     )
                     f = _state_path(state_dir, c.project)
                     f.parent.mkdir(parents=True, exist_ok=True)
@@ -1173,7 +1180,7 @@ def watch(
                             lines = await _sync_issues(
                                 http, c.result, c.result.inventory, changes or [], c.project.kind.value,
                                 issues_token or "", c.project.base_url, c.project.path, policy, issues_confidential,
-                                issues_dry_run,
+                                issues_dry_run, label,
                             )  # fmt: skip
                         except (trackers.TrackerError, RuntimeError) as e:
                             lines = [f"issues: {e}", *_unsent_lines(changes or [])]

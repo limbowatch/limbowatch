@@ -125,18 +125,16 @@ class Unchecked(StrEnum):
     TRANSITIVE = "transitive dependencies not resolved"
     NO_GRADLE_LOCKFILE = "Gradle build without a lockfile"
     NO_PURL = "SBOM component without a package URL"
-    # Partly checked: matched against the limbo feed by name, but not against its source repo.
+    # Partly checked: matched against the feed by name, but not against its source repo.
     # Upstream source dependencies (C/C++ and other code taken in by git or archive, PHASE0_PLAN §13.18, F-136).
     UPSTREAM_UNKNOWN = "upstream repository unknown"
     UPSTREAM_NO_REF = "upstream version or commit unknown"
     VENDORED = "vendored copy; its version is unknown"
     UPSTREAM_OFF_GITHUB = "upstream not on GitHub, where repository advisories are published"
     UPSTREAM_NO_CHECK = "upstream source not checked (--no-upstream)"
-    NO_REPO = "source repository unknown; checked against the limbo feed by name only"
-    REPO_NOT_POLLED = "source repository not checked (GitHub rate limit); checked against the limbo feed by name only"
-    REPO_NOT_READ = (
-        "source repository's advisories couldn't be read from GitHub; checked against the limbo feed by name only"
-    )
+    NO_REPO = "source repository unknown; checked against the feed by name only"
+    REPO_NOT_POLLED = "source repository not checked (GitHub rate limit); checked against the feed by name only"
+    REPO_NOT_READ = "source repository's advisories couldn't be read from GitHub; checked against the feed by name only"
     # The same three with --feed none: there is no feed to check names against, so not checked at all.
     NO_REPO_NO_FEED = "source repository unknown; not checked (--feed none: no feed to check by name)"
     REPO_NOT_POLLED_NO_FEED = "source repository not checked (GitHub rate limit); --feed none: no feed to check by name"

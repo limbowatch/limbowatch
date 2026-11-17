@@ -33,6 +33,7 @@ from limbowatch.watch import upstream_check as upcheck
 from limbowatch.watch.candidates import FeedTooLarge, FeedUnreadable, Index, from_feed_zip
 from limbowatch.watch.match import match
 from limbowatch.watch.registries import Registries
+from limbowatch.watch.state import NoFeed
 
 FEED_DEFAULT = "limbo.watch"  # --feed's default: the limbo feed, verified against its build attestation
 NO_FEED = "none"  # --feed none: no feed; every dependency's source repo is read on GitHub instead
@@ -129,9 +130,7 @@ class ScanResult:
     upstreams_checked: set[str] = field(default_factory=set)  # host/repo of upstream sources checked in full
     stats: dict[str, int] = field(default_factory=dict)
     unread: set[str] = field(default_factory=set)  # repos not polled (rate limit) or not read (an error) this run
-    # With no feed (--feed none): the repos whose advisories were read this run. An earlier finding from any other
-    # repo isn't known to be gone, so state keeps it. None: the feed covers the rest.
-    read: set[str] | None = None
+    nofeed: NoFeed | None = None  # with --feed none: what was read, for state (watch.state.NoFeed); None: a feed
 
 
 async def fetch(
@@ -357,6 +356,7 @@ class Shared:
     mapped: dict[tuple[str, str, str], mapping.Mapped] = field(default_factory=dict)
     on_watchlist: set[str] = field(default_factory=set)
     polled: set[str] = field(default_factory=set)
+    renamed: set[str] = field(default_factory=set)  # what GitHub redirected polled repos to: read too
     not_polled: set[str] = field(default_factory=set)
     not_read: set[str] = field(default_factory=set)
     upstream_check: bool = True
@@ -403,7 +403,7 @@ async def prepare(
         for c in polled.candidates:
             index.add(c)
         sh.on_watchlist, sh.polled, sh.not_polled = repos - due, polled.polled, polled.not_polled
-        sh.not_read = polled.not_read
+        sh.not_read, sh.renamed = polled.not_read, set(polled.aliases.values())
         sh.checked = await upcheck.check(http, sources, index, not_polled=sh.not_polled, not_read=sh.not_read,
                                          git_cache=git_cache,
                                          osv_commits=osv_commits, aliases=polled.aliases)  # fmt: skip
@@ -412,8 +412,8 @@ async def prepare(
 
 def assess(inv: Inventory, sh: Shared) -> ScanResult:
     """One project's findings against the shared feed, polls and mappings. No I/O."""
-    res = ScanResult(inventory=inv, unresolved=list(inv.unresolved), unread=sh.not_polled | sh.not_read,
-                     read=set(sh.polled) if sh.feedless else None)  # fmt: skip
+    res = ScanResult(inventory=inv, unresolved=list(inv.unresolved), unread=sh.not_polled | sh.not_read)
+    unchecked: set[tuple[str, str]] = set()
     no_repo, not_polled, not_read = (
         (Unchecked.NO_REPO_NO_FEED, Unchecked.REPO_NOT_POLLED_NO_FEED, Unchecked.REPO_NOT_READ_NO_FEED)
         if sh.feedless
@@ -437,6 +437,12 @@ def assess(inv: Inventory, sh: Shared) -> ScanResult:
                 res.unresolved.append(_partial(d, not_polled, m.repo))
             elif m.repo in sh.not_read:
                 res.unresolved.append(_partial(d, not_read, m.repo))
+            else:
+                continue
+            unchecked.add((d.ecosystem, d.name))
+    if sh.feedless:
+        res.nofeed = NoFeed(frozenset(sh.polled | sh.renamed), frozenset((d.ecosystem, d.name) for d in deps),
+                            frozenset(unchecked))  # fmt: skip
     index = sh.index
     go = [c for cs in index.by_repo.values() for c in cs if any(p.ecosystem == "go" for p in c.adv.packages)]
     per_repo: dict[str, set[tuple[str, str]]] = {}

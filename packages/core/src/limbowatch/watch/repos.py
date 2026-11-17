@@ -47,8 +47,9 @@ async def find(http: HttpClient, deps: Sequence[Dependency], upstreams: Sequence
     return out
 
 
-def seed_file(found: SourceRepos, what: str, generated_at: str) -> str:
-    """The seed file: a header, one owner/repo per line, then what has no GitHub repo, as comments."""
+def seed_file(found: SourceRepos, what: str, generated_at: str, skipped: Sequence[tuple[str, str]] = ()) -> str:
+    """The seed file: a header, one owner/repo per line, then, as comments, what has no GitHub repo and the listed
+    projects that weren't read (`skipped`: name and why, e.g. archived)."""
     lines = [
         f"# Source repositories of the dependencies of {what}, by `limbowatch repos` at {generated_at}.",
         f"# {len(found.repos):,} repositories from {found.dependencies:,} package versions and "
@@ -58,4 +59,7 @@ def seed_file(found: SourceRepos, what: str, generated_at: str) -> str:
     if found.unmapped:
         lines += ["", f"# No GitHub repository ({len(found.unmapped):,}); scans check these by name only:"]
         lines += [f"#   {thing}: {why}" for thing, why in found.unmapped]
+    if skipped:
+        lines += ["", f"# Projects listed but not read ({len(skipped):,}), so their dependencies aren't here:"]
+        lines += [f"#   {name}: {why}" for name, why in skipped]
     return "\n".join(lines) + "\n"

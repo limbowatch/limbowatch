@@ -47,9 +47,12 @@ async def test_repos_of_dependencies_and_upstreams_with_the_rest_listed(tmp_path
     assert found.unmapped == [("npm unmapped 1.0.0", "deps.dev 404"),
                               ("git submodule eigen", "not on GitHub: gitlab.com/libeigen/eigen")]  # fmt: skip
 
-    text = repos.seed_file(found, "acme/app", "2026-11-17T00:00:00Z")
+    text = repos.seed_file(
+        found, "acme/app", "2026-11-17T00:00:00Z", [("acme/old", "archived (--include-archived checks it)")]
+    )
     assert text.splitlines()[2:5] == ["dlclark/regexp2", "lodash/lodash", "madler/zlib"]
     assert "#   npm unmapped 1.0.0: deps.dev 404" in text
+    assert "#   acme/old: archived (--include-archived checks it)" in text  # a skipped project is listed, not dropped
     seed = tmp_path / "seeds.txt"
     seed.write_text(text)
     store = Store()

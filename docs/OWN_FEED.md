@@ -45,7 +45,9 @@ Everything runs in the Limbowatch image of the release you pin, by digest, the s
 
 Set it with the repository variable `LIMBO_FEED_WATCH` (GitHub) or the variable `WATCH` (GitLab), and name the organizations or groups whose projects to list: `LIMBO_FEED_ORGS` (GitHub, default this repository's owner) or `FOCUS_GROUPS` (GitLab, default this project's group). Private projects need a read token, `LIMBOWATCH_SOURCE_TOKEN`.
 
-A focused feed still syncs GitHub's reviewed advisories and the CVE List, so its facts are complete: which advisories are reviewed, which are duplicates, which CVEs are assigned. Nothing is lost for your own scans either. A dependency added since the last run, or one whose repository the feed hasn't checked in 10 days, is read on GitHub during the scan, as always.
+A focused feed still syncs GitHub's reviewed advisories and the CVE List, so its facts are complete: which advisories are reviewed, which are duplicates, which CVEs are assigned. A dependency added since the last run, or one whose repository the feed hasn't checked in 10 days, is read on GitHub during the scan, as always.
+
+One thing is weaker: a dependency with no known source repository on GitHub (listed at the end of `repos.txt`) is matched against the feed by package name only. A focused feed holds only advisories from your dependencies' repositories, so it can hardly ever match such a package, while the limbo feed, from about 67,000 repositories, sometimes can. Scans report these dependencies as checked by name only either way, never as clean.
 
 The same steps by hand:
 

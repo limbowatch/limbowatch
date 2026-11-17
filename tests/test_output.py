@@ -64,18 +64,35 @@ def test_state_keeps_findings_whose_repo_couldnt_be_read() -> None:
     assert [x.kind for x in ch4] == [state.ChangeKind.FIXED]
 
 
-def test_state_with_no_feed_keeps_findings_from_repos_not_read() -> None:
-    """--feed none reads only the dependencies' own repos: a finding from any other repo (an earlier run matched it
-    against the feed by name) isn't known to be gone, so it's kept, and so is an old entry that names no repo."""
+def test_state_with_no_feed_keeps_only_findings_it_couldnt_have_seen() -> None:
+    """--feed none reads only the dependencies' own repos, with no feed to match names against. An old finding is
+    kept while its package is installed and the scan couldn't have seen it: the package wasn't checked (no repo, an
+    error), or the advisory's repo wasn't read (an earlier run matched it in the feed by name). A removed package's
+    finding is gone, and so is one whose repo was read, under its new name too (review of 0.1.0a17: keyed by the
+    repos read alone, a removed dependency's finding was kept forever)."""
     a, b = finding(), finding(name="qs", ghsa="GHSA-1111-2222-3333")
     s1, _ = state.diff(None, [a, b], "t1", set())
-    assert state.vanished(s1, [b], read={"x/y"}) == set()
-    s2, ch2 = state.diff(s1, [b], "t2", set(), read={"x/y"})
+    pkgs = frozenset({("npm", "lodash"), ("npm", "qs")})
+    by_name = state.NoFeed(read=frozenset({"x/y"}), installed=pkgs)  # o/r, the advisory's repo, wasn't read
+    assert state.vanished(s1, [b], nofeed=by_name) == set()
+    s2, ch2 = state.diff(s1, [b], "t2", set(), nofeed=by_name)
     assert ch2 == [] and s2["findings"][a.key] == s1["findings"][a.key]
-    _, ch3 = state.diff(s1, [b], "t2", set(), read={"o/r"})  # its repo was read, and it's gone
+    no_repo = state.NoFeed(read=frozenset({"o/r"}), installed=pkgs, unchecked=frozenset({("npm", "lodash")}))
+    assert state.diff(s1, [b], "t2", set(), nofeed=no_repo)[1] == []
+    read = state.NoFeed(read=frozenset({"o/r"}), installed=pkgs)  # read, and it's gone
+    _, ch3 = state.diff(s1, [b], "t2", set(), nofeed=read)
     assert [(x.kind, x.ghsa_id) for x in ch3] == [(state.ChangeKind.FIXED, "GHSA-aaaa-bbbb-cccc")]
+    removed = state.NoFeed(read=frozenset(), installed=frozenset({("npm", "qs")}))  # lodash left the lockfile
+    assert state.vanished(s1, [b], nofeed=removed) == {"GHSA-aaaa-bbbb-cccc"}
+    assert [x.kind for x in state.diff(s1, [b], "t2", set(), nofeed=removed)[1]] == [state.ChangeKind.FIXED]
+    moved = {"findings": {k: e | {"repo": "new/r"} for k, e in s1["findings"].items()}}  # GitHub renamed o/r
+    renamed = state.NoFeed(read=frozenset({"o/r", "new/r"}), installed=pkgs)
+    _, ch4 = state.diff(moved, [b], "t2", {"GHSA-aaaa-bbbb-cccc"}, nofeed=renamed)
+    assert [(x.kind, x.ghsa_id) for x in ch4] == [(state.ChangeKind.VISIBLE, "GHSA-aaaa-bbbb-cccc")]
     legacy = {"findings": {k: {f: v for f, v in e.items() if f != "repo"} for k, e in s1["findings"].items()}}
-    assert state.diff(legacy, [b], "t2", set(), read={"o/r"})[1] == []
+    assert state.diff(legacy, [b], "t2", set(), nofeed=read)[1] == []  # names no repo: not known to be read
+    up = {"findings": {k: e | {"ecosystem": "upstream"} for k, e in s1["findings"].items()}}
+    assert state.vanished(up, [b], nofeed=by_name) == {"GHSA-aaaa-bbbb-cccc"}  # upstream: polled in either mode
 
 
 def test_a_report_with_no_feed_says_where_its_advisories_came_from() -> None:

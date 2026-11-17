@@ -4,7 +4,8 @@
 # optional, as repository variables (Settings → Secrets and variables → Actions → Variables) and secrets:
 #   - LIMBO_FEED_WATCH: `popular` (default): the Limbowatch release's seed lists, about 67,000 repositories behind
 #     the most-used packages, like limbo.watch. `focused`: only the source repositories of your own projects'
-#     dependencies (`limbowatch repos`, refreshed each run), a few thousand at most: fast, and complete for your scans.
+#     dependencies (`limbowatch repos`, refreshed each run), a few thousand at most, so runs are fast; what it can't
+#     match is in docs/OWN_FEED.md#popular-or-focused.
 #   - LIMBO_FEED_ORGS: for `focused`, the GitHub organizations or users whose repositories' dependencies to watch,
 #     space-separated (default: this repository's owner). Secret LIMBOWATCH_SOURCE_TOKEN reads their private ones
 #     (fine-grained: Metadata and Contents read).

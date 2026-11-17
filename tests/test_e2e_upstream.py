@@ -326,7 +326,7 @@ def test_a_rate_limited_upstream_is_still_matched_against_the_feed(world: dict[s
     assert r.exit_code == 1, r.output  # the feed's advisory still fails the build
     assert [f["ghsa_id"] for f in rep["findings"]] == ["GHSA-c000-0000-0001"]
     assert {u["reason"] for u in rep["unresolved"]} == {
-        "source repository not checked (GitHub rate limit); checked against the limbo feed by name only"}  # fmt: skip
+        "source repository not checked (GitHub rate limit); checked against the feed by name only"}  # fmt: skip
 
 
 def test_a_path_that_isnt_utf8_doesnt_crash_the_scan(world: dict[str, Any]) -> None:

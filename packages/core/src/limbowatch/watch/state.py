@@ -13,8 +13,30 @@ from enum import StrEnum
 from typing import Any
 
 from limbowatch.models import Finding
+from limbowatch.versions import UPSTREAM
 
 STATE_VERSION = 1
+
+
+@dataclass(frozen=True)
+class NoFeed:
+    """What a scan with no feed (--feed none) read, to tell an old finding that's gone from one it couldn't see.
+    With a feed, a finding could only be missed through a repo not read (`unread`); with none, the scan reads only
+    the dependencies' own repos, and has no names to match the rest against."""
+
+    read: frozenset[str] = frozenset()  # repos whose advisories were read: as polled, and as GitHub renamed them
+    installed: frozenset[tuple[str, str]] = frozenset()  # (ecosystem, name) of every dependency in the inventory
+    unchecked: frozenset[tuple[str, str]] = frozenset()  # installed, but no repo was read for it (no repo, an error)
+
+    def unseen(self, p: dict[str, Any]) -> bool:
+        """Whether this run would have seen the old finding `p` if it were still there. A package finding is unseen
+        while its package is installed and either the package wasn't checked or the advisory's repo wasn't read
+        (an earlier run with a feed matched it there by name). A removed package's finding is gone. Upstream
+        findings come only from polling, in either mode, so `unread` covers them."""
+        pkg = (p.get("ecosystem"), p.get("package"))
+        if p.get("ecosystem") == UPSTREAM or pkg not in self.installed:
+            return False
+        return pkg in self.unchecked or p.get("repo") not in self.read
 
 
 class ChangeKind(StrEnum):
@@ -71,18 +93,20 @@ def entries(findings: list[Finding], now: str, old: dict[str, Any] | None = None
 
 
 def _unseen(
-    old: dict[str, Any] | None, findings: list[Finding], unread: set[str], read: set[str] | None = None
+    old: dict[str, Any] | None,
+    findings: list[Finding],
+    unread: set[str],
+    nofeed: NoFeed | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Old findings not found now, except those whose advisory's repo couldn't be read or polled this run: those
     aren't known to be gone (an entry from before entries named their repo is taken as gone, as it always was).
-    `read`, with no feed (--feed none): the only repos read this run; an old finding from any other repo, or from
-    an entry that names none, isn't known to be gone either."""
+    `nofeed`, with --feed none: also those the scan couldn't have seen (`NoFeed.unseen`)."""
     cur = {f.key for f in findings}
     prev: dict[str, dict[str, Any]] = (old or {}).get("findings", {})
     return {
         k: p
         for k, p in prev.items()
-        if k not in cur and p.get("repo") not in unread and (read is None or p.get("repo") in read)
+        if k not in cur and p.get("repo") not in unread and not (nofeed and nofeed.unseen(p))
     }
 
 
@@ -92,13 +116,13 @@ def diff(
     now: str,
     visible: set[str],
     unread: set[str] | None = None,
-    read: set[str] | None = None,
+    nofeed: NoFeed | None = None,
 ) -> tuple[dict[str, Any], list[Change]]:
     """The new state, and what changed. `visible`: advisory IDs of vanished findings that are in OSV now.
     `unread`: repos whose advisories couldn't be read or polled this run; their old findings are kept unchanged."""
     cur = entries(findings, now, old)
     prev: dict[str, dict[str, Any]] = (old or {}).get("findings", {})
-    gone = _unseen(old, findings, unread or set(), read)
+    gone = _unseen(old, findings, unread or set(), nofeed)
     changes: list[Change] = []
     for key, e in cur.items():
         pkg = f"{e['ecosystem']}:{e['package']}"
@@ -131,7 +155,10 @@ def diff(
 
 
 def vanished(
-    old: dict[str, Any] | None, findings: list[Finding], unread: set[str] | None = None, read: set[str] | None = None
+    old: dict[str, Any] | None,
+    findings: list[Finding],
+    unread: set[str] | None = None,
+    nofeed: NoFeed | None = None,
 ) -> set[str]:
     """Advisory IDs of findings in the old state that aren't found now (to check against OSV)."""
-    return {p["ghsa_id"] for p in _unseen(old, findings, unread or set(), read).values()}
+    return {p["ghsa_id"] for p in _unseen(old, findings, unread or set(), nofeed).values()}
