@@ -9,7 +9,7 @@ The feed you build is the same kind of file as limbo.watch's (`all.zip` and `wat
 
 ## Set it up
 
-It needs Limbowatch 0.1.0a17 or later: the first release with `publish --feed-only` and `--feed <URL or directory>`.
+It needs Limbowatch 0.1.0a17 or later: the first release with `publish --feed-only` and `--feed <URL or directory>`. Take the pipeline files from 0.1.0a18 or later: 0.1.0a17's GitHub pipeline fails in a private repository whose plan doesn't include attestations.
 
 Pick the pipeline for your CI and copy it into a repository or project of your own (an empty one is fine):
 
@@ -83,7 +83,7 @@ With `LIMBO_FEED_PUBLISH` set to `branch`, the GitHub pipeline commits `all.zip`
     ref: limbo-feed
     path: limbo-feed
     token: ${{ secrets.LIMBO_FEED_READ_TOKEN }}   # only if the repository is private
-- uses: limbowatch/limbowatch-action@v0.1.0a17
+- uses: limbowatch/limbowatch-action@v0.1.0a18
   env:
     LIMBOWATCH_FEED: limbo-feed/feed
 ```

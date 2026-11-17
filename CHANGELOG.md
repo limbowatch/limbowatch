@@ -2,7 +2,9 @@
 
 Versions follow [semantic versioning](https://semver.org). The PyPI packages `limbowatch` and `limbowatch-cli`, the GitLab CI/CD component and the Actions action share one version number.
 
-## Unreleased
+## 0.1.0a18 (2026-11-16)
+
+Still an **alpha**. On PyPI it's `0.1.0a18`; the GitHub tag and the action's ref are `v0.1.0a18`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a18`; the GitLab CI/CD component is `0.1.0-alpha.18`. One fix to the own-feed GitHub pipeline, found by running it in real GitHub Actions. The scanner itself is unchanged from 0.1.0a17.
 
 - **Own-feed pipeline in a private GitHub repository** (FINDINGS F-218). On plans without attestations for private repositories (the Free plan, for one), GitHub refuses to attest, and the run failed before publishing the feed. In a private repository the attest step now warns and the feed is published unattested; in a public one it still fails the run. Copy `deploy/own-feed/github/limbo-feed.yml` again if you set it up from 0.1.0a17.
 
