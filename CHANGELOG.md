@@ -2,6 +2,10 @@
 
 Versions follow [semantic versioning](https://semver.org). The PyPI packages `limbowatch` and `limbowatch-cli`, the GitLab CI/CD component and the Actions action share one version number.
 
+## Unreleased
+
+- **Website: [limbo.watch/scan/standalone/](https://limbo.watch/scan/standalone/)**, marked new. It explains running Limbowatch without limbo.watch, with no feed or with a feed built on your own CI: the command line, GitHub Actions and GitLab CI set-ups, what changes in the reports, and what we measured. Linked from /scan/, the home page and the footer.
+
 ## 0.1.0a20 (2026-11-17)
 
 Still an **alpha**. On PyPI it's `0.1.0a20`; the GitHub tag and the action's ref are `v0.1.0a20`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a20`; the GitLab CI/CD component is `0.1.0-alpha.20`. One fix to the own-feed GitLab pipeline's first run. Scans and the tracker are unchanged from 0.1.0a19.

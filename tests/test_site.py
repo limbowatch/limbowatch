@@ -165,3 +165,20 @@ def test_a_stylesheet_change_leaves_the_pages_as_they_were(monkeypatch: pytest.M
     monkeypatch.setattr(site, "CSS", site.CSS + "\n.new{color:red}")
     assert site.page("t", "d", "<p>x</p>", "/") == before
     assert '<link rel="stylesheet" href="/assets/site.css">' in before and "site.css?v" not in before
+
+
+def test_standalone_page_is_linked_and_marked_new() -> None:
+    """/scan/standalone/: scanning with no feed or your own (docs/OWN_FEED.md), marked new, reachable from /scan/, the
+    home page's list, the footer and the sitemap; its commands use this release."""
+    m = {"in_limbo": {"count": 26165}}
+    html = site.standalone(m)
+    assert f"New in {site.STANDALONE_SINCE}" in html and "26,165 advisories" in html
+    for text in ("--feed none", "limbowatch repos", "--only-seeds", "--feed-only", "LIMBOWATCH_FEED",
+                 f"limbowatch-cli=={site.RELEASE}", site.OWN_FEED_GH, site.OWN_FEED_GL):  # fmt: skip
+        assert text in html, text
+    for anchor in ("ways", "no-feed", "own-feed", "cli", "github", "gitlab", "changes", "measured"):
+        assert f'href="#{anchor}"' in html and f'id="{anchor}"' in html
+    assert html.count('data-label="') == 12  # the comparison table names each column on narrow screens
+    assert 'href="/scan/standalone/"' in site.scan({"in_limbo": {"count": 1}})
+    assert 'href="/scan/standalone/"' in site.footer()
+    assert "/scan/standalone/" in site.SITEMAP_PAGES

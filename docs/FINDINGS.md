@@ -3476,6 +3476,20 @@ Answered:
   - Its GitLab pipeline keeps its state between runs but still has the long first run until the file is copied from main (Unreleased).
 - **Sources:** the runs above; PyPI; ghcr.io; gitlab.com/limbowatch/limbowatch-component and limbowatch/own-feed-test.
 
+### F-222
+- **Date:** 2026-11-17 · **Status:** confirmed (direct observation)
+- **Question:** Release 0.1.0a20 (the GitLab first-run fix of [F-221](#f-221)): did it ship as tested?
+- **Method:**
+  - **Before tagging:** the audit (all checks passed) and 472 tests on Python 3.12, 3.13 and 3.14. Only the GitLab pipeline file, a test and docs had changed since 0.1.0a19, so no review loop ran.
+  - **Release:** commits f1f8a2e (version) and 3be61bc (pin, image `sha256:705d1567…`). The pre-tag e2e run 44062587407 and the component pipeline on split 7f6aa18, then the signed tags, the action split f941c24 with its self-test, and the pre-release.
+  - **After tagging:** the proof run 44063272790, the e2e run 44063309668, both GitHub scratch repositories (44063285431, 44063298875), and GitLab scratch pipeline 3078305060, all on the released files.
+- **Result:**
+  - The GitHub pre-release has 4 files; the image and the component release `0.1.0-alpha.20` exist.
+  - The proof run found 103 findings. The e2e run and all scratch runs passed, and the GitLab one restored its saved state (12 files).
+- **Caveats:** the Marketplace tick for v0.1.0a20 is the owner's.
+- **Implication:** 0.1.0a20 shipped as tested.
+- **Sources:** the runs above; ghcr.io; gitlab.com/limbowatch/limbowatch-component.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
