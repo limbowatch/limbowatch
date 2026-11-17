@@ -2,7 +2,9 @@
 
 Versions follow [semantic versioning](https://semver.org). The PyPI packages `limbowatch` and `limbowatch-cli`, the GitLab CI/CD component and the Actions action share one version number.
 
-## Unreleased
+## 0.1.0a21 (2026-11-17)
+
+Still an **alpha**. On PyPI it's `0.1.0a21`; the GitHub tag and the action's ref are `v0.1.0a21`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a21`; the GitLab CI/CD component is `0.1.0-alpha.21`. Own-feed pipelines that need only the command line, and a website organised around how you run Limbowatch, standalone included. Scans and the tracker are unchanged from 0.1.0a20.
 
 - **Own-feed pipelines with the command line only** (docs/OWN_FEED.md#cli-only). `deploy/own-feed/github/limbo-feed-cli.yml` and `deploy/own-feed/gitlab/.gitlab-ci.cli.yml` need no Limbowatch image. They install `limbowatch-cli` from PyPI and OSV-Scanner from its release, checked against its SHA-256 sums, then run `repos`, `track --only-seeds` and `publish --feed-only`. The GitHub one uses no actions at all and keeps the feed in a `limbo-feed` branch; the GitLab one runs in `python:3.12` and serves the feed with Pages. Both build a feed of your own projects' dependencies (FINDINGS F-223).
 - **Website reorganised around how you run it.** The header now has *Use it* and *Standalone*. `/scan/` starts with the three ways to run Limbowatch: with the limbo feed, with no feed, or with your own feed. Setup for each place you run it follows, then what you see, the reports and your data, with jump links at the top. `/scan/standalone/` starts with which one to pick, and links the CLI-only pipelines. The home page's CI section points to the standalone setups.

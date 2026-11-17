@@ -33,7 +33,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  LIMBOWATCH_VERSION: 0.1.0a20
+  LIMBOWATCH_VERSION: 0.1.0a21
   OSV_SCANNER_VERSION: 2.7.1
 
 jobs:

@@ -16,7 +16,7 @@
 # it runs the Limbowatch image, pinned by digest.
 
 variables:
-  LIMBOWATCH_VERSION: 0.1.0a20
+  LIMBOWATCH_VERSION: 0.1.0a21
   OSV_SCANNER_VERSION: 2.7.1
   FOCUS_GROUPS: $CI_PROJECT_NAMESPACE # space-separated GitLab groups whose projects' dependencies to watch
   BUDGET: "3500" # GitHub requests a run
