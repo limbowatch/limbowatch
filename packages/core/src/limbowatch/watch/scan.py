@@ -439,10 +439,10 @@ def assess(inv: Inventory, sh: Shared) -> ScanResult:
                 res.unresolved.append(_partial(d, not_read, m.repo))
             else:
                 continue
-            unchecked.add((d.ecosystem, d.name))
+            unchecked.add(NoFeed.package(d.ecosystem, d.name))
     if sh.feedless:
-        res.nofeed = NoFeed(frozenset(sh.polled | sh.renamed), frozenset((d.ecosystem, d.name) for d in deps),
-                            frozenset(unchecked))  # fmt: skip
+        installed = frozenset(NoFeed.package(d.ecosystem, d.name) for d in deps)
+        res.nofeed = NoFeed(frozenset(sh.polled | sh.renamed), installed, frozenset(unchecked))
     index = sh.index
     go = [c for cs in index.by_repo.values() for c in cs if any(p.ecosystem == "go" for p in c.adv.packages)]
     per_repo: dict[str, set[tuple[str, str]]] = {}

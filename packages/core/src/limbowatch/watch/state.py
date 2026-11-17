@@ -13,7 +13,7 @@ from enum import StrEnum
 from typing import Any
 
 from limbowatch.models import Finding
-from limbowatch.versions import UPSTREAM
+from limbowatch.versions import UPSTREAM, norm_name
 
 STATE_VERSION = 1
 
@@ -25,16 +25,22 @@ class NoFeed:
     the dependencies' own repos, and has no names to match the rest against."""
 
     read: frozenset[str] = frozenset()  # repos whose advisories were read: as polled, and as GitHub renamed them
-    installed: frozenset[tuple[str, str]] = frozenset()  # (ecosystem, name) of every dependency in the inventory
+    # (ecosystem, name) with the name normalized (`package`), as finding keys are: PyYAML and pyyaml are one package
+    installed: frozenset[tuple[str, str]] = frozenset()  # every dependency in the inventory
     unchecked: frozenset[tuple[str, str]] = frozenset()  # installed, but no repo was read for it (no repo, an error)
+
+    @staticmethod
+    def package(ecosystem: str, name: str) -> tuple[str, str]:
+        return ecosystem, norm_name(ecosystem, name)
 
     def unseen(self, p: dict[str, Any]) -> bool:
         """Whether this run would have seen the old finding `p` if it were still there. A package finding is unseen
         while its package is installed and either the package wasn't checked or the advisory's repo wasn't read
         (an earlier run with a feed matched it there by name). A removed package's finding is gone. Upstream
         findings come only from polling, in either mode, so `unread` covers them."""
-        pkg = (p.get("ecosystem"), p.get("package"))
-        if p.get("ecosystem") == UPSTREAM or pkg not in self.installed:
+        eco = str(p.get("ecosystem") or "")
+        pkg = self.package(eco, str(p.get("package") or ""))
+        if eco == UPSTREAM or pkg not in self.installed:
             return False
         return pkg in self.unchecked or p.get("repo") not in self.read
 

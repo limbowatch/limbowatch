@@ -91,6 +91,8 @@ def test_state_with_no_feed_keeps_only_findings_it_couldnt_have_seen() -> None:
     assert [(x.kind, x.ghsa_id) for x in ch4] == [(state.ChangeKind.VISIBLE, "GHSA-aaaa-bbbb-cccc")]
     legacy = {"findings": {k: {f: v for f, v in e.items() if f != "repo"} for k, e in s1["findings"].items()}}
     assert state.diff(legacy, [b], "t2", set(), nofeed=read)[1] == []  # names no repo: not known to be read
+    spelled = state.NoFeed(read=frozenset({"x/y"}), installed=frozenset({state.NoFeed.package("npm", "LODASH")}))
+    assert state.vanished(s1, [b], nofeed=spelled) == set()  # one package however the lockfile spells it
     up = {"findings": {k: e | {"ecosystem": "upstream"} for k, e in s1["findings"].items()}}
     assert state.vanished(up, [b], nofeed=by_name) == {"GHSA-aaaa-bbbb-cccc"}  # upstream: polled in either mode
 
