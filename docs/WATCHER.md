@@ -350,13 +350,25 @@ Nothing from your build files is ever fetched: a `URL` in a `CMakeLists.txt` or 
   - **git:** clones, fetches and `ls-remote` calls.
   - **OSV-Scanner:** its `pom.xml` resolution run. Its URLs are visible only to OSV-Scanner, so the run is recorded with the hosts it can contact (`--no-resolve-maven` turns it off).
 
-  `track`, `inventory`, `repos` and `watch` take the same options. In the action, add `--audit-log limbowatch-network.jsonl` to `extra-args` and upload the file; on GitLab, `extra_args: "--audit-log limbowatch/network.jsonl"` keeps it with the job's other artifacts. Checked against a logging proxy: every host the proxy saw is in the record (F-225).
+  `track`, `inventory`, `repos` and `watch` take the same options. In the action, add `--audit-log limbowatch-report/network.jsonl` to `extra-args` (the reports directory is the one place in the checkout the scan can write) and upload that directory; on GitLab, `extra_args: "--audit-log limbowatch/network.jsonl"` keeps it with the job's other artifacts. Checked against a logging proxy: every host the proxy saw is in the record (F-225).
 - **Watch it.** Run it once behind a logging proxy (`HTTPS_PROXY`; Limbowatch, OSV-Scanner and git all honour it) and compare the hosts with the table above.
 
 **How to lock it down.**
 - **Don't give it your code.** It needs only the dependency files: check out just those with a sparse checkout, or build an SBOM yourself and pass `--sbom`.
 - **Allow only the hosts you chose.** On a self-hosted runner with a firewall, or with an egress filter on hosted runners, allow the hosts above for the mode you run (only limbo.watch for feed only). Anything else is blocked and shows up.
 - **Give it nothing to write with.** No secrets, `contents: read`, no `issues:`, and run it in a job of its own.
+- **Contain the image.** The action runs it isolated: the checkout read-only; no access to the runner's temp directory, where `GITHUB_ENV`, `GITHUB_PATH` and `GITHUB_OUTPUT` live; a read-only root filesystem, no capabilities, no new privileges; and workflow commands off while it prints. The scan writes only to directories of its own. The action copies regular files out of them, never following a symlink, and lets only well-formed values through to its outputs. So even a compromised image can't change the files or environment of the job's later steps. The one place in the checkout it can write is the `reports` directory, so files that `extra-args` writes (`--state`, `--audit-log`, more `-o`) go there.
+- **Or keep the repository out of reach entirely.** For a scheduled scan, split the job in three. One job with `contents: read` checks out only the lockfiles (sparse, `persist-credentials: false`) and uploads them as an artifact. One with `permissions: {}` and no secrets runs the image directly on them:
+
+  ```sh
+  mkdir -p out && chmod 777 out
+  docker run --rm --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
+    --user 65534:65534 --pids-limit 256 --memory 2g -e HOME=/tmp -e LIMBOWATCH_GITHUB_TOKEN \
+    -v "$PWD/lockfiles:/scan:ro" -v "$PWD/out:/out" ghcr.io/limbowatch/limbowatch:<release>@sha256:<digest> \
+    limbowatch scan /scan --cache /tmp/cache -o json=/out/report.json -o markdown=/out/report.md
+  ```
+
+  A third job reads the report and does whatever needs secrets (Slack, issues). Treat the report as untrusted there: parse it, and never put its values into `${{ }}` expressions, `GITHUB_ENV` or `GITHUB_OUTPUT`. Report paths are relative to the scan root (`agent/uv.lock`, not `/scan/agent/uv.lock`). Don't restore an Actions cache in a job that holds secrets: the scan job's runner can write to that cache.
 
 Report a security problem in Limbowatch itself as [SECURITY.md](../SECURITY.md) says.
 

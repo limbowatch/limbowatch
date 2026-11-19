@@ -98,6 +98,81 @@ def test_action_scripts_are_valid_bash() -> None:
         subprocess.run(["bash", "-n", str(ACTION.parent / name)], check=True)
 
 
+# Stands in for `docker run` of a compromised image: it writes what a scan would, as symlinks to the runner's files
+# where it can, forged outputs and annotations, and workflow commands on stdout.
+FAKE_DOCKER = r"""#!/usr/bin/env bash
+printf '%s\n' "$@" >> "$RUNNER_TEMP/docker-args"
+out="$RUNNER_TEMP/limbowatch/out"
+echo '::set-output name=failed::from-stdout'
+case " $* " in
+  *" python3 - "*)
+    cat > /dev/null
+    printf 'findings=1\nfailing=$(id)\nfailed=pwned\nevil=1\nverdict=::add-path::/evil\nverdict=PASSED  fine\n' \
+      > "$out/limbowatch.outputs" ;;
+  *" scan "*)
+    printf '{}' > "$out/limbowatch.json"
+    ln -s "$SECRET" "$out/limbowatch.md"
+    ln -s "$SECRET" "$out/limbowatch.sarif"
+    printf '::warning file=go.mod::real\n::add-path::/evil\n::set-output name=x::y\n' > "$out/limbowatch.annotations"
+    ln -s "$SECRET" "$RUNNER_TEMP/limbowatch/reports/report.html"
+    echo regular > "$RUNNER_TEMP/limbowatch/reports/report.json"
+    exit 1 ;;
+esac
+"""
+
+
+def test_action_image_mode_keeps_a_compromised_image_off_the_runner(tmp_path: Path) -> None:
+    """Image mode: the checkout read-only, never the runner's temp directory (GITHUB_ENV and GITHUB_PATH are there),
+    a hardened container, workflow commands off while it prints, nothing it wrote followed or passed on unchecked."""
+    import os
+    import subprocess
+
+    ws, rt, bin_ = tmp_path / "ws", tmp_path / "rt", tmp_path / "bin"
+    for d in (ws / "proj", rt, bin_):
+        d.mkdir(parents=True)
+    (bin_ / "docker").write_text(FAKE_DOCKER)
+    (bin_ / "docker").chmod(0o755)
+    secret = tmp_path / "secret"
+    secret.write_text("RUNNER-SECRET")
+    gh_output, summary = tmp_path / "gh_output", tmp_path / "summary.md"
+    gh_output.touch()
+    env = os.environ | {
+        "PATH": f"{bin_}:{os.environ['PATH']}", "SECRET": str(secret), "RUNNER_TEMP": str(rt),
+        "GITHUB_WORKSPACE": str(ws), "GITHUB_OUTPUT": str(gh_output), "GITHUB_STEP_SUMMARY": str(summary),
+        "LW_MODE": "image", "LW_IMAGE": "img", "LW_PATH": "proj", "LW_FAIL_ON": "low", "LW_FAIL_ON_UNKNOWN": "true",
+        "LW_ALLOW_FAILURE": "false", "LW_SARIF": "out.sarif", "LW_ANNOTATIONS": "true",
+        "LW_REPORTS": "limbowatch-report", "LW_ISSUES": "", "LW_EXTRA": "", "LW_DEFAULT_BRANCH": "main",
+    }  # fmt: skip
+    r = subprocess.run(["bash", str(ACTION.parent / "scan.sh")], cwd=ws, env=env, capture_output=True, text=True)
+    assert r.returncode == 1, r.stdout + r.stderr
+
+    args = (rt / "docker-args").read_text().splitlines()
+    for flag in ("--read-only", "no-new-privileges", "--pids-limit"):
+        assert flag in args
+    assert args[args.index("--cap-drop") + 1] == "ALL"
+    mounts = [args[i + 1] for i, a in enumerate(args) if a == "-v"]
+    assert f"{ws}:{ws}:ro" in mounts
+    assert all(not m.startswith(f"{rt}:") for m in mounts), mounts  # never the whole runner temp directory
+    assert f"{rt}/limbowatch/reports:{ws}/limbowatch-report" in mounts
+
+    lines = r.stdout.splitlines()
+    stop = [i for i, line in enumerate(lines) if line.startswith("::stop-commands::")]
+    assert len(stop) == 1  # the scan; what the outputs step prints goes to /dev/null
+    token = lines[stop[0]].removeprefix("::stop-commands::")
+    assert re.fullmatch(r"limbowatch-[0-9a-f]{32}", token)
+    assert lines[stop[0] + 1] == "::set-output name=failed::from-stdout" and lines[stop[0] + 2] == f"::{token}::"
+    outside = lines[: stop[0]] + lines[stop[0] + 3 :]  # what GitHub still reads as commands
+    assert [line for line in outside if line.startswith("::")] == [
+        "::group::Annotations: one per affected package", "::warning file=go.mod::real", "::endgroup::"]  # fmt: skip
+    assert lines[-1] == "PASSED  fine"  # the image's own words, but never a command
+    assert gh_output.read_text() == "findings=1\nreport=limbowatch-report/report.json\n"
+
+    assert not summary.exists() and not (ws / "out.sarif").exists()  # symlinks to the secret: not followed
+    reports = ws / "limbowatch-report"
+    assert (reports / "report.json").read_text() == "regular\n" and not (reports / "report.html").exists()
+    assert not [p for p in ws.rglob("*") if p.is_symlink()]
+
+
 def test_action_readme_lists_every_input_and_output_and_the_release() -> None:
     """The Marketplace page is limbowatch/limbowatch-action's README, a copy of integrations/action/README.md."""
     action = yaml.safe_load(ACTION.read_text())

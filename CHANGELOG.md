@@ -4,6 +4,11 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+- **The action runs the image isolated** (docs/WATCHER.md#security-and-data). Until now it mounted the whole runner temp directory and the checkout read-write. That let a compromised image write `GITHUB_ENV` and `GITHUB_PATH`, which runs code in later steps, or change files that later steps run. Now:
+  - The checkout is read-only, and the runner's temp directory is never mounted.
+  - The image runs with a read-only root filesystem, no capabilities and no new privileges, and workflow commands are off while it prints.
+  - The scan writes only to directories of its own. The action copies regular files out of them, never following a symlink, and lets only well-formed values through to its outputs and only annotation commands into the log.
+  - **Breaking (image mode):** files that `extra-args` writes (`--state`, `--audit-log`, more `-o`) must go in the `reports` directory (default `limbowatch-report/`), the one place in the checkout the scan can write. docs/WATCHER.md also shows a stricter set-up for scheduled scans: the image runs in a job with no permissions, on the lockfiles alone.
 - **https only, enforced** (docs/WATCHER.md#security-and-data, FINDINGS F-226). The HTTP client refuses plain `http://` to another machine before sending, a redirect from https to http included. git runs with only the https transport allowed, which git also applies to redirects; ssh, `git://` and `ext::` are never allowed. This machine (localhost) is still fine.
   - **Breaking:** an `http://` source or tracker URL (`--gitlab-group`, `--gitea-org`, `--git`, `--issues-url`, …) now needs `--allow-insecure-http` even without a token, since anyone on the network could change what comes back. Even then, only the hosts you named may use http.
 - **No cookies** (F-225, F-226). A cookie a server sets, such as Maven Central's Cloudflare `__cf_bm`, is no longer kept and sent back.
