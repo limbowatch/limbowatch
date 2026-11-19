@@ -141,7 +141,7 @@ def _image_mode(
 
     ws, rt, bin_ = tmp_path / "ws", tmp_path / "rt", tmp_path / "bin"
     for d in (ws / "proj", ws / "limbowatch-report", rt, bin_):
-        d.mkdir(parents=True)
+        d.mkdir(parents=True, exist_ok=True)
     for name in ("package.json", *tracked):
         (ws / name).write_text('{"scripts": {"test": "ok"}}\n')
     git = ["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false"]
@@ -174,8 +174,10 @@ def _image_mode(
 
 
 OK = '{"scripts": {"test": "ok"}}\n'
-WARNING = "::warning title=Limbowatch::The scan wrote a file the repository tracks in the reports directory; "
-WARNING += "it wasn't copied."
+
+
+def _skipped(n: int) -> str:
+    return f"::warning title=Limbowatch::{n} file(s) the scan wrote in the reports directory weren't copied to it."
 
 
 def test_action_image_mode_keeps_a_compromised_image_off_the_runner(tmp_path: Path) -> None:
@@ -202,8 +204,13 @@ def test_action_image_mode_keeps_a_compromised_image_off_the_runner(tmp_path: Pa
         assert re.fullmatch(r"limbowatch-[0-9a-f]{32}", token)
         assert lines[i + 1] == "::set-output name=failed::from-stdout" and lines[i + 2] == f"::{token}::"
     outside = [line for i, line in enumerate(lines) if not any(s <= i <= s + 2 for s in stop)]
-    assert [line for line in outside if line.startswith("::")] == [
-        "::group::Annotations: one per affected package", "::warning file=go.mod::real", "::endgroup::"]  # fmt: skip
+    commands = [line for line in outside if line.startswith("::")]
+    assert commands[0].startswith(_skipped(2))  # report.html, a symlink; .git/config, in a subdirectory
+    assert commands[1:] == [
+        "::group::Annotations: one per affected package",
+        "::warning file=go.mod::real",
+        "::endgroup::",
+    ]
     assert lines[-1] == "PASSED  fine"  # the image's own words, but never a command
     assert gh_output.read_text() == "findings=1\nreport=limbowatch-report/report.json\n"
 
@@ -219,20 +226,36 @@ def test_action_image_mode_copies_only_reports_where_the_repository_has_files(tm
     are copied, never over a tracked one, never .git/config or a file later steps run."""
     r, ws, _, _ = _image_mode(tmp_path / "a", "limbowatch-report", tracked=("limbowatch-report/report.csv",))
     reports = ws / "limbowatch-report"
-    assert r.returncode == 1 and WARNING in r.stdout, r.stdout + r.stderr
+    assert r.returncode == 1 and _skipped(5) in r.stdout, r.stdout + r.stderr
     assert sorted(p.name for p in reports.iterdir()) == ["report.csv", "report.json"]
     assert (reports / "report.csv").read_text() == OK  # tracked: never replaced
 
     r, ws, _, _ = _image_mode(tmp_path / "b", ".")
-    assert r.returncode == 1, r.stdout + r.stderr
+    assert r.returncode == 1 and _skipped(4) in r.stdout, r.stdout + r.stderr
     assert (ws / "report.json").read_text() == "regular\n" and (ws / "report.csv").exists()
     assert "evil" not in (ws / ".git/config").read_text() and (ws / "package.json").read_text() == OK
     assert not (ws / "state.json").exists() and not (ws / "report.html").exists()
 
     r, ws, _, _ = _image_mode(tmp_path / "c", "limbowatch-report", git_fails=True)
     reports = ws / "limbowatch-report"
-    assert r.returncode == 1, r.stdout + r.stderr
+    assert r.returncode == 1 and _skipped(4) in r.stdout, r.stdout + r.stderr
     assert sorted(p.name for p in reports.iterdir()) == ["report.csv", "report.json"]
+
+
+def test_action_image_mode_never_follows_a_symlinked_reports_directory(tmp_path: Path) -> None:
+    """A reports directory reached through a symlink could point anywhere, the runner's temp directory included:
+    nothing in it is shown to the image, and only the report files are copied back."""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "creds").write_text("RUNNER-SECRET")
+    (tmp_path / "ws").mkdir()
+    (tmp_path / "ws/linked").symlink_to(outside)
+    r, ws, rt, _ = _image_mode(tmp_path, "linked")
+    assert r.returncode == 1 and _skipped(4) in r.stdout, r.stdout + r.stderr
+    assert not (rt / "limbowatch/reports/creds").exists()  # not copied where the image could read it
+    mounts = [a for a in (rt / "docker-args").read_text().splitlines() if a.endswith(f"{ws}/linked")]
+    assert mounts == []
+    assert sorted(p.name for p in outside.iterdir()) == ["creds", "report.csv", "report.json"]
 
 
 def test_action_readme_lists_every_input_and_output_and_the_release() -> None:
