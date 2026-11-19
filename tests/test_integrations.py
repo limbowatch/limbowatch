@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import tomllib
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -332,3 +333,104 @@ def test_own_feed_cli_pipelines_install_the_release_and_no_image() -> None:
         subprocess.run(["bash", "-n"], input=s["run"], text=True, check=True)
     for py in re.findall(r"python3 - [^\n]*<<'PY'[^\n]*\n(.*?)\nPY\n", script, re.S):
         compile(py, "<.gitlab-ci.cli.yml>", "exec")
+
+
+SEALED = ROOT / "deploy/sealed/github/limbowatch.yml"
+
+# Every file name OSV-Scanner reads in `scan source` (its lockfile and sbom presets: each extractor's FileRequired
+# in osv-scalibr c80efcc, which OSV-Scanner 2.7.1 pins), one example path each. Check again on a new OSV-Scanner.
+OSV_SCANNER_FILES = [
+    "package-lock.json", "npm-shrinkwrap.json", "web/pnpm-lock.yaml", "yarn.lock", "bun.lock",
+    "requirements.txt", "api/requirements-dev.txt", "dev-requirements.txt", "Pipfile.lock", "poetry.lock", "pdm.lock",
+    "uv.lock", "pylock.toml", "pylock.dev.toml", "go.mod", "Cargo.lock", "Gemfile.lock", "gems.locked",
+    "composer.lock", "mix.lock", "pubspec.lock", "app/.dart_tool/package_config.json", "renv.lock",
+    "ios/Package.resolved", "cabal.project.freeze", "stack.yaml.lock", "pom.xml", "lib/x-1.0.pom", "gradle.lockfile",
+    "buildscript-gradle.lockfile", "gradle/verification-metadata.xml", "CsApp/App.csproj", "VbLib/Lib.vbproj",
+    "Fn/Fn.fsproj", "bin/App.deps.json", "packages.config", "packages.lock.json", "Directory.Packages.props",
+    "Directory.Build.props", "sbom.cdx.json", "sbom.cdx.xml", "bom.json", "sbom.spdx", "sbom.spdx.json",
+]  # fmt: skip
+
+
+def _sealed() -> dict[str, Any]:
+    return yaml.safe_load(SEALED.read_text())
+
+
+def _sparse_checkout(repo: Path, patterns: str, paths: list[str]) -> set[str]:
+    """The paths git checks out with these non-cone patterns, as actions/checkout sets them (case-sensitive, as on
+    a Linux runner)."""
+    import subprocess
+
+    for p in paths:
+        (repo / p).parent.mkdir(parents=True, exist_ok=True)
+        (repo / p).write_text("x\n")
+
+    def git(*args: str, stdin: str | None = None) -> str:
+        cfg = ["-c", "core.ignorecase=false", "-c", "user.name=t", "-c", "user.email=t@example.invalid",
+               "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"]  # fmt: skip
+        r = subprocess.run(["git", *cfg, *args], cwd=repo, input=stdin, capture_output=True, text=True, check=True)
+        return r.stdout
+
+    git("init", "-q")
+    git("add", "-A", "--force")
+    git("commit", "-q", "-m", "x")
+    git("config", "core.ignorecase", "false")
+    git("sparse-checkout", "set", "--no-cone", "--stdin", stdin=patterns)
+    return {line[2:] for line in git("ls-files", "-t").splitlines() if line.startswith("H ")}
+
+
+def test_sealed_template_checks_out_every_file_the_scan_reads_and_nothing_else(tmp_path: Path) -> None:
+    """deploy/sealed/: the collect job's sparse checkout is the whole of what reaches the scan, so it must hold every
+    file OSV-Scanner and Limbowatch read (else a dependency would go unreported) and nothing more."""
+    from limbowatch.inventory import osv_scanner, upstream
+
+    assert osv_scanner.TESTED_VERSION == "2.7.1", "a new OSV-Scanner: check OSV_SCANNER_FILES against its extractors"
+    checkout = next(s for s in _sealed()["jobs"]["collect"]["steps"] if "actions/checkout@" in s.get("uses", ""))
+    assert checkout["with"]["sparse-checkout-cone-mode"] is False and checkout["with"]["persist-credentials"] is False
+    ours = [*upstream.UPSTREAM_FILES, *(f"cmake/x{s}" for s in upstream.UPSTREAM_SUFFIXES),
+            f"{upstream.MESON_WRAP_DIR}/zlib.wrap", *osv_scanner.GRADLE_BUILDS,
+            *(f"m/{m}" for m in upstream.MANAGED_VENDOR)]  # fmt: skip
+    ours = [p if "/" in p else f"b/{p}" for p in ours]
+    assert all(upstream._wanted(p) for p in ours if p.rsplit("/", 1)[-1] in upstream.UPSTREAM_FILES)
+    licenses = [f"{root}/lib/{n}" for root in upstream.VENDOR_ROOTS for n in ("LICENSE", "COPYING.txt", "license.md")]
+    assert all(upstream.LICENSE.match(p.rsplit("/", 1)[-1]) for p in licenses)
+    wanted = [*OSV_SCANNER_FILES, *ours, *licenses]
+    not_wanted = ["src/app.py", "third_party/zlib/zlib.c", "node_modules/left/package.json",
+                  "node_modules/left/yarn.lock", "src/license.go", "LICENSE", "docs/COPYING", "src/workspace/app.ts",
+                  "README.md", ".github/workflows/ci.yml", "Makefile", "requirements.md"]  # fmt: skip
+    got = _sparse_checkout(tmp_path, checkout["with"]["sparse-checkout"], wanted + not_wanted)
+    assert sorted(set(wanted) - got) == [] and sorted(got & set(not_wanted)) == []
+
+
+def test_sealed_template_runs_the_image_with_nothing_to_reach() -> None:
+    """deploy/sealed/: no repository, permissions or secrets in the scan job; the image with no network, read-only,
+    as nobody; the feed and the image checked against their attestations outside it; the release's image."""
+    wf = _sealed()
+    text = SEALED.read_text()
+    assert set(wf.get("on", wf.get(True))) == {"schedule", "workflow_dispatch"}
+    assert wf["permissions"] == {} and "${{ secrets." not in text
+    collect, scan = wf["jobs"]["collect"], wf["jobs"]["scan"]
+    assert collect["permissions"] == {"contents": "read"} and scan["permissions"] == {} and scan["needs"] == "collect"
+    assert set(wf["jobs"]) == {"collect", "scan"} and all(j["runs-on"] == "ubuntu-latest" for j in wf["jobs"].values())
+    action = yaml.safe_load(ACTION.read_text())
+    assert wf["env"]["IMAGE"] == action["inputs"]["image"]["default"]  # bumped with each release
+    for line in text.splitlines():
+        if "uses:" in line and not line.lstrip().startswith("#"):
+            assert re.search(r"@[0-9a-f]{40} # v", line), line
+    steps = scan["steps"]
+    run = "\n".join(s.get("run", "") for s in steps)
+    docker = next(s["run"] for s in steps if "docker run" in s.get("run", ""))
+    for flag in ("--network none", "--read-only", "--cap-drop ALL", "no-new-privileges", "--user 65534:65534",
+                 '"$PWD/in:/scan:ro"', '"$PWD/feed:/feed:ro"', "--feed /feed", "--no-upstream", "--no-resolve-maven",
+                 "--no-osv-commits"):  # fmt: skip
+        assert flag in docker, flag
+    assert "-e " not in docker.replace("-e HOME=/tmp", "")  # no token or other variable reaches the image
+    assert "limbowatch/limbowatch/.github/workflows/site.yml --source-ref refs/heads/main" in run
+    assert "index($z) != null and index($w) != null" in run  # all.zip and watchlist.json from one build
+    assert "limbowatch/limbowatch/.github/workflows/image.yml" in run
+    assert run.index("gh attestation verify all.zip") < run.index("docker run")
+    assert run.index('gh attestation verify "oci://$IMAGE"') < run.index("docker run")
+    import subprocess
+
+    for s in [*collect["steps"], *steps]:
+        if "run" in s:
+            subprocess.run(["bash", "-n"], input=s["run"], text=True, check=True)

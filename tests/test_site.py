@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 import pytest
 from limbowatch.csvsafe import cell
@@ -182,4 +183,10 @@ def test_standalone_page_is_linked_and_marked_new() -> None:
     assert html.count('data-label="') == 12  # the comparison table names each column on narrow screens
     assert 'href="/scan/standalone/"' in site.scan({"in_limbo": {"count": 1}})
     assert 'href="/scan/standalone/"' in site.footer()
+    # the sealed workflow (docs/WATCHER.md#sealed-scan), linked from /scan/'s "Lock it down"
+    scan = site.scan({"in_limbo": {"count": 1}})
+    assert site.SEALED_GH in scan and "#sealed-scan" in scan
+    root = Path(__file__).resolve().parent.parent
+    assert (root / site.SEALED_GH.split("/blob/main/")[1]).is_file()
+    assert "## Sealed scan" in (root / "docs/WATCHER.md").read_text()
     assert "/scan/standalone/" in site.SITEMAP_PAGES

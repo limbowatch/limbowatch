@@ -722,12 +722,19 @@ def files(root: Path, include_ignored: bool = False) -> list[str]:
     return sorted(out)
 
 
+# The build files read for upstream sources, by name. deploy/sealed/ checks out exactly these (and the lockfiles);
+# a test keeps its list in step with these constants.
+UPSTREAM_FILES = (".gitmodules", "CMakeLists.txt", "MODULE.bazel", "WORKSPACE", "WORKSPACE.bazel", "WORKSPACE.bzlmod",
+                  "vcpkg.json", "conan.lock", "conanfile.txt", "conanfile.py")  # fmt: skip
+UPSTREAM_SUFFIXES = (".cmake", ".bzl", ".MODULE.bazel")
+MESON_WRAP_DIR = "subprojects"  # meson: subprojects/<name>.wrap
+
+
 def _wanted(path: str) -> bool:
     name = path.rsplit("/", 1)[-1]
-    return (name in (".gitmodules", "CMakeLists.txt", "MODULE.bazel", "WORKSPACE", "WORKSPACE.bazel",
-                     "WORKSPACE.bzlmod", "vcpkg.json", "conan.lock", "conanfile.txt", "conanfile.py")
-            or name.endswith((".cmake", ".bzl", ".MODULE.bazel"))
-            or (name.endswith(".wrap") and path.rsplit("/", 2)[-2:-1] == ["subprojects"]))  # fmt: skip
+    return (name in UPSTREAM_FILES
+            or name.endswith(UPSTREAM_SUFFIXES)
+            or (name.endswith(".wrap") and path.rsplit("/", 2)[-2:-1] == [MESON_WRAP_DIR]))  # fmt: skip
 
 
 def detect(root: Path, include_ignored: bool = False) -> Detected:

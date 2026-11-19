@@ -291,6 +291,23 @@ On four projects it found every advisory the feed found (F-214). What it costs, 
 
 Reports say which way they were made: the table's header reads "no feed", the JSON's `feed` is `null`, and the attribution says the advisories were read from GitHub. With `--state`, a finding from an earlier run is kept while its package is still installed and this scan couldn't have seen it: the package's source repository is unknown or couldn't be read, or the advisory's repository wasn't read (an earlier run with a feed matched it there by name). So switching between modes doesn't report findings as fixed, while a package you removed is still reported as no longer affected.
 
+## Sealed scan
+
+For companies that want the scan to see as little as possible and send nothing: [`deploy/sealed/github/limbowatch.yml`](../deploy/sealed/github/limbowatch.yml), one GitHub Actions workflow. Copy it to `.github/workflows/`; it needs no secrets and no settings, and uses only GitHub's own actions, pinned by commit.
+
+- **collect** (`contents: read`) checks out only the dependency files, by name: every file OSV-Scanner's lockfile and SBOM readers and Limbowatch's own read, and nothing else. A sparse checkout fetches no other file's contents, so the code never reaches the runner. No Limbowatch code runs in this job, and the job summary lists every file that leaves it (a test keeps the list in step with what Limbowatch reads).
+- **scan** (`permissions: {}`, no secrets, no repository):
+  - It downloads the [limbo feed](https://limbo.watch/feed/) whole, which tells limbo.watch nothing about the project.
+  - With GitHub's `gh`, outside the image, it checks that the feed was built by this repository's `site.yml` on `main` (both files from one build) and that the image was built by `image.yml`.
+  - It runs the image pinned by digest with `--network none`, a read-only root, no capabilities and no new privileges, as `nobody`, seeing only the dependency files and the feed, both read-only. Even a compromised image can send nothing anywhere: its only way out is the report.
+- **Reports:** the job summary and a `limbowatch-report` artifact (JSON, Markdown, HTML, SARIF). To post to Slack or open tickets, add a job that holds the secret and treats the report as untrusted input: parse it with `jq`, send only fields you've checked, and never put its values into `${{ }}` expressions, `GITHUB_ENV` or `GITHUB_OUTPUT`. Never restore an Actions cache in a job that holds secrets, since the scan job's runner can write to it.
+
+**What it costs.** It's the feed-only mode (`--no-upstream --no-resolve-maven`), so:
+- **Freshness.** An advisory is found once the tracker has checked its repository: daily for active repositories, weekly for quiet ones. On Open WebUI's and Gitea's lockfiles on 2026-11-19 it found 75 findings, against 77 with the default scan and 81 with [no feed](#no-feed). Every finding it missed was 0 to 2 days old.
+- **Not checked, and reported so:** C/C++ sources taken in by git or archive, copies under `third_party/` and the like, and Maven's transitive dependencies (commit a lockfile, or pass an SBOM).
+
+On Open WebUI (7 of its 5,383 files), Gitea (4 of 6,431) and FreeRDP (506 of 3,170, mostly CMake files), scanning only the files it checks out gave the same dependencies, findings and unchecked entries as scanning the whole checkout. A scan takes seconds. Bump the image line with each release.
+
 ## Security and data
 
 The scan runs where your code already is, in your CI job or on your machine. It doesn't upload files or source code, and nothing here asks you to take that on trust: every point below is something you can check or enforce yourself.
@@ -358,17 +375,7 @@ Nothing from your build files is ever fetched: a `URL` in a `CMakeLists.txt` or 
 - **Allow only the hosts you chose.** On a self-hosted runner with a firewall, or with an egress filter on hosted runners, allow the hosts above for the mode you run (only limbo.watch for feed only). Anything else is blocked and shows up.
 - **Give it nothing to write with.** No secrets, `contents: read`, no `issues:`, and run it in a job of its own.
 - **Contain the image.** The action runs it isolated: the checkout read-only; no access to the runner's temp directory, where `GITHUB_ENV`, `GITHUB_PATH` and `GITHUB_OUTPUT` live; a read-only root filesystem, no capabilities, no new privileges; and workflow commands off while it prints. The scan writes only to directories of its own. The action copies regular files out of them, never following a symlink, and lets only well-formed values through to its outputs. So even a compromised image can't change the files or environment of the job's later steps. The one place in the checkout it can write is the `reports` directory, so files that `extra-args` writes (`--state`, `--audit-log`, more `-o`) go there.
-- **Or keep the repository out of reach entirely.** For a scheduled scan, split the job in three. One job with `contents: read` checks out only the lockfiles (sparse, `persist-credentials: false`) and uploads them as an artifact. One with `permissions: {}` and no secrets runs the image directly on them:
-
-  ```sh
-  mkdir -p out && chmod 777 out
-  docker run --rm --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
-    --user 65534:65534 --pids-limit 256 --memory 2g -e HOME=/tmp -e LIMBOWATCH_GITHUB_TOKEN \
-    -v "$PWD/lockfiles:/scan:ro" -v "$PWD/out:/out" ghcr.io/limbowatch/limbowatch:<release>@sha256:<digest> \
-    limbowatch scan /scan --cache /tmp/cache -o json=/out/report.json -o markdown=/out/report.md
-  ```
-
-  A third job reads the report and does whatever needs secrets (Slack, issues). Treat the report as untrusted there: parse it, and never put its values into `${{ }}` expressions, `GITHUB_ENV` or `GITHUB_OUTPUT`. Report paths are relative to the scan root (`agent/uv.lock`, not `/scan/agent/uv.lock`). Don't restore an Actions cache in a job that holds secrets: the scan job's runner can write to that cache.
+- **Or keep the repository out of reach entirely**, with the [sealed scan](#sealed-scan): only the dependency files reach a job with no permissions, and the image runs there with no network.
 
 Report a security problem in Limbowatch itself as [SECURITY.md](../SECURITY.md) says.
 

@@ -4,6 +4,13 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+- **Sealed scan, for companies** ([`deploy/sealed/github/limbowatch.yml`](deploy/sealed/github/limbowatch.yml), docs/WATCHER.md#sealed-scan). One GitHub Actions workflow to copy, with no secrets and no settings.
+  - **collect** (`contents: read`) checks out only the dependency files, so the code never reaches the runner. That's every file OSV-Scanner 2.7.1 and Limbowatch read, by name, and a test keeps the list in step with the code.
+  - **scan** (`permissions: {}`, no secrets) checks the feed's and the image's build attestations with `gh`, then runs the image with no network, read-only, as nobody. Even a compromised image can send nothing anywhere.
+  - Run on a private repository: only the dependency files and a vendored library's license left the collect job, and the scan took seconds.
+  - On Open WebUI, Gitea and FreeRDP, scanning only those files gave the same result as scanning the whole checkout.
+  - The price is the feed-only mode's: advisories a day or two old can be missed until the tracker next checks their repository, and C/C++ upstream sources are reported as not checked.
+  - `/scan/` links it under "Lock it down".
 - **The action runs the image isolated** (docs/WATCHER.md#security-and-data). Until now it mounted the whole runner temp directory and the checkout read-write. That let a compromised image write `GITHUB_ENV` and `GITHUB_PATH`, which runs code in later steps, or change files that later steps run. Now:
   - The checkout is read-only, and the runner's temp directory is never mounted.
   - The image runs with a read-only root filesystem, no capabilities and no new privileges, and workflow commands are off while it prints.

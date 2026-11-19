@@ -2223,8 +2223,10 @@ upstream sources aren’t checked; each is reported, not dropped.</p></div>
 <div><h3>Verify it</h3><p>The code is open source. Pin the action to a commit SHA; its image is pinned by digest and attested:
 <span class="mono">gh attestation verify oci://ghcr.io/limbowatch/limbowatch:&lt;tag&gt; --owner limbowatch</span>. Or run it
 once behind a proxy and compare the hosts with this table.</p></div>
-<div><h3>Lock it down</h3><p>It needs no secrets and only <span class="mono">contents: read</span>. Check out only the
-dependency files, or pass your own SBOM with <span class="mono">--sbom</span>, and allow only the hosts you chose.</p></div>
+<div><h3>Lock it down</h3><p>It needs no secrets and only <span class="mono">contents: read</span>. Strictest:
+the <a href="{SEALED_GH}">sealed workflow</a> hands only the dependency files to a job with no permissions and
+runs the image there with no network, so nothing can leave. <a href="{WATCHER_DOC}#sealed-scan">What it costs</a>
+</p></div>
 <div><h3>Without limbo.watch <span class="pill"><i></i>New</span></h3><p>Scan with no feed at all, reading GitHub directly,
 or build the same feed on your own CI, for your own dependencies. <a href="/scan/standalone/">Run it standalone</a></p></div></div>
 <p class="links"><a href="{
@@ -2255,6 +2257,7 @@ OWN_FEED_GH = f"{REPO_URL}/blob/main/deploy/own-feed/github/limbo-feed.yml"
 OWN_FEED_GL = f"{REPO_URL}/blob/main/deploy/own-feed/gitlab/.gitlab-ci.yml"
 OWN_FEED_GH_CLI = f"{REPO_URL}/blob/main/deploy/own-feed/github/limbo-feed-cli.yml"  # no image, the CLI only
 OWN_FEED_GL_CLI = f"{REPO_URL}/blob/main/deploy/own-feed/gitlab/.gitlab-ci.cli.yml"
+SEALED_GH = f"{REPO_URL}/blob/main/deploy/sealed/github/limbowatch.yml"  # docs/WATCHER.md#sealed-scan
 NO_FEED_CLI = """# needs OSV-Scanner 2.7.1
 pipx install limbowatch-cli=={release}
 # a read-only GitHub token: 5,000 requests an hour instead of 60
