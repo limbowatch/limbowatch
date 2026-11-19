@@ -22,7 +22,7 @@ from typing import Annotated, Any
 from urllib.parse import urlsplit
 
 import typer
-from limbowatch import hosts
+from limbowatch import audit, hosts
 from limbowatch.ecosystems import info
 from limbowatch.hosts import gitea as gitea_host
 from limbowatch.hosts import github as github_host
@@ -190,10 +190,13 @@ def track(
         ),
     ] = False,
     verbose: Annotated[bool, typer.Option("--verbose", "-v")] = False,
+    audit_log: AuditLog = None,
+    show_network: ShowNetwork = False,
 ) -> None:
     """Run the tracker once: sync reviews and CVEs, poll repos within the budget, record changes."""
     if only_seeds and not seed:
         raise typer.BadParameter("--only-seeds watches the seed files' repos: name at least one --seed")
+    _record_network(ctx, audit_log, show_network)
     logging.basicConfig(level=logging.INFO if verbose else logging.WARNING, format="%(levelname)s %(name)s %(message)s")
     store = _load(state, ctx)
     maven = read_maven_packages(maven_packages.read_text()) if maven_packages else {}
@@ -419,6 +422,38 @@ ResolveMaven = Annotated[
         "Without it, only direct dependencies with a literal version are checked."
     ),
 ]
+AuditLog = Annotated[
+    Path | None,
+    typer.Option(
+        envvar="LIMBOWATCH_AUDIT_LOG",
+        metavar="FILE",
+        help="Record every network call (HTTP requests, git clones and fetches, OSV-Scanner's online runs) as JSON "
+        "Lines in FILE, '-' for stderr: time, URL, method, status, duration, and the name of any credential header. "
+        "Never a secret.",
+    ),
+]
+ShowNetwork = Annotated[
+    bool,
+    typer.Option(
+        envvar="LIMBOWATCH_SHOW_NETWORK",
+        help="Print every network call on stderr as it's made, and the hosts contacted at the end.",
+    ),
+]
+
+
+def _record_network(ctx: typer.Context, audit_log: Path | None, show_network: bool) -> None:
+    """--audit-log and --show-network: record network calls until the command ends, then a summary."""
+    sinks: list[audit.Sink] = []
+    if audit_log is not None:
+        if str(audit_log) == "-":
+            sinks.append(audit.JsonLines(sys.stderr))
+        else:
+            audit_log.parent.mkdir(parents=True, exist_ok=True)
+            sinks.append(audit.JsonLines(ctx.with_resource(audit_log.open("w", encoding="utf-8"))))
+    if show_network:
+        sinks.append(audit.Readable(lambda line: typer.echo(line, err=True)))
+    if sinks:  # entered after the log file, so left before it closes: the summary is the file's last line
+        ctx.with_resource(audit.recording(*sinks, command=ctx.info_name or ""))
 
 
 def load_inventory(
@@ -458,13 +493,17 @@ def _fail(msg: str) -> int:
 
 @app.command()
 def inventory(
+    ctx: typer.Context,
     path: Annotated[Path, typer.Argument(help="Project directory.")] = Path("."),
     sbom_file: Annotated[Path | None, typer.Option("--sbom", help="CycloneDX or SPDX JSON instead of a tree.")] = None,
     binary: Annotated[str, typer.Option("--osv-scanner", help="OSV-Scanner executable.")] = "osv-scanner",
     fmt: Annotated[str, typer.Option("--format", help="table or json.")] = "table",
     resolve_maven: ResolveMaven = True,
+    audit_log: AuditLog = None,
+    show_network: ShowNetwork = False,
 ) -> None:
     """List the dependencies Limbowatch would check, and every one it can't, with the reason."""
+    _record_network(ctx, audit_log, show_network)
     inv = load_inventory(path, sbom_file, binary, resolve_maven=resolve_maven)
     if fmt == "json":
         typer.echo(inv.model_dump_json(indent=1))
@@ -502,6 +541,7 @@ def _base(path: Path) -> str:
 
 @app.command()
 def scan(
+    ctx: typer.Context,
     path: Annotated[Path, typer.Argument(help="Project directory.")] = Path("."),
     sbom_file: Annotated[Path | None, typer.Option("--sbom", help="CycloneDX or SPDX JSON instead of a tree.")] = None,
     fmt: Annotated[
@@ -559,6 +599,8 @@ def scan(
     issues_max_new: IssuesMaxNew = 50,
     issues_dry_run: Annotated[bool, typer.Option(help="Print the issue changes instead of making them.")] = False,
     allow_insecure_http: AllowInsecureHttp = False,
+    audit_log: AuditLog = None,
+    show_network: ShowNetwork = False,
 ) -> None:
     """Check a project's dependencies against advisories in limbo.
 
@@ -586,6 +628,7 @@ def scan(
             hosts.refuse_cleartext(sent_to, "LIMBOWATCH_ISSUES_TOKEN", allow_insecure_http)
         except hosts.SourceError as e:
             raise typer.BadParameter(str(e), param_hint="--issues-url") from e
+    _record_network(ctx, audit_log, show_network)
     cache = cache or _cache_dir()
     inv = load_inventory(path, sbom_file, binary, scan_ignored, resolve_maven)
     for skipped in inv.skipped:
@@ -795,6 +838,7 @@ def _source_token(hosts: set[str]) -> str | None:
 
 @app.command()
 def repos(
+    ctx: typer.Context,
     paths: Annotated[
         list[Path] | None, typer.Argument(help="Project directories [default: . without sources].")
     ] = None,
@@ -813,6 +857,8 @@ def repos(
     scan_ignored: Annotated[bool, typer.Option(help="Also read lockfiles a .gitignore excludes.")] = False,
     resolve_maven: ResolveMaven = True,
     allow_insecure_http: AllowInsecureHttp = False,
+    audit_log: AuditLog = None,
+    show_network: ShowNetwork = False,
 ) -> None:
     """List the GitHub source repositories of projects' dependencies, as a seed file for a feed focused on them
     (`limbowatch track --seed FILE --only-seeds`, docs/OWN_FEED.md).
@@ -823,6 +869,7 @@ def repos(
     couldn't be listed or no project could be read.
     """
     src = _org_sources(gitlab_group, gitea_org, github_org, git, gitlab_url, github_url, allow_insecure_http)
+    _record_network(ctx, audit_log, show_network)
     dirs = list(paths or ([] if src.any or sbom_file else [Path(".")]))
     if dirs or src.any:
         _check_osv_scanner(binary)
@@ -1026,6 +1073,7 @@ def _org_sources(
 
 @app.command()
 def watch(
+    ctx: typer.Context,
     gitlab_group: GitlabGroups = None,
     gitea_org: GiteaOrgs = None,
     github_org: GithubOrgs = None,
@@ -1079,6 +1127,8 @@ def watch(
     issues_max_new: IssuesMaxNew = 50,
     issues_dry_run: Annotated[bool, typer.Option(help="Print the issue changes instead of making them.")] = False,
     allow_insecure_http: AllowInsecureHttp = False,
+    audit_log: AuditLog = None,
+    show_network: ShowNetwork = False,
 ) -> None:
     """Check every project of GitLab groups, Gitea or Forgejo orgs, GitHub orgs, or git URLs, in one run (org-wide
     mode).
@@ -1108,6 +1158,7 @@ def watch(
             hosts.refuse_cleartext(bases, "LIMBOWATCH_ISSUES_TOKEN", allow_insecure_http)
     except hosts.SourceError as e:
         raise typer.BadParameter(str(e)) from e
+    _record_network(ctx, audit_log, show_network)
     _check_osv_scanner(binary)
     cache = cache or _cache_dir()
     now = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")

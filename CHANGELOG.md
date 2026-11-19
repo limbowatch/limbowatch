@@ -2,6 +2,10 @@
 
 Versions follow [semantic versioning](https://semver.org). The PyPI packages `limbowatch` and `limbowatch-cli`, the GitLab CI/CD component and the Actions action share one version number.
 
+## Unreleased
+
+- **A record of every network call** (docs/WATCHER.md#security-and-data, FINDINGS F-225). `--audit-log FILE` writes one JSON line per call: every HTTP request (each retry and redirect hop too), git clone, fetch and `ls-remote`, and OSV-Scanner's `pom.xml` resolution run, with the time, URL, method, status or error, duration, bytes sent and the name of any credential header. Never a secret. The file ends with a summary of calls per host. `--show-network` prints the same calls in the log as they happen. Both options work on `scan`, `watch`, `repos`, `inventory` and `track`, or set `LIMBOWATCH_AUDIT_LOG` and `LIMBOWATCH_SHOW_NETWORK`. In the action and the GitLab component, pass them in `extra-args`/`extra_args`; on GitLab, `--audit-log limbowatch/network.jsonl` is kept with the job's artifacts.
+
 ## 0.1.0a21 (2026-11-17)
 
 Still an **alpha**. On PyPI it's `0.1.0a21`; the GitHub tag and the action's ref are `v0.1.0a21`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a21`; the GitLab CI/CD component is `0.1.0-alpha.21`. Own-feed pipelines that need only the command line, and a website organised around how you run Limbowatch, standalone included. Scans and the tracker are unchanged from 0.1.0a20.

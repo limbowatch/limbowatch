@@ -11,7 +11,10 @@ import asyncio
 import os
 import re
 import subprocess
+import time
 from pathlib import Path
+
+from limbowatch import audit
 
 CLONE_TIMEOUT = 300
 _ENV = {"GIT_TERMINAL_PROMPT": "0", "GIT_ASKPASS": "", "SSH_ASKPASS": "", "GIT_CONFIG_NOSYSTEM": "1"}
@@ -71,20 +74,25 @@ class GitGraph:
 
 
 def _clone(url: str, dest: Path) -> GitGraph | None:
+    """A cached clone is fetched from its origin, which is `url`: the cache directory is named after the repo."""
     env = {**os.environ, **_ENV}
+    op = "fetch" if (dest / "HEAD").exists() else "clone"
+    started = time.monotonic()
     try:
-        if (dest / "HEAD").exists():
-            subprocess.run(["git", "-c", "safe.directory=*", "--git-dir", str(dest), "fetch", "--quiet", "--tags",
-                            "--force", "origin", "+refs/heads/*:refs/heads/*"],
-                           capture_output=True, timeout=CLONE_TIMEOUT, env=env)  # fmt: skip
+        if op == "fetch":
+            r = subprocess.run(["git", "-c", "safe.directory=*", "--git-dir", str(dest), "fetch", "--quiet", "--tags",
+                                "--force", "origin", "+refs/heads/*:refs/heads/*"],
+                               capture_output=True, timeout=CLONE_TIMEOUT, env=env)  # fmt: skip
         else:
             dest.parent.mkdir(parents=True, exist_ok=True)
             r = subprocess.run(["git", "-c", "credential.helper=", "clone", "--quiet", "--bare", "--filter=tree:0",
                                 "--", url, str(dest)], capture_output=True, timeout=CLONE_TIMEOUT, env=env)  # fmt: skip
-            if r.returncode:
-                return None
+        audit.git(op, url, exit_code=r.returncode, ms=(time.monotonic() - started) * 1000)
+        if r.returncode and op == "clone":
+            return None
         return GitGraph(dest)
-    except (OSError, subprocess.TimeoutExpired):
+    except (OSError, subprocess.TimeoutExpired) as e:
+        audit.git(op, url, error=type(e).__name__, ms=(time.monotonic() - started) * 1000)
         return None
 
 

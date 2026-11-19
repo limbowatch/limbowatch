@@ -18,12 +18,14 @@ import os
 import re
 import subprocess
 import tempfile
+import time
 import zipfile
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from limbowatch import audit
 from limbowatch.ecosystems import OFFLINE_ECOSYSTEMS, by_osv
 from limbowatch.inventory import checks
 from limbowatch.models import Dependency, Inventory, Unchecked, UnresolvedDependency
@@ -148,10 +150,16 @@ def _is_pom(path: str) -> bool:
 
 
 def _resolve(cmd: list[str], timeout: int) -> Resolution:
+    """The resolving run goes online, so it's recorded (`limbowatch.audit`); the first, offline run isn't."""
+    started = time.monotonic()
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
     except subprocess.TimeoutExpired:
+        audit.osv_scanner("resolve pom.xml dependencies", audit.MAVEN_RESOLVER_HOSTS,
+                          error=f"timed out after {timeout} s", ms=(time.monotonic() - started) * 1000)  # fmt: skip
         return Resolution({}, "", f"resolving timed out after {timeout} s")
+    audit.osv_scanner("resolve pom.xml dependencies", audit.MAVEN_RESOLVER_HOSTS, exit_code=proc.returncode,
+                      ms=(time.monotonic() - started) * 1000)  # fmt: skip
     data = _json(proc.stdout)
     if not data and proc.returncode not in (0, 1):
         return Resolution({}, proc.stderr, " ".join(proc.stderr.strip().splitlines()[-1:])[:300] or "resolving failed")

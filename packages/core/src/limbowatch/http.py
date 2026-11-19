@@ -7,6 +7,8 @@
 - Conditional requests: ETags are only valid for the token that obtained them (the response
   varies by Authorization), so the client exposes a token fingerprint to store alongside them.
 - The token is never logged, printed or returned.
+- Every attempt, retry and redirect hop goes to `limbowatch.audit` (`--audit-log`, `--show-network`), with its
+  status or error. Event hooks, not a wrapping transport: httpx ignores HTTPS_PROXY once given a transport.
 """
 
 from __future__ import annotations
@@ -21,7 +23,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from limbowatch import __version__
+from limbowatch import __version__, audit
 
 log = logging.getLogger(__name__)
 USER_AGENT = f"limbowatch/{__version__} (+https://limbo.watch)"
@@ -110,8 +112,9 @@ class HttpClient:
         self._write_last: dict[str, float] = {}
         self.stats = Stats()
         self._client = httpx.AsyncClient(
-            timeout=60, follow_redirects=True, headers={"User-Agent": USER_AGENT}, transport=transport
-        )
+            timeout=60, follow_redirects=True, headers={"User-Agent": USER_AGENT}, transport=transport,
+            event_hooks={"request": [_audit_start], "response": [_audit_response]},
+        )  # fmt: skip
 
     async def __aenter__(self) -> HttpClient:
         return self
@@ -234,6 +237,7 @@ class HttpClient:
                     r = await self._client.request(method, url, headers=headers, json=json_body,
                                                    params=params)  # fmt: skip
                 except httpx.HTTPError as e:
+                    _audit_error(e, method, url)
                     log.warning("http error", extra={"host": host, "error": type(e).__name__, "attempt": attempt})
                     if once and not isinstance(e, (httpx.ConnectError, httpx.ConnectTimeout)):
                         r = None
@@ -284,6 +288,7 @@ class HttpClient:
                 else:
                     r = await self._client.get(url, headers=headers)
             except httpx.HTTPError as e:
+                _audit_error(e, "GET" if json_body is None else "POST", url)
                 log.warning("http error", extra={"url": url, "error": type(e).__name__, "attempt": attempt})
                 if not patient:
                     return None
@@ -336,6 +341,53 @@ class HttpClient:
             raise BudgetExhausted
         log.info("github rate limit low; waiting", extra={"seconds": round(wait)})
         await self._sleep(wait)
+
+
+_STARTED = "limbowatch.started"
+
+
+async def _audit_start(request: httpx.Request) -> None:
+    request.extensions[_STARTED] = time.monotonic()
+
+
+async def _audit_response(response: httpx.Response) -> None:
+    if audit.active():
+        req = response.request
+        audit.http(req.method, str(req.url), status=response.status_code, ms=_elapsed(req), credential=_credential(req),
+                   sent_bytes=_sent(req))  # fmt: skip
+
+
+def _audit_error(e: httpx.HTTPError, method: str, url: str) -> None:
+    """A request that got no response (no hook sees it): the request httpx built, where there is one."""
+    if not audit.active():
+        return
+    try:
+        req: httpx.Request | None = e.request
+    except RuntimeError:
+        req = None
+    if req is None:
+        audit.http(method, url, error=type(e).__name__)
+    else:
+        audit.http(req.method, str(req.url), error=type(e).__name__, ms=_elapsed(req), credential=_credential(req),
+                   sent_bytes=_sent(req))  # fmt: skip
+
+
+def _elapsed(req: httpx.Request) -> float | None:
+    started = req.extensions.get(_STARTED)
+    return None if started is None else (time.monotonic() - started) * 1000
+
+
+def _credential(req: httpx.Request) -> str | None:
+    """The name (never the value) of a header that carries a credential."""
+    names = [k for k in req.headers if k.lower() in audit.CREDENTIAL_HEADERS]
+    return ", ".join(names) or None
+
+
+def _sent(req: httpx.Request) -> int | None:
+    try:
+        return len(req.content)
+    except httpx.RequestNotRead:
+        return None
 
 
 def _github_wait(r: httpx.Response, attempt: int) -> float | None:

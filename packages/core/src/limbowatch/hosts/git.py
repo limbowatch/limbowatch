@@ -13,8 +13,10 @@ from __future__ import annotations
 import base64
 import os
 import subprocess
+import time
 from pathlib import Path
 
+from limbowatch import audit
 from limbowatch.hosts import HostKind, Project
 
 TIMEOUT = 600
@@ -53,13 +55,23 @@ def command(project: Project, dest: Path) -> list[str]:
 
 def clone(project: Project, dest: Path, token: str | None, timeout: int = TIMEOUT) -> str:
     """Clone into `dest` (which must not exist yet); returns the commit checked out, "" for an empty repository."""
+    started = time.monotonic()
+    sent = "Authorization" if token else None  # as an extraHeader, to the project's host only
+
+    def record(exit_code: int | None = None, error: str | None = None) -> None:
+        audit.git("clone", project.clone_url, exit_code=exit_code, error=error, credential=sent,
+                  ms=(time.monotonic() - started) * 1000)  # fmt: skip
+
     try:
         proc = subprocess.run(command(project, dest), capture_output=True, text=True, timeout=timeout, check=False,
                               env=environment(project, token))  # fmt: skip
     except subprocess.TimeoutExpired as e:
+        record(error=f"timed out after {timeout} s")
         raise CloneError(f"clone timed out after {timeout} s") from e
     except OSError as e:
+        record(error=type(e).__name__)
         raise CloneError(f"couldn't run git: {e}") from e
+    record(proc.returncode)
     if proc.returncode:
         raise CloneError(_last(proc.stderr) or f"git clone exited with {proc.returncode}")
     head = subprocess.run(["git", "-C", str(dest), "rev-parse", "--verify", "--quiet", "HEAD"], capture_output=True,

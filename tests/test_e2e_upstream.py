@@ -189,6 +189,27 @@ def test_no_osv_commits_keeps_commits_local(world: dict[str, Any]) -> None:
     assert r.exit_code == 1 and not osv.called
 
 
+def test_audit_log_lists_every_request_and_clone(world: dict[str, Any]) -> None:
+    """--audit-log has exactly the requests made, and the clones; --show-network prints them on stderr, not stdout."""
+    p = project(world["tmp"], world["tags"]["v1.1.0"])
+    log = world["tmp"] / "audit" / "network.jsonl"
+    with respx.mock(assert_all_called=True) as router:
+        mocked(router)
+        r = run(["scan", str(p), "--cache", str(world["cache"]), "--format", "json", "--audit-log", str(log),
+                 "--show-network"])  # fmt: skip
+        sent = [(c.request.method, str(c.request.url)) for c in router.calls]
+    assert r.exit_code == 1 and json.loads(r.stdout)["findings"]  # stdout is still the report alone
+    rows = [json.loads(ln) for ln in log.read_text().splitlines()]
+    assert rows[0]["kind"] == "run" and rows[0]["command"] == "scan" and rows[-1]["kind"] == "summary"
+    assert [(e["method"], e["url"]) for e in rows if e["kind"] == "http"] == sent
+    assert {e["host"] for e in rows if e["kind"] == "http"} == {"limbo.watch", "api.osv.dev"}
+    clones = sorted((e["op"], e["url"].rsplit("/", 2)[-2:]) for e in rows if e["kind"] == "git")
+    assert clones == [("clone", ["acme", "lib"])]  # only repos with advisories in limbo are cloned
+    assert rows[-1]["calls"] == len(sent) + 1
+    shown = [ln for ln in r.stderr.splitlines() if ln.startswith("limbowatch: network: ")]
+    assert len(shown) == len(sent) + 2 and shown[-1].startswith(f"limbowatch: network: {len(sent) + 1} calls to ")
+
+
 def test_no_upstream_check_reports_every_source_as_unchecked(world: dict[str, Any]) -> None:
     p = project(world["tmp"], world["tags"]["v1.1.0"])
     with respx.mock(assert_all_called=False) as router:

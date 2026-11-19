@@ -3525,6 +3525,23 @@ Answered:
 - **Implication:** 0.1.0a21 shipped as tested.
 - **Sources:** the runs above; PyPI; ghcr.io; gitlab.com/limbowatch/limbowatch-component.
 
+### F-225
+- **Date:** 2026-11-18 · **Status:** confirmed (direct observation; one project, as [F-166](#f-166))
+- **Question:** Does `--audit-log` record every host a scan contacts, so a company can see every URL called without a logging proxy? And what does the record show that the host table didn't?
+- **Method:**
+  - **Code read:** the run's ways to the network. HTTP goes through `limbowatch.http` only. git's network calls are `clone`/`fetch` in `watch.gitgraph`, `clone` in `hosts.git` and `ls-remote` in `sources.gitrefs`; the others (`ls-files`, `rev-parse`, `merge-base`, …) are local. The only OSV-Scanner run that goes online is the `pom.xml` resolution.
+  - **Hooks, not a transport:** httpx 0.28.1's `AsyncClient.__init__` sets `allow_env_proxies = trust_env and transport is None`, so a wrapping transport would have dropped `HTTPS_PROXY`; event hooks don't.
+  - **Live run:** the logging CONNECT proxy method of F-166, an empty cache, OSV-Scanner 2.7.1, `limbowatch scan --format json --audit-log …` from the working tree. Project: the npm, Go, Cargo and Python fixtures, the Maven/Gradle fixture tree (3 `pom.xml`), and a `CMakeLists.txt` fetching madler/zlib v1.3.1. Two runs: default, and `--no-upstream --no-resolve-maven`.
+- **Result:**
+  - **Default run:** 25 HTTP requests recorded: api.deps.dev 13, repo1.maven.org 6, api.github.com 4, limbo.watch 2. Also one OSV-Scanner resolution run (exit 127, fixture pom.xml with an unresolvable sibling), recorded with its three hosts.
+  - **What the proxy saw:** tunnels to api.deps.dev (14), repo1.maven.org (4), api.github.com (3), limbo.watch (1) and repo.maven.apache.org (1). Every one is in the record: repo.maven.apache.org and the 14th deps.dev tunnel through the OSV-Scanner entry, the rest by URL. There are fewer tunnels than requests because connections are reused.
+  - **Feed only:** 3 requests (limbo.watch 2: the feed and the watchlist; api.github.com 1: the attestation). The proxy saw exactly those two hosts, as in F-166.
+  - **The record showed what a proxy can't:** full URLs, and which requests carried a credential. `authorization` went to api.github.com only: the CLI falls back to `gh auth token`, which on macOS answers from the keychain even with an empty `GH_CONFIG_DIR`, so this "no token" run had one. `cookie` went to repo1.maven.org on 2 of 6 requests. Maven Central's Cloudflare sets `__cf_bm` (Domain=maven.org, 30 minutes), and httpx's client-wide cookie jar sends it back for the rest of the run. Nothing is written to disk.
+  - **Failures are recorded too.** With the proxy down, each of the 6 attempts to fetch the feed was recorded as a `ConnectError`.
+- **Caveats:** one project and one run each. OSV-Scanner's own URLs aren't visible to Limbowatch: the record names only the hosts its resolver can contact. Timings are from the probe machine.
+- **Implication:** `--audit-log` and `--show-network` (all network-using commands; `LIMBOWATCH_AUDIT_LOG`, `LIMBOWATCH_SHOW_NETWORK`) give a per-run record a company can keep, and the host table in WATCHER.md "Security and data" holds. Open: the client keeps cookies a server sets. That's harmless for a public registry, but a scanner doesn't need it, and turning it off would make "what it sends" exactly the URL.
+- **Sources:** httpx 0.28.1 `_client.py`; probe output in the session scratchpad (`probe/audit-*.jsonl`, `probe/proxy-*.log`); `curl -sI https://repo1.maven.org/maven2/javax/inject/javax.inject/1/javax.inject-1.pom` (the `set-cookie` header).
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

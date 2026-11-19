@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
+
+from limbowatch import audit
 
 TIMEOUT = 60.0
 
@@ -16,18 +19,26 @@ TIMEOUT = 60.0
 async def tags(url: str, timeout: float = TIMEOUT) -> dict[str, str] | None:
     """Tag name → commit for the repository at `url`; None when it can't be listed."""
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_ASKPASS": "", "SSH_ASKPASS": ""}
+    started = time.monotonic()
+
+    def record(exit_code: int | None = None, error: str | None = None) -> None:
+        audit.git("ls-remote", url, exit_code=exit_code, error=error, ms=(time.monotonic() - started) * 1000)
+
     try:
         proc = await asyncio.create_subprocess_exec(
             "git", "-c", "credential.helper=", "ls-remote", "--tags", url,
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL, env=env,
         )  # fmt: skip
-    except OSError:
+    except OSError as e:
+        record(error=type(e).__name__)
         return None
     try:
         out, _ = await asyncio.wait_for(proc.communicate(), timeout)
     except TimeoutError:
         proc.kill()
+        record(error=f"timed out after {timeout:g} s")
         return None
+    record(proc.returncode)
     if proc.returncode:
         return None
     return parse(out.decode(errors="replace"))

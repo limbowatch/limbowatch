@@ -105,6 +105,8 @@ Every format carries the CC BY 4.0 attribution for the advisory data. SARIF 2.1.
 | `--feed limbo.watch\|URL\|DIR\|none` | Where advisories in limbo come from (`LIMBOWATCH_FEED`): the limbo feed (default); a feed you build and host yourself, by https URL or directory ([OWN_FEED.md](OWN_FEED.md)); or `none`, no feed: every dependency's source repo is read on GitHub during the scan ([No feed](#no-feed)) |
 | `--verify-feed auto\|require\|off` | Check the feed against its signed build attestation before using it (default `auto`; `LIMBOWATCH_VERIFY_FEED`). [Security and data](#security-and-data) |
 | `--allow-insecure-http` | Send the issues token to an `http://` tracker on another machine. Refused by default ([Security and data](#security-and-data)); `LIMBOWATCH_ALLOW_INSECURE_HTTP=1` |
+| `--audit-log FILE` | Record every network call as JSON Lines in `FILE` (`-` for stderr; `LIMBOWATCH_AUDIT_LOG`): what it is, URL, method, status or error, duration, and the name of any credential header sent. Never a secret ([Security and data](#security-and-data)) |
+| `--show-network` | Print every network call on stderr as it's made, and the hosts contacted at the end (`LIMBOWATCH_SHOW_NETWORK=1`) |
 | `-v` | Show the evidence for every finding, and every dependency checked by name only |
 
 | Exit code | Meaning |
@@ -331,6 +333,12 @@ A GitHub token, when there is one, goes only to api.github.com; a tracker token 
     - During a deploy, the two files can briefly come from different builds. The scan then downloads them again after 5 seconds, and if they still don't match, uses its cached pair verified before (with a warning), or stops and says to try again in a few minutes.
   - **It never reads more than a real feed's size.** Downloads stop at 500 MB, the zip's own listing is checked before anything is unpacked (at most 500,000 records, 5 MB each, 1 GB in all), and a feed over those limits is refused (F-192).
   - **To check a copy yourself**, including the one the scan cached under `~/.cache/limbowatch`, with the Sigstore signature checked too: `gh attestation verify all.zip --repo limbowatch/limbowatch --signer-workflow limbowatch/limbowatch/.github/workflows/site.yml --source-ref refs/heads/main --deny-self-hosted-runners` (F-191).
+- **Record it.** `--audit-log FILE` writes one JSON line per network call, and keep the file as a build artifact. `--show-network` prints the same calls in the job log. Each entry has the time, what made the call, the full URL, the method, the status or error, the duration and the bytes sent. If a credential header went with the request, the entry names it: `authorization` to api.github.com, `private-token` to GitLab, `cookie` where a server set one earlier in the run (Maven Central's Cloudflare does). The header's value is never recorded, nor is a user name, password or credential-like query value in a URL. The file ends with a summary of calls per host. Where it comes from:
+  - **HTTP requests:** every attempt, retry and redirect hop, through `limbowatch.http`.
+  - **git:** clones, fetches and `ls-remote` calls.
+  - **OSV-Scanner:** its `pom.xml` resolution run. Its URLs are visible only to OSV-Scanner, so the run is recorded with the hosts it can contact (`--no-resolve-maven` turns it off).
+
+  `track`, `inventory`, `repos` and `watch` take the same options. In the action, add `--audit-log limbowatch-network.jsonl` to `extra-args` and upload the file; on GitLab, `extra_args: "--audit-log limbowatch/network.jsonl"` keeps it with the job's other artifacts. Checked against a logging proxy: every host the proxy saw is in the record (F-225).
 - **Watch it.** Run it once behind a logging proxy (`HTTPS_PROXY`; Limbowatch, OSV-Scanner and git all honour it) and compare the hosts with the table above.
 
 **How to lock it down.**
