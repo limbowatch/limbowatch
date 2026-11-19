@@ -101,7 +101,7 @@ With `LIMBO_FEED_PUBLISH` set to `branch`, the GitHub pipeline commits `all.zip`
     ref: limbo-feed
     path: limbo-feed
     token: ${{ secrets.LIMBO_FEED_READ_TOKEN }}   # only if the repository is private
-- uses: limbowatch/limbowatch-action@v0.1.0a21
+- uses: limbowatch/limbowatch-action@v0.1.0a22
   env:
     LIMBOWATCH_FEED: limbo-feed/feed
 ```

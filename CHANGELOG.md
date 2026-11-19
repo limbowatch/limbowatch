@@ -2,7 +2,9 @@
 
 Versions follow [semantic versioning](https://semver.org). The PyPI packages `limbowatch` and `limbowatch-cli`, the GitLab CI/CD component and the Actions action share one version number.
 
-## Unreleased
+## 0.1.0a22 (2026-11-19)
+
+Still an **alpha**. On PyPI it's `0.1.0a22`; the GitHub tag and the action's ref are `v0.1.0a22`; the image is `ghcr.io/limbowatch/limbowatch:0.1.0a22`; the GitLab CI/CD component is `0.1.0-alpha.22`. What a scan sends, and what it can reach, made checkable and smaller: a record of every network call, https enforced, the action's image isolated from the runner, and a sealed scan for companies that sees only the dependency files and has no network. Two breaking changes: an `http://` source or tracker URL needs `--allow-insecure-http`, and in the action's image mode, files that `extra-args` writes go in the `reports` directory.
 
 - **Sealed scan, for companies** ([`deploy/sealed/github/limbowatch.yml`](deploy/sealed/github/limbowatch.yml), docs/WATCHER.md#sealed-scan). One GitHub Actions workflow to copy, with no secrets and no settings.
   - **collect** (`contents: read`) checks out only the dependency files, so the code never reaches the runner. That's every file OSV-Scanner 2.7.1 and Limbowatch read, by name, and a test keeps the list in step with the code.
