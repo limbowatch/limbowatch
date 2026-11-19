@@ -188,5 +188,14 @@ def test_standalone_page_is_linked_and_marked_new() -> None:
     assert site.SEALED_GH in scan and "#sealed-scan" in scan
     root = Path(__file__).resolve().parent.parent
     assert (root / site.SEALED_GH.split("/blob/main/")[1]).is_file()
-    assert "## Sealed scan" in (root / "docs/WATCHER.md").read_text()
+    watcher = (root / "docs/WATCHER.md").read_text()
+    assert (
+        "## Sealed scan" in watcher
+        and "### With your own feed" in watcher
+        and "### Without a feed, the same day" in watcher
+    )
+    # /scan/standalone/ points to the sealed scan with your feed, and to the no-feed variant
+    for link in (site.SEALED_GH, site.SEALED_NO_FEED_GH, "#with-your-own-feed", "#without-a-feed-the-same-day"):
+        assert link in html, link
+    assert (root / site.SEALED_NO_FEED_GH.split("/blob/main/")[1]).is_file()
     assert "/scan/standalone/" in site.SITEMAP_PAGES

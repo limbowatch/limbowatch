@@ -293,20 +293,59 @@ Reports say which way they were made: the table's header reads "no feed", the JS
 
 ## Sealed scan
 
-For companies that want the scan to see as little as possible and send nothing: [`deploy/sealed/github/limbowatch.yml`](../deploy/sealed/github/limbowatch.yml), one GitHub Actions workflow. Copy it to `.github/workflows/`; it needs no secrets and no settings, and uses only GitHub's own actions, pinned by commit.
+For companies that want the scan to see as little as possible and send nothing: [`deploy/sealed/github/limbowatch.yml`](../deploy/sealed/github/limbowatch.yml), one GitHub Actions workflow. Copy it to `.github/workflows/`. It needs no secrets and no settings, and uses only GitHub's own actions, pinned by commit.
 
-- **collect** (`contents: read`) checks out only the dependency files, by name: every file OSV-Scanner's lockfile and SBOM readers and Limbowatch's own read, and nothing else. A sparse checkout fetches no other file's contents, so the code never reaches the runner. No Limbowatch code runs in this job, and the job summary lists every file that leaves it (a test keeps the list in step with what Limbowatch reads).
-- **scan** (`permissions: {}`, no secrets, no repository):
+- **collect** (`contents: read`). No Limbowatch code runs in this job.
+  - It checks out only the dependency files, by name: every file OSV-Scanner's lockfile and SBOM readers and Limbowatch's own read, and nothing else. A sparse checkout fetches no other file's contents, so the code never reaches the runner. The job summary lists every file that leaves the job, and a test keeps the list in step with what Limbowatch reads.
   - It downloads the [limbo feed](https://limbo.watch/feed/) whole, which tells limbo.watch nothing about the project.
-  - With GitHub's `gh`, outside the image, it checks that the feed was built by this repository's `site.yml` on `main` (both files from one build) and that the image was built by `image.yml`.
-  - It runs the image pinned by digest with `--network none`, a read-only root, no capabilities and no new privileges, as `nobody`, seeing only the dependency files and the feed, both read-only. Even a compromised image can send nothing anywhere: its only way out is the report.
-- **Reports:** the job summary and a `limbowatch-report` artifact (JSON, Markdown, HTML, SARIF). To post to Slack or open tickets, add a job that holds the secret and treats the report as untrusted input: parse it with `jq`, send only fields you've checked, and never put its values into `${{ }}` expressions, `GITHUB_ENV` or `GITHUB_OUTPUT`. Never restore an Actions cache in a job that holds secrets, since the scan job's runner can write to it.
+  - With GitHub's `gh`, it checks that the feed was built by this repository's `site.yml` on `main`, with both files from one build, and that the image was built by `image.yml`.
+- **scan** (`permissions: {}`, no secrets, no repository, no token used). It runs the image pinned by digest with `--network none`, a read-only root, no capabilities and no new privileges, as `nobody`. The image sees only the dependency files and the feed, both read-only. Even a compromised image can send nothing anywhere: its only way out is the report.
+- **Reports:** the job summary and a `limbowatch-report` artifact (JSON, Markdown, HTML, SARIF).
+  - To post to Slack or open tickets, add a job that holds the secret and treats the report as untrusted input: parse it with `jq`, send only fields you've checked, and never put its values into `${{ }}` expressions, `GITHUB_ENV` or `GITHUB_OUTPUT`.
+  - Never restore an Actions cache in a job that holds secrets, since the scan job's runner can write to it.
 
 **What it costs.** It's the feed-only mode (`--no-upstream --no-resolve-maven`), so:
 - **Freshness.** An advisory is found once the tracker has checked its repository: daily for active repositories, weekly for quiet ones. On Open WebUI's and Gitea's lockfiles on 2026-11-19 it found 75 findings, against 77 with the default scan and 81 with [no feed](#no-feed). Every finding it missed was 0 to 2 days old.
 - **Not checked, and reported so:** C/C++ sources taken in by git or archive, copies under `third_party/` and the like, and Maven's transitive dependencies (commit a lockfile, or pass an SBOM).
 
 On Open WebUI (7 of its 5,383 files), Gitea (4 of 6,431) and FreeRDP (506 of 3,170, mostly CMake files), scanning only the files it checks out gave the same dependencies, findings and unchecked entries as scanning the whole checkout. A scan takes seconds. Bump the image line with each release.
+
+### With your own feed
+
+To take nothing from limbo.watch and still send nothing, build [your own feed](OWN_FEED.md) and point the sealed scan at it. Popular mode reads only public data and never sees your repositories. Set these at the top of the file:
+
+| Your feed | Set |
+|---|---|
+| Served over https (GitHub Pages) | `FEED_URL: https://acme.github.io/limbo-feed/feed/` |
+| On a `limbo-feed` branch of this repository | `FEED_BRANCH: limbo-feed` |
+| On a branch of another repository | `FEED_BRANCH: limbo-feed`, `FEED_REPOSITORY: acme/limbo-feed`; if it's private, a `LIMBO_FEED_READ_TOKEN` secret, which only the collect job uses |
+
+`FEED_SIGNER` names the workflow whose attestation the feed must carry, such as `acme/limbo-feed/.github/workflows/limbo-feed.yml@refs/heads/main`. The own-feed pipeline attests its feed in public repositories and on plans with attestations for private ones. Set `FEED_SIGNER: ""` for a feed that isn't attested: the run then warns, and the job summary says the feed wasn't checked. The scan treats an own feed as it does the limbo feed: it warns when the feed is more than 3 days old.
+
+With no network, the scan can't fill gaps in your feed at scan time, as other scans do. So it finds only what your feed watches, and matches other dependencies by package name only. Build the feed for these projects:
+- **Focused mode**, listing your projects' dependencies (it needs a read token for that);
+- or **popular mode**, after its first full pass, about four weeks.
+
+On a test repository, a small focused feed built for other projects gave 35 findings at high or above, against 52 with the limbo feed.
+
+### Without a feed, the same day
+
+[`deploy/sealed/github/limbowatch-no-feed.yml`](../deploy/sealed/github/limbowatch-no-feed.yml) has the same collect job and file list, but its image reads every dependency's source repository on GitHub itself ([no feed](#no-feed)). That finds the same day's advisories and takes nothing from limbo.watch. The image needs network for it, so the dependency list goes out:
+- source repository names to api.github.com;
+- package names and versions to deps.dev and the package registries;
+- advisory and CVE IDs to OSV and CVE Services.
+
+The code still never leaves. The image is read-only, runs as `nobody` and gets only the dependency files, plus the job's token. With `permissions: {}`, that token reads public data only, not your repository.
+
+GitHub allows the job token 1,000 requests an hour (15,000 on Enterprise Cloud). The scan makes one per source repository (1,261 for Open WebUI's and Gitea's lockfiles), and reports any it couldn't read as not checked.
+
+| | Sealed, limbo feed | Sealed, your feed | No feed |
+|---|---|---|---|
+| The image's network | none | none | yes |
+| Takes from limbo.watch | the feed, attestation checked | nothing | nothing |
+| What leaves about the project | nothing | nothing | the dependency list |
+| Advisories found | once the tracker checked their repository | once your tracker did | the same day |
+| C/C++ upstream sources, Maven transitive dependencies | reported as not checked | reported as not checked | checked |
 
 ## Security and data
 

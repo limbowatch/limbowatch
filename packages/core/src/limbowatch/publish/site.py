@@ -2258,6 +2258,7 @@ OWN_FEED_GL = f"{REPO_URL}/blob/main/deploy/own-feed/gitlab/.gitlab-ci.yml"
 OWN_FEED_GH_CLI = f"{REPO_URL}/blob/main/deploy/own-feed/github/limbo-feed-cli.yml"  # no image, the CLI only
 OWN_FEED_GL_CLI = f"{REPO_URL}/blob/main/deploy/own-feed/gitlab/.gitlab-ci.cli.yml"
 SEALED_GH = f"{REPO_URL}/blob/main/deploy/sealed/github/limbowatch.yml"  # docs/WATCHER.md#sealed-scan
+SEALED_NO_FEED_GH = f"{REPO_URL}/blob/main/deploy/sealed/github/limbowatch-no-feed.yml"
 NO_FEED_CLI = """# needs OSV-Scanner 2.7.1
 pipx install limbowatch-cli=={release}
 # a read-only GitHub token: 5,000 requests an hour instead of 60
@@ -2343,7 +2344,10 @@ ones scanners don’t see yet: not withdrawn, not in OSV. A read-only GitHub tok
 <p>What it can’t do without a feed: a dependency whose source repository isn’t known is reported as not checked, with
 the reason, never dropped. Duplicates of reviewed advisories, and CVEs an advisory doesn’t cite, need the tracker’s
 history, so they aren’t detected. In our tests on four projects it missed no finding the limbo feed gave, and took 1.4
-to 4 times as long (<a href="{f}#f-214">F-214</a>).</p>"""),
+to 4 times as long (<a href="{f}#f-214">F-214</a>).</p>
+<p>To keep your code off the job that runs the scan, <a href="{SEALED_NO_FEED_GH}">limbowatch-no-feed.yml</a> hands it
+only the dependency files, with a token that reads public data only
+(<a href="{WATCHER_DOC}#without-a-feed-the-same-day">sealed scan</a>).</p>"""),
         ("own-feed", "Your own feed", """<p>The same tracker, on your CI, every day. It syncs GitHub’s reviewed
 advisories and the CVE List, polls the repositories it watches, and publishes a feed in the same format as limbo.watch’s:
 <span class="mono">all.zip</span> and <span class="mono">watchlist.json</span>, in OSV’s format. Two choices:</p>
@@ -2371,7 +2375,11 @@ installs the CLI with <span class="mono">pipx</span>, runs the commands above, a
 <span class="mono">limbo-feed</span> branch (<a href="{OWN_FEED_DOC}#cli-only">CLI only</a>).</p>
 <p>Scan jobs check the branch out and pass the directory:</p><pre>{E(OWN_FEED_GH_SCAN.format(release=RELEASE))}</pre>
 <p>In a public repository the workflow attests the feed; in a private one, only if your plan includes attestations
-there (<a href="{f}#f-218">F-218</a>).</p>"""),
+there (<a href="{f}#f-218">F-218</a>).</p>
+<p><strong>Or scan with no network at all:</strong> the <a href="{SEALED_GH}">sealed workflow</a> takes your feed with
+<span class="mono">FEED_BRANCH</span> or <span class="mono">FEED_URL</span>, checks it against
+<span class="mono">FEED_SIGNER</span>’s attestation, and runs the image on only the dependency files
+(<a href="{WATCHER_DOC}#with-your-own-feed">with your own feed</a>).</p>"""),
         ("gitlab", "On GitLab CI", f"""<ol><li>Copy <a href="{OWN_FEED_GL}">.gitlab-ci.yml</a> into a project of yours
 and add a daily pipeline schedule.</li>
 <li>Add a masked CI/CD variable <span class="mono">LIMBOWATCH_GITHUB_TOKEN</span>: a fine-grained GitHub token with

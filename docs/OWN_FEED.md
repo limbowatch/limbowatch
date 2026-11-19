@@ -86,6 +86,7 @@ limbowatch scan . --feed ./feed                                              # a
 
 - **GitHub Actions:** set `LIMBOWATCH_FEED` in the action step's `env`; the action passes it into its container.
 - **GitLab:** set it as a CI/CD variable; the component's job uses it as it is.
+- **The sealed scan** ([`deploy/sealed/github/limbowatch.yml`](../deploy/sealed/github/limbowatch.yml)): set `FEED_URL`, or `FEED_BRANCH` for a feed on a branch, and `FEED_SIGNER` to the workflow that attests it. The scan then runs with no network and takes nothing from limbo.watch ([WATCHER.md](WATCHER.md#with-your-own-feed)).
 
 The URL can point to the folder or to its `all.zip`; `watchlist.json` must be next to it. Only `https://` is accepted, or `http://` to the same machine: anyone on the network could change a feed sent in the clear. If your host needs credentials, download the two files yourself (for example with `curl` and your token), then pass the directory.
 

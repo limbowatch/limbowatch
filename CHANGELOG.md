@@ -11,6 +11,8 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
   - On Open WebUI, Gitea and FreeRDP, scanning only those files gave the same result as scanning the whole checkout.
   - The price is the feed-only mode's: advisories a day or two old can be missed until the tracker next checks their repository, and C/C++ upstream sources are reported as not checked.
   - `/scan/` links it under "Lock it down".
+  - **With your own feed** (docs/WATCHER.md#with-your-own-feed): `FEED_URL`, or `FEED_BRANCH` (and `FEED_REPOSITORY`) for a feed committed to a branch, and `FEED_SIGNER` for the workflow whose attestation it must carry. That takes nothing from limbo.watch and keeps the image with no network. The feed and image checks now run in the collect job, so the scan job uses no token at all.
+  - **Without a feed** ([`deploy/sealed/github/limbowatch-no-feed.yml`](deploy/sealed/github/limbowatch-no-feed.yml)): the same collect job and file list, and the image reads GitHub itself, for the same day's advisories. The image needs network, so the dependency list goes out (never the code), with a job token that reads public data only.
 - **The action runs the image isolated** (docs/WATCHER.md#security-and-data). Until now it mounted the whole runner temp directory and the checkout read-write. That let a compromised image write `GITHUB_ENV` and `GITHUB_PATH`, which runs code in later steps, or change files that later steps run. Now:
   - The checkout is read-only, and the runner's temp directory is never mounted.
   - The image runs with a read-only root filesystem, no capabilities and no new privileges, and workflow commands are off while it prints.
