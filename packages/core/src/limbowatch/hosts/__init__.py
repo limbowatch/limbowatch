@@ -167,16 +167,22 @@ def cleartext(url: str) -> bool:
     return p.scheme == "http" and not _loopback(p.hostname or "")
 
 
-def refuse_cleartext(urls: list[str], token_name: str, allow: bool) -> None:
-    """A token is never sent over plain http to another machine unless the user allows it (--allow-insecure-http);
-    this machine (localhost, 127.0.0.1, ::1) is fine. Raises SourceError naming the URLs."""
+def refuse_cleartext(urls: list[str], token_name: str | None, allow: bool) -> None:
+    """Nothing goes over plain http to another machine unless the user allows it (--allow-insecure-http): not a
+    token, which anyone on the network could read, and not a request without one, whose answer anyone on the way
+    could change. This machine (localhost, 127.0.0.1, ::1) is fine. Raises SourceError naming the URLs."""
     if allow:
         return
     if bad := sorted({redact(u) for u in urls if cleartext(u)}):
-        raise SourceError(
-            f"{token_name} would be sent over plain http to {', '.join(bad)}, where anyone on the network can read it; "
-            "use https, or --allow-insecure-http (LIMBOWATCH_ALLOW_INSECURE_HTTP=1) to send it anyway"
-        )
+        what = (f"{token_name} would be sent over plain http to {', '.join(bad)}, where anyone on the network can read "
+                "it" if token_name else f"{', '.join(bad)} would be read over plain http, where anyone on the network "
+                "can read and change what's sent and received")  # fmt: skip
+        raise SourceError(f"{what}; use https, or --allow-insecure-http (LIMBOWATCH_ALLOW_INSECURE_HTTP=1) to allow it")
+
+
+def plain_http_hosts(urls: list[str]) -> set[str]:
+    """The hosts of `urls` that are plain http to another machine: the ones --allow-insecure-http lets through."""
+    return {(urlsplit(u).hostname or "") for u in urls if cleartext(u)}
 
 
 def clone_url(base_url: str, given: object, path: str) -> str:

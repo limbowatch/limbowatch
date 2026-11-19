@@ -9,6 +9,10 @@
 - The token is never logged, printed or returned.
 - Every attempt, retry and redirect hop goes to `limbowatch.audit` (`--audit-log`, `--show-network`), with its
   status or error. Event hooks, not a wrapping transport: httpx ignores HTTPS_PROXY once given a transport.
+- https only. A request to plain http on another machine is refused before it's sent, redirects included, unless
+  its host is one the user named with http:// and --allow-insecure-http (`plain_http`). This machine is fine.
+- No cookies: one a server sets is neither kept nor sent back (FINDINGS F-225), so a request sends its URL, its
+  headers as built here and its body, and nothing a server asked for.
 """
 
 from __future__ import annotations
@@ -17,13 +21,20 @@ import asyncio
 import hashlib
 import logging
 import time
+from collections.abc import Collection
 from dataclasses import dataclass, field
-from typing import Any
+from http.cookiejar import CookieJar, CookiePolicy
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 import httpx
 
 from limbowatch import __version__, audit
+from limbowatch.hosts import cleartext
+
+if TYPE_CHECKING:
+    from http.cookiejar import Cookie
+    from urllib.request import Request
 
 log = logging.getLogger(__name__)
 USER_AGENT = f"limbowatch/{__version__} (+https://limbo.watch)"
@@ -53,6 +64,28 @@ class BudgetExhausted(Exception):
 
 class DeadlineReached(Exception):
     """The run's wall-clock deadline has passed."""
+
+
+class InsecureRequest(httpx.RequestError):
+    """A request to plain http on another machine that the user didn't allow: refused before it was sent."""
+
+
+class _NoCookies(CookiePolicy):
+    """Refuse every cookie: none is stored, none is sent."""
+
+    netscape, rfc2965, hide_cookie2 = True, False, False
+
+    def set_ok(self, cookie: Cookie, request: Request) -> bool:
+        return False
+
+    def return_ok(self, cookie: Cookie, request: Request) -> bool:
+        return False
+
+    def domain_return_ok(self, domain: str, request: Request) -> bool:
+        return False
+
+    def path_return_ok(self, path: str, request: Request) -> bool:
+        return False
 
 
 class ResponseTooLarge(Exception):
@@ -95,8 +128,11 @@ class HttpClient:
         max_rate_limit_wait: float = 900.0,
         transport: httpx.AsyncBaseTransport | None = None,
         sleep: Any = asyncio.sleep,
+        plain_http: Collection[str] = (),
     ) -> None:
+        """`plain_http`: hosts the user named with http:// and allowed with --allow-insecure-http."""
         self._token = github_token
+        self._plain_http = {h.lower() for h in plain_http}
         self.token_fingerprint = hashlib.sha256(github_token.encode()).hexdigest()[:16] if github_token else "anonymous"
         self.github_budget = github_budget
         self.deadline = deadline
@@ -113,7 +149,8 @@ class HttpClient:
         self.stats = Stats()
         self._client = httpx.AsyncClient(
             timeout=60, follow_redirects=True, headers={"User-Agent": USER_AGENT}, transport=transport,
-            event_hooks={"request": [_audit_start], "response": [_audit_response]},
+            cookies=CookieJar(policy=_NoCookies()),
+            event_hooks={"request": [self._before_send], "response": [_audit_response]},
         )  # fmt: skip
 
     async def __aenter__(self) -> HttpClient:
@@ -121,6 +158,16 @@ class HttpClient:
 
     async def __aexit__(self, *exc: object) -> None:
         await self._client.aclose()
+
+    async def _before_send(self, request: httpx.Request) -> None:
+        """Every request, each redirect hop too: timed for the record, and refused if it's plain http that the user
+        didn't allow."""
+        request.extensions[_STARTED] = time.monotonic()
+        if cleartext(str(request.url)) and request.url.host.lower() not in self._plain_http:
+            raise InsecureRequest(
+                f"refused plain http to {request.url.host}: use https, or name it with http:// and "
+                "--allow-insecure-http", request=request,
+            )  # fmt: skip
 
     @property
     def has_github_token(self) -> bool:
@@ -239,6 +286,9 @@ class HttpClient:
                 except httpx.HTTPError as e:
                     _audit_error(e, method, url)
                     log.warning("http error", extra={"host": host, "error": type(e).__name__, "attempt": attempt})
+                    if isinstance(e, InsecureRequest):
+                        r = None
+                        break  # refused, not failed: trying again would be refused again
                     if once and not isinstance(e, (httpx.ConnectError, httpx.ConnectTimeout)):
                         r = None
                         break  # it may have been taken: reported as failed; the next run sees what's there
@@ -290,7 +340,7 @@ class HttpClient:
             except httpx.HTTPError as e:
                 _audit_error(e, "GET" if json_body is None else "POST", url)
                 log.warning("http error", extra={"url": url, "error": type(e).__name__, "attempt": attempt})
-                if not patient:
+                if not patient or isinstance(e, InsecureRequest):
                     return None
                 await self._sleep(min(60, 2**attempt))
                 continue
@@ -346,15 +396,11 @@ class HttpClient:
 _STARTED = "limbowatch.started"
 
 
-async def _audit_start(request: httpx.Request) -> None:
-    request.extensions[_STARTED] = time.monotonic()
-
-
 async def _audit_response(response: httpx.Response) -> None:
     if audit.active():
         req = response.request
         audit.http(req.method, str(req.url), status=response.status_code, ms=_elapsed(req), credential=_credential(req),
-                   sent_bytes=_sent(req))  # fmt: skip
+                   sent_bytes=_sent(req), body=_body(req))  # fmt: skip
 
 
 def _audit_error(e: httpx.HTTPError, method: str, url: str) -> None:
@@ -369,7 +415,7 @@ def _audit_error(e: httpx.HTTPError, method: str, url: str) -> None:
         audit.http(method, url, error=type(e).__name__)
     else:
         audit.http(req.method, str(req.url), error=type(e).__name__, ms=_elapsed(req), credential=_credential(req),
-                   sent_bytes=_sent(req))  # fmt: skip
+                   sent_bytes=_sent(req), body=_body(req))  # fmt: skip
 
 
 def _elapsed(req: httpx.Request) -> float | None:
@@ -386,6 +432,13 @@ def _credential(req: httpx.Request) -> str | None:
 def _sent(req: httpx.Request) -> int | None:
     try:
         return len(req.content)
+    except httpx.RequestNotRead:
+        return None
+
+
+def _body(req: httpx.Request) -> bytes | None:
+    try:
+        return req.content or None
     except httpx.RequestNotRead:
         return None
 

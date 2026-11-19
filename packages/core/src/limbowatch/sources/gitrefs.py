@@ -12,6 +12,7 @@ import os
 import time
 
 from limbowatch import audit
+from limbowatch.hosts.git import transports
 
 TIMEOUT = 60.0
 
@@ -26,7 +27,7 @@ async def tags(url: str, timeout: float = TIMEOUT) -> dict[str, str] | None:
 
     try:
         proc = await asyncio.create_subprocess_exec(
-            "git", "-c", "credential.helper=", "ls-remote", "--tags", url,
+            "git", *transports(url), "-c", "credential.helper=", "ls-remote", "--tags", url,
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL, env=env,
         )  # fmt: skip
     except OSError as e:

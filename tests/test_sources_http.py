@@ -58,19 +58,45 @@ async def test_osv(no_sleep: Any) -> None:
     assert q.call_count == 2 and b.call_count == 2
 
 
-async def test_credentials_go_over_https_only(no_sleep: Any) -> None:
-    """The GitHub token and NVD key go only to their hosts over https; a plain-http URL (a page link, a
-    misconfiguration) gets the request without them."""
+async def test_plain_http_is_refused_and_credentials_go_over_https_only(no_sleep: Any) -> None:
+    """Plain http to another machine isn't sent at all, redirects included, unless the user named the host with
+    --allow-insecure-http; even then the GitHub token and NVD key stay off it. This machine is fine."""
     with respx.mock() as r:
         gh = r.get(url__startswith="http://api.github.com/").mock(return_value=httpx.Response(200, json=[]))
         nv = r.get(url__startswith="http://services.nvd.nist.gov/").mock(return_value=httpx.Response(200, json={}))
         ok = r.get(url__startswith="https://api.github.com/").mock(return_value=httpx.Response(200, json=[]))
+        down = r.get("https://registry.example/x").mock(
+            return_value=httpx.Response(302, headers={"location": "http://registry.example/x"})
+        )
+        local = r.get("http://127.0.0.1:8000/feed/").mock(return_value=httpx.Response(200, json={}))
         async with HttpClient("ghp_secret", sleep=no_sleep, nvd_api_key="nvdkey") as http:
+            assert (await http.get("http://api.github.com/x")).status == -1
+            assert (await http.get("http://services.nvd.nist.gov/x")).status == -1
+            assert (await http.get("https://registry.example/x")).status == -1  # an https → http redirect
+            assert (await http.request("GET", "http://api.github.com/y", auth=None)).status == -1
+            assert (await http.get("https://api.github.com/x")).ok and (
+                await http.get("http://127.0.0.1:8000/feed/")
+            ).ok
+        assert not gh.called and not nv.called and down.call_count == 1 and local.called
+        assert http.stats.failures == 4  # refused at once: no retries
+        async with HttpClient("ghp_secret", sleep=no_sleep, nvd_api_key="nvdkey",
+                              plain_http={"API.github.com", "services.nvd.nist.gov"}) as http:  # fmt: skip
             await http.get("http://api.github.com/x")
             await http.get("http://services.nvd.nist.gov/x")
-            await http.get("https://api.github.com/x")
     assert "authorization" not in gh.calls[0].request.headers and "apikey" not in nv.calls[0].request.headers
     assert ok.calls[0].request.headers["authorization"] == "Bearer ghp_secret"
+
+
+async def test_no_cookie_is_kept_or_sent(no_sleep: Any) -> None:
+    with respx.mock() as r:
+        route = r.get("https://repo1.maven.org/a").mock(
+            return_value=httpx.Response(200, text="x", headers={"set-cookie": "__cf_bm=v; Path=/; Domain=maven.org"})
+        )
+        async with HttpClient(sleep=no_sleep) as http:
+            await http.get("https://repo1.maven.org/a")
+            await http.get("https://repo1.maven.org/a")
+            assert not list(http._client.cookies.jar)
+    assert all("cookie" not in c.request.headers for c in route.calls) and route.call_count == 2
 
 
 async def test_github_pages_and_cve_records_stay_where_they_belong(no_sleep: Any) -> None:

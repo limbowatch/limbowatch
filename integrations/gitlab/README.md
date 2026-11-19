@@ -88,7 +88,7 @@ limbowatch:
 
 The job runs in your pipeline; it doesn't upload files or source code. It reads your lockfiles and SBOMs (OSV-Scanner, offline) and, for C/C++, the build files that declare upstream sources. It sends package names and versions to public services (deps.dev, Maven Central, GitHub, CVE Services, OSV) to find out whether a dependency is affected; limbo.watch learns nothing, because the feed is downloaded whole. With `extra_args: "--no-upstream --no-resolve-maven"` it contacts limbo.watch and nothing else, at the cost of the checks those lookups make. It needs no secrets: `LIMBOWATCH_GITHUB_TOKEN` is an optional read-only token for large projects, and `LIMBOWATCH_ISSUES_TOKEN` is needed only for issues. Every host, what it receives and the option that turns it off: [Security and data](https://github.com/limbowatch/limbowatch/blob/main/docs/WATCHER.md#security-and-data).
 
-To keep a record of every URL the job calls (method, status, time; never a secret), set `extra_args: "--audit-log limbowatch/network.jsonl"`: it's saved with the job's artifacts. `--show-network` prints the calls in the job log.
+Every request is https only, redirects included; an `http://` GitLab needs `--allow-insecure-http`. To keep a record of every URL the job calls and every request body (method, status, time; never a secret), set `extra_args: "--audit-log limbowatch/network.jsonl"`: it's saved with the job's artifacts. `--show-network` prints the calls in the job log.
 
 ## The image
 

@@ -104,7 +104,7 @@ Every format carries the CC BY 4.0 attribution for the advisory data. SARIF 2.1.
 | `--scan-ignored` | Also read lockfiles a `.gitignore` excludes, including an enclosing repo's (F-085) |
 | `--feed limbo.watch\|URL\|DIR\|none` | Where advisories in limbo come from (`LIMBOWATCH_FEED`): the limbo feed (default); a feed you build and host yourself, by https URL or directory ([OWN_FEED.md](OWN_FEED.md)); or `none`, no feed: every dependency's source repo is read on GitHub during the scan ([No feed](#no-feed)) |
 | `--verify-feed auto\|require\|off` | Check the feed against its signed build attestation before using it (default `auto`; `LIMBOWATCH_VERIFY_FEED`). [Security and data](#security-and-data) |
-| `--allow-insecure-http` | Send the issues token to an `http://` tracker on another machine. Refused by default ([Security and data](#security-and-data)); `LIMBOWATCH_ALLOW_INSECURE_HTTP=1` |
+| `--allow-insecure-http` | Allow plain `http://` to the tracker URL you name on another machine, and send the issues token there. Refused by default: everything is https only ([Security and data](#security-and-data)); `LIMBOWATCH_ALLOW_INSECURE_HTTP=1` |
 | `--audit-log FILE` | Record every network call as JSON Lines in `FILE` (`-` for stderr; `LIMBOWATCH_AUDIT_LOG`): what it is, URL, method, status or error, duration, and the name of any credential header sent. Never a secret ([Security and data](#security-and-data)) |
 | `--show-network` | Print every network call on stderr as it's made, and the hosts contacted at the end (`LIMBOWATCH_SHOW_NETWORK=1`) |
 | `-v` | Show the evidence for every finding, and every dependency checked by name only |
@@ -231,7 +231,7 @@ A project that can't be cloned or inventoried is listed under **couldn't be chec
 - In Actions, the job's own server uses the job's `GITHUB_API_URL`, so Enterprise Server and GHE.com work from their own Actions; elsewhere `--github-url` takes github.com or an Enterprise Server address (`/api/v3`).
 - A token is sent only to its own host (for GitHub, github.com and its API host api.github.com). When the sources span several hosts, run `limbowatch watch` once per host; with a token set, a run that names two hosts is refused.
 - Clones get the token from git's environment, never from the command line or the URL. A clone URL a host's API returns is used only if it's on that host, with the same scheme; otherwise the clone URL is built from the host's address.
-- A token is never sent over plain `http://` to another machine: a run that would do so is refused before anything is sent (exit 2). `http://` to this machine (localhost, 127.0.0.1, ::1) is fine, as are public sources over http without a token. For a self-managed instance that only serves http, `--allow-insecure-http` (or the CI/CD variable `LIMBOWATCH_ALLOW_INSECURE_HTTP=1`) sends it anyway: anyone on that network can then read the token.
+- Nothing goes over plain `http://` to another machine. A run that names an `http://` source or tracker is refused before anything is sent (exit 2), with a token or without: anyone on the network could read a token, or change what comes back. `http://` to this machine (localhost, 127.0.0.1, ::1) is fine. For a self-managed instance that only serves http, `--allow-insecure-http` (or the CI/CD variable `LIMBOWATCH_ALLOW_INSECURE_HTTP=1`) allows the hosts you named, and only those: anyone on that network can then read the token. Every other request stays https only ([Security and data](#security-and-data)).
 - Gitea and Forgejo show a private organization as empty to a request without access (F-129). So a source that lists no projects at all is an error, not a pass.
 
 **Scheduled GitLab pipeline.** The image includes git. In a project of its own, with `LIMBOWATCH_SOURCE_TOKEN` and `LIMBOWATCH_GITHUB_TOKEN` as masked CI/CD variables and a pipeline schedule:
@@ -309,10 +309,22 @@ The scan runs where your code already is, in your CI job or on your machine. It 
 | api.github.com | Names of source repositories the tracker hasn't checked in 10 days (with `--feed none`, of every one), to read their published advisories | `--no-upstream` |
 | github.com | Clones, commits and tags only, of upstream repositories that have advisories in limbo | `--no-upstream` |
 | cveawg.mitre.org | CVE IDs those repositories' advisories cite, to read their state | `--no-upstream` |
-| api.osv.dev | Advisory IDs; the commits the project pins for its upstream sources; with `--state`, IDs of findings that went away since the last run | `--no-upstream`, `--no-osv-commits`; no `--state` |
+| api.osv.dev | Advisory IDs; the commits the project pins for its upstream sources; with `--state`, IDs of findings that went away since the last run; with `--issues`, the package name and installed versions of an open issue whose advisory is now in OSV, to decide whether to close it | `--no-upstream`, `--no-osv-commits`; no `--state`, no `--issues` |
 | Your own GitLab, GitHub, Gitea or Forgejo | Findings, as issues | Leave out `--issues` |
 
-A GitHub token, when there is one, goes only to api.github.com; a tracker token only to your tracker, and never over plain `http://` to another machine unless you pass `--allow-insecure-http`. Names, versions and the vcpkg baseline taken from your build files go into those registries' URLs only as plain path segments (a full commit hash for the baseline), so a `../` in a build file can't point a lookup at another repository. Every request carries the user agent `limbowatch/<version> (+https://limbo.watch)`.
+A GitHub token, when there is one, goes only to api.github.com; a tracker token only to your tracker. Names, versions and the vcpkg baseline taken from your build files go into those registries' URLs only as plain path segments (a full commit hash for the baseline), so a `../` in a build file can't point a lookup at another repository. Every request carries the user agent `limbowatch/<version> (+https://limbo.watch)`, and no cookies: one a server sets is neither kept nor sent back (F-226).
+
+**Where URLs come from.** Every host in the table is fixed in the code, with `https://`. URLs that come from somewhere else are checked before anything is sent:
+- **Next-page links:** must stay on the host that was listed, and are requested with that host's own scheme.
+- **Clone URLs from a host's API:** must match the listed host and scheme, or the clone URL is built from the host's address.
+- **CVE record links:** must point into the CVE List repository.
+- **Repository URLs a registry returns:** read only for the owner and repository name, which then go into the fixed GitHub URLs.
+
+Nothing from your build files is ever fetched: a `URL` in a `CMakeLists.txt` or a submodule's `url` is read for its repository name only.
+
+**https only.** Every request uses https, or goes to this machine. This is enforced where requests are made, not left to each caller:
+- **HTTP:** plain `http://` to another machine is refused before it's sent, and so is a redirect from https to http. The only exception is the self-managed hosts you name with `http://` and `--allow-insecure-http`.
+- **git:** runs with `protocol.allow=never` and `protocol.https.allow=always`, and git applies the same list to redirects (F-226), so a clone can't be redirected to http. ssh, `git://` and `ext::` are never allowed.
 
 **Without limbo.watch.** `--feed none` contacts every host in the table except limbo.watch, and api.github.com only to read repositories' advisories ([No feed](#no-feed)).
 
@@ -333,7 +345,7 @@ A GitHub token, when there is one, goes only to api.github.com; a tracker token 
     - During a deploy, the two files can briefly come from different builds. The scan then downloads them again after 5 seconds, and if they still don't match, uses its cached pair verified before (with a warning), or stops and says to try again in a few minutes.
   - **It never reads more than a real feed's size.** Downloads stop at 500 MB, the zip's own listing is checked before anything is unpacked (at most 500,000 records, 5 MB each, 1 GB in all), and a feed over those limits is refused (F-192).
   - **To check a copy yourself**, including the one the scan cached under `~/.cache/limbowatch`, with the Sigstore signature checked too: `gh attestation verify all.zip --repo limbowatch/limbowatch --signer-workflow limbowatch/limbowatch/.github/workflows/site.yml --source-ref refs/heads/main --deny-self-hosted-runners` (F-191).
-- **Record it.** `--audit-log FILE` writes one JSON line per network call, and keep the file as a build artifact. `--show-network` prints the same calls in the job log. Each entry has the time, what made the call, the full URL, the method, the status or error, the duration and the bytes sent. If a credential header went with the request, the entry names it: `authorization` to api.github.com, `private-token` to GitLab, `cookie` where a server set one earlier in the run (Maven Central's Cloudflare does). The header's value is never recorded, nor is a user name, password or credential-like query value in a URL. The file ends with a summary of calls per host. Where it comes from:
+- **Record it.** `--audit-log FILE` writes one JSON line per network call, and keep the file as a build artifact. `--show-network` prints the same calls in the job log. Each entry has the time, what made the call, the full URL, the method, the status or error, the duration and the bytes sent. A request that sends a body has the body in the entry as sent: OSV queries and issues are the only ones. So the URL and the body are everything a request sends, apart from its standard headers. If a credential header went with the request, the entry names it (`authorization` to api.github.com, `private-token` to GitLab). The header's value is never recorded, nor is a user name, password or credential-like query value in a URL. The file ends with a summary of calls per host. Where it comes from:
   - **HTTP requests:** every attempt, retry and redirect hop, through `limbowatch.http`.
   - **git:** clones, fetches and `ls-remote` calls.
   - **OSV-Scanner:** its `pom.xml` resolution run. Its URLs are visible only to OSV-Scanner, so the run is recorded with the hosts it can contact (`--no-resolve-maven` turns it off).

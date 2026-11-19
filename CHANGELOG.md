@@ -4,6 +4,10 @@ Versions follow [semantic versioning](https://semver.org). The PyPI packages `li
 
 ## Unreleased
 
+- **https only, enforced** (docs/WATCHER.md#security-and-data, FINDINGS F-226). The HTTP client refuses plain `http://` to another machine before sending, a redirect from https to http included. git runs with only the https transport allowed, which git also applies to redirects; ssh, `git://` and `ext::` are never allowed. This machine (localhost) is still fine.
+  - **Breaking:** an `http://` source or tracker URL (`--gitlab-group`, `--gitea-org`, `--git`, `--issues-url`, …) now needs `--allow-insecure-http` even without a token, since anyone on the network could change what comes back. Even then, only the hosts you named may use http.
+- **No cookies** (F-225, F-226). A cookie a server sets, such as Maven Central's Cloudflare `__cf_bm`, is no longer kept and sent back.
+- **The record has each request's body** (`--audit-log`): OSV queries and issues, as sent. With the URL, that's everything a request sends besides standard headers. docs/WATCHER.md's host table now also lists what `--issues` sends to OSV when deciding whether to close an issue: the package name and installed versions.
 - **A record of every network call** (docs/WATCHER.md#security-and-data, FINDINGS F-225). `--audit-log FILE` writes one JSON line per call: every HTTP request (each retry and redirect hop too), git clone, fetch and `ls-remote`, and OSV-Scanner's `pom.xml` resolution run, with the time, URL, method, status or error, duration, bytes sent and the name of any credential header. Never a secret. The file ends with a summary of calls per host. `--show-network` prints the same calls in the log as they happen. Both options work on `scan`, `watch`, `repos`, `inventory` and `track`, or set `LIMBOWATCH_AUDIT_LOG` and `LIMBOWATCH_SHOW_NETWORK`. In the action and the GitLab component, pass them in `extra-args`/`extra_args`; on GitLab, `--audit-log limbowatch/network.jsonl` is kept with the job's artifacts.
 
 ## 0.1.0a21 (2026-11-17)

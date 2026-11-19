@@ -15,6 +15,7 @@ import os
 import subprocess
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from limbowatch import audit
 from limbowatch.hosts import HostKind, Project
@@ -46,10 +47,22 @@ def environment(project: Project, token: str | None, base: dict[str, str] | None
     return env
 
 
+def transports(url: str) -> list[str]:
+    """`-c` options that allow git only https, plus the URL's own transport when it's plain http or a local file.
+
+    git builds curl's redirect protocols from the same setting (its http.c, FINDINGS F-226), so an https remote
+    can't redirect git to plain http. ssh, git://, ext:: and the rest are never allowed. A plain http URL gets here
+    only to this machine, or with --allow-insecure-http (`limbowatch.hosts.refuse_cleartext`); the others are
+    https constants, or a local repo in the tests."""
+    scheme = urlsplit(url).scheme.lower()
+    own = ["-c", f"protocol.{scheme}.allow=always"] if scheme in ("http", "file") else []
+    return ["-c", "protocol.allow=never", "-c", "protocol.https.allow=always", *own]
+
+
 def command(project: Project, dest: Path) -> list[str]:
     return [
-        "git", "-c", "core.symlinks=false", "clone", "--depth", "1", "--single-branch", "--no-tags",
-        "--no-recurse-submodules", "--quiet", "--", project.clone_url, str(dest),
+        "git", *transports(project.clone_url), "-c", "core.symlinks=false", "clone", "--depth", "1",
+        "--single-branch", "--no-tags", "--no-recurse-submodules", "--quiet", "--", project.clone_url, str(dest),
     ]  # fmt: skip
 
 

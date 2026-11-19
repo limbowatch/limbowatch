@@ -412,7 +412,8 @@ AllowInsecureHttp = Annotated[
     bool,
     typer.Option(
         envvar="LIMBOWATCH_ALLOW_INSECURE_HTTP",
-        help="Send tokens to http:// URLs on other machines. Refused by default: anyone on the network can read them.",
+        help="Allow plain http:// to the GitLab, Gitea, GitHub or tracker URLs you name on other machines. Refused by "
+        "default: anyone on the network can read tokens and change answers. Everything else is https only.",
     ),
 ]
 ResolveMaven = Annotated[
@@ -620,12 +621,14 @@ def scan(
         raise typer.BadParameter(f"--issues wants {', '.join(ISSUE_TRACKERS[:-1])} or {ISSUE_TRACKERS[-1]}")
     if issues and not tracker_token and not issues_dry_run:
         raise typer.BadParameter("set LIMBOWATCH_ISSUES_TOKEN to a token that can write issues", param_hint="--issues")
-    if issues and tracker_token and (target := _issues_url(issues, issues_url)):
+    tracker_urls: list[str] = []
+    if issues and (target := _issues_url(issues, issues_url)):
         try:
             hosts.urlsplit(target)  # an unreadable URL is a usage error before api_url reads it
             # for github the token goes to the API, which Actions may name apart from the server (GITHUB_API_URL)
-            sent_to = [target, github_host.api_url(target, _actions_api())] if issues == "github" else [target]
-            hosts.refuse_cleartext(sent_to, "LIMBOWATCH_ISSUES_TOKEN", allow_insecure_http)
+            tracker_urls = [target, github_host.api_url(target, _actions_api())] if issues == "github" else [target]
+            hosts.refuse_cleartext(tracker_urls, "LIMBOWATCH_ISSUES_TOKEN" if tracker_token else None,
+                                   allow_insecure_http)  # fmt: skip
         except hosts.SourceError as e:
             raise typer.BadParameter(str(e), param_hint="--issues-url") from e
     _record_network(ctx, audit_log, show_network)
@@ -642,7 +645,7 @@ def scan(
 
     async def run() -> tuple[watch_scan.ScanResult, str | None, str | None]:
         nonlocal changes
-        async with HttpClient(_token()) as http:
+        async with HttpClient(_token(), plain_http=hosts.plain_http_hosts(tracker_urls)) as http:
             zipped, wl_doc, label = await _load_feed(http, source, cache, verify_feed)
             res = await watch_scan.scan(inv, http, feed_zip=zipped, watchlist=dict(wl_doc.get("repos") or {}),
                                         now=datetime.now(UTC), upstream_check=upstream, git_cache=cache,
@@ -887,7 +890,7 @@ def repos(
         return upstream_inventory.combine(inv, upstream_inventory.detect_safely(path))
 
     async def run() -> repos_mod.SourceRepos:
-        async with HttpClient(_token()) as http:
+        async with HttpClient(_token(), plain_http=hosts.plain_http_hosts(src.bases)) as http:
             if src.any:
                 listings = await _list_sources(http, src.groups, src.orgs, src.gh_orgs, git or [], src.token,
                                                include_archived)  # fmt: skip
@@ -1038,7 +1041,7 @@ class _OrgSources:
     gh_orgs: list[tuple[str, str]]
     git_projects: list[hosts.Project]
     token: str | None  # LIMBOWATCH_SOURCE_TOKEN (or the issues token), for these hosts only
-    bases: list[str]  # where a token would go
+    bases: list[str]  # where a token would go, and the only places plain http may go (--allow-insecure-http)
 
     @property
     def any(self) -> bool:
@@ -1049,7 +1052,7 @@ def _org_sources(
     gitlab_group: list[str] | None, gitea_org: list[str] | None, github_org: list[str] | None, git: list[str] | None,
     gitlab_url: str | None, github_url: str | None, allow_insecure_http: bool,
 ) -> _OrgSources:  # fmt: skip
-    """The groups, orgs and git URLs named, and the source token, refused over plain http to another machine."""
+    """The groups, orgs and git URLs named, and the source token; plain http to another machine is refused."""
     gl_base = gitlab_url or os.environ.get("CI_SERVER_URL") or "https://gitlab.com"
     try:
         groups = [hosts.split_url(g, gl_base) for g in gitlab_group or []]
@@ -1062,12 +1065,11 @@ def _org_sources(
     token = _source_token({urlsplit(b).netloc for b, _ in groups + orgs + gh_orgs} | {p.host for p in git_projects})
     bases = [b for b, _ in groups + orgs + gh_orgs] + [p.base_url for p in git_projects]
     bases += [github_host.api_url(b, _actions_api()) for b, _ in gh_orgs]  # where a GitHub token actually goes
-    if token:
-        name = "LIMBOWATCH_SOURCE_TOKEN" if os.environ.get("LIMBOWATCH_SOURCE_TOKEN") else "LIMBOWATCH_ISSUES_TOKEN"
-        try:
-            hosts.refuse_cleartext(bases, name, allow_insecure_http)
-        except hosts.SourceError as e:
-            raise typer.BadParameter(str(e)) from e
+    name = "LIMBOWATCH_SOURCE_TOKEN" if os.environ.get("LIMBOWATCH_SOURCE_TOKEN") else "LIMBOWATCH_ISSUES_TOKEN"
+    try:
+        hosts.refuse_cleartext(bases, name if token else None, allow_insecure_http)
+    except hosts.SourceError as e:
+        raise typer.BadParameter(str(e)) from e
     return _OrgSources(groups, orgs, gh_orgs, git_projects, token, bases)
 
 
@@ -1171,7 +1173,7 @@ def watch(
         return upstream_inventory.combine(inv, upstream_inventory.detect_safely(path))
 
     async def run() -> org_output.OrgReport:
-        async with HttpClient(_token()) as http:
+        async with HttpClient(_token(), plain_http=hosts.plain_http_hosts(bases)) as http:
             listings = await _list_sources(http, groups, orgs, gh_orgs, git or [], token, include_archived)
             zipped, wl_doc, label = await _load_feed(http, source, cache, verify_feed)
             w = await org_mod.run(listings, http, feed_zip=zipped, watchlist=dict(wl_doc.get("repos") or {}),

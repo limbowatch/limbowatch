@@ -12,7 +12,9 @@ There are four ways out, and each is recorded where it starts:
   that run is recorded with the hosts it can contact (FINDINGS F-132).
 
 No secret is recorded. A URL's user name and password, and any query value whose name looks like a credential,
-become "***". Of the request headers, only the name of one that carries a credential is kept.
+become "***". Of the request headers, only the name of one that carries a credential is kept. What a request sends
+besides its URL, its body, is recorded as sent (up to BODY_MAX bytes): Limbowatch never puts a secret there, so the
+record shows everything that left.
 """
 
 from __future__ import annotations
@@ -34,6 +36,7 @@ MAVEN_RESOLVER_HOSTS = ("api.deps.dev", "repo.maven.apache.org", "repo1.maven.or
 CREDENTIAL_HEADERS = frozenset(
     {"authorization", "proxy-authorization", "private-token", "job-token", "apikey", "x-api-key", "cookie"}
 )
+BODY_MAX = 65_536
 _SECRET_PARAMS = ("token", "key", "secret", "password", "passwd", "signature", "sig", "auth", "credential")
 
 _lock = threading.Lock()  # git clones run in threads
@@ -79,11 +82,14 @@ def http(
     ms: float | None = None,
     credential: str | None = None,
     sent_bytes: int | None = None,
+    body: bytes | None = None,
 ) -> None:
-    """One HTTP request: its status, or the error that stopped it."""
+    """One HTTP request: its status, or the error that stopped it, and its body if it sent one."""
     if _sinks:
+        text = None if not body else body[:BODY_MAX].decode("utf-8", errors="replace")
         _emit("http", method=method.upper(), url=redact(url), host=host_of(url), status=status, error=error,
-              ms=_ms(ms), credential=credential, sent_bytes=sent_bytes or None)  # fmt: skip
+              ms=_ms(ms), credential=credential, sent_bytes=sent_bytes or None, body=text,
+              body_truncated=True if body and len(body) > BODY_MAX else None)  # fmt: skip
 
 
 def git(op: str, url: str, *, exit_code: int | None = None, error: str | None = None, ms: float | None = None,

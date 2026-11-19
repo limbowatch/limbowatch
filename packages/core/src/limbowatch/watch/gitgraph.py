@@ -15,6 +15,7 @@ import time
 from pathlib import Path
 
 from limbowatch import audit
+from limbowatch.hosts.git import transports
 
 CLONE_TIMEOUT = 300
 _ENV = {"GIT_TERMINAL_PROMPT": "0", "GIT_ASKPASS": "", "SSH_ASKPASS": "", "GIT_CONFIG_NOSYSTEM": "1"}
@@ -80,12 +81,14 @@ def _clone(url: str, dest: Path) -> GitGraph | None:
     started = time.monotonic()
     try:
         if op == "fetch":
-            r = subprocess.run(["git", "-c", "safe.directory=*", "--git-dir", str(dest), "fetch", "--quiet", "--tags",
+            r = subprocess.run(["git", *transports(url), "-c", "safe.directory=*", "--git-dir", str(dest), "fetch",
+                                "--quiet", "--tags",
                                 "--force", "origin", "+refs/heads/*:refs/heads/*"],
                                capture_output=True, timeout=CLONE_TIMEOUT, env=env)  # fmt: skip
         else:
             dest.parent.mkdir(parents=True, exist_ok=True)
-            r = subprocess.run(["git", "-c", "credential.helper=", "clone", "--quiet", "--bare", "--filter=tree:0",
+            r = subprocess.run(["git", *transports(url), "-c", "credential.helper=", "clone", "--quiet", "--bare",
+                                "--filter=tree:0",
                                 "--", url, str(dest)], capture_output=True, timeout=CLONE_TIMEOUT, env=env)  # fmt: skip
         audit.git(op, url, exit_code=r.returncode, ms=(time.monotonic() - started) * 1000)
         if r.returncode and op == "clone":

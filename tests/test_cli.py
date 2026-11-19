@@ -122,6 +122,12 @@ def test_tokens_are_refused_over_plain_http(monkeypatch: pytest.MonkeyPatch, tmp
     for opt in ("--git", "--gitlab-group", "--gitea-org", "--github-org"):
         r = CliRunner().invoke(app, ["watch", opt, "http://[::1/a/b"])
         assert r.exit_code == 2 and "not a URL" in _plain(r.output), opt
+    # without a token too: what comes back over http could be changed on the way (F-226)
+    for args in (["watch", "--git", "http://git.example.org/a/b.git"], ["repos", "--gitea-org", "http://gitea.example/o"],
+                 ["scan", str(tmp_path), "--issues", "gitea", "--issues-url", "http://gitea.example",
+                  "--issues-project", "a/b", "--issues-dry-run"]):  # fmt: skip
+        r = CliRunner().invoke(app, args, env={"LIMBOWATCH_SOURCE_TOKEN": "", "LIMBOWATCH_ISSUES_TOKEN": ""})
+        assert r.exit_code == 2 and "would be read over plain http" in _plain(r.output), args
     # allowed, or this machine: past the check (the run then stops at OSV-Scanner, which isn't there)
     for args, env in ((["watch", "--git", "http://git.example.org/a/b.git", "--allow-insecure-http"], {}),
                       (["watch", "--git", "http://git.example.org/a/b.git"], {"LIMBOWATCH_ALLOW_INSECURE_HTTP": "1"}),

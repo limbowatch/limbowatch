@@ -91,6 +91,9 @@ async def test_every_http_attempt_redirect_and_failure_is_recorded(no_sleep: Any
     ]
     assert calls[0]["credential"] == "authorization" and "credential" not in calls[2]  # the token isn't sent there
     assert calls[5]["credential"] == "private-token" and calls[5]["sent_bytes"] > 0
+    # what a request sends besides its URL is in the record as sent; a GET sends nothing more
+    assert json.loads(calls[4]["body"]) == {"q": 1} and json.loads(calls[5]["body"]) == {"title": "t"}
+    assert "body" not in calls[0] and "body_truncated" not in calls[4]
     assert all(c["ms"] >= 0 and c["time"].endswith("Z") for c in calls)
     assert sink.entries[0] == {**sink.entries[0], "kind": "run", "command": "scan"}
     assert sink.entries[-1]["hosts"] == {"api.github.com": 2, "limbo.watch": 2, "api.osv.dev": 1,
@@ -116,6 +119,21 @@ async def test_git_ls_remote_clone_and_fetch_are_recorded(tmp_path: Path) -> Non
     ]  # fmt: skip
     assert sink.of("git")[-1]["credential"] == "Authorization" and "tok-secret" not in json.dumps(sink.entries)
     assert sink.entries[-1]["hosts"] == {"local": 5}
+
+
+@needs_git
+def test_git_may_use_https_and_nothing_else(tmp_path: Path) -> None:
+    """A remote given as https can't be reached by any other transport (a redirect to http included: git hands curl
+    the same list, F-226); a local file or an http URL the user allowed may use its own transport."""
+    up = repo(tmp_path / "up")
+    assert git_host.transports("https://github.com/a/b.git") == [
+        "-c", "protocol.allow=never", "-c", "protocol.https.allow=always"]  # fmt: skip
+    assert git_host.transports("http://127.0.0.1:3000/a.git")[-1] == "protocol.http.allow=always"
+    for url in (f"file://{up}", f"ext::sh -c touch% {tmp_path}/pwned", "git://127.0.0.1:1/x", "ssh://127.0.0.1:1/x"):
+        r = subprocess.run(["git", *git_host.transports("https://github.com/a/b.git"), "ls-remote", url],
+                           capture_output=True, text=True, env=GIT_ENV, timeout=30)  # fmt: skip
+        assert r.returncode and "not allowed" in r.stderr, url
+    assert not (tmp_path / "pwned").exists()
 
 
 def test_osv_scanner_resolution_is_recorded_with_its_hosts() -> None:
