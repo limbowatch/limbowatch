@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import tomllib
 from pathlib import Path
 from typing import Any
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -100,10 +102,12 @@ def test_action_scripts_are_valid_bash() -> None:
 
 
 # Stands in for `docker run` of a compromised image: it writes what a scan would, as symlinks to the runner's files
-# where it can, forged outputs and annotations, and workflow commands on stdout.
+# where it can, forged outputs and annotations, files meant to replace the checkout's (.git/config, a tracked
+# package.json), and workflow commands on stdout.
 FAKE_DOCKER = r"""#!/usr/bin/env bash
 printf '%s\n' "$@" >> "$RUNNER_TEMP/docker-args"
 out="$RUNNER_TEMP/limbowatch/out"
+reports="$RUNNER_TEMP/limbowatch/reports"
 echo '::set-output name=failed::from-stdout'
 case " $* " in
   *" python3 - "*)
@@ -115,36 +119,52 @@ case " $* " in
     ln -s "$SECRET" "$out/limbowatch.md"
     ln -s "$SECRET" "$out/limbowatch.sarif"
     printf '::warning file=go.mod::real\n::add-path::/evil\n::set-output name=x::y\n' > "$out/limbowatch.annotations"
-    ln -s "$SECRET" "$RUNNER_TEMP/limbowatch/reports/report.html"
-    echo regular > "$RUNNER_TEMP/limbowatch/reports/report.json"
+    ln -s "$SECRET" "$reports/report.html"
+    echo regular > "$reports/report.json"
+    echo state > "$reports/state.json"
+    mkdir -p "$reports/.git" && echo '[core] fsmonitor = evil' > "$reports/.git/config"
+    echo '{"scripts": {"test": "evil"}}' > "$reports/package.json"
     exit 1 ;;
 esac
 """
 
 
-def test_action_image_mode_keeps_a_compromised_image_off_the_runner(tmp_path: Path) -> None:
-    """Image mode: the checkout read-only, never the runner's temp directory (GITHUB_ENV and GITHUB_PATH are there),
-    a hardened container, workflow commands off while it prints, nothing it wrote followed or passed on unchecked."""
+def _image_mode(tmp_path: Path, reports: str) -> tuple[subprocess.CompletedProcess[str], Path, Path, Path]:
+    """scan.sh in image mode with FAKE_DOCKER, in a git checkout whose package.json (at the root and in the reports
+    directory) is tracked: (result, checkout, runner temp, GITHUB_OUTPUT)."""
     import os
-    import subprocess
 
     ws, rt, bin_ = tmp_path / "ws", tmp_path / "rt", tmp_path / "bin"
-    for d in (ws / "proj", rt, bin_):
+    for d in (ws / "proj", ws / "limbowatch-report", rt, bin_):
         d.mkdir(parents=True)
+    for f in (ws / "package.json", ws / "limbowatch-report/package.json"):
+        f.write_text('{"scripts": {"test": "ok"}}\n')
+    git = ["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false"]
+    subprocess.run([*git, "init", "-q"], cwd=ws, check=True)
+    subprocess.run([*git, "add", "-A"], cwd=ws, check=True)
+    subprocess.run([*git, "commit", "-q", "-m", "x"], cwd=ws, check=True)
     (bin_ / "docker").write_text(FAKE_DOCKER)
     (bin_ / "docker").chmod(0o755)
     secret = tmp_path / "secret"
     secret.write_text("RUNNER-SECRET")
-    gh_output, summary = tmp_path / "gh_output", tmp_path / "summary.md"
+    gh_output = tmp_path / "gh_output"
     gh_output.touch()
     env = os.environ | {
         "PATH": f"{bin_}:{os.environ['PATH']}", "SECRET": str(secret), "RUNNER_TEMP": str(rt),
-        "GITHUB_WORKSPACE": str(ws), "GITHUB_OUTPUT": str(gh_output), "GITHUB_STEP_SUMMARY": str(summary),
+        "GITHUB_WORKSPACE": str(ws), "GITHUB_OUTPUT": str(gh_output),
+        "GITHUB_STEP_SUMMARY": str(tmp_path / "summary.md"),
         "LW_MODE": "image", "LW_IMAGE": "img", "LW_PATH": "proj", "LW_FAIL_ON": "low", "LW_FAIL_ON_UNKNOWN": "true",
         "LW_ALLOW_FAILURE": "false", "LW_SARIF": "out.sarif", "LW_ANNOTATIONS": "true",
-        "LW_REPORTS": "limbowatch-report", "LW_ISSUES": "", "LW_EXTRA": "", "LW_DEFAULT_BRANCH": "main",
+        "LW_REPORTS": reports, "LW_ISSUES": "", "LW_EXTRA": "", "LW_DEFAULT_BRANCH": "main",
     }  # fmt: skip
     r = subprocess.run(["bash", str(ACTION.parent / "scan.sh")], cwd=ws, env=env, capture_output=True, text=True)
+    return r, ws, rt, gh_output
+
+
+def test_action_image_mode_keeps_a_compromised_image_off_the_runner(tmp_path: Path) -> None:
+    """Image mode: the checkout read-only, never the runner's temp directory (GITHUB_ENV and GITHUB_PATH are there),
+    a hardened container, workflow commands off while it prints, nothing it wrote followed or passed on unchecked."""
+    r, ws, rt, gh_output = _image_mode(tmp_path, "limbowatch-report")
     assert r.returncode == 1, r.stdout + r.stderr
 
     args = (rt / "docker-args").read_text().splitlines()
@@ -158,20 +178,40 @@ def test_action_image_mode_keeps_a_compromised_image_off_the_runner(tmp_path: Pa
 
     lines = r.stdout.splitlines()
     stop = [i for i, line in enumerate(lines) if line.startswith("::stop-commands::")]
-    assert len(stop) == 1  # the scan; what the outputs step prints goes to /dev/null
-    token = lines[stop[0]].removeprefix("::stop-commands::")
-    assert re.fullmatch(r"limbowatch-[0-9a-f]{32}", token)
-    assert lines[stop[0] + 1] == "::set-output name=failed::from-stdout" and lines[stop[0] + 2] == f"::{token}::"
-    outside = lines[: stop[0]] + lines[stop[0] + 3 :]  # what GitHub still reads as commands
+    assert len(stop) == 2  # the scan, then the outputs: commands off whenever the image runs
+    for i in stop:
+        token = lines[i].removeprefix("::stop-commands::")
+        assert re.fullmatch(r"limbowatch-[0-9a-f]{32}", token)
+        assert lines[i + 1] == "::set-output name=failed::from-stdout" and lines[i + 2] == f"::{token}::"
+    outside = [line for i, line in enumerate(lines) if not any(s <= i <= s + 2 for s in stop)]
     assert [line for line in outside if line.startswith("::")] == [
-        "::group::Annotations: one per affected package", "::warning file=go.mod::real", "::endgroup::"]  # fmt: skip
+        "::warning title=Limbowatch::The scan wrote a file the repository tracks in the reports directory; "
+        "it wasn't copied.",
+        "::group::Annotations: one per affected package",
+        "::warning file=go.mod::real",
+        "::endgroup::",
+    ]  # fmt: skip
     assert lines[-1] == "PASSED  fine"  # the image's own words, but never a command
     assert gh_output.read_text() == "findings=1\nreport=limbowatch-report/report.json\n"
 
-    assert not summary.exists() and not (ws / "out.sarif").exists()  # symlinks to the secret: not followed
+    assert not (tmp_path / "summary.md").exists() and not (ws / "out.sarif").exists()  # symlinks: not followed
     reports = ws / "limbowatch-report"
     assert (reports / "report.json").read_text() == "regular\n" and not (reports / "report.html").exists()
+    assert (reports / "state.json").read_text() == "state\n"  # what extra-args writes there is kept
+    assert (reports / "package.json").read_text() == '{"scripts": {"test": "ok"}}\n'  # tracked: never replaced
+    assert not (reports / ".git").exists()
     assert not [p for p in ws.rglob("*") if p.is_symlink()]
+
+
+def test_action_image_mode_with_reports_in_the_checkout_copies_only_the_reports(tmp_path: Path) -> None:
+    """`reports: .`: the image writes its own directory, and only the report files are copied into the checkout,
+    never .git/config or a file later steps run."""
+    r, ws, _, _ = _image_mode(tmp_path, ".")
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert (ws / "report.json").read_text() == "regular\n"
+    assert "evil" not in (ws / ".git/config").read_text()
+    assert (ws / "package.json").read_text() == '{"scripts": {"test": "ok"}}\n'
+    assert not (ws / "state.json").exists() and not (ws / "report.html").exists()
 
 
 def test_action_readme_lists_every_input_and_output_and_the_release() -> None:
@@ -538,3 +578,33 @@ def test_sealed_no_feed_template_reads_github_with_a_public_only_token() -> None
     assert "--no-upstream" not in docker and "--feed " not in docker
     uploads = [s["with"]["name"] for s in collect["steps"] if "upload-artifact@" in s.get("uses", "")]
     assert uploads == ["dependency-files"]
+
+
+@pytest.mark.parametrize("template", [SEALED, SEALED_NO_FEED], ids=["sealed", "no-feed"])
+def test_sealed_templates_scan_step_passes_on_only_what_the_image_may(tmp_path: Path, template: Path) -> None:
+    """The scan step: workflow commands off while the image prints, its exit code kept, and nothing but regular files
+    left in out/ for the summary and the upload, which would follow a symlink to any file on the runner."""
+    import os
+    import shutil
+
+    if not shutil.which("openssl"):
+        pytest.skip("needs openssl")
+    step = next(
+        s for s in yaml.safe_load(template.read_text())["jobs"]["scan"]["steps"] if "docker run" in s.get("run", "")
+    )
+    secret = tmp_path / "secret"
+    secret.write_text("RUNNER-SECRET")
+    bin_ = tmp_path / "bin"
+    bin_.mkdir()
+    (bin_ / "docker").write_text(
+        '#!/usr/bin/env bash\n[ "$1" = pull ] && exit 0\necho "::set-output name=x::y"\n'
+        f"ln -s {secret} out/report.md\nmkfifo out/pipe\necho ok > out/report.json\nexit 1\n"
+    )
+    (bin_ / "docker").chmod(0o755)
+    env = os.environ | {"PATH": f"{bin_}:{os.environ['PATH']}", "IMAGE": "img"}
+    r = subprocess.run(["bash", "-e", "-c", step["run"]], cwd=tmp_path, env=env, capture_output=True, text=True)
+    assert r.returncode == 1, r.stdout + r.stderr  # the findings gate, passed through
+    lines = r.stdout.splitlines()
+    token = lines[0].removeprefix("::stop-commands::")
+    assert re.fullmatch(r"[0-9a-f]{32}", token) and lines[1:] == ["::set-output name=x::y", f"::{token}::"]
+    assert sorted(p.name for p in (tmp_path / "out").iterdir()) == ["report.json"]

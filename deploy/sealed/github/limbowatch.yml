@@ -240,6 +240,10 @@ jobs:
         run: |
           mkdir -m 777 out
           docker pull --quiet "$IMAGE"   # the digest collect checked
+          # Workflow commands are off while the image prints; the token is random and the image never sees it.
+          token="$(openssl rand -hex 16)"
+          echo "::stop-commands::$token"
+          rc=0
           docker run --rm --network none --read-only --tmpfs /tmp \
             --cap-drop ALL --security-opt no-new-privileges \
             --user 65534:65534 --pids-limit 256 --memory 2g -e HOME=/tmp \
@@ -247,7 +251,11 @@ jobs:
             "$IMAGE" \
             limbowatch scan /scan --feed /feed --no-upstream --no-resolve-maven --no-osv-commits \
               --fail-on high \
-              -o json=/out/report.json -o markdown=/out/report.md -o html=/out/report.html -o sarif=/out/report.sarif
+              -o json=/out/report.json -o markdown=/out/report.md -o html=/out/report.html -o sarif=/out/report.sarif || rc=$?
+          echo "::$token::"
+          # Only regular files leave out/: a symlink the image made there could point at any file on the runner.
+          find out -mindepth 1 ! -type f ! -type d -delete
+          exit "$rc"
       # Also when the scan found something (exit 1), so the findings are shown and kept.
       - name: Job summary
         if: ${{ !cancelled() && hashFiles('out/report.md') != '' }}
