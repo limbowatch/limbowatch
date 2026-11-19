@@ -124,27 +124,39 @@ case " $* " in
     echo state > "$reports/state.json"
     mkdir -p "$reports/.git" && echo '[core] fsmonitor = evil' > "$reports/.git/config"
     echo '{"scripts": {"test": "evil"}}' > "$reports/package.json"
+    echo csv > "$reports/report.csv"
     exit 1 ;;
 esac
 """
 
 
-def _image_mode(tmp_path: Path, reports: str) -> tuple[subprocess.CompletedProcess[str], Path, Path, Path]:
-    """scan.sh in image mode with FAKE_DOCKER, in a git checkout whose package.json (at the root and in the reports
-    directory) is tracked: (result, checkout, runner temp, GITHUB_OUTPUT)."""
+def _image_mode(
+    tmp_path: Path, reports: str, tracked: tuple[str, ...] = (), git_fails: bool = False
+) -> tuple[subprocess.CompletedProcess[str], Path, Path, Path]:
+    """scan.sh in image mode with FAKE_DOCKER, in a git checkout that tracks package.json and `tracked`; with
+    `git_fails`, every `git ls-files` exits 128 as for a checkout git won't read: (result, checkout, runner temp,
+    GITHUB_OUTPUT)."""
     import os
+    import shutil
 
     ws, rt, bin_ = tmp_path / "ws", tmp_path / "rt", tmp_path / "bin"
     for d in (ws / "proj", ws / "limbowatch-report", rt, bin_):
         d.mkdir(parents=True)
-    for f in (ws / "package.json", ws / "limbowatch-report/package.json"):
-        f.write_text('{"scripts": {"test": "ok"}}\n')
+    for name in ("package.json", *tracked):
+        (ws / name).write_text('{"scripts": {"test": "ok"}}\n')
     git = ["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false"]
     subprocess.run([*git, "init", "-q"], cwd=ws, check=True)
     subprocess.run([*git, "add", "-A"], cwd=ws, check=True)
     subprocess.run([*git, "commit", "-q", "-m", "x"], cwd=ws, check=True)
     (bin_ / "docker").write_text(FAKE_DOCKER)
     (bin_ / "docker").chmod(0o755)
+    if git_fails:
+        (bin_ / "git").write_text(
+            "#!/usr/bin/env bash\n"
+            'for a; do [ "$a" = ls-files ] && { echo "fatal: dubious ownership" >&2; exit 128; }; done\n'
+            f'exec {shutil.which("git")} "$@"\n'
+        )
+        (bin_ / "git").chmod(0o755)
     secret = tmp_path / "secret"
     secret.write_text("RUNNER-SECRET")
     gh_output = tmp_path / "gh_output"
@@ -161,9 +173,15 @@ def _image_mode(tmp_path: Path, reports: str) -> tuple[subprocess.CompletedProce
     return r, ws, rt, gh_output
 
 
+OK = '{"scripts": {"test": "ok"}}\n'
+WARNING = "::warning title=Limbowatch::The scan wrote a file the repository tracks in the reports directory; "
+WARNING += "it wasn't copied."
+
+
 def test_action_image_mode_keeps_a_compromised_image_off_the_runner(tmp_path: Path) -> None:
     """Image mode: the checkout read-only, never the runner's temp directory (GITHUB_ENV and GITHUB_PATH are there),
-    a hardened container, workflow commands off while it prints, nothing it wrote followed or passed on unchecked."""
+    a hardened container, workflow commands off while it prints, nothing it wrote followed or passed on unchecked.
+    A reports directory that holds nothing tracked gets the image's files, but only regular ones directly in it."""
     r, ws, rt, gh_output = _image_mode(tmp_path, "limbowatch-report")
     assert r.returncode == 1, r.stdout + r.stderr
 
@@ -185,33 +203,36 @@ def test_action_image_mode_keeps_a_compromised_image_off_the_runner(tmp_path: Pa
         assert lines[i + 1] == "::set-output name=failed::from-stdout" and lines[i + 2] == f"::{token}::"
     outside = [line for i, line in enumerate(lines) if not any(s <= i <= s + 2 for s in stop)]
     assert [line for line in outside if line.startswith("::")] == [
-        "::warning title=Limbowatch::The scan wrote a file the repository tracks in the reports directory; "
-        "it wasn't copied.",
-        "::group::Annotations: one per affected package",
-        "::warning file=go.mod::real",
-        "::endgroup::",
-    ]  # fmt: skip
+        "::group::Annotations: one per affected package", "::warning file=go.mod::real", "::endgroup::"]  # fmt: skip
     assert lines[-1] == "PASSED  fine"  # the image's own words, but never a command
     assert gh_output.read_text() == "findings=1\nreport=limbowatch-report/report.json\n"
 
     assert not (tmp_path / "summary.md").exists() and not (ws / "out.sarif").exists()  # symlinks: not followed
     reports = ws / "limbowatch-report"
-    assert (reports / "report.json").read_text() == "regular\n" and not (reports / "report.html").exists()
+    assert sorted(p.name for p in reports.iterdir()) == ["package.json", "report.csv", "report.json", "state.json"]
     assert (reports / "state.json").read_text() == "state\n"  # what extra-args writes there is kept
-    assert (reports / "package.json").read_text() == '{"scripts": {"test": "ok"}}\n'  # tracked: never replaced
-    assert not (reports / ".git").exists()
     assert not [p for p in ws.rglob("*") if p.is_symlink()]
 
 
-def test_action_image_mode_with_reports_in_the_checkout_copies_only_the_reports(tmp_path: Path) -> None:
-    """`reports: .`: the image writes its own directory, and only the report files are copied into the checkout,
-    never .git/config or a file later steps run."""
-    r, ws, _, _ = _image_mode(tmp_path, ".")
+def test_action_image_mode_copies_only_reports_where_the_repository_has_files(tmp_path: Path) -> None:
+    """A reports directory that holds tracked files, or `reports: .`, or one git can't read: only the report files
+    are copied, never over a tracked one, never .git/config or a file later steps run."""
+    r, ws, _, _ = _image_mode(tmp_path / "a", "limbowatch-report", tracked=("limbowatch-report/report.csv",))
+    reports = ws / "limbowatch-report"
+    assert r.returncode == 1 and WARNING in r.stdout, r.stdout + r.stderr
+    assert sorted(p.name for p in reports.iterdir()) == ["report.csv", "report.json"]
+    assert (reports / "report.csv").read_text() == OK  # tracked: never replaced
+
+    r, ws, _, _ = _image_mode(tmp_path / "b", ".")
     assert r.returncode == 1, r.stdout + r.stderr
-    assert (ws / "report.json").read_text() == "regular\n"
-    assert "evil" not in (ws / ".git/config").read_text()
-    assert (ws / "package.json").read_text() == '{"scripts": {"test": "ok"}}\n'
+    assert (ws / "report.json").read_text() == "regular\n" and (ws / "report.csv").exists()
+    assert "evil" not in (ws / ".git/config").read_text() and (ws / "package.json").read_text() == OK
     assert not (ws / "state.json").exists() and not (ws / "report.html").exists()
+
+    r, ws, _, _ = _image_mode(tmp_path / "c", "limbowatch-report", git_fails=True)
+    reports = ws / "limbowatch-report"
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert sorted(p.name for p in reports.iterdir()) == ["report.csv", "report.json"]
 
 
 def test_action_readme_lists_every_input_and_output_and_the_release() -> None:
@@ -598,7 +619,8 @@ def test_sealed_templates_scan_step_passes_on_only_what_the_image_may(tmp_path: 
     bin_.mkdir()
     (bin_ / "docker").write_text(
         '#!/usr/bin/env bash\n[ "$1" = pull ] && exit 0\necho "::set-output name=x::y"\n'
-        f"ln -s {secret} out/report.md\nmkfifo out/pipe\necho ok > out/report.json\nexit 1\n"
+        f"ln -s {secret} out/report.md\nmkfifo out/pipe\nmkdir out/sub\nln -s {secret} out/sub/x\n"
+        "echo ok > out/report.json\nexit 1\n"
     )
     (bin_ / "docker").chmod(0o755)
     env = os.environ | {"PATH": f"{bin_}:{os.environ['PATH']}", "IMAGE": "img"}
@@ -607,4 +629,6 @@ def test_sealed_templates_scan_step_passes_on_only_what_the_image_may(tmp_path: 
     lines = r.stdout.splitlines()
     token = lines[0].removeprefix("::stop-commands::")
     assert re.fullmatch(r"[0-9a-f]{32}", token) and lines[1:] == ["::set-output name=x::y", f"::{token}::"]
-    assert sorted(p.name for p in (tmp_path / "out").iterdir()) == ["report.json"]
+    assert sorted(p.name for p in (tmp_path / "report").iterdir()) == ["report.json"]
+    steps = yaml.safe_load(template.read_text())["jobs"]["scan"]["steps"]
+    assert "cat report/report.md" in str(steps) and "out/" not in str(steps[steps.index(step) + 1 :])

@@ -19,9 +19,9 @@ Still an **alpha**. On PyPI it's `0.1.0a22`; the GitHub tag and the action's ref
   - The checkout is read-only, and the runner's temp directory is never mounted.
   - The image runs with a read-only root filesystem, no capabilities and no new privileges, and workflow commands are off while it prints.
   - The scan writes only to directories of its own. The action copies regular files out of them, never following a symlink, and lets only well-formed values through to its outputs and only annotation commands into the log.
-  - What the image wrote is copied back only as regular files, never over a file git tracks or into `.git`. With `reports: .` (or a directory above the checkout), only the report files are copied.
+  - What the image wrote into the reports directory is copied back only as regular files directly in it, never dotfiles, never onto a symlink or a file git tracks. Other files come back only when the directory is the reports' own (git reads it and tracks nothing in it); otherwise, as with `reports: .`, only the report files.
   - **Breaking (image mode):**
-    - Files that `extra-args` writes (`--state`, `--audit-log`, more `-o`) must go in the `reports` directory (default `limbowatch-report/`), the one place in the checkout the scan can write. That needs a reports directory of its own, not `.`.
+    - Files that `extra-args` writes (`--state`, `--audit-log`, more `-o`) must go in the `reports` directory (default `limbowatch-report/`), the one place in the checkout the scan can write. That needs a reports directory of its own, not `.` or a directory with files from the repository, and the files directly in it.
     - The image sees nothing outside the checkout. An `--sbom` file or a feed directory elsewhere, under `${{ runner.temp }}` for example, must move into the checkout.
   - docs/WATCHER.md also shows a stricter set-up for scheduled scans: the image runs in a job with no permissions, on the lockfiles alone.
 - **https only, enforced** (docs/WATCHER.md#security-and-data, FINDINGS F-226). The HTTP client refuses plain `http://` to another machine before sending, a redirect from https to http included. git runs with only the https transport allowed, which git also applies to redirects; ssh, `git://` and `ext::` are never allowed. This machine (localhost) is still fine.

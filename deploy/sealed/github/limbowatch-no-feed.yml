@@ -194,18 +194,22 @@ jobs:
             limbowatch scan /scan --cache /cache --fail-on high \
               -o json=/out/report.json -o markdown=/out/report.md -o html=/out/report.html -o sarif=/out/report.sarif || rc=$?
           echo "::$token::"
-          # Only regular files leave out/: a symlink the image made there could point at any file on the runner.
-          find out -mindepth 1 ! -type f ! -type d -delete
+          # Only the reports leave out/, each a regular file: anything else the image made there, such as a
+          # symlink to a file on the runner, would be followed by the summary and the upload.
+          mkdir report
+          for f in report.json report.md report.html report.sarif; do
+            if [ -f "out/$f" ] && [ ! -L "out/$f" ]; then cp -- "out/$f" report/; fi
+          done
           exit "$rc"
       # Also when the scan found something (exit 1), so the findings are shown and kept.
       - name: Job summary
-        if: ${{ !cancelled() && hashFiles('out/report.md') != '' }}
-        run: cat out/report.md >> "$GITHUB_STEP_SUMMARY"
+        if: ${{ !cancelled() && hashFiles('report/report.md') != '' }}
+        run: cat report/report.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ !cancelled() && hashFiles('out/report.json') != '' }}
+        if: ${{ !cancelled() && hashFiles('report/report.json') != '' }}
         with:
           name: limbowatch-report
-          path: out
+          path: report
           if-no-files-found: error
           retention-days: 30
 
