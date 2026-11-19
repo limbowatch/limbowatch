@@ -3542,6 +3542,38 @@ Answered:
 - **Implication:** `--audit-log` and `--show-network` (all network-using commands; `LIMBOWATCH_AUDIT_LOG`, `LIMBOWATCH_SHOW_NETWORK`) give a per-run record a company can keep, and the host table in WATCHER.md "Security and data" holds. Open: the client keeps cookies a server sets. That's harmless for a public registry, but a scanner doesn't need it, and turning it off would make "what it sends" exactly the URL.
 - **Sources:** httpx 0.28.1 `_client.py`; probe output in the session scratchpad (`probe/audit-*.jsonl`, `probe/proxy-*.log`); `curl -sI https://repo1.maven.org/maven2/javax/inject/javax.inject/1/javax.inject-1.pom` (the `set-cookie` header).
 
+### F-226
+- **Date:** 2026-11-18 · **Status:** confirmed (git's source, and direct observation)
+- **Question:** Can the scan be made to send anything over plain http, or follow a URL somewhere unexpected? Can https-only be enforced, git included? What happens to the open cookie point of [F-225](#f-225)?
+- **Method:**
+  - **Code read:** every URL constant (all `https://`), and every URL that comes from a response or a build file:
+    - pagination: `hosts.next_link` and `sources.github._on_api`;
+    - API clone URLs: `hosts.clone_url`;
+    - CVE record links: `sources.cve.record`;
+    - registry repository URLs: `watch.mapping`;
+    - upstream clones: `watch.upstream_check`, `CLONE_URL.format(repo=…)`.
+  - **git's redirect handling:** read in git's `http.c` at e1ec09b (`gh api repos/git/git/contents/http.c`).
+  - **Live checks with the new settings:**
+    - git 2.54.0: `ls-remote`, clone and fetch of github.com/madler/zlib, and `ls-remote` of a renamed repository's old URL (github.com/blueandhack/Limbowatch, which redirects).
+    - The F-225 scan again, behind the logging proxy, with an empty cache.
+- **Result:**
+  - **URLs were already checked** before use: same host and scheme for next-page and clone URLs, the CVE List repository for record links, and only owner/name from a registry's repository URL. Build files only supply names. A URL in a `CMakeLists.txt` or `.gitmodules` is never fetched, and upstreams not on GitHub are reported as unchecked.
+  - **Gaps before this entry:**
+    - httpx followed redirects to any scheme.
+    - git followed redirects under its defaults.
+    - Plain http to a source the user named was allowed without a token, so its answers could be changed on the way.
+  - **git:** `get_curl_allowed_protocols()` builds both `CURLOPT_PROTOCOLS(_STR)` and `CURLOPT_REDIR_PROTOCOLS(_STR)` from `protocol.allow` / `protocol.<name>.allow`. So `-c protocol.allow=never -c protocol.https.allow=always` also limits redirects to https.
+    - Locally, with those options, `ls-remote` refused `file://`, `ext::`, `git://` and `ssh://` ("transport … not allowed"), and the `ext::` command didn't run.
+    - Against GitHub: `ls-remote` gave zlib's 79 tags, clone (1.9 s) and fetch (0.3 s) worked, and the renamed repository's redirect was followed (https to https).
+  - **The scan:** 25 requests, all https. `authorization` went to api.github.com only, and no request carried a `cookie` (2 of 6 to repo1.maven.org did in F-225). The proxy saw the same tunnels as in F-225, and the scan reported the same 22 findings.
+- **Caveats:** the https-to-http redirect refusal was tested against mocked responses (respx) for HTTP; for git it rests on git's source, since a local https server wasn't set up. The check is on the scheme. An https redirect to another host is still followed: httpx then drops the `Authorization` header, and the record shows each hop.
+- **Implication:**
+  - **https only, enforced where requests are made.** HTTP: an event hook raises `InsecureRequest` before sending, which isn't retried. git: the transports above, in `ls-remote`, the upstream clone and fetch, and project clones. The only exceptions are localhost, and the hosts the user names with `http://` and `--allow-insecure-http`. That flag is now needed even without a token: a breaking change for `http://` sources.
+  - **No cookies.** The HTTP client's cookie jar refuses every cookie, which closes F-225's open point.
+  - **Request bodies are in `--audit-log`**, so the record shows everything a request sends besides standard headers.
+  - **Doc gap fixed:** `--issues` sends OSV the package name and installed versions, when deciding whether to close an issue whose advisory reached OSV. That row was missing from WATCHER.md's host table.
+- **Sources:** git `http.c` (e1ec09b); `tests/test_audit.py`, `tests/test_sources_http.py`; probe output in the session scratchpad (`probe/audit-v2.jsonl`, `probe/proxy-v2.log`).
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
