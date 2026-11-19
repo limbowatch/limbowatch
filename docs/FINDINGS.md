@@ -3574,6 +3574,37 @@ Answered:
   - **Doc gap fixed:** `--issues` sends OSV the package name and installed versions, when deciding whether to close an issue whose advisory reached OSV. That row was missing from WATCHER.md's host table.
 - **Sources:** git `http.c` (e1ec09b); `tests/test_audit.py`, `tests/test_sources_http.py`; probe output in the session scratchpad (`probe/audit-v2.jsonl`, `probe/proxy-v2.log`).
 
+### F-227
+- **Date:** 2026-11-19 · **Status:** confirmed (direct observation)
+- **Question:** Release 0.1.0a22 (https only, the network record, the action's image isolated, the sealed scan): did it ship as tested?
+- **Method:**
+  - **Before tagging:**
+    - The audit passed all 13 checks: 520 verdicts sampled live, 0 wrong; 0.1.0a1 and 0.1.0a21 both read all 26,769 feed records.
+    - 488 tests passed on Python 3.12, 3.13 and 3.14.
+    - The upstream e2e (FreeRDP, ImageMagick, vcpkg), the issue e2e on GitHub, GitLab and Gitea, and `check_integrations.py` all passed.
+    - The action ran from main in limbowatch-e2e (run 44498706837).
+  - **Independent review:** four rounds by a reviewer given only the diff, until a round found nothing.
+    - Round 1 found two holes in the action's isolation. With `reports: .`, every file the image left was copied back, so it could replace `.git/config` or a tracked `package.json`. And the outputs run's `::stop-commands::` line went to /dev/null, leaving workflow commands live while it ran.
+    - Rounds 2 and 3 found the first fixes incomplete. `git ls-files` exiting 128 counted as "not tracked"; `reports: tests` could add `conftest.py`; a symlinked reports directory was followed; and a nobody-owned subdirectory in the sealed `out/` defeated `find -delete`. Fixed in 73f707f, dbdf041 and 0e9944a.
+    - Round 4 found nothing to fix.
+    - Deferred: in a `tree:0` partial clone, git may fetch a missing object on its own, outside `--audit-log`. Unverified.
+  - **Release:** 7a2078f (version), 1e36bde (pin). The image is sha-7a2078f (`sha256:593a8b2a…`); the later fix commits changed no image input, so image.yml built none. The action ran at the pin commit (run 44501596148). The component split is 32cedb6 and its pipeline 3088417203. Signed tags `v0.1.0a22` and `0.1.0-alpha.22`; the action split is 0dd8110, its self-test 44502067052.
+  - **After tagging:**
+    - The published action in limbowatch-e2e (run 44502416213) and the proof run (44502340227).
+    - In the scratch repositories: the released own-feed pipeline (public 44502679523, private 44502685462), the CLI-only pipeline (44507005609), and the sealed scan (44502691305).
+    - On GitLab: the CLI-only pipeline 3088458164, started from the web UI.
+- **Result:**
+  - PyPI serves 0.1.0a22. The GitHub pre-release has 4 files. `ghcr.io/limbowatch/limbowatch:0.1.0a22` and the component's mirror both have the pinned digest.
+  - The proof run found 103 findings, the same as with 0.1.0a21.
+  - Own-feed pipelines published 162 advisories on GitHub, both kinds, and 49 on GitLab. GitLab's scan of the feed found 46 findings and passed.
+  - The released sealed scan read 1,822 dependencies and found 52 findings at high or above, ending at the gate as expected.
+  - The private repository's attestation step failed as expected (F-218). The scratch schedules were turned off again.
+- **Caveats:**
+  - The Marketplace tick for v0.1.0a22 is the owner's.
+  - GitLab's CLI-only run took about 25 minutes, against 8.7 in F-221. It caught up a day of CVE changes; the run log doesn't break the time down.
+- **Implication:** 0.1.0a22 shipped as tested. An independent review of security changes needs more than one round: each fix opened a narrower hole.
+- **Sources:** the runs above; PyPI; ghcr.io; gitlab.com/limbowatch/limbowatch-component.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
