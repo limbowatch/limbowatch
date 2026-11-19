@@ -401,36 +401,140 @@ def test_sealed_template_checks_out_every_file_the_scan_reads_and_nothing_else(t
     assert sorted(set(wanted) - got) == [] and sorted(got & set(not_wanted)) == []
 
 
-def test_sealed_template_runs_the_image_with_nothing_to_reach() -> None:
-    """deploy/sealed/: no repository, permissions or secrets in the scan job; the image with no network, read-only,
-    as nobody; the feed and the image checked against their attestations outside it; the release's image."""
-    wf = _sealed()
-    text = SEALED.read_text()
+SEALED_NO_FEED = ROOT / "deploy/sealed/github/limbowatch-no-feed.yml"
+
+
+def _common(wf: dict[str, Any], text: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    """What both deploy/sealed/ files promise: two jobs on GitHub-hosted runners, scheduled or by hand only; collect
+    with contents: read and no Limbowatch code; scan with no permissions and no repository; the release's image,
+    checked against its attestation before it runs; actions pinned by commit; the image read-only, as nobody."""
     assert set(wf.get("on", wf.get(True))) == {"schedule", "workflow_dispatch"}
-    assert wf["permissions"] == {} and "${{ secrets." not in text
     collect, scan = wf["jobs"]["collect"], wf["jobs"]["scan"]
-    assert collect["permissions"] == {"contents": "read"} and scan["permissions"] == {} and scan["needs"] == "collect"
-    assert set(wf["jobs"]) == {"collect", "scan"} and all(j["runs-on"] == "ubuntu-latest" for j in wf["jobs"].values())
-    action = yaml.safe_load(ACTION.read_text())
-    assert wf["env"]["IMAGE"] == action["inputs"]["image"]["default"]  # bumped with each release
+    assert wf["permissions"] == {} and collect["permissions"] == {"contents": "read"} and scan["permissions"] == {}
+    assert set(wf["jobs"]) == {"collect", "scan"} and scan["needs"] == "collect"
+    assert all(j["runs-on"] == "ubuntu-latest" for j in wf["jobs"].values())
+    assert wf["env"]["IMAGE"] == yaml.safe_load(ACTION.read_text())["inputs"]["image"]["default"]  # bumped per release
     for line in text.splitlines():
         if "uses:" in line and not line.lstrip().startswith("#"):
             assert re.search(r"@[0-9a-f]{40} # v", line), line
-    steps = scan["steps"]
-    run = "\n".join(s.get("run", "") for s in steps)
-    docker = next(s["run"] for s in steps if "docker run" in s.get("run", ""))
-    for flag in ("--network none", "--read-only", "--cap-drop ALL", "no-new-privileges", "--user 65534:65534",
-                 '"$PWD/in:/scan:ro"', '"$PWD/feed:/feed:ro"', "--feed /feed", "--no-upstream", "--no-resolve-maven",
+    collect_run = "\n".join(s.get("run", "") for s in collect["steps"])
+    assert "limbowatch scan" not in collect_run and "docker" not in collect_run
+    assert 'gh attestation verify "oci://$IMAGE" --repo limbowatch/limbowatch' in collect_run
+    assert "limbowatch/limbowatch/.github/workflows/image.yml" in collect_run
+    assert all("actions/checkout@" not in s.get("uses", "") for s in scan["steps"])
+    docker = next(s["run"] for s in scan["steps"] if "docker run" in s.get("run", ""))
+    for flag in ("--read-only", "--cap-drop ALL", "no-new-privileges", "--user 65534:65534", '"$PWD/in:/scan:ro"'):
+        assert flag in docker, flag
+    import subprocess
+
+    for s in [*collect["steps"], *scan["steps"]]:
+        if "run" in s:
+            subprocess.run(["bash", "-n"], input=s["run"], text=True, check=True)
+    return collect, scan
+
+
+def test_sealed_template_runs_the_image_with_nothing_to_reach() -> None:
+    """The sealed scan: the image with no network and no token or other variable, on the files and a feed that
+    collect got and checked against FEED_SIGNER's attestation (by default limbo.watch's site.yml on main). A secret,
+    if any, only to read a private feed repository, and only in collect."""
+    text = SEALED.read_text()
+    wf = _sealed()
+    collect, scan = _common(wf, text)
+    assert wf["env"]["FEED_URL"] == "https://limbo.watch/feed/" and wf["env"]["FEED_BRANCH"] == ""
+    assert wf["env"]["FEED_SIGNER"] == "limbowatch/limbowatch/.github/workflows/site.yml@refs/heads/main"
+    assert re.findall(r"\$\{\{ secrets\.\w+", text) == ["${{ secrets.LIMBO_FEED_READ_TOKEN"]
+    branch = next(s for s in collect["steps"] if s.get("name") == "Check out the feed branch")
+    assert branch["with"]["token"] == "${{ secrets.LIMBO_FEED_READ_TOKEN || github.token }}"
+    assert branch["with"]["persist-credentials"] is False
+    assert all("secrets." not in str(s) for s in scan["steps"]) and "GH_TOKEN" not in str(scan)
+    docker = next(s["run"] for s in scan["steps"] if "docker run" in s.get("run", ""))
+    for flag in ("--network none", '"$PWD/feed:/feed:ro"', "--feed /feed", "--no-upstream", "--no-resolve-maven",
                  "--no-osv-commits"):  # fmt: skip
         assert flag in docker, flag
     assert "-e " not in docker.replace("-e HOME=/tmp", "")  # no token or other variable reaches the image
-    assert "limbowatch/limbowatch/.github/workflows/site.yml --source-ref refs/heads/main" in run
-    assert "index($z) != null and index($w) != null" in run  # all.zip and watchlist.json from one build
-    assert "limbowatch/limbowatch/.github/workflows/image.yml" in run
-    assert run.index("gh attestation verify all.zip") < run.index("docker run")
-    assert run.index('gh attestation verify "oci://$IMAGE"') < run.index("docker run")
+    uploads = [s["with"]["name"] for s in collect["steps"] if "upload-artifact@" in s.get("uses", "")]
+    assert uploads == ["dependency-files", "feed"]
+
+
+def _feed_step(tmp_path: Path, env: dict[str, str], branch_files: bool = False) -> tuple[int, str, str, str]:
+    """Runs the sealed template's feed step with fake curl and gh: (exit code, gh's arguments, job summary, output)."""
+    import os
+    import shutil
     import subprocess
 
-    for s in [*collect["steps"], *steps]:
-        if "run" in s:
-            subprocess.run(["bash", "-n"], input=s["run"], text=True, check=True)
+    if not (shutil.which("jq") and shutil.which("sha256sum")):
+        import pytest
+
+        pytest.skip("needs jq and sha256sum")
+    step = next(s for s in _sealed()["jobs"]["collect"]["steps"] if s.get("name", "").startswith("Get the feed"))
+    bin_ = tmp_path / "bin"
+    bin_.mkdir(parents=True)
+    (bin_ / "curl").write_text('#!/usr/bin/env bash\nwhile [ "$1" != -o ]; do shift; done; echo "$3" > "$2"\n')
+    # gh: records its arguments, and vouches for whichever files GH_FAKE_SUBJECTS names
+    gh = r"""#!/usr/bin/env bash
+echo "$*" > "$GH_ARGS"
+subjects=""
+for f in $GH_FAKE_SUBJECTS; do
+  subjects="$subjects{\"digest\":{\"sha256\":\"$(sha256sum "$f" | cut -d' ' -f1)\"}},"
+done
+echo "[{\"verificationResult\":{\"statement\":{\"subject\":[${subjects%,}]}}}]"
+"""
+    (bin_ / "gh").write_text(gh)
+    for f in ("curl", "gh"):
+        (bin_ / f).chmod(0o755)
+    if branch_files:
+        (tmp_path / "feed-branch/feed").mkdir(parents=True)
+        for f in ("all.zip", "watchlist.json"):
+            (tmp_path / "feed-branch/feed" / f).write_text(f"branch {f}\n")
+    summary, args = tmp_path / "summary.md", tmp_path / "gh-args"
+    full = os.environ | {"PATH": f"{bin_}:{os.environ['PATH']}", "GITHUB_STEP_SUMMARY": str(summary),
+                         "GH_ARGS": str(args), "GITHUB_REPOSITORY": "acme/app", "FEED_REPOSITORY": "",
+                         "GH_FAKE_SUBJECTS": "feed/all.zip feed/watchlist.json"} | env  # fmt: skip
+    r = subprocess.run(["bash", "-e", "-c", step["run"]], cwd=tmp_path, env=full, capture_output=True, text=True)
+    read = lambda p: p.read_text() if p.exists() else ""  # noqa: E731
+    return r.returncode, read(args).strip(), read(summary), r.stdout + r.stderr
+
+
+def test_sealed_template_feed_step_checks_the_signer_it_is_given(tmp_path: Path) -> None:
+    """FEED_SIGNER becomes gh's --repo, --signer-workflow and --source-ref; both files must be in one attestation;
+    FEED_URL must be https and end in /; a branch feed is read from the checkout; no signer is a visible warning."""
+    wf = _sealed()["env"]
+    limbo = {k: wf[k] for k in ("FEED_URL", "FEED_BRANCH", "FEED_SIGNER")}
+    rc, args, summary, _ = _feed_step(tmp_path / "a", limbo)
+    assert rc == 0, _
+    assert args == (
+        "attestation verify feed/all.zip --repo limbowatch/limbowatch --signer-workflow "
+        "limbowatch/limbowatch/.github/workflows/site.yml --source-ref refs/heads/main --format json"
+    )
+    assert "Feed: https://limbo.watch/feed/, attested by `limbowatch/limbowatch/.github/workflows/site.yml" in summary
+    # watchlist.json from another build: refused
+    rc, _, _, out = _feed_step(tmp_path / "b", limbo | {"GH_FAKE_SUBJECTS": "feed/all.zip"})
+    assert rc == 1 and "aren't from the same build" in out
+    rc, _, _, out = _feed_step(tmp_path / "c", limbo | {"FEED_URL": "http://feed.example/feed/"})
+    assert rc == 1 and "must be an https:// URL ending in /" in out
+    own = {"FEED_URL": "", "FEED_BRANCH": "limbo-feed", "FEED_SIGNER": "acme/feed/.github/workflows/limbo-feed.yml"}
+    rc, args, summary, out = _feed_step(tmp_path / "d", own, branch_files=True)
+    assert rc == 0, out
+    assert args.startswith("attestation verify feed/all.zip --repo acme/feed --signer-workflow "
+                           "acme/feed/.github/workflows/limbo-feed.yml --format json")  # fmt: skip
+    assert (tmp_path / "d/feed/all.zip").read_text() == "branch all.zip\n" and "branch acme/app@limbo-feed" in summary
+    rc, args, summary, out = _feed_step(tmp_path / "e", own | {"FEED_SIGNER": ""}, branch_files=True)
+    assert rc == 0 and args == "" and "::warning" in out and "not checked against a build attestation" in summary
+
+
+def test_sealed_no_feed_template_reads_github_with_a_public_only_token() -> None:
+    """limbowatch-no-feed.yml: the same collect job and file list as the sealed scan, no feed, and the image with
+    network and the job's token, which with no permissions reads public data only."""
+    text = SEALED_NO_FEED.read_text()
+    wf = yaml.safe_load(text)
+    collect, scan = _common(wf, text)
+    sealed_collect = _sealed()["jobs"]["collect"]["steps"]
+    assert collect["steps"][:2] == sealed_collect[:2]  # one file list for both
+    assert "${{ secrets." not in text and "FEED_" not in text
+    step = next(s for s in scan["steps"] if "docker run" in s.get("run", ""))
+    assert step["env"] == {"LIMBOWATCH_GITHUB_TOKEN": "${{ github.token }}"}
+    docker = step["run"]
+    assert "-e LIMBOWATCH_FEED=none -e LIMBOWATCH_GITHUB_TOKEN" in docker and "--network" not in docker
+    assert "--no-upstream" not in docker and "--feed " not in docker
+    uploads = [s["with"]["name"] for s in collect["steps"] if "upload-artifact@" in s.get("uses", "")]
+    assert uploads == ["dependency-files"]

@@ -1,0 +1,207 @@
+name: Limbowatch (no feed)
+
+# Daily check of this repository's dependencies for security advisories in limbo: published by their maintainers
+# on GitHub, not yet in the databases Dependabot and other scanners read (https://limbo.watch).
+#
+# The same day's advisories, and nothing from limbo.watch: the scan reads every dependency's source repository on
+# GitHub itself (--feed none). The price is that the image needs the network, so the dependency list goes out:
+# repository names to api.github.com, package names and versions to deps.dev and the package registries, advisory
+# and CVE IDs to OSV and CVE Services. The code still never leaves: the image gets only the dependency files.
+# To send nothing, use limbowatch.yml next to this file (the sealed scan), which has no network at all.
+#
+# Set-up: copy this file to .github/workflows/. No secrets, no settings, no third-party actions.
+# What it finds and what it costs: https://github.com/limbowatch/limbowatch/blob/main/docs/WATCHER.md#sealed-scan
+#
+# What can reach what:
+#   collect  contents: read. GitHub's own checkout fetches only the dependency files listed below; the contents of
+#            every other file never reach the runner. gh checks the image against its build attestation. No
+#            Limbowatch code runs in this job.
+#   scan     No permissions, no secrets, no repository. It runs the pinned image read-only, with no capabilities, as
+#            nobody, seeing only the dependency files, with the job's token: with no permissions, that token reads
+#            public data only (advisories), not this repository. GitHub allows it 1,000 requests an hour (15,000 on
+#            Enterprise Cloud); the scan makes one per dependency's source repository, and reports any it couldn't
+#            read as not checked.
+#
+# Keep it standalone: only schedule and workflow_dispatch, GitHub-hosted runners, no workflow_call or workflow_run
+# links to other workflows. Never restore an Actions cache in a job that holds secrets.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+env:
+  # Update with each Limbowatch release: https://github.com/limbowatch/limbowatch/releases
+  IMAGE: ghcr.io/limbowatch/limbowatch:0.1.0a21@sha256:375e87f103ca515d58e5f15ed320c61b8f8401646d2bb8d6e93f3c49773e3b1c
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      # Every file Limbowatch reads, by name, and nothing else (OSV-Scanner 2.7.1's lockfile and SBOM readers, and
+      # Limbowatch's own). In most repositories that's a handful of files.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: src
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            # JavaScript
+            package-lock.json
+            npm-shrinkwrap.json
+            pnpm-lock.yaml
+            yarn.lock
+            bun.lock
+            package.json
+            # Python
+            *requirements*.txt
+            Pipfile.lock
+            poetry.lock
+            pdm.lock
+            uv.lock
+            pylock.toml
+            pylock.*.toml
+            # Go, Rust, Ruby, PHP, Elixir, Dart, R, Swift, Haskell
+            go.mod
+            Cargo.lock
+            Cargo.toml
+            Gemfile.lock
+            gems.locked
+            Gemfile
+            composer.lock
+            composer.json
+            mix.lock
+            pubspec.lock
+            package_config.json
+            renv.lock
+            Package.resolved
+            cabal.project.freeze
+            stack.yaml.lock
+            # Java and Kotlin
+            pom.xml
+            *.pom
+            gradle.lockfile
+            buildscript-gradle.lockfile
+            **/gradle/verification-metadata.xml
+            build.gradle
+            build.gradle.kts
+            # .NET
+            *.csproj
+            *.vbproj
+            *.fsproj
+            *.deps.json
+            packages.config
+            packages.lock.json
+            Directory.Packages.props
+            Directory.Build.props
+            # SBOMs
+            *.cdx.json
+            *.cdx.xml
+            bom.json
+            *.spdx
+            *.spdx.*
+            # C and C++: sources taken in by git or archive (reported as not checked here)
+            .gitmodules
+            CMakeLists.txt
+            *.cmake
+            MODULE.bazel
+            *.MODULE.bazel
+            WORKSPACE
+            WORKSPACE.bazel
+            WORKSPACE.bzlmod
+            *.bzl
+            vcpkg.json
+            conan.lock
+            conanfile.txt
+            conanfile.py
+            **/subprojects/*.wrap
+            # a library copied in under third_party/, vendor/ and the like: <root>/<library>/LICENSE
+            **/third_party/*/[Ll][Ii][Cc][Ee][Nn][CcSs][Ee]*
+            **/third_party/*/[Cc][Oo][Pp][Yy][Ii][Nn][Gg]*
+            **/third-party/*/[Ll][Ii][Cc][Ee][Nn][CcSs][Ee]*
+            **/third-party/*/[Cc][Oo][Pp][Yy][Ii][Nn][Gg]*
+            **/thirdparty/*/[Ll][Ii][Cc][Ee][Nn][CcSs][Ee]*
+            **/thirdparty/*/[Cc][Oo][Pp][Yy][Ii][Nn][Gg]*
+            **/3rdparty/*/[Ll][Ii][Cc][Ee][Nn][CcSs][Ee]*
+            **/3rdparty/*/[Cc][Oo][Pp][Yy][Ii][Nn][Gg]*
+            **/vendor/*/[Ll][Ii][Cc][Ee][Nn][CcSs][Ee]*
+            **/vendor/*/[Cc][Oo][Pp][Yy][Ii][Nn][Gg]*
+            **/vendored/*/[Ll][Ii][Cc][Ee][Nn][CcSs][Ee]*
+            **/vendored/*/[Cc][Oo][Pp][Yy][Ii][Nn][Gg]*
+            **/external/*/[Ll][Ii][Cc][Ee][Nn][CcSs][Ee]*
+            **/external/*/[Cc][Oo][Pp][Yy][Ii][Nn][Gg]*
+            **/extern/*/[Ll][Ii][Cc][Ee][Nn][CcSs][Ee]*
+            **/extern/*/[Cc][Oo][Pp][Yy][Ii][Nn][Gg]*
+            **/deps/*/[Ll][Ii][Cc][Ee][Nn][CcSs][Ee]*
+            **/deps/*/[Cc][Oo][Pp][Yy][Ii][Nn][Gg]*
+            **/contrib/*/[Ll][Ii][Cc][Ee][Nn][CcSs][Ee]*
+            **/contrib/*/[Cc][Oo][Pp][Yy][Ii][Nn][Gg]*
+            # never inside installed packages
+            !**/node_modules/**
+      # The checked-out files (git marks them H; the rest are S, skipped), copied without .git: exactly what leaves
+      # this job, listed in the log and the job summary.
+      - name: Copy out the dependency files
+        run: |
+          mkdir deps
+          git -C src ls-files -z -t | sed -z -n 's/^H //p' | (cd src && xargs -0 -r cp -P --parents -t ../deps --)
+          (cd deps && find . \( -type f -o -type l \) | sort) | tee files.txt
+          { echo "**$(grep -c . files.txt) dependency files scanned**"; echo; sed 's/^\.\//- /' files.txt; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Check the image's build attestation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh attestation verify "oci://$IMAGE" --repo limbowatch/limbowatch \
+            --signer-workflow limbowatch/limbowatch/.github/workflows/image.yml
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dependency-files
+          path: deps
+          include-hidden-files: true  # .gitmodules; deps has no .git
+          if-no-files-found: error
+          retention-days: 1
+
+  scan:
+    needs: collect
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions: {}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dependency-files
+          path: in
+      # Exit codes: 0 nothing at or above fail-on, 1 findings at or above it, 2 the scan couldn't run.
+      - name: Scan, reading GitHub directly
+        env:
+          LIMBOWATCH_GITHUB_TOKEN: ${{ github.token }}  # no permissions: public data only
+        run: |
+          mkdir -m 777 out cache
+          docker pull --quiet "$IMAGE"   # the digest collect checked
+          docker run --rm --read-only --tmpfs /tmp \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --user 65534:65534 --pids-limit 256 --memory 4g -e HOME=/tmp \
+            -e LIMBOWATCH_FEED=none -e LIMBOWATCH_GITHUB_TOKEN \
+            -v "$PWD/in:/scan:ro" -v "$PWD/cache:/cache" -v "$PWD/out:/out" \
+            "$IMAGE" \
+            limbowatch scan /scan --cache /cache --fail-on high \
+              -o json=/out/report.json -o markdown=/out/report.md -o html=/out/report.html -o sarif=/out/report.sarif
+      # Also when the scan found something (exit 1), so the findings are shown and kept.
+      - name: Job summary
+        if: ${{ !cancelled() && hashFiles('out/report.md') != '' }}
+        run: cat out/report.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() && hashFiles('out/report.json') != '' }}
+        with:
+          name: limbowatch-report
+          path: out
+          if-no-files-found: error
+          retention-days: 30
+
+  # To post to Slack or open tickets, add a third job with `needs: scan` that downloads limbowatch-report and holds
+  # the secret. Treat the report as untrusted input there: parse it with jq, send only fields you checked (counts,
+  # GHSA IDs, package names, paths that exist in dependency-files), and never put its values into ${{ }}
+  # expressions, GITHUB_ENV or GITHUB_OUTPUT.
