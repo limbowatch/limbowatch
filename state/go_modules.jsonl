@@ -4,6 +4,7 @@
 {"checked_at":"2026-11-13T15:18:46Z","module":"cel.dev/cel-go","path":"cel.dev/cel-go"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"chainguard.dev/apko","path":"chainguard.dev/apko"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"chainguard.dev/melange","path":"chainguard.dev/melange"}
+{"checked_at":"2026-11-19T16:11:12Z","module":"chainguard.dev/sdk","path":"chainguard.dev/sdk"}
 {"checked_at":"2026-11-09T16:52:05Z","module":null,"path":"changedetection.io"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"charm.land/bubbletea/v2","path":"charm.land/bubbletea/v2"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"charm.land/wish/v2","path":"charm.land/wish/v2"}
@@ -58,6 +59,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/Shopify/ejson","path":"github.com/Shopify/ejson"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/SpectoLabs/hoverfly","path":"github.com/SpectoLabs/hoverfly"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/StacklokLabs/mkp","path":"github.com/StacklokLabs/mkp"}
+{"checked_at":"2026-11-19T16:11:12Z","module":"github.com/StacklokLabs/sqlite-mcp","path":"github.com/StacklokLabs/sqlite-mcp"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/TecharoHQ/anubis","path":"github.com/TecharoHQ/anubis"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/Tencent/WeKnora","path":"github.com/Tencent/WeKnora"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/ThalesGroup/crypto11","path":"github.com/ThalesGroup/crypto11"}
@@ -632,6 +634,8 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/daptin/daptin","path":"github.com/daptin/daptin"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/daytonaio/daytona","path":"github.com/daytonaio/daytona"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/ddev/ddev","path":"github.com/ddev/ddev"}
+{"checked_at":"2026-11-19T16:11:12Z","module":"github.com/defilantech/LLMKube","path":"github.com/defilantech/LLMKube"}
+{"checked_at":"2026-11-19T16:11:12Z","module":"github.com/defilantech/llmkube","path":"github.com/defilantech/llmkube"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/dexidp/dex","path":"github.com/dexidp/dex"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/dgraph-io/dgraph/v25","path":"github.com/dgraph-io/dgraph/v25"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/dhax/go-base","path":"github.com/dhax/go-base"}
@@ -790,6 +794,7 @@
 {"checked_at":"2026-11-10T01:23:11Z","module":"github.com/go-ozzo/ozzo-routing/v2","path":"github.com/go-ozzo/ozzo-routing/v2"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/go-pkgz/auth","path":"github.com/go-pkgz/auth"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/go-pkgz/auth/v2","path":"github.com/go-pkgz/auth/v2"}
+{"checked_at":"2026-11-19T16:11:12Z","module":"github.com/go-sql-driver/mysql","path":"github.com/go-sql-driver/mysql"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/go-swagger/go-swagger","path":"github.com/go-swagger/go-swagger"}
 {"checked_at":"2026-11-10T01:23:11Z","module":"github.com/go-task/task/v3","path":"github.com/go-task/task/v3"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/go-vela/server","path":"github.com/go-vela/server"}
@@ -1036,6 +1041,9 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/oasdiff/oasdiff","path":"github.com/oasdiff/oasdiff"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/obot-platform/obot","path":"github.com/obot-platform/obot"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/octo-sts/app","path":"github.com/octo-sts/app"}
+{"checked_at":"2026-11-19T16:11:12Z","module":"github.com/open-feature/flagd/core","path":"github.com/open-feature/flagd/core"}
+{"checked_at":"2026-11-19T16:11:12Z","module":"github.com/open-feature/flagd/flagd","path":"github.com/open-feature/flagd/flagd"}
+{"checked_at":"2026-11-19T16:11:12Z","module":"github.com/open-feature/go-sdk-contrib/providers/flagd","path":"github.com/open-feature/go-sdk-contrib/providers/flagd"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/open-feature/open-feature-operator","path":"github.com/open-feature/open-feature-operator"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/open-policy-agent/opa","path":"github.com/open-policy-agent/opa"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/open-policy-agent/opa-envoy-plugin","path":"github.com/open-policy-agent/opa-envoy-plugin"}
@@ -1053,6 +1061,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/open-telemetry/opentelemetry-collector-contrib/extension/oidcauthextension","path":"github.com/open-telemetry/opentelemetry-collector-contrib/extension/oidcauthextension"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsfirehosereceiver","path":"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsfirehosereceiver"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/githubreceiver","path":"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/githubreceiver"}
+{"checked_at":"2026-11-19T16:11:12Z","module":"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/yanggrpcreceiver","path":"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/yanggrpcreceiver"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/open-telemetry/opentelemetry-operator","path":"github.com/open-telemetry/opentelemetry-operator"}
 {"checked_at":"2026-11-09T16:52:05Z","module":null,"path":"github.com/open-wanderer/wanderer"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/openbao/openbao","path":"github.com/openbao/openbao"}
@@ -1146,6 +1155,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/rclone/rclone","path":"github.com/rclone/rclone"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/refraction-networking/utls","path":"github.com/refraction-networking/utls"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/regclient/regclient","path":"github.com/regclient/regclient"}
+{"checked_at":"2026-11-19T16:11:12Z","module":"github.com/reza-gholizade/k8s-mcp-server","path":"github.com/reza-gholizade/k8s-mcp-server"}
 {"checked_at":"2026-11-09T16:52:05Z","module":null,"path":"github.com/rezmoss/axios4go"}
 {"checked_at":"2026-11-09T16:52:05Z","module":null,"path":"github.com/rmyndharis/OpenWA/sdk/go"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/runatlantis/atlantis","path":"github.com/runatlantis/atlantis"}
@@ -1249,6 +1259,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/wolfi-dev/wolfictl","path":"github.com/wolfi-dev/wolfictl"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/woodpecker-ci/woodpecker","path":"github.com/woodpecker-ci/woodpecker"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/woven-planet/go-zserio","path":"github.com/woven-planet/go-zserio"}
+{"checked_at":"2026-11-19T16:11:12Z","module":"github.com/x402-foundation/x402/go/v2","path":"github.com/x402-foundation/x402/go/v2"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/xddxdd/bird-lg-go","path":"github.com/xddxdd/bird-lg-go"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/xtls/xray-core","path":"github.com/xtls/xray-core"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/xuri/excelize","path":"github.com/xuri/excelize"}
@@ -1266,6 +1277,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/zitadel/zitadel","path":"github.com/zitadel/zitadel"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/zitadel/zitadel-go","path":"github.com/zitadel/zitadel-go"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/zxh326/kite","path":"github.com/zxh326/kite"}
+{"checked_at":"2026-11-19T16:11:12Z","module":"github.com/zzet/gortex","path":"github.com/zzet/gortex"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"gitlab.com/uniget-org/cli","path":"gitlab.com/uniget-org/cli"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.etcd.io/etcd","path":"go.etcd.io/etcd"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.etcd.io/etcd/v3","path":"go.etcd.io/etcd/v3"}
