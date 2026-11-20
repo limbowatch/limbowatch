@@ -716,6 +716,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/filecoin-project/curio","path":"github.com/filecoin-project/curio"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/filecoin-project/go-f3","path":"github.com/filecoin-project/go-f3"}
 {"checked_at":"2026-11-10T01:23:11Z","module":"github.com/filecoin-project/go-jsonrpc","path":"github.com/filecoin-project/go-jsonrpc"}
+{"checked_at":"2026-11-20T16:01:39Z","module":"github.com/filegator/filegator","path":"github.com/filegator/filegator"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/fission/fission","path":"github.com/fission/fission"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/fkie-cad/yapscan","path":"github.com/fkie-cad/yapscan"}
 {"checked_at":"2026-11-09T16:52:05Z","module":null,"path":"github.com/fleetdm/fleet"}
@@ -975,6 +976,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/lxc/incus/v7","path":"github.com/lxc/incus/v7"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/lxc/incus/v7","path":"github.com/lxc/incus/v7/cmd/incus"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/lxc/incus/v7","path":"github.com/lxc/incus/v7/cmd/incusd"}
+{"checked_at":"2026-11-20T16:01:39Z","module":"github.com/mas-bandwidth/netcode.go","path":"github.com/mas-bandwidth/netcode.go"}
 {"checked_at":"2026-11-10T04:06:59Z","module":"github.com/mat/besticon/v3","path":"github.com/mat/besticon/v3"}
 {"checked_at":"2026-11-10T04:06:59Z","module":"github.com/mattn/go-slim","path":"github.com/mattn/go-slim"}
 {"checked_at":"2026-11-09T19:59:20Z","module":"github.com/mattn/go-sqlite3","path":"github.com/mattn/go-sqlite3"}
@@ -1041,6 +1043,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/oasdiff/oasdiff","path":"github.com/oasdiff/oasdiff"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/obot-platform/obot","path":"github.com/obot-platform/obot"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/octo-sts/app","path":"github.com/octo-sts/app"}
+{"checked_at":"2026-11-20T16:01:39Z","module":"github.com/omec-project/amf","path":"github.com/omec-project/amf"}
 {"checked_at":"2026-11-19T16:11:12Z","module":"github.com/open-feature/flagd/core","path":"github.com/open-feature/flagd/core"}
 {"checked_at":"2026-11-19T16:11:12Z","module":"github.com/open-feature/flagd/flagd","path":"github.com/open-feature/flagd/flagd"}
 {"checked_at":"2026-11-19T16:11:12Z","module":"github.com/open-feature/go-sdk-contrib/providers/flagd","path":"github.com/open-feature/go-sdk-contrib/providers/flagd"}
@@ -1055,6 +1058,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/open-policy-agent/opa","path":"github.com/open-policy-agent/opa/v1/plugins/bundle"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/open-policy-agent/opa","path":"github.com/open-policy-agent/opa/v1/plugins/discovery"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/open-policy-agent/opa","path":"github.com/open-policy-agent/opa/v1/server"}
+{"checked_at":"2026-11-20T16:01:39Z","module":"github.com/open-telemetry/opentelemetry-collector-contrib/cmd/opampsupervisor","path":"github.com/open-telemetry/opentelemetry-collector-contrib/cmd/opampsupervisor"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/open-telemetry/opentelemetry-collector-contrib/exporter/sentryexporter","path":"github.com/open-telemetry/opentelemetry-collector-contrib/exporter/sentryexporter"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/open-telemetry/opentelemetry-collector-contrib/extension/azureauthextension","path":"github.com/open-telemetry/opentelemetry-collector-contrib/extension/azureauthextension"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/open-telemetry/opentelemetry-collector-contrib/extension/bearertokenauthextension","path":"github.com/open-telemetry/opentelemetry-collector-contrib/extension/bearertokenauthextension"}
@@ -1283,6 +1287,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.etcd.io/etcd/v3","path":"go.etcd.io/etcd/v3"}
 {"checked_at":"2026-11-09T22:39:40Z","module":"go.keploy.io/server/v3","path":"go.keploy.io/server/v3"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.mongodb.org/mongo-driver","path":"go.mongodb.org/mongo-driver/bson"}
+{"checked_at":"2026-11-20T16:01:39Z","module":"go.mongodb.org/mongo-driver","path":"go.mongodb.org/mongo-driver/mongo"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.mongodb.org/mongo-driver","path":"go.mongodb.org/mongo-driver/mongo/gridfs"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.mongodb.org/mongo-driver/v2","path":"go.mongodb.org/mongo-driver/v2/bson"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.mongodb.org/mongo-driver/v2","path":"go.mongodb.org/mongo-driver/v2/mongo"}
