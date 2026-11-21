@@ -20,7 +20,7 @@ dev = [
     "jsonschema>=4.23",
     "ruff>=0.17.3",
     "mypy>=2.4.1",
-    "import-linter>=2.1",
+    "import-linter>=2.17",
     "pyyaml>=6",
     "pytest-cov>=6",
 ]
