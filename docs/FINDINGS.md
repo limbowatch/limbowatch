@@ -3605,6 +3605,21 @@ Answered:
 - **Implication:** 0.1.0a22 shipped as tested. An independent review of security changes needs more than one round: each fix opened a narrower hole.
 - **Sources:** the runs above; PyPI; ghcr.io; gitlab.com/limbowatch/limbowatch-component.
 
+### F-228
+- **Date:** 2026-11-20 · **Status:** confirmed (official docs and direct observation)
+- **Question:** Can limbo.watch serve its own 404 page in the $0 setup (Free plan, R2 custom domain, Worker only on `/osv/*`)?
+- **Method:**
+  - Live: `curl -i https://limbo.watch/nope.html`, `/nope`, `/nope/`, `/osv/nope.zip`.
+  - Cloudflare docs, read 2026-11-20: Custom Errors overview (modified 2026-11-03), create-rules, edit-error-pages, and the parameters reference.
+- **Result:**
+  - Today a missing file returns 404 with R2's generic Cloudflare "Not Found" page (Cloudflare favicon, no site styling), and the zone's security headers. `/nope` returns a 301 to `/nope/`, which returns 404. A missing file under `/osv/` gets the Worker's plain nginx-style 404.
+  - **R2 public buckets have no error-document setting.** A rewrite rule can't help, because it can't know whether an object exists.
+  - **Custom Errors are paid-only.** The availability table gives Free 0 rules and 0 assets, with no Error Pages. Pro gets 25 rules and 25 assets. The docs say "Custom Errors are available to all paid plans." They apply to 400+ responses from the origin and from Workers. The status is kept unless overridden, and Response Header Transform Rules still apply. Assets are fetched from a URL, inlined, and limited to 1.5 MB. The phase is `http_custom_errors` and the action is `serve_error`.
+  - On Free, the only way is the Worker: run it on page paths, and when the bucket answers 404, return the site's own `404.html` with status 404. Workers Free allows 100,000 requests a day. The busiest recent day was 63,000 requests, all paths, mostly crawlers ([F-175](#f-175)). The routes fail open ([F-183](#f-183)), so past the limit visitors get R2's page again, and nothing breaks.
+- **Caveats:** The docs don't mention R2. Whether Custom Error Rules catch an R2 custom domain's 404 is inferred, not tested; no paid zone was tried.
+- **Implication:** A custom 404 costs either the Pro plan ($20/month billed annually, [F-171](#f-171)) or more Worker traffic within the free tier. Leaving `/feed/*` off the Worker keeps watchers' traffic off the Worker and the feed path unchanged.
+- **Sources:** https://developers.cloudflare.com/rules/custom-errors/ ; …/custom-errors/create-rules/ ; …/custom-errors/edit-error-pages/ ; …/custom-errors/reference/parameters/ ; live responses from limbo.watch.
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
