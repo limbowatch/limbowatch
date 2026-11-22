@@ -98,6 +98,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/authelia/authelia/v4","path":"github.com/authelia/authelia/v4"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/authorizerdev/authorizer","path":"github.com/authorizerdev/authorizer"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/authzed/spicedb","path":"github.com/authzed/spicedb"}
+{"checked_at":"2026-11-22T15:06:10Z","module":"github.com/autobrr/qui","path":"github.com/autobrr/qui"}
 {"checked_at":"2026-11-09T22:39:40Z","module":"github.com/aws/amazon-ssm-agent","path":"github.com/aws/amazon-ssm-agent"}
 {"checked_at":"2026-11-09T22:39:40Z","module":"github.com/aws/amazon-vpc-cni-k8s","path":"github.com/aws/amazon-vpc-cni-k8s"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/aws/aws-advanced-go-wrapper/auth-helpers","path":"github.com/aws/aws-advanced-go-wrapper/auth-helpers"}
@@ -787,6 +788,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/go-jose/go-jose/v4","path":"github.com/go-jose/go-jose/v4"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/go-openapi/jsonpointer","path":"github.com/go-openapi/jsonpointer"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/go-openapi/jsonreference","path":"github.com/go-openapi/jsonreference"}
+{"checked_at":"2026-11-22T15:06:10Z","module":"github.com/go-openapi/runtime","path":"github.com/go-openapi/runtime"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/go-openapi/spec","path":"github.com/go-openapi/spec"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/go-openapi/swag/jsonutils","path":"github.com/go-openapi/swag/jsonutils"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/go-openapi/swag/yamlutils","path":"github.com/go-openapi/swag/yamlutils"}
@@ -838,6 +840,7 @@
 {"checked_at":"2026-11-10T01:23:11Z","module":"github.com/gosnmp/gosnmp","path":"github.com/gosnmp/gosnmp"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/gotd/td","path":"github.com/gotd/td"}
 {"checked_at":"2026-11-09T16:52:05Z","module":null,"path":"github.com/gotenberg/gotenberg"}
+{"checked_at":"2026-11-22T15:06:10Z","module":"github.com/gotenberg/gotenberg/v7","path":"github.com/gotenberg/gotenberg/v7"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/gotenberg/gotenberg/v8","path":"github.com/gotenberg/gotenberg/v8"}
 {"checked_at":"2026-11-11T14:50:36Z","module":"github.com/gotenberg/gotenberg/v9","path":"github.com/gotenberg/gotenberg/v9"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/gotify/server","path":"github.com/gotify/server"}
@@ -1120,6 +1123,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/pion/interceptor","path":"github.com/pion/interceptor"}
 {"checked_at":"2026-11-10T05:26:27Z","module":"github.com/pion/rtp","path":"github.com/pion/rtp"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/pion/stun/v3","path":"github.com/pion/stun/v3"}
+{"checked_at":"2026-11-22T15:06:10Z","module":"github.com/pion/webrtc/v4","path":"github.com/pion/webrtc/v4"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/pkg/sftp","path":"github.com/pkg/sftp"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/platform-mesh/kubernetes-graphql-gateway","path":"github.com/platform-mesh/kubernetes-graphql-gateway"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/play-with-docker/play-with-docker","path":"github.com/play-with-docker/play-with-docker"}
