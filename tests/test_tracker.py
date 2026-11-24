@@ -280,6 +280,39 @@ async def test_budget_stops_polling_but_keeps_progress(tmp_path: Path, no_sleep:
     assert 0 < report.polled < 21
 
 
+@pytest.mark.parametrize("listing_ok", [True, False])
+async def test_osv_presence_from_the_listing_or_per_id(
+    tmp_path: Path, no_sleep: Any, monkeypatch: pytest.MonkeyPatch, listing_ok: bool
+) -> None:
+    """With many advisories open, OSV presence comes from OSV's listing in one request; if the listing can't be read,
+    from one request per advisory, as before (F-231). Each step's time is recorded."""
+    from limbowatch.sources import osv as osv_src
+
+    monkeypatch.setattr(tracker_mod, "OSV_LISTING_MIN", 1)
+    monkeypatch.setattr(osv_src, "LISTING_MIN_GHSA", 1)
+    seed = tmp_path / "seed.txt"
+    seed.write_text("dlclark/regexp2\ngitpython-developers/gitpython\n")
+    store = Store()
+    with respx.mock(assert_all_mocked=True, assert_all_called=False) as router:
+        mock_world(router)
+        listing = router.get(osv_src.LISTING).mock(
+            return_value=httpx.Response(200, content=b"2026-11-24T10:00:00Z,PyPI/GHSA-f9j4-qggq-h239\n")
+            if listing_ok else httpx.Response(503)
+        )  # fmt: skip
+        per_id = next(r for r in router.routes if "api.osv.dev/v1/vulns" in repr(r.pattern))
+        report = await run_once(store, seed, no_sleep)
+    assert report.stopped_early is None and listing.called
+    in_osv = {f["ghsa_id"]: f["in_osv"] for f in store.latest_facts().values()}
+    if listing_ok:
+        assert in_osv == {"GHSA-f9j4-qggq-h239": True, "GHSA-wq9v-j77v-qr26": False}
+        assert not per_id.called
+    else:
+        assert in_osv == {"GHSA-f9j4-qggq-h239": False, "GHSA-wq9v-j77v-qr26": False}  # the mock world's 404s
+        assert per_id.call_count == 2
+    assert set(report.phases) == {"setup", "sync_reviewed", "sync_cve_delta", "poll", "assess",
+                                  "resolve_go_modules", "resolve_git_tags", "checkpoint"}  # fmt: skip
+
+
 async def test_renamed_repo_does_not_duplicate_advisories(tmp_path: Path, no_sleep: Any) -> None:
     """A repo polled under its old and new names returns the same advisory twice (F-060)."""
     seed = tmp_path / "seed.txt"

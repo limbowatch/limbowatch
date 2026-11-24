@@ -57,6 +57,9 @@ BULK_OVERLAP = timedelta(hours=1)  # the export is the List as of 00:00 UTC; re-
 RESERVED_RECHECK = timedelta(hours=20)
 NVD_RECHECK = timedelta(days=7)
 POLL_WORKERS = 8
+# From this many unreviewed advisories, OSV presence comes from one download of OSV's listing (166 MB, seconds)
+# instead of a request each (28,465 took about 8 minutes, F-231). Below it, e.g. a focused tracker, per-ID is cheaper.
+OSV_LISTING_MIN = 2000
 # Go module lookups (F-113): a path's module rarely changes, so each is re-checked twice a year. The first pass over
 # the stored advisories takes about 2,500 proxy requests; later runs only look up new paths.
 GO_MODULE_RECHECK = timedelta(days=180)
@@ -116,6 +119,8 @@ class RunReport:
     # a shorter module), "no_module" (no prefix is a module), failed, and proxy requests
     go_modules: dict[str, int] = field(default_factory=dict)
     git_tags: dict[str, int] = field(default_factory=dict)
+    # Wall-clock seconds per step, checkpoints included: where a run's time goes (F-231)
+    phases: dict[str, int] = field(default_factory=dict)
     events: list[str] = field(default_factory=list)
     http: dict[str, Any] = field(default_factory=dict)
 
@@ -384,9 +389,13 @@ class Tracker:
             async with sem:
                 return await osv.present(self.http, g)
 
-        osv_state = dict(
-            zip([a.ghsa_id for a in open_], await asyncio.gather(*(in_osv(a.ghsa_id) for a in open_)), strict=True)
-        )
+        listed = await osv.ghsa_ids(self.http) if len(open_) >= OSV_LISTING_MIN else None
+        if listed is not None:
+            osv_state: dict[str, bool | None] = {a.ghsa_id: a.ghsa_id in listed for a in open_}
+        else:
+            osv_state = dict(
+                zip([a.ghsa_id for a in open_], await asyncio.gather(*(in_osv(a.ghsa_id) for a in open_)), strict=True)
+            )
         now = datetime.now(UTC)
         stale = sorted({a.cve_id for a in open_ if a.cve_id and self._cve_stale(cves.get(a.cve_id), now)})
         # A record stored under an older LINK_RULE may link an advisory it only mentions (F-120). Where that link
@@ -693,9 +702,17 @@ class Tracker:
 
     async def run(self) -> RunReport:
         report = RunReport(started_at=now_iso())
-        t0 = time.monotonic()
+        t0 = mark = time.monotonic()
+
+        def lap(name: str) -> None:
+            nonlocal mark
+            now = time.monotonic()
+            report.phases[name] = round(now - mark)
+            mark = now
+
         self.load_seeds()
         self.watch_cna_repos()
+        lap("setup")
         steps = [self.sync_reviewed, self.sync_cve_delta] + ([self.collect_releases] if self.cfg.releases else [])
         for step in steps:
             try:
@@ -703,22 +720,28 @@ class Tracker:
             except (BudgetExhausted, DeadlineReached) as e:
                 report.stopped_early = type(e).__name__
             self._checkpoint()
+            lap(step.__name__)
         if report.stopped_early is None:
             await self.poll(report)
             self._checkpoint()
+            lap("poll")
         try:
             await self.assess(report)
         except (BudgetExhausted, DeadlineReached) as e:
             report.stopped_early = report.stopped_early or type(e).__name__
+        lap("assess")
         try:
             await self.resolve_go_modules(report)
         except DeadlineReached:
             report.stopped_early = report.stopped_early or "DeadlineReached"
+        lap("resolve_go_modules")
         try:
             await self.resolve_git_tags(report)
         except DeadlineReached:
             report.stopped_early = report.stopped_early or "DeadlineReached"
+        lap("resolve_git_tags")
         self._checkpoint()
+        lap("checkpoint")
         with self.store.session() as s:
             names = set(s.execute(select(Repo.full_name)).scalars())
             report.watchlist = len(names & self._seeds if self.cfg.only_seeds else names)

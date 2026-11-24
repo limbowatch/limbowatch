@@ -1,10 +1,19 @@
-"""OSV.dev: is an advisory present (imported) yet?"""
+"""OSV.dev: is an advisory present (imported) yet? Per ID from the API, or all at once from the bucket's listing."""
 
 from __future__ import annotations
 
-from limbowatch.http import HttpClient
+import re
+
+from limbowatch.http import HttpClient, ResponseTooLarge
 
 API = "https://api.osv.dev/v1"
+# Every OSV record, one `<modified>,<Ecosystem>/<ID>` line each: 166 MB, 2.9 million lines on 2026-11-24 (F-231)
+LISTING = "https://osv-vulnerabilities.storage.googleapis.com/modified_id.csv"
+LISTING_MAX_BYTES = 1 << 30
+# 38,049 GHSA IDs on 2026-11-24 (F-231). Fewer than this means a broken listing, and reading it would put advisories
+# OSV has in limbo.
+LISTING_MIN_GHSA = 20_000
+_GHSA_LINE = re.compile(rb"/(GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4})$", re.M)
 
 
 async def present(http: HttpClient, vuln_id: str) -> bool | None:
@@ -14,6 +23,20 @@ async def present(http: HttpClient, vuln_id: str) -> bool | None:
     if r.status == 404:
         return False
     return None
+
+
+async def ghsa_ids(http: HttpClient) -> set[str] | None:
+    """Every GHSA ID OSV has, from the bucket's listing of all records: one download instead of a `present` request
+    per advisory. It agreed with `present` on 408 of 408 sampled IDs and is at most an hour behind it (F-231). None
+    when it can't be read or looks incomplete."""
+    try:
+        r = await http.get(LISTING, raw=True, max_bytes=LISTING_MAX_BYTES)
+    except ResponseTooLarge:
+        return None
+    if not r.ok or not isinstance(r.body, bytes):
+        return None
+    ids = {m.decode() for m in _GHSA_LINE.findall(r.body)}
+    return ids if len(ids) >= LISTING_MIN_GHSA else None
 
 
 async def affecting(http: HttpClient, ecosystem: str, name: str, version: str) -> set[str] | None:

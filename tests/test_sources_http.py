@@ -58,6 +58,30 @@ async def test_osv(no_sleep: Any) -> None:
     assert q.call_count == 2 and b.call_count == 2
 
 
+async def test_osv_listing_of_ghsa_ids(no_sleep: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """OSV's bucket listing gives every GHSA ID in one download; a short, failed or oversized one gives None, so the
+    tracker asks per ID instead of reading a broken listing as "not in OSV" (F-231)."""
+    listing = (
+        b"2026-11-24T10:01:48.6Z,npm/GHSA-aaaa-bbbb-cccc\n"
+        b"2026-11-24T10:01:47.1Z,PyPI/GHSA-dddd-eeee-ffff\n"
+        b"2026-11-24T10:01:46.0Z,Maven/GHSA-aaaa-bbbb-cccc\n"  # one record per ecosystem: the same ID again
+        b"2026-11-24T10:01:45.0Z,Docker Hardened Images/DHI-igfc-7ogu-rtph-ttn5\n"
+        b"2026-11-24T10:01:44.0Z,PyPI/PYSEC-2026-1\n"
+    )
+    monkeypatch.setattr(osv, "LISTING_MIN_GHSA", 2)
+    with respx.mock() as r:
+        r.get(osv.LISTING).mock(side_effect=[httpx.Response(200, content=listing),
+                                             httpx.Response(200, content=listing.splitlines()[0]),
+                                             httpx.Response(404),
+                                             httpx.Response(200, content=b"x" * 64)])  # fmt: skip
+        async with HttpClient(sleep=no_sleep) as http:
+            assert await osv.ghsa_ids(http) == {"GHSA-aaaa-bbbb-cccc", "GHSA-dddd-eeee-ffff"}
+            assert await osv.ghsa_ids(http) is None  # fewer IDs than any real listing: broken
+            assert await osv.ghsa_ids(http) is None
+            monkeypatch.setattr(osv, "LISTING_MAX_BYTES", 16)
+            assert await osv.ghsa_ids(http) is None
+
+
 async def test_plain_http_is_refused_and_credentials_go_over_https_only(no_sleep: Any) -> None:
     """Plain http to another machine isn't sent at all, redirects included, unless the user named the host with
     --allow-insecure-http; even then the GitHub token and NVD key stay off it. This machine is fine."""

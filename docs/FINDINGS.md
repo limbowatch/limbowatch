@@ -3649,6 +3649,29 @@ Answered:
 - **Implication:** .github/workflows/dependabot-action-requirements.yml regenerates the file on Dependabot PRs that touch uv.lock, pushes with GITHUB_TOKEN (contents: write), then `gh workflow run ci.yml --ref <branch>` (actions: write); ci.yml gained `workflow_dispatch`. The job is gated on the PR author being `dependabot[bot]` and the head repo being this one (zizmor `bot-conditions`: `github.actor` is spoofable). If point 4 turns out false, switch the push to a GitHub App token stored as a Dependabot secret.
 - **Sources:** https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow ; https://docs.github.com/en/actions/concepts/security/github_token ; https://docs.github.com/en/code-security/dependabot/troubleshooting-dependabot/troubleshooting-dependabot-on-github-actions ; https://docs.github.com/en/code-security/dependabot/working-with-dependabot/automating-dependabot-with-github-actions
 
+### F-231
+- **Date:** 2026-11-24 · **Status:** confirmed (direct observation) for the OSV listing; tentative for the time split (estimated, not measured per step)
+- **Question:** The daily `tracker` run takes 19–28 minutes, and its Track step takes almost all of that. Where does the time go, and what can be cut without lowering coverage?
+- **Method:**
+  - `gh run view --log` for tracker run 45238040225 (2026-11-23) and site runs 45364740750 and 45242560706; per-step times from `gh run view --json jobs`.
+  - `state/runs.jsonl` on `tracker-data` (52 runs): seconds against requests per host, by least squares (42 complete runs, R² 0.84).
+  - Latency from a laptop, 6–10 requests each: `GET api.osv.dev/v1/vulns/<missing GHSA>`, conditional `GET repo1.maven.org/.../maven-metadata.xml`, conditional `GET api.github.com/repos/expressjs/express/security-advisories`.
+  - `Store.export_jsonl` (the checkpoint) timed on the 2026-11-23 state.
+  - `https://osv-vulnerabilities.storage.googleapis.com/modified_id.csv` (`curl -I`, full download). Its GHSA IDs compared with the latest `in_osv` fact of every tracked advisory, then with `GET api.osv.dev/v1/vulns/{id}` for 408 IDs: the 6 disagreements, the 2 recorded present, 300 random absent and 100 random listed ones (seed 20261124).
+- **Result:**
+  - **Run 2026-11-23:** Track 1,490 s of the job's 1,535 s. Requests: api.osv.dev 28,465, repo1.maven.org 7,387, api.github.com 5,677 (5,298 of them 304), cveawg.mitre.org 2,174, raw.githubusercontent.com 1,312; 2,013 repos listed by `git ls-remote`.
+  - **Latency:** OSV 404 0.26–0.28 s; Maven 304 0.09–0.12 s; GitHub 304 0.49–0.73 s. At the client's per-host limits (OSV 16, Maven 4, GitHub 8 polls), that puts OSV presence at about 8 min (28,465 × 0.27 s / 16), GitHub polling about 6.5 min and Maven about 3 min. Eight GitHub workers at about 0.55 s each make about 870 requests a minute, just under GitHub's secondary limit of 900 points a minute, so more polling workers would likely be throttled.
+  - **Checkpoint:** a full export takes 2.5 s on a laptop. It runs about 16 times a run (every 500 polls and after each step) and blocks the event loop each time.
+  - **OSV listing:** 166,290,443 bytes, 2,913,572 lines `<modified>,<Ecosystem>/<ID>`, `Cache-Control: public, max-age=3600`. Last-Modified 10:03:56 UTC with its newest line at 10:01:48: refreshed within minutes. **38,049 distinct GHSA IDs** (npm 8,185, Maven 7,266, PyPI 6,949, Packagist 6,633, Go 5,149, …). Download 2.8–3.3 s; parsing the IDs 0.04 s; peak memory 388 MB through `HttpClient`.
+  - **Agreement:** of 28,465 tracked facts, 28,457 matched the listing. All 6 that differed were recorded absent weeks ago (2026-10-28 to 11-04) and the API now returns 200 for them: the stored facts are stale, not the listing. **All 408 sampled IDs: the listing and the API agree.**
+  - **Site:** `Upload to R2` took 730 s for 28,825 files after a site-code push (every page changed) and 95–320 s on daily runs (5,000–13,000 files), about 40–80 files a second plus about 30 s fixed. F-183's first upload ran at 71 files a second with 10 connections, so the 32 connections since then haven't raised throughput.
+- **Caveats:** the regression is collinear (Maven, CVE lookups and git tags began together), so the time split comes from per-request latency, not from per-step measurement. The latency was measured from a laptop, not a runner. Through its edge cache, the listing can be up to an hour behind the API, so an advisory imported into OSV in the hour before a run is recorded on the next run.
+- **Implication:**
+  - The tracker reads OSV presence from the listing when 2,000 or more advisories are open (`OSV_LISTING_MIN`). That replaces about 28,000 requests and about 8 minutes with one download of a few seconds. Below that (e.g. a focused tracker), or when the listing fails, is too large, or has fewer than 20,000 GHSA IDs, it asks per ID as before, so a broken listing can't put advisories that are in OSV into limbo.
+  - `RunReport.phases` records each step's seconds in `runs.jsonl`, so the next runs measure the split this entry estimates.
+  - Not changed yet: Maven concurrency (4), checkpoint frequency, and the R2 upload, whose limit isn't connections (boto3's per-request CPU under the GIL is a candidate).
+- **Sources:** GitHub Actions run logs; `tracker-data` state; OSV API; OSV's GCS bucket; https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
