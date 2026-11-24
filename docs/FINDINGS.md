@@ -3630,7 +3630,9 @@ Answered:
   - **mustache's GHSA-5hrj-7fc3-cmx9 (critical) left limbo:** reviewed 2026-11-18 16:28 UTC (CVE-2026-130001), 90 days after the maintainers published it (2026-08-20); OSV has it from 16:45 UTC the same day. The other 6 still return 404 from both.
   - **GHSA-hqfg-c8wf-w2g8** (skills-service, critical, CVE-2026-54694, published 2026-06-16): 404 in GitHub's reviewed database and in OSV, 161 days after publication.
   - Live, 2026-11-23: 11,860 advisories in limbo, 93% naming a fixed version; 310 critical or high in limbo in the 55 popular projects' dependency files. In the 7 days to 2026-11-23 18:49 UTC, 1,092 advisories were published in watched repos in ecosystems GitHub reviews and 146 were reviewed (147 left limbo): about 7 in for each 1 out.
-- **Caveats:** One day's check. The flow counts are floors (watched repos only, F-098).
+- **Caveats:**
+  - One day's check. The flow counts are floors (watched repos only, F-098).
+  - GHSA-hqfg-c8wf-w2g8 isn't *in limbo* by the site's definition: it covers a release .jar and a Docker image, not a package in an ecosystem GitHub reviews, so it's likely permanent, not waiting for review ([F-066](#f-066), limbo.watch/why/). Public posts must not call it "waiting for review"; its CVE stayed reserved for 85 days.
 - **Implication:** "7 vs 0" in README.md and the limbo-poc README (table "checked 2026-11-12") is now stale: today it's 6 still in limbo, and mustache shows the end of the lifecycle (reported by every tool once reviewed). Public posts should say 6 of 7, or use the 90-day review as the example. Re-check every number on the day it's posted.
 - **Sources:** GitHub REST API (global and repository advisories); OSV API; https://limbo.watch/metrics.json.
 
