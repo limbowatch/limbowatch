@@ -3637,7 +3637,7 @@ Answered:
 - **Sources:** GitHub REST API (global and repository advisories); OSV API; https://limbo.watch/metrics.json.
 
 ### F-230
-- **Date:** 2026-11-24 · **Status:** confirmed (official docs) for points 1–3; point 4 superseded by [F-231](#f-231) (observed: the dispatched checks don't show on the PR)
+- **Date:** 2026-11-24 · **Status:** confirmed (official docs) for points 1–3; point 4 superseded by [F-232](#f-232) (observed: the dispatched checks don't show on the PR)
 - **Question:** Can a workflow fix a Dependabot uv.lock bump (regenerate integrations/action/requirements.txt), push it to the Dependabot branch, and get CI to test the new head commit?
 - **Method:** Read GitHub's docs on GITHUB_TOKEN-triggered events and on Dependabot-triggered workflows. Checked the repo's settings: `gh api repos/limbowatch/limbowatch/rulesets/27254827` and `.../actions/permissions/workflow`. Context: PR #5 (python group bump) failed `test_action_python_install_is_pinned_with_uv_lock_hashes` because Dependabot updates uv.lock but not the action's hashed requirements.txt.
 - **Result:**
@@ -3671,6 +3671,19 @@ Answered:
   - `RunReport.phases` records each step's seconds in `runs.jsonl`, so the next runs measure the split this entry estimates.
   - Not changed yet: Maven concurrency (4), checkpoint frequency, and the R2 upload, whose limit isn't connections (boto3's per-request CPU under the GIL is a candidate).
 - **Sources:** GitHub Actions run logs; `tracker-data` state; OSV API; OSV's GCS bucket; https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api
+
+### F-232
+- **Date:** 2026-11-24 · **Status:** confirmed (direct observation, one PR)
+- **Question:** Does .github/workflows/dependabot-action-requirements.yml ([F-230](#f-230)) work end to end, and do the checks of the `ci` run it dispatches show on the pull request?
+- **Method:** `@dependabot rebase` on PR #5 (refused: "edited by someone other than Dependabot"), then `@dependabot recreate`: Dependabot closed #5 and opened PR #6 (branch dependabot/uv/python-aff60b9367). Watched `gh run list --branch`, `gh pr checks 6`, REST `commits/{sha}/check-runs` and `check-suites/{id}`, GraphQL `Commit.statusCheckRollup` and `checkSuites` for the head; polled for 5 minutes after the last run finished.
+- **Result:**
+  - Regeneration works: run 45374315999 on Dependabot's 8db793a pushed a33868e as github-actions[bot] (sqlalchemy 2.1.9, typer 0.29.2, pydantic 2.14.4, pydantic-core 2.50.5, tomlkit 0.15.3) and dispatched `ci` (run 45374340681, workflow_dispatch): all 7 jobs passed. `ci` on 8db793a failed as expected (the pin check).
+  - The push created `pull_request` runs of ci, image and dependabot-action-requirements on a33868e in `action_required` (approval) state, with no jobs, as F-230 point 1 says.
+  - **The dispatched checks don't show on the PR.** Its check suite is linked to PR #6 (`pull_requests: [6]`) and has 7 successful check runs on the head commit, but `statusCheckRollup` for a33868e stayed null and `gh pr checks 6` reported "no checks" for 5+ minutes. The PR's merge state is UNSTABLE.
+  - `@dependabot rebase` refuses once anyone else has pushed to the branch; `recreate` may close the PR and open a new one rather than reuse it.
+- **Caveats:** One PR. Untested: whether the rollup stays null without the zero-job `action_required` suites (created after the dispatched suite, they may be what hides it), and whether approving them makes the PR show their results.
+- **Implication:** A GITHUB_TOKEN push plus workflow_dispatch fixes the file but leaves the PR without visible CI. To get normal `pull_request` runs on the fixed commit, push with a GitHub App installation token or PAT stored as a Dependabot secret (F-230 point 2), or approve the queued runs by hand.
+- **Sources:** GitHub REST and GraphQL APIs; https://github.com/limbowatch/limbowatch/pull/6 ; https://github.com/limbowatch/limbowatch/pull/5
 
 ## Archive
 
