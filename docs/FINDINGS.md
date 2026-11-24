@@ -3685,6 +3685,18 @@ Answered:
 - **Implication:** A GITHUB_TOKEN push plus workflow_dispatch fixes the file but leaves the PR without visible CI. To get normal `pull_request` runs on the fixed commit, push with a GitHub App installation token or PAT stored as a Dependabot secret (F-230 point 2), or approve the queued runs by hand.
 - **Sources:** GitHub REST and GraphQL APIs; https://github.com/limbowatch/limbowatch/pull/6 ; https://github.com/limbowatch/limbowatch/pull/5
 
+### F-233
+- **Date:** 2026-11-24 · **Status:** confirmed (direct observation, one PR)
+- **Question:** Answers an open caveat of [F-232](#f-232): once approved, do the `action_required` pull_request runs from a GITHUB_TOKEN push show on the PR? And can they be approved through the API?
+- **Method:** `POST repos/limbowatch/limbowatch/actions/runs/{id}/approve` for runs 45374353653 (ci), 45374353963 (image), 45374353531 (dependabot-action-requirements) on PR #6's head a33868e; then `gh pr checks 6` until nothing was pending.
+- **Result:**
+  - The approve endpoint returned `{}` for all three, and they went from `action_required` to queued. The endpoint's docs describe it for fork PRs from first-time contributors, but it also works for runs held because GITHUB_TOKEN caused the event.
+  - Once approved, the runs show on the PR: 9 checks (7 ci jobs, image, regenerate) all passed. The rollup that stayed null in F-232 filled in.
+  - The re-run of dependabot-action-requirements found nothing to change, as designed.
+- **Caveats:** One PR.
+- **Implication:** With GITHUB_TOKEN, every Dependabot uv PR needs a manual approval before its CI shows, and the dispatched ci adds nothing. The workflow now pushes with a GitHub App installation token kept in Dependabot secrets (LIMBOWATCH_BOT_CLIENT_ID, LIMBOWATCH_BOT_PRIVATE_KEY) and no longer dispatches ci. ci.yml dropped its `workflow_dispatch` trigger. Untested until the App exists and the next Dependabot uv PR arrives.
+- **Sources:** GitHub REST API (actions runs, approve); https://github.com/limbowatch/limbowatch/pull/6 ; https://docs.github.com/en/rest/actions/workflow-runs#approve-a-workflow-run-for-a-fork-pull-request
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)
