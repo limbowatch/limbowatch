@@ -36,6 +36,7 @@ PAGES = (
     "feed/index.html",
     "scan/index.html",
     "why/index.html",
+    "blog/review-gap/index.html",
     "compliance/index.html",
     "methodology/index.html",
     "press/index.html",

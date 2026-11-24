@@ -255,8 +255,14 @@ ol.steps{margin:0;padding:0;list-style:none}ol.steps li{display:flex;gap:16px}
 .story-tl{margin:8px 0 40px;padding:0;list-style:none;border-left:2px solid var(--line)}
 .story-tl li{position:relative;padding:0 0 22px 24px}.story-tl li:before{content:"";position:absolute;left:-6px;top:7px;
 width:10px;height:10px;border-radius:50%;background:var(--bg);border:2px solid var(--mark)}
-.story-tl li.now:before{background:var(--mark)}.story-tl time{display:block;font:13px var(--mono);color:var(--muted)}
+.story-tl li.now{display:block}.story-tl li.now:before{background:var(--mark)}.story-tl time{display:block;font:13px var(--mono);color:var(--muted)}
 .story-tl span{display:block;margin-top:2px;line-height:1.55}
+/* blog post: the why layout, plus headings, lists and code */
+.story .lede{font-size:var(--fs-xl);line-height:1.55;color:var(--ink)}
+.story h2{margin:56px 0 16px;font-size:28px;scroll-margin-top:16px}
+.story ul,.story ol.list{margin:0 0 24px;padding-left:22px;font-size:var(--fs-l);line-height:1.7;color:var(--ink2)}
+.story li{margin-bottom:8px}.story li strong{color:var(--ink)}.story pre{margin:0 0 24px;font-size:var(--fs-xs)}
+.story code{font:.88em var(--mono);overflow-wrap:anywhere}.story .src{font-size:var(--fs-s);color:var(--muted)}.story .f{white-space:nowrap}
 /* cookie consent (only when analytics is on) */
 .consent{position:fixed;left:16px;right:16px;bottom:16px;z-index:30;max-width:600px;margin-left:auto;display:flex;flex-wrap:wrap;
 gap:12px 16px;align-items:center;padding:16px 18px;background:var(--surface);color:var(--ink);border:1px solid var(--border);
@@ -560,7 +566,7 @@ def mark(stroke: str, dot: str, size: int = 30) -> str:
 
 
 LEARN = [("compliance", "/compliance/", "For compliance leads"), ("why", "/why/", "Why I built it"),
-         ("methodology", "/methodology/", "Methodology"), ("press", "/press/", "Press and research"),
+         ("gap", "/blog/review-gap/", "The review gap"), ("methodology", "/methodology/", "Methodology"), ("press", "/press/", "Press and research"),
          ("feed", "/feed/", "Limbo feed (OSV)"), ("quality", "/quality/", "Data quality")]  # fmt: skip
 
 
@@ -597,7 +603,7 @@ def footer(extra: str = "") -> str:
         ("Use it", [("/tracker/", "Tracker"), ("/scan/", "Use it in CI"), ("/scan/standalone/", "Run it standalone"), ("/feed/", "Limbo feed (OSV)"),
                     ("/feed/critical.atom", "Atom: new critical and high"), ("/quality/", "Data quality")]),
         ("Learn", [("/compliance/", "For compliance leads"), ("/methodology/", "Methodology"),
-                   (REPORT_URL, "October 2026 report"), ("/why/", "Why I built it"), (POC_URL, "Proof repository"),
+                   ("/blog/review-gap/", "The review gap"), (REPORT_URL, "October 2026 report"), ("/why/", "Why I built it"), (POC_URL, "Proof repository"),
                    (FINDINGS_URL, "Research log")]),
         ("Contact", [("/press/", "Press and research"), ("/press/#contact", "Email"), (REPO_URL, "GitHub"),
                      (ISSUE_URL, "Daily report by email")]),
@@ -2576,6 +2582,216 @@ both the affected range and the fixed version. If you run a scanner, <a href="/f
     )
 
 
+GAP_POST = "/blog/review-gap/"
+GITHUB_BLOG_2026_06 = (
+    "https://github.blog/security/supply-chain-security/"
+    "inside-the-advisory-database-and-what-happens-when-vulnerability-volume-breaks-records/"
+)
+
+
+def _f(n: int, text: str) -> str:
+    """A link to a FINDINGS entry, so every number in a post can be traced to how it was measured."""
+    return f'<a class="f" href="{FINDINGS_URL}#f-{n:03d}">{E(text)}</a>'
+
+
+def review_gap() -> str:
+    """A dated technical write-up of the review gap (numbers from FINDINGS, checked 2026-11-24, F-229). Static on
+    purpose: a post keeps the numbers of its date, and links the tracker for today's."""
+    steps = [
+        ("20 Aug 2026", "The mustache maintainers publish a critical advisory and release the fix, 1.1.3. Anyone can read it on GitHub."),
+        ("20 Aug to 18 Nov", "Scanners that read GitHub’s Advisory Database or OSV report nothing for 1.1.2. "
+                             "In our public proof repository, which pins 1.1.2, they say so every day."),
+        ("18 Nov, 16:28 UTC", "GitHub reviews the advisory into its Advisory Database, as CVE-2026-130001."),
+        ("18 Nov, 16:45 UTC", "OSV has it. From now on, the tools that read those databases can report it."),
+    ]  # fmt: skip
+    tl = "".join(
+        f"<li{' class="now"' if n == len(steps) - 1 else ''}><time>{E(d)}</time><span>{E(t)}</span></li>"
+        for n, (d, t) in enumerate(steps)
+    )
+    diagram = E(
+        " maintainer publishes        GitHub reviews it       OSV imports it;\n"
+        " a repository advisory       into its global DB      scanners update\n"
+        "        │                            │                       │\n"
+        "────────●────────────────────────────●───────────────────────●──────▶\n"
+        "        │◀──────── in limbo: public, usually fixed, ─────────▶│\n"
+        "                   invisible to Dependabot, npm audit,\n"
+        "                   pip-audit and OSV-Scanner"
+    )
+    body = f"""<header class="top">{header("gap")}</header>
+<main class="wrap"><article class="story">
+<p class="eyebrow"><time datetime="2026-11-24">24 November 2026</time> · Yujia Lin</p>
+<h1 class="page">Fixed upstream, invisible downstream</h1>
+<p class="lede" style="margin-top:24px">When maintainers publish a security advisory on GitHub, Dependabot, npm audit, pip-audit and
+OSV-Scanner can’t see it until GitHub reviews it. In October the median wait was 23 days. This post covers how that gap
+works, how big it is today, and what it took to close it from the outside.</p>
+
+<h2 id="one">One advisory, 90 days</h2>
+<p>On 20 August 2026 the maintainers of <span class="mono">mustache</span>, the Ruby templating gem, published
+<a href="https://github.com/mustache/mustache/security/advisories/GHSA-5hrj-7fc3-cmx9">a critical security advisory</a> and
+released the fix the same day.</p>
+<ol class="story-tl">{tl}</ol>
+<p>In those 90 days the bug, the fix and the lockfile stayed the same. The only thing that changed was the review. Six other
+high or critical advisories in the same <a href="{POC_URL}">proof repository</a> are still waiting. They affect nats-server,
+typebox, go-openapi/spec, go-toml, rubyntlm and scapy, and their fixes were released 53 to 224 days ago
+({_f(229, "F-229")}).</p>
+
+<h2 id="how">How an advisory reaches your scanner</h2>
+<p>GitHub lets maintainers publish a security advisory in their own repository. That <em>repository advisory</em> is public
+straight away, but it isn’t in GitHub’s global Advisory Database, not even marked as unreviewed ({_f(12, "F-012")}).
+GitHub’s curators review it first. Only then is it added to the database, and OSV imports it from there. Dependabot,
+npm audit, pip-audit, OSV-Scanner and many tools built on them read those two databases.</p>
+<pre aria-label="Timeline: a repository advisory is in limbo from publication until GitHub reviews it and OSV imports it">{diagram}</pre>
+<p>I call the time between publication and review <strong>limbo</strong>. During limbo an advisory is public and usually
+already fixed, yet the tools teams rely on to tell them to upgrade can’t see it.</p>
+<p>GitHub’s documentation says review takes up to 72 hours. In June GitHub
+<a href="{GITHUB_BLOG_2026_06}">wrote</a> that since mid-April it has “not consistently met our internal goals for
+publication”, as repository advisories rose to more than 5,000 a week.</p>
+
+<h2 id="wait">How long is the wait?</h2>
+<p>I took the 1,000 advisories GitHub had most recently reviewed, between 24 September and 22 October 2026. 990 of them
+began as repository advisories. For each one I compared when the maintainer published it with when GitHub reviewed it
+({_f(55, "F-055")}, {_f(42, "F-042")}):</p>
+<ul>
+<li><strong>The median wait was 23 days.</strong></li>
+<li><strong>94%</strong> waited longer than 72 hours, and <strong>44%</strong> longer than 30 days.</li>
+<li>Reviews come in batches, and the queue sometimes stops entirely. No advisory at all was reviewed from 7 November 13:24
+to 9 November 16:52 UTC, or from 11 November 00:47 to 12 November 23:30 UTC ({_f(167, "F-167")}).</li>
+</ul>
+
+<h2 id="size">How big is the queue?</h2>
+<p>There’s no public list of repository advisories, so the only way to find them is to ask each repository. limbo.watch
+watches 68,047 repositories ({_f(229, "F-229")}). They include the source repositories of the 10,000 most-used packages in
+each of eight ecosystems, every repository a GitHub-assigned CVE points to, and the origin of every reviewed advisory. On
+23 November it counted:</p>
+<ul>
+<li><strong>11,860 advisories in limbo</strong> in ecosystems GitHub reviews. 93% of them already name a fixed version.</li>
+<li>In the 7 days before, <strong>1,092 were newly published and 146 were reviewed</strong>: more than seven in for each
+one out.</li>
+<li>16,377 more in ecosystems GitHub doesn’t review (C and C++, container images, “other”). Scanners that read GitHub’s
+database will probably never see these.</li>
+</ul>
+<p>Every number is a floor: the tracker only sees the repositories it watches. Today’s counts are on the
+<a href="/tracker/">tracker</a>.</p>
+
+<h2 id="real">Does it reach real projects?</h2>
+<ul>
+<li><strong>Dependabot raised 2,020 alerts on 13 popular projects, and none for 1,080 findings in limbo.</strong> I pushed
+the dependency files of GitLab, LangChain, n8n, Open WebUI, Kubernetes and 8 other projects into private repositories with
+Dependabot alerts on. Those 1,080 findings came from 277 advisories in limbo, and every affected package and version was
+in GitHub’s own dependency graph (8 November, {_f(112, "F-112")}).</li>
+<li><strong>54 of 55 popular projects pin a version with an advisory in limbo.</strong> Their dependency files are
+rechecked daily. On 23 November they held 310 high or critical advisories in limbo, each with a released fix
+(<a href="/popular/">the list</a>).</li>
+<li>In October, 13 of the 14 projects I could read, including GitLab, Forgejo, Gitea and Kubernetes, shipped versions that
+OSV-Scanner reported as having no known vulnerabilities ({_f(55, "F-055")}).</li>
+</ul>
+<p>“Affected” here means the pinned version is inside the range the maintainer published. It doesn’t mean the bug is
+reachable in that project, and dev and test lockfiles count.</p>
+
+<h2 id="cve">CVEs don’t fill the gap</h2>
+<p>CVE-based tools might seem to cover this, but mostly they can’t (<a href="{REPORT_URL}">October report</a>):</p>
+<ul>
+<li>Two thirds or more of the advisories in limbo had <strong>no CVE anywhere</strong>.</li>
+<li>27 cited a CVE ID that was still only <em>reserved</em>, the oldest for 119 days. Looking such an ID up returns
+nothing.</li>
+<li>23 had a CVE from another CNA, almost always VulnCheck, that the advisory itself didn’t cite.</li>
+</ul>
+<p>It also happened to me. A critical advisory I reported in the NSA’s skills-service had its CVE reserved for 85 days. It
+ships as a <span class="mono">.jar</span> and a Docker image rather than a package GitHub reviews, so it will never be
+reviewed at all (<a href="/why/">the story</a>).</p>
+
+<h2 id="build">Closing the gap from the outside</h2>
+<p>Reading repository advisories directly sounds simple:
+<code>GET /repos/{{owner}}/{{repo}}/security-advisories</code>. Turning that into something a scanner can trust took most of
+the work. These were the main problems:</p>
+<ul>
+<li><strong>Finding them.</strong> Since there’s no list, I poll the watched repositories on a schedule. An unchanged
+repository answers a conditional request with 304, which doesn’t count against the rate limit ({_f(58, "F-058")}).
+Advisories follow releases: for 71% of them, the package had a release within a day, and in 82% the release came first
+({_f(100, "F-100")}). So a new release on npm, PyPI, crates.io or Maven triggers a recheck, and quiet repositories can
+wait 30 days.</li>
+<li><strong>Names typed by hand.</strong> OSV-Scanner matches package names exactly, and maintainers type them by hand:
+<code>GitPython</code> instead of PyPI’s <code>gitpython</code>, Packagist names with capitals or stray spaces, Go modules
+wrapped in URLs or Markdown links. 359 names couldn’t match anything until they were normalized, and 406 are still
+malformed and listed on the <a href="/quality/">data quality page</a> ({_f(69, "F-069")}). In Go, the module matters, not
+the path: an advisory for <code>go.opentelemetry.io/otel/sdk</code> isn’t one for <code>go.opentelemetry.io/otel</code>. I
+shipped five false positives before learning that. The Go module proxy now decides ({_f(113, "F-113")},
+{_f(114, "F-114")}).</li>
+<li><strong>Ranges that contradict themselves.</strong> In October, 16% of in-range matches (222 of 1,397) were at or after
+the advisory’s own fixed version, such as a range of <code>&lt; v4.1.5</code> with a fix in <code>v4.1.4</code>
+({_f(51, "F-051")}). Ranges also list alternatives with <code>||</code>, or give one upper bound per release line. Versions
+are compared with each ecosystem’s own rules, never as strings. When a range and its fix disagree, or a range can’t be
+evaluated, the result is <em>possible</em>, never a pass.</li>
+<li><strong>Inventory that fails silently.</strong> OSV-Scanner reads the lockfiles. Without saying so, it reads
+<code>flask&gt;=2</code> as version 2, drops git and path requirements, and skips npm entries that have no
+<code>resolved</code> field ({_f(78, "F-078")}, {_f(81, "F-081")}). Every dependency that couldn’t be checked is reported
+as unchecked, with the reason, never dropped.</li>
+<li><strong>Advisories without a package.</strong> 60% of the feed’s records named no ecosystem OSV knows (C, C++,
+“other”). For the libraries that vcpkg, Bazel and Conan build from, fixes are usually tags: 83% of the fixed versions
+those advisories name are tags in the repository. The feed turns them into OSV git ranges, and a commits-only clone
+answers “does this commit contain the fix?” exactly, with no API quota ({_f(136, "F-136")}, {_f(138, "F-138")}).</li>
+<li><strong>Checking the claims.</strong> Search engines and AI summaries mix up GHSA and CVE IDs, so every claim is
+checked against primary sources: GitHub, OSV, CVE Services and NVD ({_f(49, "F-049")}). Recomputing the October report
+independently found a range-parser error in about 1% of ranges. An audit now samples verdicts live before every release
+({_f(126, "F-126")}).</li>
+</ul>
+
+<h2 id="use">What it produces</h2>
+<ul>
+<li><strong>An open feed</strong> in the OSV schema, rebuilt daily (<a href="/feed/">limbo.watch/feed</a>). The released
+OSV-Scanner can already scan against it offline ({_f(74, "F-074")}).</li>
+<li><strong><code>limbowatch scan</code></strong>, as a <a href="{MARKETPLACE_URL}">GitHub Action</a>, a
+<a href="{CATALOG_URL}">GitLab CI component</a> or a CLI. It checks lockfiles against the feed, writes SARIF, GitLab Code
+Quality, JUnit, CycloneDX and more, and keeps one issue per finding that closes when you upgrade. Once GitHub reviews an
+advisory, your usual scanner takes over. Limbowatch only covers the weeks before.</li>
+<li><strong>Nothing about your project goes to limbo.watch.</strong> The feed is downloaded whole, so limbo.watch can’t
+tell what you scan. You can also skip it with <code>--feed none</code>, or
+<a href="/scan/standalone/">build the feed on your own CI</a>.</li>
+<li><strong>A <a href="{POC_URL}">proof repository</a></strong> that reruns every tool daily, so you don’t have to take my
+word for any of this.</li>
+</ul>
+
+<h2 id="limits">Limits</h2>
+<ul>
+<li>Every count is a floor, because only watched repositories are seen.</li>
+<li>A repository advisory is the maintainer’s own description, and its ranges and names are sometimes wrong. That’s part
+of why review exists, and why Limbowatch reports uncertain matches as possible.</li>
+<li>This isn’t a complaint about GitHub’s curators: review adds real value. The problem is that downstream tools and
+remediation deadlines assume it takes 72 hours.</li>
+</ul>
+
+<h2 id="help">What would help</h2>
+<ul>
+<li><strong>Maintainers:</strong> fill in both the affected range and the fixed version, spell the package name the way
+the registry does, and request a CVE when you publish.</li>
+<li><strong>Scanner and platform teams:</strong> the feed is CC BY 4.0 and in the OSV schema.</li>
+<li><strong>Everyone:</strong> <a href="/check/">check a package</a> in your browser, or <a href="/scan/">add one step to
+CI</a>. The code is <a href="{REPO_URL}">on GitHub</a>, and corrections are welcome.</li>
+</ul>
+<p class="sig">Yujia Lin, creator of Limbowatch</p>
+<p class="src">Numbers are dated and link to the research log entry that measured them. Advisory data: GitHub Advisory
+Database and repository advisories (CC BY 4.0), OSV.dev, CVE Services.</p>
+</article></main>
+{footer()}"""
+    ld = {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "headline": "Fixed upstream, invisible downstream",
+        "datePublished": "2026-11-24",
+        "author": {"@type": "Person", "name": "Yujia Lin"},
+        "publisher": {"@type": "Organization", "name": "Limbowatch", "url": SITE},
+        "url": SITE + GAP_POST,
+    }
+    return page(
+        "Fixed upstream, invisible downstream: the GitHub advisory review gap · limbo.watch",
+        "Maintainers’ security advisories wait a median 23 days for GitHub’s review before Dependabot, npm audit and "
+        "OSV-Scanner can see them. How the gap works, how big it is, and how to close it.",
+        body,
+        GAP_POST,
+        ld,
+    )
+
+
 # --- press and methodology --------------------------------------------------------------------------
 
 
@@ -2936,6 +3152,7 @@ SITEMAP_PAGES = [
     "/popular/",
     "/press/",
     "/why/",
+    GAP_POST,
     "/quality/",
 ]
 
@@ -3043,6 +3260,7 @@ def build(
         "scan/index.html": scan(metrics),
         "scan/standalone/index.html": standalone(metrics),
         "why/index.html": why(metrics),
+        "blog/review-gap/index.html": review_gap(),
         "compliance/index.html": compliance(metrics),
         "quality/index.html": quality(items),
         "methodology/index.html": methodology(metrics),

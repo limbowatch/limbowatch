@@ -116,6 +116,12 @@ def test_css_uses_the_scale() -> None:
     assert not re.search(r"border-radius:(6|8|1[0-8])px", site.CSS)
 
 
+def test_story_timeline_last_item_is_not_the_home_grid() -> None:
+    """The home page's `.now` grid matched the timeline's last item on /why/ and pushed its text aside."""
+    assert ".story-tl li.now{display:block}" in site.CSS
+    assert '<li class="now">' in site.review_gap()
+
+
 def test_home_count_is_sized_from_its_column() -> None:
     """The big count scales with its column, so "10,239" (later "100,000") never runs past it on any screen."""
     assert ".now-n{min-width:0;container-type:inline-size}" in site.CSS
