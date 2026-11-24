@@ -3637,7 +3637,7 @@ Answered:
 - **Sources:** GitHub REST API (global and repository advisories); OSV API; https://limbo.watch/metrics.json.
 
 ### F-230
-- **Date:** 2026-11-24 · **Status:** confirmed (official docs) for points 1–3; tentative for point 4 (docs silent, not yet observed)
+- **Date:** 2026-11-24 · **Status:** confirmed (official docs) for points 1–3; point 4 superseded by [F-231](#f-231) (observed: the dispatched checks don't show on the PR)
 - **Question:** Can a workflow fix a Dependabot uv.lock bump (regenerate integrations/action/requirements.txt), push it to the Dependabot branch, and get CI to test the new head commit?
 - **Method:** Read GitHub's docs on GITHUB_TOKEN-triggered events and on Dependabot-triggered workflows. Checked the repo's settings: `gh api repos/limbowatch/limbowatch/rulesets/27254827` and `.../actions/permissions/workflow`. Context: PR #5 (python group bump) failed `test_action_python_install_is_pinned_with_uv_lock_hashes` because Dependabot updates uv.lock but not the action's hashed requirements.txt.
 - **Result:**
