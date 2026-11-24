@@ -3636,6 +3636,19 @@ Answered:
 - **Implication:** "7 vs 0" in README.md and the limbo-poc README (table "checked 2026-11-12") is now stale: today it's 6 still in limbo, and mustache shows the end of the lifecycle (reported by every tool once reviewed). Public posts should say 6 of 7, or use the 90-day review as the example. Re-check every number on the day it's posted.
 - **Sources:** GitHub REST API (global and repository advisories); OSV API; https://limbo.watch/metrics.json.
 
+### F-230
+- **Date:** 2026-11-24 · **Status:** confirmed (official docs) for points 1–3; tentative for point 4 (docs silent, not yet observed)
+- **Question:** Can a workflow fix a Dependabot uv.lock bump (regenerate integrations/action/requirements.txt), push it to the Dependabot branch, and get CI to test the new head commit?
+- **Method:** Read GitHub's docs on GITHUB_TOKEN-triggered events and on Dependabot-triggered workflows. Checked the repo's settings: `gh api repos/limbowatch/limbowatch/rulesets/27254827` and `.../actions/permissions/workflow`. Context: PR #5 (python group bump) failed `test_action_python_install_is_pinned_with_uv_lock_hashes` because Dependabot updates uv.lock but not the action's hashed requirements.txt.
+- **Result:**
+  1. Events caused by GITHUB_TOKEN create no new workflow runs, except `workflow_dispatch` and `repository_dispatch` ("always create workflow runs"), and pull_request `opened`/`synchronize`/`reopened`, which create runs in an approval-required state. A push to the PR branch with GITHUB_TOKEN therefore doesn't run `ci` without a click; dispatching `ci` does.
+  2. Workflows triggered by Dependabot get a read-only GITHUB_TOKEN and are treated like fork PRs; the `permissions` key can raise it. Only Dependabot secrets are available, not Actions secrets.
+  3. This repo: the `protect main` ruleset has only `non_fast_forward` and `deletion` rules (no required status checks); default workflow token permission is `read`.
+  4. The docs don't say whether a `workflow_dispatch` run's check runs show on the PR for that branch's head commit.
+- **Caveats:** Point 4 is unobserved until the first Dependabot uv bump after .github/workflows/dependabot-action-requirements.yml lands. hatchling's build dependencies aren't in uv.lock, so each regeneration also takes their newest versions from PyPI (tomlkit 0.15.2 → 0.15.3 on 2026-11-24).
+- **Implication:** .github/workflows/dependabot-action-requirements.yml regenerates the file on Dependabot PRs that touch uv.lock, pushes with GITHUB_TOKEN (contents: write), then `gh workflow run ci.yml --ref <branch>` (actions: write); ci.yml gained `workflow_dispatch`. The job is gated on the PR author being `dependabot[bot]` and the head repo being this one (zizmor `bot-conditions`: `github.actor` is spoofable). If point 4 turns out false, switch the push to a GitHub App token stored as a Dependabot secret.
+- **Sources:** https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow ; https://docs.github.com/en/actions/concepts/security/github_token ; https://docs.github.com/en/code-security/dependabot/troubleshooting-dependabot/troubleshooting-dependabot-on-github-actions ; https://docs.github.com/en/code-security/dependabot/working-with-dependabot/automating-dependabot-with-github-actions
+
 ## Archive
 
 (Superseded and refuted entries move here during cleanup.)

@@ -3,6 +3,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:   # dependabot-action-requirements.yml runs it on a branch it pushed to with GITHUB_TOKEN
 permissions:
   contents: read
 concurrency:
