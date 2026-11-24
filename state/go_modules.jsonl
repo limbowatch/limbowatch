@@ -830,6 +830,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/google/go-attestation","path":"github.com/google/go-attestation"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/gookit/goutil","path":"github.com/gookit/goutil"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/gopacket/gopacket","path":"github.com/gopacket/gopacket"}
+{"checked_at":"2026-11-24T18:20:50Z","module":"github.com/gopcua/opcua","path":"github.com/gopcua/opcua"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/goreleaser/goreleaser/v2","path":"github.com/goreleaser/goreleaser/v2"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/goreleaser/nfpm","path":"github.com/goreleaser/nfpm"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/goreleaser/nfpm/v2","path":"github.com/goreleaser/nfpm/v2"}
@@ -1242,6 +1243,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/treeverse/lakefs","path":"github.com/treeverse/lakefs"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/trufflesecurity/trufflehog/v3","path":"github.com/trufflesecurity/trufflehog/v3"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/tursodatabase/turso-cli","path":"github.com/tursodatabase/turso-cli"}
+{"checked_at":"2026-11-24T18:20:50Z","module":"github.com/tus/tusd/v2","path":"github.com/tus/tusd/v2"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/ulikunitz/xz","path":"github.com/ulikunitz/xz/lzma"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/ultravioletrs/cocos","path":"github.com/ultravioletrs/cocos"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/umputun/remark42","path":"github.com/umputun/remark42"}
