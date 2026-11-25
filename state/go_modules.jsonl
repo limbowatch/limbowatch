@@ -560,6 +560,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/charmbracelet/charm","path":"github.com/charmbracelet/charm"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/charmbracelet/soft-serve","path":"github.com/charmbracelet/soft-serve"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/charmbracelet/wish","path":"github.com/charmbracelet/wish"}
+{"checked_at":"2026-11-25T17:41:20Z","module":"github.com/charmbracelet/x/ansi","path":"github.com/charmbracelet/x/ansi"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/cheqd/cheqd-node","path":"github.com/cheqd/cheqd-node"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/cilium/cilium","path":"github.com/cilium/cilium"}
 {"checked_at":"2026-11-12T15:50:47Z","module":"github.com/ckotzbauer/vulnerability-operator","path":"github.com/ckotzbauer/vulnerability-operator"}
@@ -1335,6 +1336,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.senan.xyz/gonic","path":"go.senan.xyz/gonic"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"go.woodpecker-ci.org/woodpecker/v2","path":"go.woodpecker-ci.org/woodpecker/v2"}
 {"checked_at":"2026-11-11T12:03:36Z","module":"go.woodpecker-ci.org/woodpecker/v3","path":"go.woodpecker-ci.org/woodpecker/v3"}
+{"checked_at":"2026-11-25T17:41:20Z","module":"goa.design/goa/v3","path":"goa.design/goa/v3"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"gogs.io/gogs","path":"gogs.io/gogs"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"golang.org/x/crypto","path":"golang.org/x/crypto"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"golang.org/x/oauth2","path":"golang.org/x/oauth2/jws"}
