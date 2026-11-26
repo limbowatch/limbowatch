@@ -762,6 +762,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/gardener/gardener-extension-provider-azure","path":"github.com/gardener/gardener-extension-provider-azure"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/gardener/gardener-extension-provider-gcp","path":"github.com/gardener/gardener-extension-provider-gcp"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/gardener/gardener-extension-provider-openstack","path":"github.com/gardener/gardener-extension-provider-openstack"}
+{"checked_at":"2026-11-26T17:21:48Z","module":"github.com/gen2brain/go-unarr","path":"github.com/gen2brain/go-unarr"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/getarcaneapp/arcane/backend","path":"github.com/getarcaneapp/arcane/backend"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/getarcaneapp/arcane/backend/v2","path":"github.com/getarcaneapp/arcane/backend/v2"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/getaxonflow/axonflow-sdk-go/v7","path":"github.com/getaxonflow/axonflow-sdk-go/v7"}
