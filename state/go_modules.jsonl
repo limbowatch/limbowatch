@@ -16,6 +16,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"filippo.io/age","path":"filippo.io/age/plugin"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"filippo.io/edwards25519","path":"filippo.io/edwards25519"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"fortio.org/proxy","path":"fortio.org/proxy"}
+{"checked_at":"2026-11-27T17:07:20Z","module":"getarcane.dev/arcane/v3","path":"getarcane.dev/arcane/v3"}
 {"checked_at":"2026-11-09T16:52:05Z","module":null,"path":"ghcr.io/akuity/kargo"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"gitea.com/gitea/act_runner","path":"gitea.com/gitea/act_runner"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"gitea.com/gitea/runner","path":"gitea.com/gitea/runner"}
@@ -66,6 +67,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/ThalesIgnite/crypto11","path":"github.com/ThalesIgnite/crypto11"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/TomWright/dasel","path":"github.com/TomWright/dasel"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/VictoriaMetrics/VictoriaMetrics","path":"github.com/VictoriaMetrics/VictoriaMetrics"}
+{"checked_at":"2026-11-27T17:07:20Z","module":"github.com/VirusTotal/yara-x/go","path":"github.com/VirusTotal/yara-x/go"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/Wei-Shaw/sub2api","path":"github.com/Wei-Shaw/sub2api"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/alexandre-daubois/ember","path":"github.com/alexandre-daubois/ember"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/almeidapaulopt/tsdproxy","path":"github.com/almeidapaulopt/tsdproxy"}
