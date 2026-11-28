@@ -585,6 +585,7 @@
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/cloudreve/cloudreve","path":"github.com/cloudreve/cloudreve"}
 {"checked_at":"2026-11-10T00:03:23Z","module":"github.com/cnabio/cnab-go","path":"github.com/cnabio/cnab-go"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/codeclysm/extract/v3","path":"github.com/codeclysm/extract/v3"}
+{"checked_at":"2026-11-28T15:51:57Z","module":"github.com/codenotary/immudb","path":"github.com/codenotary/immudb"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/codenotary/immudb","path":"github.com/codenotary/immudb/pkg/client"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/coder/coder","path":"github.com/coder/coder"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/coder/coder/v2","path":"github.com/coder/coder/v2"}
@@ -1171,6 +1172,7 @@
 {"checked_at":"2026-11-19T16:11:12Z","module":"github.com/reza-gholizade/k8s-mcp-server","path":"github.com/reza-gholizade/k8s-mcp-server"}
 {"checked_at":"2026-11-09T16:52:05Z","module":null,"path":"github.com/rezmoss/axios4go"}
 {"checked_at":"2026-11-09T16:52:05Z","module":null,"path":"github.com/rmyndharis/OpenWA/sdk/go"}
+{"checked_at":"2026-11-28T15:51:57Z","module":"github.com/roadrunner-server/http/v6","path":"github.com/roadrunner-server/http/v6"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/runatlantis/atlantis","path":"github.com/runatlantis/atlantis"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/russellhaering/gosaml2","path":"github.com/russellhaering/gosaml2"}
 {"checked_at":"2026-11-09T16:52:05Z","module":"github.com/russellhaering/goxmldsig","path":"github.com/russellhaering/goxmldsig"}
